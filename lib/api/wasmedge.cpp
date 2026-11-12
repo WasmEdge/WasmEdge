@@ -2665,8 +2665,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ModuleInstanceAddFunction(
     WasmEdge_FunctionInstanceContext *FuncCxt) noexcept {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        std::unique_ptr<WasmEdge::Runtime::Instance::FunctionInstance> Inst(
+        auto Inst = WasmEdge::Runtime::RefHeap::getGlobal()->adopt(
             fromFuncCxt(FuncCxt));
+        if (!Inst) {
+          return Unexpect(ErrCode::Value::WrongInstanceAddress);
+        }
         auto Res =
             fromModCxt(Cxt)->addHostFunc(genStrView(Name), std::move(Inst));
         if (!Res) {
@@ -2746,9 +2749,11 @@ WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
                                 const uint64_t Cost) noexcept {
   try {
     if (Type && HostFunc) {
-      return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
-          std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), HostFunc, Data,
-                                         Cost)));
+      if (auto Inst = WasmEdge::Runtime::Instance::FunctionInstance::create(
+              std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), HostFunc,
+                                             Data, Cost))) {
+        return toFuncCxt(Inst->release());
+      }
     }
   } catch (...) {
     handleCAPIError();
@@ -2763,9 +2768,11 @@ WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                        const uint64_t Cost) noexcept {
   try {
     if (Type && WrapFunc) {
-      return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
-          std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), WrapFunc,
-                                         Binding, Data, Cost)));
+      if (auto Inst = WasmEdge::Runtime::Instance::FunctionInstance::create(
+              std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), WrapFunc,
+                                             Binding, Data, Cost))) {
+        return toFuncCxt(Inst->release());
+      }
     }
   } catch (...) {
     handleCAPIError();
@@ -2795,7 +2802,9 @@ WASMEDGE_CAPI_EXPORT extern const void *WasmEdge_FunctionInstanceGetData(
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_FunctionInstanceDelete(
     WasmEdge_FunctionInstanceContext *Cxt) noexcept {
-  delete fromFuncCxt(Cxt);
+  if (Cxt) {
+    WasmEdge::Runtime::RefHeap::getGlobal()->adopt(fromFuncCxt(Cxt)).reset();
+  }
 }
 
 // <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

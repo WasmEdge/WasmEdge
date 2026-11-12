@@ -1619,7 +1619,9 @@ TEST(ExecutorRegression, ReExportedImportsMatch) {
 /// Regression test for a host function out of any module, typed as the final
 /// `(func)`: it matches `$f` but not the non-final `$g`.
 TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
-  Runtime::Instance::FunctionInstance HostFunc(std::make_unique<Nop>());
+  auto HostFunc =
+      Runtime::Instance::FunctionInstance::create(std::make_unique<Nop>());
+  ASSERT_TRUE(HostFunc);
   Configure Conf;
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(HostFuncTableWasm));
@@ -1627,7 +1629,7 @@ TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
   ASSERT_TRUE(VM.instantiate());
   auto *TabInst = VM.getActiveModule()->findTableExports("tab");
   ASSERT_NE(TabInst, nullptr);
-  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant::makeFunc(&HostFunc)));
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant::makeFunc(HostFunc->get())));
 
   EXPECT_TRUE(VM.execute("call_f"));
   auto CallRes = VM.execute("call_g");

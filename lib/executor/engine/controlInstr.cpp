@@ -45,13 +45,13 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr,
                                      AST::InstrView::iterator &PC) noexcept {
   const auto Ref = StackMgr.pop().get<RefVariant>();
-  if (Ref.isNull()) {
+  const auto *ExnInst = Ref.isNull() ? nullptr : Ref.getExceptionInst();
+  if (ExnInst == nullptr) {
     spdlog::error(ErrCode::Value::AccessNullException);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::AccessNullException);
   }
-  const auto *ExnInst = Ref.getExceptionInst();
   auto *TagInst = ExnInst->getTag();
   // Re-push the captured payload to mirror an initial `throw`, then unwind.
   StackMgr.pushValVec(ExnInst->getPayload());

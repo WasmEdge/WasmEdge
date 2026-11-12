@@ -688,9 +688,15 @@ Executor::proxyCatchPop(Runtime::StackManager &,
     const auto *Inst = PendingExn.Inst;
     if (Inst == nullptr) {
       assuming(ModInst);
-      Inst = const_cast<Runtime::Instance::ModuleInstance *>(ModInst)
-                 ->newException(
-                     TagInst, std::vector<ValVariant>(PendingExn.getPayload()));
+      auto Res =
+          const_cast<Runtime::Instance::ModuleInstance *>(ModInst)
+              ->newException(TagInst,
+                             std::vector<ValVariant>(PendingExn.getPayload()));
+      if (unlikely(!Res)) {
+        PendingExn = {};
+        return Unexpect(Res);
+      }
+      Inst = *Res;
     }
     Out[Idx] = RefVariant::makeException(Inst);
   }

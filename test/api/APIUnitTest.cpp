@@ -4,6 +4,7 @@
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "experimental/span.hpp"
+#include "runtime/refheap.h"
 #include "wasmedge/wasmedge.h"
 
 #include <algorithm>
@@ -2957,6 +2958,31 @@ TEST(APICoreTest, TableGlobalWriteValueType) {
   WasmEdge_TableTypeDelete(TabType);
   WasmEdge_GlobalTypeDelete(GlobType);
   WasmEdge_VMDelete(VM);
+}
+
+TEST(APICoreTest, FunctionInstanceInHeap) {
+  auto *Heap = WasmEdge::Runtime::RefHeap::getGlobal();
+  ASSERT_NE(Heap, nullptr);
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  WasmEdge_FunctionInstanceContext *FuncCxt =
+      WasmEdge_FunctionInstanceCreate(FuncType, externTerm, nullptr, 0);
+  ASSERT_NE(FuncCxt, nullptr);
+  EXPECT_NE(Heap->getOffset(FuncCxt), 0U);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  EXPECT_EQ(Heap->getOffset(FuncCxt), 0U);
+
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externTerm, nullptr, 0);
+  ASSERT_NE(FuncCxt, nullptr);
+  WasmEdge_String Name = WasmEdge_StringCreateByCString("m");
+  WasmEdge_ModuleInstanceContext *ModCxt = WasmEdge_ModuleInstanceCreate(Name);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddFunction(ModCxt, Name, FuncCxt)));
+  EXPECT_NE(Heap->getOffset(FuncCxt), 0U);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  EXPECT_EQ(Heap->getOffset(FuncCxt), 0U);
+  WasmEdge_StringDelete(Name);
+  WasmEdge_FunctionTypeDelete(FuncType);
 }
 
 TEST(APICoreTest, ModuleInstance) {

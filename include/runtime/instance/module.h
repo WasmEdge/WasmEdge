@@ -226,14 +226,19 @@ public:
       return Unexpect(ErrCode::Value::WrongVMWorkflow);
     }
     EXPECTED_TRY(unsafeImportDefinedType(Func->getDefinedType()));
-    unsafeAddHostInstance(
-        Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
-        std::make_unique<FunctionInstance>(
-            this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func)));
+    auto Inst = FunctionInstance::create(
+        this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func));
+    if (unlikely(!Inst)) {
+      Types.pop_back();
+      CanonTypeIds.pop_back();
+      return Unexpect(Inst);
+    }
+    unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
+                          std::move(*Inst));
     return {};
   }
   Expect<void> addHostFunc(std::string_view Name,
-                           std::unique_ptr<FunctionInstance> &&Func) {
+                           UniqueHeapPtr<FunctionInstance> &&Func) {
     std::unique_lock Lock(Mutex);
     if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
       return Unexpect(ErrCode::Value::WrongVMWorkflow);
@@ -375,10 +380,14 @@ protected:
   }
 
   /// Create and add instances to this module instance.
-  template <typename... Args> void addFunc(Args &&...Values) {
+  template <typename... Args> Expect<void> addFunc(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
-                      std::forward<Args>(Values)...);
+    assuming(!isInstantiateFinalized());
+    EXPECTED_TRY(auto Inst,
+                 FunctionInstance::create(this, std::forward<Args>(Values)...));
+    OwnedFuncInsts.push_back(std::move(Inst));
+    FuncInsts.push_back(OwnedFuncInsts.back().get());
+    return {};
   }
   template <typename... Args> void addTable(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -420,10 +429,11 @@ protected:
     return OwnedStructInsts.back().get();
   }
   template <typename... Args>
-  ExceptionInstance *newException(Args &&...Values) {
+  Expect<ExceptionInstance *> newException(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    OwnedExceptionInsts.push_back(
-        std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    EXPECTED_TRY(auto Inst,
+                 ExceptionInstance::create(std::forward<Args>(Values)...));
+    OwnedExceptionInsts.push_back(std::move(Inst));
     return OwnedExceptionInsts.back().get();
   }
 
@@ -654,13 +664,11 @@ protected:
   }
 
   /// Unsafely add and export the existing instance to this module.
-  template <typename T, typename... Args>
-  std::enable_if_t<IsEntityV<T>, void>
-  unsafeAddHostInstance(std::string_view Name,
-                        std::vector<std::unique_ptr<T>> &OwnedInstsVec,
-                        std::vector<T *> &InstsVec,
-                        std::map<std::string, T *, std::less<>> &InstsMap,
-                        std::unique_ptr<T> &&Inst) {
+  template <typename T, typename OwnerT>
+  std::enable_if_t<IsEntityV<T>, void> unsafeAddHostInstance(
+      std::string_view Name, std::vector<OwnerT> &OwnedInstsVec,
+      std::vector<T *> &InstsVec,
+      std::map<std::string, T *, std::less<>> &InstsMap, OwnerT &&Inst) {
     OwnedInstsVec.push_back(std::move(Inst));
     InstsVec.push_back(OwnedInstsVec.back().get());
     InstsMap.insert_or_assign(std::string(Name), InstsVec.back());
@@ -814,7 +822,7 @@ protected:
   std::vector<uint32_t> CanonTypeIds;
 
   /// Owned instances in this module.
-  std::vector<std::unique_ptr<FunctionInstance>> OwnedFuncInsts;
+  std::vector<UniqueHeapPtr<FunctionInstance>> OwnedFuncInsts;
   std::vector<std::unique_ptr<TableInstance>> OwnedTabInsts;
   std::vector<std::unique_ptr<MemoryInstance>> OwnedMemInsts;
   std::vector<std::unique_ptr<TagInstance>> OwnedTagInsts;
@@ -823,7 +831,7 @@ protected:
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
   std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
   std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
-  std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
+  std::vector<UniqueHeapPtr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.
   std::vector<FunctionInstance *> FuncInsts;

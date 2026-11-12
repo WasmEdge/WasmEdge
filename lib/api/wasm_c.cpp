@@ -699,28 +699,24 @@ struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm_func_callback_t cb) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
-    inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(s, ft, cb));
+    make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm_func_callback_with_env_t cb, void *env,
               void (*fin)(void *)) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
-    inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
+    make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm::Func::callback cb) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
-    inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(s, ft, cb));
+    make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm::Func::callback_with_env cb, void *env,
               void (*fin)(void *)) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
-    inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
+    make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
   }
   // Non-owning view (for wasm_instance_exports and the funcref values).
   wasm_func_t(wasm::Store *s,
@@ -728,14 +724,28 @@ struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
       : wasm_ref_base_t<wasm_func_t>(s), owned(false) {
     inst = fi;
   }
-  ~wasm_func_t() {
-    if (owned && inst) {
-      delete inst;
+  static wasm_func_t *checked(wasm_func_t *f) noexcept {
+    if (f && !f->inst) {
+      f->decrease_ref();
+      return nullptr;
     }
+    return f;
   }
   const wasm::ExternKind mkind = wasm::ExternKind::FUNC;
   bool owned;
-  WasmEdge::Runtime::Instance::FunctionInstance *inst;
+  WasmEdge::Runtime::UniqueHeapPtr<
+      WasmEdge::Runtime::Instance::FunctionInstance>
+      holder;
+  WasmEdge::Runtime::Instance::FunctionInstance *inst = nullptr;
+
+private:
+  void make_inst(std::unique_ptr<wasm_hostfunc_t> &&hf) noexcept {
+    if (auto res = WasmEdge::Runtime::Instance::FunctionInstance::create(
+            std::move(hf))) {
+      holder = std::move(*res);
+      inst = holder.get();
+    }
+  }
 };
 
 // wasm_global_t implementation.
@@ -1832,7 +1842,8 @@ WASMEDGE_CAPI_EXPORT OWN wasm_func_t *
 wasm_func_new(wasm_store_t *store, const wasm_functype_t *type,
               wasm_func_callback_t callback) {
   if (store && type && callback) {
-    return new (std::nothrow) wasm_func_t(store, *type, callback);
+    return wasm_func_t::checked(new (std::nothrow)
+                                    wasm_func_t(store, *type, callback));
   }
   return nullptr;
 }
@@ -1842,8 +1853,8 @@ wasm_func_new_with_env(wasm_store_t *store, const wasm_functype_t *type,
                        wasm_func_callback_with_env_t callback, void *env,
                        void (*finalizer)(void *)) {
   if (store && type && callback) {
-    return new (std::nothrow)
-        wasm_func_t(store, *type, callback, env, finalizer);
+    return wasm_func_t::checked(
+        new (std::nothrow) wasm_func_t(store, *type, callback, env, finalizer));
   }
   return nullptr;
 }
@@ -2801,8 +2812,8 @@ wasm::own<wasm::Func> wasm::Func::make(wasm::Store *store,
                                        const wasm::FuncType *type,
                                        wasm::Func::callback callback) {
   if (store && type && callback) {
-    return wasm::make_own(new (std::nothrow)
-                              wasm_func_t(store, *type, callback));
+    return wasm::make_own(wasm_func_t::checked(
+        new (std::nothrow) wasm_func_t(store, *type, callback)));
   }
   return nullptr;
 }
@@ -2812,8 +2823,8 @@ wasm::own<wasm::Func> wasm::Func::make(wasm::Store *store,
                                        wasm::Func::callback_with_env callback,
                                        void *env, void (*finalizer)(void *)) {
   if (store && type && callback) {
-    return wasm::make_own(
-        new (std::nothrow) wasm_func_t(store, *type, callback, env, finalizer));
+    return wasm::make_own(wasm_func_t::checked(new (std::nothrow) wasm_func_t(
+        store, *type, callback, env, finalizer)));
   }
   return nullptr;
 }

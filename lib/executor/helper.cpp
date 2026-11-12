@@ -448,7 +448,7 @@ Expect<void> Executor::throwException(
           std::vector<ValVariant> Vec(Payload.begin(), Payload.end());
           auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(
               StackMgr.getModule());
-          Inst = ModInst->newException(&TagInst, std::move(Vec));
+          EXPECTED_TRY(Inst, ModInst->newException(&TagInst, std::move(Vec)));
         }
         if (C.IsAll) {
           StackMgr.eraseValueStack(AssocValSize, 0);

@@ -146,9 +146,11 @@ WasmEdge_ModuleInstanceAddFunction_Compat_017(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_FunctionInstanceContext *FuncCxt) {
   if (Cxt && FuncCxt) {
-    static_cast<void>(fromModCxt(Cxt)->addHostFunc(
-        genStrView(Name), std::unique_ptr<Runtime::Instance::FunctionInstance>(
-                              fromFuncCxt(FuncCxt))));
+    if (auto Inst =
+            Runtime::RefHeap::getGlobal()->adopt(fromFuncCxt(FuncCxt))) {
+      static_cast<void>(
+          fromModCxt(Cxt)->addHostFunc(genStrView(Name), std::move(Inst)));
+    }
   }
 }
 

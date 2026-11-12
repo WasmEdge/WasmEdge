@@ -17,6 +17,7 @@
 #include "common/symbol.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/composite.h"
+#include "runtime/refheap.h"
 #include "runtime/typetable.h"
 
 #include <cstddef>
@@ -29,6 +30,14 @@
 namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
+class FunctionInstance;
+} // namespace Instance
+
+template <> struct HeapTraits<Instance::FunctionInstance> {
+  static constexpr HeapKind Kind = HeapKind::Function;
+};
+
+namespace Instance {
 
 class ModuleInstance;
 
@@ -37,13 +46,25 @@ public:
   using CompiledFunction = void;
 
   FunctionInstance() = delete;
-  /// Move constructor.
-  FunctionInstance(FunctionInstance &&Inst) noexcept
-      : CompositeBase(Inst.ModInst, Inst.TypeIdx),
-        CompiledCode(Inst.CompiledCode), FuncType(Inst.FuncType),
-        Data(std::move(Inst.Data)), HostTypeId(Inst.HostTypeId) {
-    assuming(ModInst);
+  FunctionInstance(const FunctionInstance &) = delete;
+  FunctionInstance(FunctionInstance &&) = delete;
+  FunctionInstance &operator=(const FunctionInstance &) = delete;
+  FunctionInstance &operator=(FunctionInstance &&) = delete;
+
+  /// Create a function instance in a slot of the global reference heap.
+  template <typename... ArgsT>
+  static Expect<UniqueHeapPtr<FunctionInstance>>
+  create(ArgsT &&...Args) noexcept {
+    auto *Heap = RefHeap::getGlobal();
+    if (Heap == nullptr) {
+      return Unexpect(ErrCode::Value::RefHeapFull);
+    }
+    return Heap->makeUnique<FunctionInstance>(std::forward<ArgsT>(Args)...);
   }
+
+private:
+  friend class Runtime::RefHeap;
+
   /// Constructor for native function.
   FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
                    const AST::FunctionType &Type,
@@ -80,6 +101,7 @@ public:
     }
   }
 
+public:
   /// Check whether this is a native wasm function.
   bool isWasmFunction() const noexcept {
     return std::holds_alternative<WasmFunction>(Data);

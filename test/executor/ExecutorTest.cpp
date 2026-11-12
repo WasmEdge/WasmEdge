@@ -684,6 +684,32 @@ TEST(RefVariant, Factories) {
       RefVariant().isSameRef(RefVariant(ValType(TypeCode::RefNull, 0))));
 }
 
+const std::array<WasmEdge::Byte, 41> StaleThrowRefWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x69, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0b, 0x01,
+    0x07, 0x72, 0x65, 0x74, 0x68, 0x72, 0x6f, 0x77, 0x00, 0x00, 0x0a,
+    0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x0a, 0x0b};
+
+TEST(RefVariant, StaleException) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::ExceptionHandling);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(StaleThrowRefWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  alignas(16) static std::array<std::byte, 64> TagStorage{};
+  auto ExnObj = Runtime::Instance::ExceptionInstance::create(
+      reinterpret_cast<Runtime::Instance::TagInstance *>(TagStorage.data()),
+      {});
+  ASSERT_TRUE(ExnObj);
+  std::vector<ValVariant> Params = {RefVariant::makeException(ExnObj->get())};
+  ExnObj->reset();
+  auto R = VM.execute("rethrow"sv, Params,
+                      std::vector<ValType>{ValType(TypeCode::ExnRef)});
+  ASSERT_FALSE(R);
+  EXPECT_EQ(R.error(), ErrCode::Value::AccessNullException);
+}
+
 TEST(I31Encoding, Interpreter) {
   WasmEdge::Configure Conf;
   Conf.addProposal(Proposal::GC);
@@ -941,8 +967,10 @@ TEST(CanonicalTypeTable, RefTest) {
     return (*R)[0].first.get<uint32_t>();
   };
   EXPECT_EQ(Test(Func), 1U);
-  Runtime::Instance::FunctionInstance Standalone(std::make_unique<I32Echo>());
-  EXPECT_EQ(Test(&Standalone), 1U);
+  auto Standalone =
+      Runtime::Instance::FunctionInstance::create(std::make_unique<I32Echo>());
+  ASSERT_TRUE(Standalone);
+  EXPECT_EQ(Test(Standalone->get()), 1U);
 }
 
 std::array<WasmEdge::Byte, 41> RefTestFuncWasm{
@@ -964,22 +992,26 @@ public:
 };
 
 TEST(CanonicalTypeTable, StandaloneHostFunction) {
-  Runtime::Instance::FunctionInstance Standalone(std::make_unique<I32Echo>());
-  const auto Id = Standalone.getHostCanonicalTypeId();
+  auto Standalone =
+      Runtime::Instance::FunctionInstance::create(std::make_unique<I32Echo>());
+  ASSERT_TRUE(Standalone);
+  const auto Id = (*Standalone)->getHostCanonicalTypeId();
   ASSERT_TRUE(Id.has_value());
   Runtime::Instance::ModuleInstance Host("host"sv);
   ASSERT_TRUE(Host.addHostFunc("echo"sv, std::make_unique<I32Echo>()));
   EXPECT_EQ(*Id, Host.getCanonicalTypeId(0));
 
-  Runtime::Instance::FunctionInstance Typed(std::make_unique<TypedRefHost>());
-  EXPECT_FALSE(Typed.getHostCanonicalTypeId().has_value());
+  auto Typed = Runtime::Instance::FunctionInstance::create(
+      std::make_unique<TypedRefHost>());
+  ASSERT_TRUE(Typed);
+  EXPECT_FALSE((*Typed)->getHostCanonicalTypeId().has_value());
   WasmEdge::Configure Conf;
   Conf.addProposal(Proposal::GC);
   WasmEdge::VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(RefTestFuncWasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
-  std::vector<ValVariant> Params = {RefVariant::makeFunc(&Typed)};
+  std::vector<ValVariant> Params = {RefVariant::makeFunc(Typed->get())};
   auto R = VM.execute("test"sv, Params,
                       std::vector<ValType>{ValType(TypeCode::FuncRef)});
   ASSERT_TRUE(R);

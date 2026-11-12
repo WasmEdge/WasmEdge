@@ -28,19 +28,19 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
   if (CodeSegs[0].getSymbol() != false) {
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
       auto Symbol = CodeSegs[I].getSymbol();
-      ModInst.addFunc(
+      EXPECTED_TRY(ModInst.addFunc(
           TypeIdxs[I],
           (*ModInst.getType(TypeIdxs[I]))->getCompositeType().getFuncType(),
-          std::move(Symbol));
+          std::move(Symbol)));
     }
   } else {
     // Iterate through the code segments to instantiate function instances.
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
       // Create and add the function instance to the module instance.
-      ModInst.addFunc(
+      EXPECTED_TRY(ModInst.addFunc(
           TypeIdxs[I],
           (*ModInst.getType(TypeIdxs[I]))->getCompositeType().getFuncType(),
-          CodeSegs[I].getLocals(), CodeSegs[I].getExpr().getInstrs());
+          CodeSegs[I].getLocals(), CodeSegs[I].getExpr().getInstrs()));
     }
   }
   return {};

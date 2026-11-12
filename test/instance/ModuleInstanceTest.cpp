@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "runtime/instance/module.h"
+#include "runtime/refheap.h"
 
 #include <cstddef>
 #include <functional>
@@ -69,6 +70,24 @@ std::function<void(void *)> makeFinalizer() {
       Events->push_back(Event::Finalizer);
     }
   };
+}
+
+class NopHost : public Runtime::HostFunction<NopHost> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &) { return {}; }
+};
+
+class HeapModule final : public Runtime::Instance::ModuleInstance {
+public:
+  using ModuleInstance::addFunc;
+  using ModuleInstance::getFunc;
+  using ModuleInstance::ModuleInstance;
+  using ModuleInstance::newException;
+};
+
+bool inPart(uint32_t Off, Runtime::HeapKind Kind) {
+  return Off != 0 && Off - Runtime::RefHeap::getPartBase(Kind) <
+                         Runtime::RefHeap::kPartSize;
 }
 
 struct FinalizerContext {
@@ -144,4 +163,48 @@ TEST(ModuleInstanceTest, DeepCascadeDoesNotOverflowStack) {
   Mods[0]->terminate();
   EXPECT_EQ(Events.size(), 2 * N)
       << "every module in the chain must run its dtor and finalizer once";
+}
+
+TEST(ModuleInstanceTest, FunctionsInHeap) {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  ASSERT_NE(Heap, nullptr);
+  AST::FunctionType FuncType;
+  uint32_t DefinedOff = 0;
+  uint32_t HostOff = 0;
+  {
+    HeapModule Mod("m");
+    ASSERT_TRUE(Mod.addFunc(0, FuncType,
+                            Span<const std::pair<uint32_t, ValType>>(),
+                            AST::InstrView()));
+    ASSERT_TRUE(Mod.addHostFunc("h", std::make_unique<NopHost>()));
+    auto Defined = Mod.getFunc(0);
+    auto Host = Mod.getFunc(1);
+    ASSERT_TRUE(Defined);
+    ASSERT_TRUE(Host);
+    DefinedOff = Heap->getOffset(*Defined);
+    HostOff = Heap->getOffset(*Host);
+    EXPECT_TRUE(inPart(DefinedOff, Runtime::HeapKind::Function));
+    EXPECT_TRUE(inPart(HostOff, Runtime::HeapKind::Function));
+    EXPECT_EQ(Heap->decodeObject(Runtime::HeapKind::Function, DefinedOff),
+              *Defined);
+  }
+  EXPECT_EQ(Heap->getHeader(DefinedOff), nullptr);
+  EXPECT_EQ(Heap->getHeader(HostOff), nullptr);
+}
+
+TEST(ModuleInstanceTest, ExceptionsInHeap) {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  ASSERT_NE(Heap, nullptr);
+  AST::SubType Sub;
+  Runtime::Instance::TagInstance Tag(AST::TagType(0, &Sub), &Sub);
+  uint32_t Off = 0;
+  {
+    HeapModule Mod("m");
+    auto Exn = Mod.newException(&Tag, std::vector<ValVariant>{});
+    ASSERT_TRUE(Exn);
+    Off = Heap->getOffset(*Exn);
+    EXPECT_TRUE(inPart(Off, Runtime::HeapKind::Exception));
+    EXPECT_EQ((*Exn)->getTag(), &Tag);
+  }
+  EXPECT_EQ(Heap->getHeader(Off), nullptr);
 }

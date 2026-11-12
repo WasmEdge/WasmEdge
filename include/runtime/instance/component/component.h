@@ -305,7 +305,7 @@ public:
   }
 
   // Index space: core function.
-  void addCoreFunction(std::unique_ptr<FunctionInstance> &&Inst) noexcept {
+  void addCoreFunction(UniqueHeapPtr<FunctionInstance> &&Inst) noexcept {
     OwnedCoreFuncInsts.push_back(std::move(Inst));
     CoreFuncInsts.push_back(OwnedCoreFuncInsts.back().get());
   }
@@ -462,7 +462,7 @@ private:
   std::vector<std::unique_ptr<Component::FunctionInstance>> OwnedFuncInsts;
   // std::vector<std::unique_ptr<AST::Component::DefType>> OwnedTypes;
   std::vector<std::unique_ptr<ComponentInstance>> OwnedCompInsts;
-  std::vector<std::unique_ptr<FunctionInstance>> OwnedCoreFuncInsts;
+  std::vector<UniqueHeapPtr<FunctionInstance>> OwnedCoreFuncInsts;
   // std::vector<std::unique_ptr<AST::Component::CoreDefType>> OwnedCoreTypes;
   std::vector<std::unique_ptr<ModuleInstance>> OwnedCoreModInsts;
   // Holder modules for synthesized host functions (e.g., canon lower thunks).

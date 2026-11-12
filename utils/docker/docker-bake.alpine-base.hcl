@@ -5,8 +5,12 @@ group "default" {
 target "alpine-base" {
   dockerfile = "Dockerfile.alpine-base"
   context    = "utils/docker"
-  # Build for both major architectures at once
-  platforms  = ["linux/amd64", "linux/arm64"]
-  # Tag it clearly so we can use it later
-  tags       = ["wasmedge/wasmedge:alpine-base-3.23"]
+
+  matrix     = {
+    arch = ["amd64", "arm64"]
+  }
+
+  name       = "alpine-base-${arch}"
+  platforms  = ["linux/${arch}"]
+  tags       = ["wasmedge/wasmedge:alpine-base-3.23-${arch}"]
 }

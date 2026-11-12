@@ -888,6 +888,11 @@ E(InvalidAOTConfigure, 0x000D, "invalid AOT/JIT configure")
 E(AOTNotImpl, 0x000E, "Not implemented instructions in AOT/JIT")
 // Lazy JIT Compilation Error
 E(LazyCompilationError, 0x000F, "Lazy JIT compilation failure")
+// Coredump Restore Error
+E(CoredumpMalformed, 0x0010, "coredump malformed")
+E(CoredumpMismatch, 0x0011, "coredump mismatch")
+E(CoredumpUnsupported, 0x0012, "coredump state unsupported")
+E(CoredumpAllocationFailed, 0x0013, "coredump allocation failed")
 
 // Load phase
 // @{
@@ -995,9 +1000,9 @@ E(ComponentNestLevelExceeded, 0x110E, "component nesting level exceeded")
 E(NonZeroReservedByte, 0x110F, "non-zero reserved byte")
 // More than one `implements` attribute on the same extern name
 E(ComponentImplementsDuplicate, 0x1110, "duplicate 'implements' option in name")
-// More than one `versionsuffix` attribute on the same extern name
+// More than one `version-suffix` attribute on the same extern name
 E(ComponentVersionSuffixDuplicate, 0x1111,
-  "duplicate 'versionsuffix' option in name")
+  "duplicate 'version-suffix' option in name")
 // More than one `external-id` attribute on the same extern name
 E(ComponentExternalIdDuplicate, 0x1112,
   "duplicate 'external-id' option in name")
@@ -1156,8 +1161,8 @@ E(ComponentNameNotKebab, 0x1224, "not in kebab case")
 // Component package name/namespace is not lowercase
 E(ComponentPackageNameNotLowercase, 0x1225,
   "not lowercase in package name/namespace")
-// The versionsuffix does not extend a canonical version into a valid semver
-E(ComponentVersionSuffixInvalid, 0x1226, "invalid `versionsuffix`")
+// The version-suffix does not complete the interface version canonically
+E(ComponentVersionSuffixInvalid, 0x1226, "is not the canonical version")
 E(ComponentImplementsInterface, 0x1227, "must be an interface")
 E(ComponentImplementsName, 0x1228, "`implements` name is not a valid name")
 E(ComponentImplementsInstance, 0x1229,
@@ -1363,6 +1368,23 @@ E(AnnotatedFuncResourceName, 0x1291,
 E(AnnotatedStaticUnknown, 0x1292,
   "static resource name is not known in this context")
 E(ComponentResourceRepI32, 0x1293, "resources can only be represented by `i32`")
+
+// Version suffixes
+// A `version-suffix` attribute on an import or export that is not an instance
+E(ComponentVersionSuffixInstance, 0x1294,
+  "only instances can have a `version-suffix`")
+// A `version-suffix` attribute with an empty value
+E(ComponentVersionSuffixEmpty, 0x1295, "version suffix cannot be empty")
+// A `version-suffix` attribute on a plain name that has no `implements`
+E(ComponentVersionSuffixName, 0x1296,
+  "`version-suffix` requires an interface name or `implements`")
+// A `version-suffix` attribute for an interface name that has no version
+E(ComponentVersionSuffixNoVersion, 0x1297,
+  "a version suffix requires the name to have a version")
+
+// Map value types
+// The value type of a map transitively contains a handle
+E(ComponentMapValueHandle, 0x1298, "map value type cannot contain a handle")
 // @}
 
 // Instantiation phase

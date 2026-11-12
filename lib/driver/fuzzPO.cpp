@@ -178,6 +178,8 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
   //     PO::Description("Disable Memory64 proposal"sv));
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
+  PO::Option<PO::Toggle> PropWideArithmetic(
+      PO::Description("Enable Wide Arithmetic proposal"sv));
   PO::Option<PO::Toggle> PropComponent(PO::Description(
       "Enable Component Model proposal, this is experimental"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
@@ -196,12 +198,12 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
           "Limitation of maximum time(in milliseconds) for execution, default value is 0 for no limitations"sv),
       PO::MetaVar("TIMEOUT"sv), PO::DefaultValue<uint64_t>(0));
 
-  PO::List<int> GasLim(
+  PO::List<uint64_t> GasLim(
       PO::Description(
           "Limitation of execution gas. Upper bound can be specified as --gas-limit `GAS_LIMIT`."sv),
       PO::MetaVar("GAS_LIMIT"sv));
 
-  PO::List<int> MemLim(
+  PO::List<uint64_t> MemLim(
       PO::Description(
           "Limitation of pages(as size of 64 KiB) in every memory instance. Upper bound can be specified as --memory-page-limit `PAGE_COUNT`."sv),
       PO::MetaVar("PAGE_COUNT"sv));
@@ -235,6 +237,7 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       // TODO: MEMORY64 - enable the option.
       // .add_option("disable-memory64"sv, PropMemory64)
       .add_option("enable-threads"sv, PropThreads)
+      .add_option("enable-wide-arithmetic"sv, PropWideArithmetic)
       .add_option("enable-component"sv, PropComponent)
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)

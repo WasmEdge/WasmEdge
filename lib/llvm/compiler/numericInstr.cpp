@@ -689,6 +689,58 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
     compileUnsignedTruncSat(Context.Int64Ty);
     break;
 
+  // Wide Arithmetic Instructions
+  case OpCode::I64__add128: {
+    LLVM::Value Shift = LLVM::Value::getConstInt(Context.Int128Ty, 64);
+    LLVM::Value RHSHi = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value RHSLo = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value LHSHi = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value LHSLo = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value RHS = Builder.createOr(RHSLo, Builder.createShl(RHSHi, Shift));
+    LLVM::Value LHS = Builder.createOr(LHSLo, Builder.createShl(LHSHi, Shift));
+    LLVM::Value Result = Builder.createAdd(LHS, RHS);
+    stackPush(Builder.createTrunc(Result, Context.Int64Ty));
+    stackPush(Builder.createTrunc(Builder.createLShr(Result, Shift),
+                                  Context.Int64Ty));
+    break;
+  }
+  case OpCode::I64__sub128: {
+    LLVM::Value Shift = LLVM::Value::getConstInt(Context.Int128Ty, 64);
+    LLVM::Value RHSHi = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value RHSLo = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value LHSHi = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value LHSLo = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value RHS = Builder.createOr(RHSLo, Builder.createShl(RHSHi, Shift));
+    LLVM::Value LHS = Builder.createOr(LHSLo, Builder.createShl(LHSHi, Shift));
+    LLVM::Value Result = Builder.createSub(LHS, RHS);
+    stackPush(Builder.createTrunc(Result, Context.Int64Ty));
+    stackPush(Builder.createTrunc(Builder.createLShr(Result, Shift),
+                                  Context.Int64Ty));
+    break;
+  }
+  case OpCode::I64__mul_wide_s: {
+    LLVM::Value RHS = Builder.createSExt(stackPop(), Context.Int128Ty);
+    LLVM::Value LHS = Builder.createSExt(stackPop(), Context.Int128Ty);
+    LLVM::Value Result = Builder.createMul(LHS, RHS);
+    stackPush(Builder.createTrunc(Result, Context.Int64Ty));
+    stackPush(Builder.createTrunc(
+        Builder.createLShr(Result,
+                           LLVM::Value::getConstInt(Context.Int128Ty, 64)),
+        Context.Int64Ty));
+    break;
+  }
+  case OpCode::I64__mul_wide_u: {
+    LLVM::Value RHS = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value LHS = Builder.createZExt(stackPop(), Context.Int128Ty);
+    LLVM::Value Result = Builder.createMul(LHS, RHS);
+    stackPush(Builder.createTrunc(Result, Context.Int64Ty));
+    stackPush(Builder.createTrunc(
+        Builder.createLShr(Result,
+                           LLVM::Value::getConstInt(Context.Int128Ty, 64)),
+        Context.Int64Ty));
+    break;
+  }
+
     // SIMD Memory Instructions
   default:
     assumingUnreachable();

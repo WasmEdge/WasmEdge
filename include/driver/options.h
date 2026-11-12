@@ -8,13 +8,16 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the shared proposal options base struct used by both
-/// the runtime tool and the compiler tool.
+/// This file contains the shared proposal, statistics, and logging options
+/// base structs used by both the runtime tool and the compiler tool.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 #include "common/configure.h"
 #include "po/argument_parser.h"
+#include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace WasmEdge {
@@ -49,6 +52,8 @@ struct DriverProposalOptions {
             PO::Description("Disable Exception handling proposal"sv)),
         PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
+        PropWideArithmetic(
+            PO::Description("Enable Wide Arithmetic proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)) {}
 
   PO::Option<PO::Toggle> PropWASM1;
@@ -70,6 +75,7 @@ struct DriverProposalOptions {
   PO::Option<PO::Toggle> PropExceptionHandling;
   PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
+  PO::Option<PO::Toggle> PropWideArithmetic;
   PO::Option<PO::Toggle> PropAll;
 
   void addProposalOptions(PO::ArgumentParser &Parser) noexcept {
@@ -92,12 +98,66 @@ struct DriverProposalOptions {
         .add_option("disable-exception-handling"sv, PropExceptionHandling)
         .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)
+        .add_option("enable-wide-arithmetic"sv, PropWideArithmetic)
         .add_option("enable-all"sv, PropAll);
+  }
+};
+
+struct DriverStatisticsOptions {
+  DriverStatisticsOptions()
+      : ConfEnableInstructionCounting(PO::Description(
+            "Enable generating code for counting Wasm instructions executed."sv)),
+        ConfEnableGasMeasuring(PO::Description(
+            "Enable generating code for counting gas burned during execution."sv)),
+        ConfEnableTimeMeasuring(PO::Description(
+            "Enable generating code for counting time during execution."sv)),
+        ConfEnableAllStatistics(PO::Description(
+            "Enable generating code for all statistics options include "
+            "instruction counting, gas measuring, and execution time."sv)) {}
+
+  PO::Option<PO::Toggle> ConfEnableInstructionCounting;
+  PO::Option<PO::Toggle> ConfEnableGasMeasuring;
+  PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
+  PO::Option<PO::Toggle> ConfEnableAllStatistics;
+
+  void addStatisticsOptions(PO::ArgumentParser &Parser) noexcept {
+    Parser
+        .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
+        .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
+        .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
+        .add_option("enable-all-statistics"sv, ConfEnableAllStatistics);
+  }
+};
+
+struct DriverLoggingOptions {
+  DriverLoggingOptions()
+      : LogLevel(
+            PO::Description(
+                "Set logging level. Valid values: off, trace, debug, info, "
+                "warning, error, fatal. Default is info."sv),
+            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())) {}
+
+  PO::Option<std::string> LogLevel;
+
+  void addLoggingOptions(PO::ArgumentParser &Parser) noexcept {
+    Parser.add_option("log-level"sv, LogLevel);
+  }
+
+  /// Take the options given before the subcommand when not set again.
+  void inheritLoggingOptions(const DriverLoggingOptions &Parent) noexcept {
+    if (LogLevel.value().empty()) {
+      LogLevel.value() = Parent.LogLevel.value();
+    }
   }
 };
 
 Configure
 createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept;
+void setLoggingLevel(const struct DriverLoggingOptions &Opt) noexcept;
+std::optional<std::filesystem::path>
+getAbsolutePath(const std::string &Name, std::string_view Kind) noexcept;
+void setStatisticsConfigure(const struct DriverStatisticsOptions &Opt,
+                            Configure &Conf) noexcept;
 
 } // namespace Driver
 } // namespace WasmEdge

@@ -215,12 +215,37 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
                                           Span<const std::string> Impls,
                                           Span<const std::string> VSuffixes,
                                           bool IsInstance) const noexcept {
-  for (const auto &V : VSuffixes) {
-    EXPECTED_TRY(CN.checkVersionSuffix(V));
+  // An attribute list holds each kind at most once.
+  const std::string_view Suffix =
+      VSuffixes.empty() ? std::string_view() : std::string_view(VSuffixes[0]);
+  if (!VSuffixes.empty()) {
+    if (!IsInstance) {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixInstance);
+      spdlog::error("    only instances can have a `version-suffix`"sv);
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixInstance);
+    }
+    if (Suffix.empty()) {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixEmpty);
+      spdlog::error("    the `version-suffix` of name `{}` is empty"sv,
+                    CN.getOriginalName());
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixEmpty);
+    }
+    if (Impls.empty() && CN.getKind() != ExternName::Kind::InterfaceType) {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixName);
+      spdlog::error("    name `{}` is not an interface name and has no "
+                    "`implements`"sv,
+                    CN.getOriginalName());
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixName);
+    }
   }
   if (Impls.empty()) {
+    // The suffix completes the version of the name itself.
+    if (CN.getKind() == ExternName::Kind::InterfaceType) {
+      return CN.checkVersion(Suffix);
+    }
     return {};
   }
+  std::vector<ExternName> Implemented;
   for (const auto &I : Impls) {
     auto Parsed = parseExternName(I, true);
     if (!Parsed.has_value()) {
@@ -233,6 +258,7 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
       spdlog::error("    `implements` value `{}` must be an interface"sv, I);
       return Unexpect(ErrCode::Value::ComponentImplementsInterface);
     }
+    Implemented.push_back(*Parsed);
   }
   if (CN.getKind() != ExternName::Kind::Label &&
       CN.getKind() != ExternName::Kind::Constructor &&
@@ -247,6 +273,10 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
     spdlog::error(ErrCode::Value::ComponentImplementsInstance);
     spdlog::error("    only instances can have an `implements`"sv);
     return Unexpect(ErrCode::Value::ComponentImplementsInstance);
+  }
+  // The suffix completes the version of the implemented interface.
+  for (const auto &Name : Implemented) {
+    EXPECTED_TRY(Name.checkVersion(Suffix));
   }
   return {};
 }
@@ -1250,6 +1280,9 @@ Context::getElemLayout(const AST::Component::DefValType &D, const Scope *Home,
     }
   } else if (D.isMapTy()) {
     Res = {16, 8};
+  } else if (D.isBorrowTy()) {
+    // The worst case: the representation of an i64 resource.
+    Res = {8, 8};
   }
   ElemLayouts.emplace(&D, Res);
   return Res;
@@ -1261,7 +1294,7 @@ Context::getElemLayout(const AST::Component::DefValType &D, const Scope *Home,
 
 // Spec flatten_type: appends the flat core types of Q; false if unflattenable.
 bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
-                             const ValType &Ptr) noexcept {
+                             const ValType &Ptr, bool IsLower) noexcept {
   if (Out.size() > MaxFlatExpand) {
     return true;
   }
@@ -1306,7 +1339,7 @@ bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
   }
   const auto &D = *Def;
   auto Sub = [&](const ComponentValType &VT) noexcept {
-    return flattenValType({VT, Entry->Home, Entry->Remap}, Out, Ptr);
+    return flattenValType({VT, Entry->Home, Entry->Remap}, Out, Ptr, IsLower);
   };
   if (D.isRecordTy()) {
     for (const auto &LT : D.getRecord().LabelTypes) {
@@ -1345,8 +1378,13 @@ bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
     Out.push_back(Ptr);
     return true;
   }
-  if (D.isFlagsTy() || D.isEnumTy() || D.isOwnTy() || D.isBorrowTy() ||
-      D.isStreamTy() || D.isFutureTy()) {
+  if (D.isBorrowTy()) {
+    Out.push_back(
+        flattenBorrow(Entry->Home, Entry->Remap, D.getBorrow().Idx, IsLower));
+    return true;
+  }
+  if (D.isFlagsTy() || D.isEnumTy() || D.isOwnTy() || D.isStreamTy() ||
+      D.isFutureTy()) {
     Out.push_back(ValType(TypeCode::I32));
     return true;
   }
@@ -1387,7 +1425,8 @@ bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
     for (const auto &Payload : Payloads) {
       std::vector<ValType> Flat;
       for (const auto &Ty : Payload) {
-        if (!flattenValType({Ty, Entry->Home, Entry->Remap}, Flat, Ptr)) {
+        if (!flattenValType({Ty, Entry->Home, Entry->Remap}, Flat, Ptr,
+                            IsLower)) {
           return false;
         }
       }
@@ -1404,6 +1443,20 @@ bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
     return true;
   }
   return false;
+}
+
+// Spec flatten_borrow: the implementing component receives the representation.
+ValType Context::flattenBorrow(const Scope *Home, const ResourceMap *Remap,
+                               uint32_t Idx, bool IsLower) const noexcept {
+  if (IsLower) {
+    if (const auto Id = getResourceId(Home, Remap, Idx)) {
+      const auto &Res = getResource(*Id);
+      if (Res.RT != nullptr && Res.Origin == &getTop()) {
+        return ValType(Res.RT->isAddrI64() ? TypeCode::I64 : TypeCode::I32);
+      }
+    }
+  }
+  return ValType(TypeCode::I32);
 }
 
 // True iff the type transitively contains a list, map, or string.
@@ -1429,7 +1482,7 @@ bool Context::needsMemory(const QualValType &Q) noexcept {
 }
 
 Expect<AST::FunctionType>
-Context::flattenFuncType(const FuncInfo &FI, const ValType &Ptr,
+Context::flattenFuncType(const FuncInfo &FI, const ValType &Ptr, bool IsLift,
                          bool &ParamsNeedMemory,
                          bool &ResultsNeedMemory) noexcept {
   AST::FunctionType Sig;
@@ -1439,9 +1492,11 @@ Context::flattenFuncType(const FuncInfo &FI, const ValType &Ptr,
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
+  // A lift lowers the parameters into this component and lifts the results
+  // out of it; a lower goes the other way.
   for (const auto &P : FI.FT->getParamList()) {
     const QualValType Q{P.getValType(), FI.Home, FI.Remap};
-    if (!flattenValType(Q, Sig.getParamTypes(), Ptr)) {
+    if (!flattenValType(Q, Sig.getParamTypes(), Ptr, IsLift)) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
@@ -1449,7 +1504,7 @@ Context::flattenFuncType(const FuncInfo &FI, const ValType &Ptr,
   }
   if (const auto &R = FI.FT->getResult(); R.has_value()) {
     const QualValType Q{*R, FI.Home, FI.Remap};
-    if (!flattenValType(Q, Sig.getReturnTypes(), Ptr)) {
+    if (!flattenValType(Q, Sig.getReturnTypes(), Ptr, !IsLift)) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }

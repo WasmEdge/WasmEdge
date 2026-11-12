@@ -1398,6 +1398,231 @@ TEST(APIWasmCTest, UnsupportedType) {
   wasm_engine_delete(engine);
 }
 
+int32_t callFuncRef(const wasm_val_t &val) {
+  if (val.kind != WASM_FUNCREF || val.of.ref == nullptr) {
+    return -1;
+  }
+  wasm_val_t res = i32Val(0);
+  wasm_val_vec_t no_args = WASM_EMPTY_VEC;
+  wasm_val_vec_t results = {1, &res};
+  wasm_trap_t *trap =
+      wasm_func_call(wasm_ref_as_func(val.of.ref), &no_args, &results);
+  if (trap) {
+    wasm_trap_delete(trap);
+    return -2;
+  }
+  return res.of.i32;
+}
+
+wasm_trap_t *funcRefCallback(void *env, const wasm_val_vec_t *args,
+                             wasm_val_vec_t *results) {
+  *static_cast<int32_t *>(env) = callFuncRef(args->data[0]);
+  wasm_val_copy(&results->data[0], &args->data[0]);
+  return nullptr;
+}
+
+TEST(APIWasmCTest, FuncRef) {
+  // (module
+  //   (type $s (struct))
+  //   (type $i (func (result i32)))
+  //   (type $f (func (param funcref) (result funcref)))
+  //   (import "env" "cb" (func $cb (type $f)))
+  //   (global $g (mut funcref) (ref.null func))
+  //   (func $seven (type $i) (i32.const 7))
+  //   (func $get (result funcref) (ref.func $seven))
+  //   (func $null (result funcref) (ref.null func))
+  //   (func $id (type $f) (local.get 0))
+  //   (func $pass (type $f) (call $cb (local.get 0)))
+  //   (func $typed (result (ref null $i)) (ref.func $seven))
+  //   (func $struct (result (ref null $s)) (struct.new $s))
+  //   (func $typed_id (param (ref null $i)) (result (ref null $i))
+  //     (local.get 0))
+  //   (elem declare func $seven)
+  //   (export "seven" (func $seven))
+  //   (export "g" (global $g))
+  //   (export "get" (func $get))
+  //   (export "null" (func $null))
+  //   (export "id" (func $id))
+  //   (export "pass" (func $pass))
+  //   (export "typed" (func $typed))
+  //   (export "struct" (func $struct))
+  //   (export "typed_id" (func $typed_id)))
+  const uint8_t wasm[] = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x21, 0x07, 0x5f,
+      0x00, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x70, 0x01, 0x70, 0x60, 0x00,
+      0x01, 0x70, 0x60, 0x00, 0x01, 0x63, 0x01, 0x60, 0x00, 0x01, 0x63, 0x00,
+      0x60, 0x01, 0x63, 0x01, 0x01, 0x63, 0x01, 0x02, 0x0a, 0x01, 0x03, 0x65,
+      0x6e, 0x76, 0x02, 0x63, 0x62, 0x00, 0x02, 0x03, 0x09, 0x08, 0x01, 0x03,
+      0x03, 0x02, 0x02, 0x04, 0x05, 0x06, 0x06, 0x06, 0x01, 0x70, 0x01, 0xd0,
+      0x70, 0x0b, 0x07, 0x42, 0x09, 0x05, 0x73, 0x65, 0x76, 0x65, 0x6e, 0x00,
+      0x01, 0x01, 0x67, 0x03, 0x00, 0x03, 0x67, 0x65, 0x74, 0x00, 0x02, 0x04,
+      0x6e, 0x75, 0x6c, 0x6c, 0x00, 0x03, 0x02, 0x69, 0x64, 0x00, 0x04, 0x04,
+      0x70, 0x61, 0x73, 0x73, 0x00, 0x05, 0x05, 0x74, 0x79, 0x70, 0x65, 0x64,
+      0x00, 0x06, 0x06, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x07, 0x08,
+      0x74, 0x79, 0x70, 0x65, 0x64, 0x5f, 0x69, 0x64, 0x00, 0x08, 0x09, 0x05,
+      0x01, 0x03, 0x00, 0x01, 0x01, 0x0a, 0x2c, 0x08, 0x04, 0x00, 0x41, 0x07,
+      0x0b, 0x04, 0x00, 0xd2, 0x01, 0x0b, 0x04, 0x00, 0xd0, 0x70, 0x0b, 0x04,
+      0x00, 0x20, 0x00, 0x0b, 0x06, 0x00, 0x20, 0x00, 0x10, 0x00, 0x0b, 0x04,
+      0x00, 0xd2, 0x01, 0x0b, 0x05, 0x00, 0xfb, 0x00, 0x00, 0x0b, 0x04, 0x00,
+      0x20, 0x00, 0x0b};
+
+  wasm_engine_t *engine = wasm_engine_new();
+  wasm_store_t *store = wasm_store_new(engine);
+  wasm_byte_vec_t bin;
+  wasm_byte_vec_new(&bin, sizeof(wasm),
+                    reinterpret_cast<const wasm_byte_t *>(wasm));
+  wasm_module_t *module = wasm_module_new(store, &bin);
+  wasm_byte_vec_delete(&bin);
+  ASSERT_NE(nullptr, module);
+
+  int32_t seen = 0;
+  wasm_functype_t *cb_type = wasm_functype_new_1_1(
+      wasm_valtype_new(WASM_FUNCREF), wasm_valtype_new(WASM_FUNCREF));
+  wasm_func_t *cb =
+      wasm_func_new_with_env(store, cb_type, funcRefCallback, &seen, nullptr);
+  wasm_functype_delete(cb_type);
+  ASSERT_NE(nullptr, cb);
+  wasm_extern_t *import_data[1] = {wasm_func_as_extern(cb)};
+  wasm_extern_vec_t imports = {1, import_data};
+  wasm_instance_t *instance =
+      wasm_instance_new(store, module, &imports, nullptr);
+  ASSERT_NE(nullptr, instance);
+  wasm_extern_vec_t exports;
+  wasm_instance_exports(instance, &exports);
+  ASSERT_EQ(9U, exports.size);
+  wasm_func_t *func_seven = wasm_extern_as_func(exports.data[0]);
+  wasm_global_t *global = wasm_extern_as_global(exports.data[1]);
+  wasm_func_t *func_get = wasm_extern_as_func(exports.data[2]);
+  wasm_func_t *func_null = wasm_extern_as_func(exports.data[3]);
+  wasm_func_t *func_id = wasm_extern_as_func(exports.data[4]);
+  wasm_func_t *func_pass = wasm_extern_as_func(exports.data[5]);
+  wasm_func_t *func_typed = wasm_extern_as_func(exports.data[6]);
+  wasm_func_t *func_struct = wasm_extern_as_func(exports.data[7]);
+  wasm_func_t *func_typed_id = wasm_extern_as_func(exports.data[8]);
+
+  wasm_val_t arg = initVal();
+  wasm_val_t res = i32Val(0);
+  wasm_val_vec_t no_args = WASM_EMPTY_VEC;
+  wasm_val_vec_t args = {1, &arg};
+  wasm_val_vec_t results = {1, &res};
+
+  // A funcref result is a callable function reference owned by the caller.
+  EXPECT_EQ(nullptr, wasm_func_call(func_get, &no_args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  ASSERT_NE(nullptr, res.of.ref);
+  EXPECT_EQ(7, callFuncRef(res));
+  wasm_ref_t *kept = wasm_ref_copy(res.of.ref);
+  wasm_val_delete(&res);
+  EXPECT_EQ(nullptr,
+            wasm_func_call(wasm_ref_as_func(kept), &no_args, &results));
+  EXPECT_EQ(7, res.of.i32);
+  wasm_ref_delete(kept);
+
+  // A null funcref result keeps the kind.
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_null, &no_args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+
+  // A typed function reference result is a function reference.
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_typed, &no_args, &results));
+  EXPECT_EQ(7, callFuncRef(res));
+  wasm_val_delete(&res);
+
+  // A struct reference result is not handed out as a function.
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_struct, &no_args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+
+  // A funcref argument round-trips, whichever reference kind carries it.
+  arg.kind = WASM_FUNCREF;
+  arg.of.ref = wasm_func_as_ref(func_seven);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_id, &args, &results));
+  EXPECT_EQ(7, callFuncRef(res));
+  wasm_val_delete(&res);
+  arg.kind = WASM_EXTERNREF;
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_id, &args, &results));
+  EXPECT_EQ(7, callFuncRef(res));
+  wasm_val_delete(&res);
+
+  // A reference that is not a function becomes a null funcref.
+  arg.kind = WASM_FUNCREF;
+  arg.of.ref = wasm_global_as_ref(global);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_id, &args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+  arg.of.ref = nullptr;
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_id, &args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+
+  // A typed function reference argument takes a function of a matching type.
+  arg.of.ref = wasm_func_as_ref(func_seven);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_typed_id, &args, &results));
+  EXPECT_EQ(7, callFuncRef(res));
+  wasm_val_delete(&res);
+  arg.of.ref = wasm_func_as_ref(func_get);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_typed_id, &args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+  arg.of.ref = wasm_func_as_ref(cb);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_typed_id, &args, &results));
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+
+  // A host function receives the funcref and can return it.
+  arg.of.ref = wasm_func_as_ref(func_seven);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_pass, &args, &results));
+  EXPECT_EQ(7, seen);
+  EXPECT_EQ(7, callFuncRef(res));
+  wasm_val_delete(&res);
+  arg.of.ref = nullptr;
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_pass, &args, &results));
+  EXPECT_EQ(-1, seen);
+  EXPECT_EQ(WASM_FUNCREF, res.kind);
+  EXPECT_EQ(nullptr, res.of.ref);
+
+  // A funcref global reads and writes function references.
+  wasm_val_t got = i32Val(0);
+  wasm_global_get(global, &got);
+  EXPECT_EQ(WASM_FUNCREF, got.kind);
+  EXPECT_EQ(nullptr, got.of.ref);
+  arg.of.ref = wasm_func_as_ref(func_seven);
+  wasm_global_set(global, &arg);
+  wasm_global_get(global, &got);
+  EXPECT_EQ(7, callFuncRef(got));
+  wasm_val_delete(&got);
+
+  // A value vector keeps the funcref kind.
+  wasm_val_vec_t vec, vec_copy;
+  wasm_val_vec_new(&vec, 1, &arg);
+  ASSERT_EQ(1U, vec.size);
+  EXPECT_EQ(7, callFuncRef(vec.data[0]));
+  wasm_val_vec_copy(&vec_copy, &vec);
+  ASSERT_EQ(1U, vec_copy.size);
+  EXPECT_EQ(7, callFuncRef(vec_copy.data[0]));
+  wasm_val_vec_delete(&vec_copy);
+  wasm_val_vec_delete(&vec);
+
+  wasm_extern_vec_delete(&exports);
+  wasm_instance_delete(instance);
+  wasm_func_delete(cb);
+  wasm_module_delete(module);
+  wasm_store_delete(store);
+  wasm_engine_delete(engine);
+}
+
 TEST(APIWasmCTest, Val) {
   wasm_val_t vals[4] = {
       i32Val(42),

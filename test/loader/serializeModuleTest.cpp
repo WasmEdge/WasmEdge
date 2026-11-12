@@ -200,4 +200,32 @@ TEST(SerializeModuleTest, ModuleRoundTrip) {
   EXPECT_EQ(Bytes1, Bytes2);
 }
 
+TEST(SerializeModuleTest, ElementSegmentTypePreserved) {
+  // 6. Test that the element type of an element segment survives a load and a
+  //    serialize.
+  //
+  //   1.  A passive funcref segment (mode 0x05 with the reference type 0x70) is
+  //       written back in the same form instead of the elemkind form, which
+  //       means (ref func).
+  //   2.  A passive (ref func) segment (mode 0x01 with elemkind 0x00) is
+  //       written back in the same form.
+
+  WasmEdge::Loader::Loader Ldr(Conf);
+
+  const std::vector<std::vector<uint8_t>> Inputs = {
+      // (module (elem funcref))
+      {0x00U, 0x61U, 0x73U, 0x6DU, 0x01U, 0x00U, 0x00U, 0x00U, 0x09U, 0x04U,
+       0x01U, 0x05U, 0x70U, 0x00U},
+      // (module (elem func))
+      {0x00U, 0x61U, 0x73U, 0x6DU, 0x01U, 0x00U, 0x00U, 0x00U, 0x09U, 0x04U,
+       0x01U, 0x01U, 0x00U, 0x00U}};
+  for (const auto &Input : Inputs) {
+    auto Res = Ldr.parseModule(Input);
+    ASSERT_TRUE(Res);
+    auto SerRes = Ser.serializeModule(**Res);
+    ASSERT_TRUE(SerRes);
+    EXPECT_EQ(*SerRes, Input);
+  }
+}
+
 } // namespace

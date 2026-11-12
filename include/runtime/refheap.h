@@ -24,6 +24,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <shared_mutex>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -39,6 +40,14 @@ enum class HeapKind : uint8_t {
   ExternBox,
   Struct,
   Array,
+};
+
+/// Address mode of a heap.
+enum class HeapMode : uint8_t {
+  /// One reservation of 4 GiB and a guard for each region.
+  Flat,
+  /// A table of 1 MiB chunks for each region.
+  Chunk,
 };
 
 /// Header at the start of every heap slot.
@@ -79,10 +88,22 @@ public:
   static constexpr uint32_t kTagObject = 2;
   static constexpr uint32_t kBlockSize = 65536;
   static constexpr uint32_t kPartSize = UINT32_C(1) << 30;
+  static constexpr uint32_t kChunkShift = 20;
+  static constexpr uint32_t kChunkSize = UINT32_C(1) << kChunkShift;
+  static constexpr uint32_t kChunkCount = UINT32_C(1) << (32 - kChunkShift);
+
+  /// Address mode of the heap that `getGlobal` creates.
+  static HeapMode getDefaultMode() noexcept;
+
+  /// Whether this host can create a heap in `Mode`. Chunk mode needs memory
+  /// that the allocator gives as zero pages and that it can make
+  /// inaccessible, which the allocator does only with mmap or on Windows.
+  static bool isModeSupported(HeapMode Mode) noexcept;
 
   struct Limits {
     uint64_t DataBytes = UINT64_C(1) << 32;
     uint64_t PartBytes = UINT64_C(1) << 30;
+    HeapMode Mode = getDefaultMode();
   };
 
   /// Slot size of an object region kind, or 0 for a data region kind.
@@ -117,8 +138,8 @@ public:
     return getSlotSize(Kind) != 0;
   }
 
-  /// Create a heap. Fails when the host has no flat mode or the reservation
-  /// fails.
+  /// Create a heap. Fails when the host does not support the mode or the
+  /// reservation fails.
   static Expect<std::unique_ptr<RefHeap>> create(const Limits &L) noexcept;
 
   /// The heap shared by the whole process, or null if it cannot be created.
@@ -128,6 +149,8 @@ public:
   ~RefHeap() noexcept;
   RefHeap(const RefHeap &) = delete;
   RefHeap &operator=(const RefHeap &) = delete;
+
+  HeapMode getMode() const noexcept { return Mode; }
 
   /// Allocate a slot of `Size` bytes with the header. Returns its offset.
   Expect<uint32_t> allocate(HeapKind Kind, uint64_t Size) noexcept;
@@ -199,8 +222,7 @@ private:
                               sizeof(HeapHeader) + sizeof(T) +
                                   static_cast<uint64_t>(TailBytes),
                               false));
-    uint8_t *Slot =
-        isObjectKind(Kind) ? ObjectBase + (Off & ~kTagObject) : DataBase + Off;
+    uint8_t *Slot = isObjectKind(Kind) ? getObjectAddr(Off) : getDataAddr(Off);
     T *Ptr = new (Slot + sizeof(HeapHeader)) T(std::forward<ArgsT>(Args)...);
     if constexpr (isObjectKind(Kind)) {
       setLive(Off, true);
@@ -236,7 +258,33 @@ private:
     std::mutex Mutex;
   };
 
+  struct Extent {
+    uint32_t RawOff = 0;
+    uint64_t Size = 0;
+    bool Object = false;
+  };
+
   RefHeap(const Limits &L) noexcept;
+
+  static uint8_t *loadChunk(const std::atomic<uint8_t *> *Table,
+                            uint32_t RawOff) noexcept {
+    return Table[RawOff >> kChunkShift].load(std::memory_order_acquire) +
+           (RawOff & (kChunkSize - 1));
+  }
+  uint8_t *getDataAddr(uint32_t Off) const noexcept {
+    if (Mode == HeapMode::Flat) {
+      return DataBase + Off;
+    }
+    return loadChunk(DataTable.get(), Off);
+  }
+  uint8_t *getObjectAddr(uint32_t Off) const noexcept {
+    if (Mode == HeapMode::Flat) {
+      return ObjectBase + (Off & ~kTagObject);
+    }
+    return loadChunk(ObjectTable.get(), Off & ~kTagObject);
+  }
+  bool mapChunks(bool Object, uint32_t RawOff, uint32_t Count) noexcept;
+  uint32_t findRawOffset(uintptr_t Addr, bool &Object) const noexcept;
 
   static uint32_t getPartIndex(HeapKind Kind) noexcept {
     return static_cast<uint32_t>(Kind) -
@@ -265,8 +313,14 @@ private:
   bool findDataSlot(uint32_t Off, uint32_t &BlockIdx, uint32_t &SlotIdx,
                     uint32_t &SlotSize) const noexcept;
 
+  HeapMode Mode;
   uint8_t *DataBase = nullptr;
   uint8_t *ObjectBase = nullptr;
+  uint8_t *NoAccess = nullptr;
+  std::unique_ptr<std::atomic<uint8_t *>[]> DataTable;
+  std::unique_ptr<std::atomic<uint8_t *>[]> ObjectTable;
+  mutable std::shared_mutex ExtentMutex;
+  std::map<uintptr_t, Extent> Extents;
   uint32_t DataBlocks = 0;
   uint32_t PartLimit = 0;
   std::unique_ptr<Block[]> Blocks;

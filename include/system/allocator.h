@@ -46,6 +46,7 @@ public:
   static bool set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept;
   static bool set_chunk_readable_writable(uint8_t *Pointer,
                                           uint64_t Size) noexcept;
+  static bool set_chunk_no_access(uint8_t *Pointer, uint64_t Size) noexcept;
 };
 
 } // namespace WasmEdge

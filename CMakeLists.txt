@@ -81,6 +81,7 @@ option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the Wasm
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
 option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior sanitizer." OFF)
 option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking LLVM." OFF)
+option(WASMEDGE_REFHEAP_FORCE_CHUNK_MODE "Use the chunk address mode for the reference heap on every host." OFF)
 
 # Options about plug-ins.
 #   WASI plug-in: WASI-Crypto proposal.

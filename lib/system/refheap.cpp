@@ -7,6 +7,8 @@
 #include "system/allocator.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <limits>
 #include <new>
 
 namespace WasmEdge {
@@ -19,12 +21,37 @@ constexpr uint32_t kBlockMask = RefHeap::kBlockSize - 1;
 constexpr uint32_t kMaxSmallSize = UINT32_C(1) << 15;
 constexpr uint32_t kBitmapWords = RefHeap::kBlockSize / 32 / 64;
 constexpr uint64_t k4G = UINT64_C(1) << 32;
+constexpr uint32_t kChunkGuard = 65536;
+constexpr uint32_t kBlocksPerChunk = RefHeap::kChunkSize / RefHeap::kBlockSize;
 
 } // namespace
 
+HeapMode RefHeap::getDefaultMode() noexcept {
+#if defined(WASMEDGE_REFHEAP_FORCE_CHUNK_MODE)
+  return HeapMode::Chunk;
+#else
+  return isModeSupported(HeapMode::Flat) ? HeapMode::Flat : HeapMode::Chunk;
+#endif
+}
+
+bool RefHeap::isModeSupported(HeapMode M) noexcept {
+  if (M == HeapMode::Chunk) {
+#if WASMEDGE_OS_WINDOWS || defined(HAVE_MMAP)
+    return true;
+#else
+    return false;
+#endif
+  }
+#if WASMEDGE_ALLOCATOR_IS_STABLE
+  return sizeof(void *) == 8;
+#else
+  return false;
+#endif
+}
+
 RefHeap::RefHeap(const Limits &L) noexcept
-    : DataBlocks(
-          static_cast<uint32_t>(std::min(L.DataBytes, k4G) / kBlockSize)),
+    : Mode(L.Mode), DataBlocks(static_cast<uint32_t>(
+                        std::min(L.DataBytes, k4G) / kBlockSize)),
       PartLimit(static_cast<uint32_t>(
           std::min<uint64_t>(L.PartBytes, kPartSize) & ~uint64_t(kBlockMask))),
       Blocks(new (std::nothrow) Block[DataBlocks]()), DataTop(1),
@@ -38,21 +65,37 @@ RefHeap::RefHeap(const Limits &L) noexcept
 }
 
 Expect<std::unique_ptr<RefHeap>> RefHeap::create(const Limits &L) noexcept {
-#if WASMEDGE_ALLOCATOR_IS_STABLE
-  std::unique_ptr<RefHeap> Heap(new (std::nothrow) RefHeap(L));
-  if (!Heap) {
+  if (!isModeSupported(L.Mode)) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
-  Heap->DataBase = Allocator::allocate(0);
-  Heap->ObjectBase = Allocator::allocate(0);
-  if (Heap->DataBase == nullptr || Heap->ObjectBase == nullptr) {
+  std::unique_ptr<RefHeap> Heap(new (std::nothrow) RefHeap(L));
+  if (!Heap || !Heap->Blocks) {
     return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  if (L.Mode == HeapMode::Flat) {
+#if WASMEDGE_ALLOCATOR_IS_STABLE
+    Heap->DataBase = Allocator::allocate(0);
+    Heap->ObjectBase = Allocator::allocate(0);
+#endif
+    if (Heap->DataBase == nullptr || Heap->ObjectBase == nullptr) {
+      return Unexpect(ErrCode::Value::RefHeapFull);
+    }
+    return Heap;
+  }
+  Heap->DataTable.reset(new (std::nothrow) std::atomic<uint8_t *>[kChunkCount]);
+  Heap->ObjectTable.reset(new (std::nothrow)
+                              std::atomic<uint8_t *>[kChunkCount]);
+  Heap->NoAccess = Allocator::allocate_chunk(kChunkSize + kChunkGuard);
+  if (!Heap->DataTable || !Heap->ObjectTable || Heap->NoAccess == nullptr ||
+      !Allocator::set_chunk_no_access(Heap->NoAccess,
+                                      kChunkSize + kChunkGuard)) {
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  for (uint32_t I = 0; I < kChunkCount; ++I) {
+    std::atomic_init(&Heap->DataTable[I], Heap->NoAccess);
+    std::atomic_init(&Heap->ObjectTable[I], Heap->NoAccess);
   }
   return Heap;
-#else
-  static_cast<void>(L);
-  return Unexpect(ErrCode::Value::RefHeapFull);
-#endif
 }
 
 RefHeap *RefHeap::getGlobal() noexcept {
@@ -70,6 +113,58 @@ RefHeap::~RefHeap() noexcept {
   if (ObjectBase != nullptr) {
     Allocator::release(ObjectBase, 0);
   }
+  for (const auto &[Host, E] : Extents) {
+    Allocator::release_chunk(reinterpret_cast<uint8_t *>(Host),
+                             E.Size + kChunkGuard);
+  }
+  if (NoAccess != nullptr) {
+    Allocator::release_chunk(NoAccess, kChunkSize + kChunkGuard);
+  }
+}
+
+bool RefHeap::mapChunks(bool Object, uint32_t RawOff, uint32_t Count) noexcept {
+  const uint64_t Bytes = static_cast<uint64_t>(Count) * kChunkSize;
+  if (Bytes + kChunkGuard >
+      static_cast<uint64_t>(std::numeric_limits<std::ptrdiff_t>::max())) {
+    return false;
+  }
+  uint8_t *Host = Allocator::allocate_chunk(Bytes + kChunkGuard);
+  if (Host == nullptr) {
+    return false;
+  }
+  if (!Allocator::set_chunk_no_access(Host + Bytes, kChunkGuard)) {
+    Allocator::release_chunk(Host, Bytes + kChunkGuard);
+    return false;
+  }
+  try {
+    std::unique_lock Lock(ExtentMutex);
+    Extents.emplace(reinterpret_cast<uintptr_t>(Host),
+                    Extent{RawOff, Bytes, Object});
+  } catch (const std::bad_alloc &) {
+    Allocator::release_chunk(Host, Bytes + kChunkGuard);
+    return false;
+  }
+  auto *Table = Object ? ObjectTable.get() : DataTable.get();
+  for (uint32_t I = 0; I < Count; ++I) {
+    Table[(RawOff >> kChunkShift) + I].store(Host + I * uint64_t(kChunkSize),
+                                             std::memory_order_release);
+  }
+  return true;
+}
+
+uint32_t RefHeap::findRawOffset(uintptr_t Addr, bool &Object) const noexcept {
+  std::shared_lock Lock(ExtentMutex);
+  auto It = Extents.upper_bound(Addr);
+  if (It == Extents.begin()) {
+    return 0;
+  }
+  --It;
+  const uint64_t Delta = Addr - It->first;
+  if (Delta >= It->second.Size) {
+    return 0;
+  }
+  Object = It->second.Object;
+  return It->second.RawOff + static_cast<uint32_t>(Delta);
 }
 
 uint32_t RefHeap::getClassIndex(uint64_t Size) noexcept {
@@ -96,8 +191,7 @@ void RefHeap::initHeader(uint8_t *Slot, HeapKind Kind, uint32_t Off,
 }
 
 void RefHeap::setLive(uint32_t Off, bool Live) noexcept {
-  auto *Header =
-      reinterpret_cast<HeapHeader *>(ObjectBase + (Off & ~kTagObject));
+  auto *Header = reinterpret_cast<HeapHeader *>(getObjectAddr(Off));
   Header->Live.store(Live ? 1 : 0, std::memory_order_release);
 }
 
@@ -135,17 +229,24 @@ Expect<uint32_t> RefHeap::allocateObject(HeapKind Kind, uint64_t Size,
       return Unexpect(ErrCode::Value::RefHeapFull);
     }
     if (Rel + P.SlotSize > P.Committed) {
-      uint8_t *PartStart = ObjectBase + (P.Base & ~kTagObject);
-      if (Allocator::resize(PartStart, P.Committed / kBlockSize,
-                            P.Committed / kBlockSize + 1) == nullptr) {
-        return Unexpect(ErrCode::Value::RefHeapFull);
+      const uint32_t RawStart = P.Base & ~kTagObject;
+      if (Mode == HeapMode::Flat) {
+        if (Allocator::resize(ObjectBase + RawStart, P.Committed / kBlockSize,
+                              P.Committed / kBlockSize + 1) == nullptr) {
+          return Unexpect(ErrCode::Value::RefHeapFull);
+        }
+        P.Committed += kBlockSize;
+      } else {
+        if (!mapChunks(true, RawStart + P.Committed, 1)) {
+          return Unexpect(ErrCode::Value::RefHeapFull);
+        }
+        P.Committed += kChunkSize;
       }
-      P.Committed += kBlockSize;
     }
     Fresh = true;
   }
   const uint32_t Off = P.Base + Rel;
-  uint8_t *Slot = ObjectBase + (Off & ~kTagObject);
+  uint8_t *Slot = getObjectAddr(Off);
   if (Fresh) {
     new (Slot) HeapHeader();
   }
@@ -168,15 +269,36 @@ Expect<uint32_t> RefHeap::takeBlocks(uint32_t Count) noexcept {
     }
     return Start;
   }
-  if (static_cast<uint64_t>(DataTop) + Count > DataBlocks) {
+  uint32_t Start = DataTop;
+  const bool Grow = static_cast<uint64_t>(Start) + Count > DataCommitted;
+  if (Grow && Mode == HeapMode::Chunk && Start < DataCommitted) {
+    Start = DataCommitted;
+  }
+  if (static_cast<uint64_t>(Start) + Count > DataBlocks) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
-  const uint32_t Start = DataTop;
-  if (Start + Count > DataCommitted) {
-    if (Allocator::resize(DataBase, DataCommitted, Start + Count) == nullptr) {
-      return Unexpect(ErrCode::Value::RefHeapFull);
+  if (Grow) {
+    if (Mode == HeapMode::Flat) {
+      if (Allocator::resize(DataBase, DataCommitted, Start + Count) ==
+          nullptr) {
+        return Unexpect(ErrCode::Value::RefHeapFull);
+      }
+      DataCommitted = Start + Count;
+    } else {
+      const uint32_t First = DataCommitted / kBlocksPerChunk;
+      const uint32_t End =
+          (Start + Count + kBlocksPerChunk - 1) / kBlocksPerChunk;
+      if (!mapChunks(false, First << kChunkShift, End - First)) {
+        return Unexpect(ErrCode::Value::RefHeapFull);
+      }
+      if (DataTop < Start) {
+        try {
+          FreeRuns.emplace(Start - DataTop, DataTop);
+        } catch (const std::bad_alloc &) {
+        }
+      }
+      DataCommitted = End * kBlocksPerChunk;
     }
-    DataCommitted = Start + Count;
   }
   DataTop = Start + Count;
   return Start;
@@ -228,8 +350,9 @@ Expect<uint32_t> RefHeap::allocateData(HeapKind Kind,
     setupBlocks(Start, Count, Count * kBlockSize);
     Off = Start << kBlockShift;
   }
-  new (DataBase + Off) HeapHeader();
-  initHeader(DataBase + Off, Kind, Off, true);
+  uint8_t *Slot = getDataAddr(Off);
+  new (Slot) HeapHeader();
+  initHeader(Slot, Kind, Off, true);
   auto *Bits =
       Blocks[Off >> kBlockShift].LiveBits.load(std::memory_order_relaxed);
   Bits[SlotIdx / 64].fetch_or(UINT64_C(1) << (SlotIdx % 64),
@@ -297,8 +420,7 @@ const RefHeap::Part *RefHeap::findPart(uint32_t Off) const noexcept {
   if (P == nullptr) {
     return nullptr;
   }
-  const auto *Header =
-      reinterpret_cast<const HeapHeader *>(ObjectBase + (Off & ~kTagObject));
+  const auto *Header = reinterpret_cast<const HeapHeader *>(getObjectAddr(Off));
   if (Header->Live.load(std::memory_order_acquire) == 0) {
     return nullptr;
   }
@@ -313,13 +435,13 @@ HeapHeader *RefHeap::getHeader(uint32_t Off) const noexcept {
     if (findPart(Off) == nullptr) {
       return nullptr;
     }
-    return reinterpret_cast<HeapHeader *>(ObjectBase + (Off & ~kTagObject));
+    return reinterpret_cast<HeapHeader *>(getObjectAddr(Off));
   }
   uint32_t BlockIdx, SlotIdx, SlotSize;
   if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
     return nullptr;
   }
-  return reinterpret_cast<HeapHeader *>(DataBase + Off);
+  return reinterpret_cast<HeapHeader *>(getDataAddr(Off));
 }
 
 void *RefHeap::decodeObject(HeapKind Kind, uint32_t Off) const noexcept {
@@ -330,28 +452,39 @@ void *RefHeap::decodeObject(HeapKind Kind, uint32_t Off) const noexcept {
   if (P != &Parts[getPartIndex(Kind)]) {
     return nullptr;
   }
-  return ObjectBase + (Off & ~kTagObject) + sizeof(HeapHeader);
+  return getObjectAddr(Off) + sizeof(HeapHeader);
 }
 
 uint32_t RefHeap::getOffset(const void *Obj) const noexcept {
   const auto Addr = reinterpret_cast<uintptr_t>(Obj) - sizeof(HeapHeader);
-  const auto ObjDelta =
-      static_cast<uint64_t>(Addr - reinterpret_cast<uintptr_t>(ObjectBase));
-  if (ObjDelta < k4G) {
-    const auto Off = static_cast<uint32_t>(ObjDelta) | kTagObject;
-    if ((ObjDelta & (kTagI31 | kTagObject)) != 0 || findPart(Off) == nullptr) {
+  auto CheckObject = [this](uint32_t RawOff) noexcept -> uint32_t {
+    const uint32_t Off = RawOff | kTagObject;
+    if ((RawOff & (kTagI31 | kTagObject)) != 0 || findPart(Off) == nullptr) {
       return 0;
     }
     return Off;
+  };
+  auto CheckData = [this](uint32_t Off) noexcept -> uint32_t {
+    uint32_t BlockIdx, SlotIdx, SlotSize;
+    return findDataSlot(Off, BlockIdx, SlotIdx, SlotSize) ? Off : 0;
+  };
+  if (Mode == HeapMode::Chunk) {
+    bool Object = false;
+    const uint32_t RawOff = findRawOffset(Addr, Object);
+    if (RawOff == 0) {
+      return 0;
+    }
+    return Object ? CheckObject(RawOff) : CheckData(RawOff);
+  }
+  const auto ObjDelta =
+      static_cast<uint64_t>(Addr - reinterpret_cast<uintptr_t>(ObjectBase));
+  if (ObjDelta < k4G) {
+    return CheckObject(static_cast<uint32_t>(ObjDelta));
   }
   const auto DataDelta =
       static_cast<uint64_t>(Addr - reinterpret_cast<uintptr_t>(DataBase));
   if (DataDelta < static_cast<uint64_t>(DataBlocks) * kBlockSize) {
-    const auto Off = static_cast<uint32_t>(DataDelta);
-    uint32_t BlockIdx, SlotIdx, SlotSize;
-    if (findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
-      return Off;
-    }
+    return CheckData(static_cast<uint32_t>(DataDelta));
   }
   return 0;
 }
@@ -363,7 +496,7 @@ Expect<uint8_t *> RefHeap::getDataSpan(uint32_t Off, uint32_t Pos,
       static_cast<uint64_t>(Pos) + Size > SlotSize) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  return DataBase + Off + Pos;
+  return getDataAddr(Off) + Pos;
 }
 
 void RefHeap::free(uint32_t Off) noexcept {
@@ -381,7 +514,7 @@ void RefHeap::freeObject(uint32_t Off) noexcept {
   }
   auto &P = Parts[Found - Parts];
   std::unique_lock Lock(P.Mutex);
-  uint8_t *Slot = ObjectBase + (Off & ~kTagObject);
+  uint8_t *Slot = getObjectAddr(Off);
   auto *Header = reinterpret_cast<HeapHeader *>(Slot);
   if (Header->Kind == HeapKind::Free) {
     return;
@@ -404,7 +537,7 @@ void RefHeap::freeData(uint32_t Off) noexcept {
   auto *Bits = Blocks[BlockIdx].LiveBits.load(std::memory_order_relaxed);
   Bits[SlotIdx / 64].fetch_and(~(UINT64_C(1) << (SlotIdx % 64)),
                                std::memory_order_acq_rel);
-  std::memset(DataBase + Off, 0, SlotSize);
+  std::memset(getDataAddr(Off), 0, SlotSize);
   try {
     if (SlotSize <= kMaxSmallSize) {
       ClassFree[getClassIndex(SlotSize)].push_back(Off);

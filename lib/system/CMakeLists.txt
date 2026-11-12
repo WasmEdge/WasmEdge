@@ -21,6 +21,13 @@ target_link_libraries(wasmedgeSystem
   wasmedgeCommon
 )
 
+if(WASMEDGE_REFHEAP_FORCE_CHUNK_MODE)
+  target_compile_definitions(wasmedgeSystem
+    PRIVATE
+    WASMEDGE_REFHEAP_FORCE_CHUNK_MODE
+  )
+endif()
+
 if(WIN32)
   target_link_libraries(wasmedgeSystem
     PRIVATE

@@ -61,7 +61,10 @@ using Runtime::HeapHeader;
 using Runtime::HeapKind;
 using Runtime::RefHeap;
 
-std::unique_ptr<RefHeap> makeHeap(const RefHeap::Limits &L = {}) {
+using Runtime::HeapMode;
+
+std::unique_ptr<RefHeap> makeHeap(HeapMode Mode, RefHeap::Limits L = {}) {
+  L.Mode = Mode;
   auto Res = RefHeap::create(L);
   if (!Res) {
     return nullptr;
@@ -69,16 +72,18 @@ std::unique_ptr<RefHeap> makeHeap(const RefHeap::Limits &L = {}) {
   return std::move(*Res);
 }
 
-constexpr bool kHasFlatMode = WASMEDGE_ALLOCATOR_IS_STABLE;
+class RefHeapModes : public ::testing::TestWithParam<HeapMode> {};
 
 #define MAKE_HEAP_OR_SKIP(Name, ...)                                           \
-  auto Name = makeHeap(__VA_ARGS__);                                           \
-  if (!Name) {                                                                 \
-    if (kHasFlatMode) {                                                        \
-      FAIL() << "heap creation failed";                                        \
-    }                                                                          \
-    GTEST_SKIP() << "flat mode is not available on this host";                 \
-  }
+  if (!RefHeap::isModeSupported(GetParam())) {                                 \
+    GTEST_SKIP() << "this address mode is not available on this host";         \
+  }                                                                            \
+  auto Name = makeHeap(GetParam(), ##__VA_ARGS__);                             \
+  ASSERT_TRUE(Name) << "heap creation failed";
+
+#define MAKE_CHUNK_HEAP(Name, ...)                                             \
+  auto Name = makeHeap(HeapMode::Chunk, ##__VA_ARGS__);                        \
+  ASSERT_TRUE(Name) << "heap creation failed";
 
 TEST(RefHeap, HeaderLayout) {
   EXPECT_EQ(sizeof(HeapHeader), 32U);
@@ -95,7 +100,7 @@ TEST(RefHeap, HeaderLayout) {
   EXPECT_EQ(offsetof(HeapHeader, Reserved1), 28U);
 }
 
-TEST(RefHeap, DataSlots) {
+TEST_P(RefHeapModes, DataSlots) {
   MAKE_HEAP_OR_SKIP(Heap);
   auto A = Heap->allocate(HeapKind::Struct, 40);
   auto B = Heap->allocate(HeapKind::Struct, 100);
@@ -129,7 +134,7 @@ TEST(RefHeap, DataSlots) {
   EXPECT_EQ(*C, *A);
 }
 
-TEST(RefHeap, LargeData) {
+TEST_P(RefHeapModes, LargeData) {
   MAKE_HEAP_OR_SKIP(Heap);
   auto A = Heap->allocate(HeapKind::Array, 200000);
   ASSERT_TRUE(A);
@@ -150,7 +155,7 @@ TEST(RefHeap, LargeData) {
   EXPECT_FALSE(Heap->getDataSpan(*A, 65536, 16));
 }
 
-TEST(RefHeap, ObjectSlots) {
+TEST_P(RefHeapModes, ObjectSlots) {
   MAKE_HEAP_OR_SKIP(Heap);
   auto A = Heap->allocate(HeapKind::Function, 128);
   ASSERT_TRUE(A);
@@ -195,7 +200,7 @@ TEST(RefHeap, ObjectSlots) {
   EXPECT_FALSE(Heap->allocate(HeapKind::ExternBox, 65));
 }
 
-TEST(RefHeap, Forged) {
+TEST_P(RefHeapModes, Forged) {
   MAKE_HEAP_OR_SKIP(Heap);
   auto D = Heap->allocate(HeapKind::Struct, 32);
   ASSERT_TRUE(D);
@@ -225,7 +230,7 @@ TEST(RefHeap, Forged) {
   EXPECT_EQ(Heap->getHeader(UINT32_C(0x7FFFFFF0)), nullptr);
 }
 
-TEST(RefHeap, Full) {
+TEST_P(RefHeapModes, Full) {
   {
     MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
     auto A = Heap->allocate(HeapKind::Array, 2 * 65536);
@@ -247,7 +252,7 @@ TEST(RefHeap, Full) {
   }
 }
 
-TEST(RefHeap, LoadStore) {
+TEST_P(RefHeapModes, LoadStore) {
   MAKE_HEAP_OR_SKIP(Heap);
   auto A = Heap->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(A);
@@ -259,7 +264,7 @@ TEST(RefHeap, LoadStore) {
   EXPECT_FALSE(Heap->store<uint32_t>(*A, 62, 1));
 }
 
-TEST(RefHeap, Threads) {
+TEST_P(RefHeapModes, Threads) {
   MAKE_HEAP_OR_SKIP(Heap);
   constexpr int kThreads = 4;
   std::vector<std::vector<uint32_t>> Kept(kThreads);
@@ -299,7 +304,7 @@ TEST(RefHeap, Threads) {
   }
 }
 
-TEST(RefHeap, LargeSlotRace) {
+TEST_P(RefHeapModes, LargeSlotRace) {
   MAKE_HEAP_OR_SKIP(Heap);
   std::atomic<uint32_t> Probe{0};
   std::atomic<bool> Stop{false};
@@ -327,14 +332,72 @@ TEST(RefHeap, LargeSlotRace) {
 
 TEST(RefHeap, Global) {
   auto *Heap = RefHeap::getGlobal();
-  if (Heap == nullptr) {
-    ASSERT_FALSE(kHasFlatMode);
-    GTEST_SKIP() << "flat mode is not available on this host";
-  }
+  ASSERT_NE(Heap, nullptr);
   EXPECT_EQ(RefHeap::getGlobal(), Heap);
+  EXPECT_EQ(Heap->getMode(), RefHeap::getDefaultMode());
 }
 
-TEST(RefHeap, Unique) {
+TEST(RefHeap, Modes) {
+  EXPECT_TRUE(RefHeap::isModeSupported(HeapMode::Chunk));
+  EXPECT_EQ(RefHeap::isModeSupported(HeapMode::Flat),
+            WASMEDGE_ALLOCATOR_IS_STABLE && sizeof(void *) == 8);
+  if (!RefHeap::isModeSupported(HeapMode::Flat)) {
+    EXPECT_EQ(RefHeap::getDefaultMode(), HeapMode::Chunk);
+  }
+}
+
+TEST(RefHeap, ChunkRunContiguous) {
+  MAKE_CHUNK_HEAP(Heap);
+  EXPECT_EQ(Heap->getMode(), HeapMode::Chunk);
+  auto S = Heap->allocate(HeapKind::Struct, 64);
+  ASSERT_TRUE(S);
+  EXPECT_EQ(*S, UINT32_C(1) << 16);
+  const uint32_t Size = 20 * 65536;
+  auto A = Heap->allocate(HeapKind::Array, Size);
+  ASSERT_TRUE(A);
+  EXPECT_EQ(*A, RefHeap::kChunkSize);
+  auto Span = Heap->getDataSpan(*A, 0, Size);
+  ASSERT_TRUE(Span);
+  std::memset(*Span, 0x5A, Size);
+  auto Last = Heap->load<uint8_t>(*A, Size - 1);
+  ASSERT_TRUE(Last);
+  EXPECT_EQ(*Last, 0x5AU);
+  EXPECT_FALSE(Heap->getDataSpan(*A, 0, Size + 65536));
+  auto B = Heap->allocate(HeapKind::Array, 10 * 65536);
+  ASSERT_TRUE(B);
+  EXPECT_EQ(*B, UINT32_C(2) << 16);
+  auto BSpan = Heap->getDataSpan(*B, 0, 10 * 65536);
+  ASSERT_TRUE(BSpan);
+  std::memset(*BSpan, 0x3C, 10 * 65536);
+  EXPECT_EQ(Heap->getOffset(*BSpan + sizeof(HeapHeader)), *B);
+}
+
+TEST(RefHeap, ChunkObjectParts) {
+  MAKE_CHUNK_HEAP(Heap);
+  const uint32_t PerChunk = RefHeap::kChunkSize / 256;
+  std::vector<uint32_t> Offs;
+  for (uint32_t I = 0; I <= PerChunk; ++I) {
+    auto F = Heap->allocate(HeapKind::Function, 256);
+    ASSERT_TRUE(F) << I;
+    Offs.push_back(*F);
+  }
+  EXPECT_EQ(Offs.back() - Offs.front(), RefHeap::kChunkSize);
+  for (const uint32_t Off : {Offs.front(), Offs[PerChunk - 1], Offs.back()}) {
+    auto *Obj =
+        static_cast<uint8_t *>(Heap->decodeObject(HeapKind::Function, Off));
+    ASSERT_NE(Obj, nullptr) << Off;
+    std::memset(Obj, 0x11, 256 - sizeof(HeapHeader));
+    EXPECT_EQ(Heap->getOffset(Obj), Off);
+    EXPECT_EQ(Heap->getHeader(Off)->SelfOffset, Off);
+  }
+  auto *Last = static_cast<uint8_t *>(
+      Heap->decodeObject(HeapKind::Function, Offs[PerChunk - 1]));
+  EXPECT_EQ(Heap->getOffset(Last + 256), 0U);
+  int Local = 0;
+  EXPECT_EQ(Heap->getOffset(&Local), 0U);
+}
+
+TEST_P(RefHeapModes, Unique) {
   MAKE_HEAP_OR_SKIP(Heap);
   int Count = 0;
   {
@@ -375,7 +438,7 @@ TEST(RefHeap, Unique) {
   EXPECT_EQ(Count, 3);
 }
 
-TEST(RefHeap, NotLiveWhileBuilt) {
+TEST_P(RefHeapModes, NotLiveWhileBuilt) {
   MAKE_HEAP_OR_SKIP(Heap);
   uint32_t Built = 1;
   uint32_t Destroyed = 1;
@@ -399,7 +462,7 @@ TEST(RefHeap, NotLiveWhileBuilt) {
   EXPECT_NE(*R1, *R2);
 }
 
-TEST(RefHeap, Shared) {
+TEST_P(RefHeapModes, Shared) {
   MAKE_HEAP_OR_SKIP(Heap);
   int Count = 0;
   {
@@ -430,7 +493,7 @@ TEST(RefHeap, Shared) {
   EXPECT_EQ(Count, 1);
 }
 
-TEST(RefHeap, WithTail) {
+TEST_P(RefHeapModes, WithTail) {
   MAKE_HEAP_OR_SKIP(Heap);
   auto P = Heap->makeUniqueWithTail<Tailed>(64);
   ASSERT_TRUE(P);
@@ -445,5 +508,12 @@ TEST(RefHeap, WithTail) {
   ASSERT_TRUE(S);
   EXPECT_EQ((*S)->Head, 7U);
 }
+
+INSTANTIATE_TEST_SUITE_P(Modes, RefHeapModes,
+                         ::testing::Values(HeapMode::Flat, HeapMode::Chunk),
+                         [](const ::testing::TestParamInfo<HeapMode> &Info) {
+                           return Info.param == HeapMode::Flat ? "Flat"
+                                                               : "Chunk";
+                         });
 
 } // namespace

@@ -221,4 +221,16 @@ bool Allocator::set_chunk_readable_writable(uint8_t *Pointer,
 #endif
 }
 
+bool Allocator::set_chunk_no_access(uint8_t *Pointer, uint64_t Size) noexcept {
+#if WASMEDGE_OS_WINDOWS
+  winapi::DWORD_ OldPerm;
+  return winapi::VirtualProtect(Pointer, Size, winapi::PAGE_NOACCESS_,
+                                &OldPerm) != 0;
+#elif defined(HAVE_MMAP)
+  return mprotect(Pointer, Size, PROT_NONE) == 0;
+#else
+  return true;
+#endif
+}
+
 } // namespace WasmEdge

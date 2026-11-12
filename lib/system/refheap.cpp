@@ -207,7 +207,7 @@ Expect<uint32_t> RefHeap::allocateSlot(HeapKind Kind, uint64_t Size,
     return allocateObject(Kind, Size, Live);
   }
   if (Kind == HeapKind::Struct || Kind == HeapKind::Array) {
-    return allocateData(Kind, Size);
+    return allocateData(Kind, Size, 0, 0);
   }
   return Unexpect(ErrCode::Value::RefHeapFull);
 }
@@ -321,8 +321,18 @@ void RefHeap::setupBlocks(uint32_t Start, uint32_t Count, uint32_t SlotSize) {
   }
 }
 
-Expect<uint32_t> RefHeap::allocateData(HeapKind Kind,
-                                       uint64_t Size) noexcept try {
+Expect<uint32_t> RefHeap::allocateDataSlot(HeapKind Kind, uint64_t FieldBytes,
+                                           uint32_t TypeId,
+                                           uint32_t Length) noexcept {
+  if (FieldBytes > k4G) {
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  return allocateData(Kind, sizeof(HeapHeader) + FieldBytes, TypeId, Length);
+}
+
+Expect<uint32_t> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
+                                       uint32_t TypeId,
+                                       uint32_t Length) noexcept try {
   if (Size > static_cast<uint64_t>(DataBlocks) * kBlockSize) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
@@ -354,6 +364,9 @@ Expect<uint32_t> RefHeap::allocateData(HeapKind Kind,
   uint8_t *Slot = getDataAddr(Off);
   new (Slot) HeapHeader();
   initHeader(Slot, Kind, Off, true);
+  auto *Header = reinterpret_cast<HeapHeader *>(Slot);
+  Header->TypeId = TypeId;
+  Header->Length = Length;
   auto *Bits =
       Blocks[Off >> kBlockShift].LiveBits.load(std::memory_order_relaxed);
   Bits[SlotIdx / 64].fetch_or(UINT64_C(1) << (SlotIdx % 64),

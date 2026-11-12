@@ -206,6 +206,12 @@ public:
   Expect<UniqueHeapPtr<T>> makeUnique(ArgsT &&...Args) noexcept {
     return makeUniqueWithTail<T>(0, std::forward<ArgsT>(Args)...);
   }
+  /// New data slot for the empty marker type `T`, with `FieldBytes` zero
+  /// bytes after the header. The header holds `TypeId` and `Length`.
+  template <typename T>
+  Expect<UniqueHeapPtr<T>> makeData(uint32_t TypeId, uint32_t Length,
+                                    uint64_t FieldBytes) noexcept;
+
   /// Box of `Host`, or null for a null `Host`. The same host pointer always
   /// gives the same box. Boxes live until the heap is destroyed.
   WASMEDGE_EXPORT Expect<const ExternBox *>
@@ -257,7 +263,9 @@ private:
     if constexpr (isObjectKind(HeapTraits<T>::Kind)) {
       setLive(Off, false);
     }
-    Ptr->~T();
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      Ptr->~T();
+    }
     free(Off);
   }
 
@@ -325,7 +333,8 @@ private:
                                                     uint32_t Length) noexcept;
   Expect<uint32_t> allocateObject(HeapKind Kind, uint64_t Size,
                                   bool Live) noexcept;
-  Expect<uint32_t> allocateData(HeapKind Kind, uint64_t Size) noexcept;
+  Expect<uint32_t> allocateData(HeapKind Kind, uint64_t Size, uint32_t TypeId,
+                                uint32_t Length) noexcept;
   Expect<uint32_t> takeBlocks(uint32_t Count) noexcept;
   void setupBlocks(uint32_t Start, uint32_t Count, uint32_t SlotSize);
   void freeObject(uint32_t Off) noexcept;
@@ -490,6 +499,18 @@ Expect<UniqueHeapPtr<T>> RefHeap::makeUniqueWithTail(uint32_t TailBytes,
                                                      ArgsT &&...Args) noexcept {
   EXPECTED_TRY(auto Res, construct<T>(TailBytes, std::forward<ArgsT>(Args)...));
   return UniqueHeapPtr<T>(this, Res.first, Res.second);
+}
+
+template <typename T>
+Expect<UniqueHeapPtr<T>> RefHeap::makeData(uint32_t TypeId, uint32_t Length,
+                                           uint64_t FieldBytes) noexcept {
+  constexpr HeapKind Kind = HeapTraits<T>::Kind;
+  static_assert(Kind == HeapKind::Struct || Kind == HeapKind::Array);
+  static_assert(std::is_empty_v<T> && std::is_trivially_destructible_v<T>);
+  EXPECTED_TRY(const uint32_t Off,
+               allocateDataSlot(Kind, FieldBytes, TypeId, Length));
+  return UniqueHeapPtr<T>(
+      this, reinterpret_cast<T *>(getDataAddr(Off) + sizeof(HeapHeader)), Off);
 }
 
 template <typename T> UniqueHeapPtr<T> RefHeap::adopt(T *Ptr) noexcept {

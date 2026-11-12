@@ -50,9 +50,17 @@ private:
   uint64_t Value;
 };
 
+class TestData {
+public:
+  TestData() = delete;
+};
+
 } // namespace
 
 namespace WasmEdge::Runtime {
+template <> struct HeapTraits<TestData> {
+  static constexpr HeapKind Kind = HeapKind::Struct;
+};
 template <> struct HeapTraits<Hidden> {
   static constexpr HeapKind Kind = HeapKind::Exception;
 };
@@ -569,6 +577,61 @@ TEST_P(RefHeapModes, PrivateConstructor) {
   ASSERT_TRUE(P);
   EXPECT_EQ((*P)->getValue(), 11U);
   EXPECT_EQ(Heap->decodeObject(HeapKind::Exception, P->getOffset()), P->get());
+}
+
+TEST_P(RefHeapModes, MakeData) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  auto P = Heap->makeData<TestData>(7U, 3U, 24U);
+  ASSERT_TRUE(P);
+  const uint32_t Off = P->getOffset();
+  EXPECT_NE(Off, 0U);
+  EXPECT_EQ(Off & (RefHeap::kTagI31 | RefHeap::kTagObject), 0U);
+  EXPECT_EQ(Heap->getOffset(P->get()), Off);
+  const auto *Header = Heap->getHeader(Off);
+  ASSERT_NE(Header, nullptr);
+  EXPECT_EQ(Header->Kind, HeapKind::Struct);
+  EXPECT_EQ(Header->TypeId, 7U);
+  EXPECT_EQ(Header->Length, 3U);
+  for (uint32_t Pos = sizeof(HeapHeader); Pos < sizeof(HeapHeader) + 24U;
+       ++Pos) {
+    auto B = Heap->load<uint8_t>(Off, Pos);
+    ASSERT_TRUE(B);
+    EXPECT_EQ(*B, 0U);
+  }
+  ASSERT_TRUE(Heap->store<uint64_t>(Off, sizeof(HeapHeader) + 8U,
+                                    UINT64_C(0x1122334455667788)));
+  auto V = Heap->load<uint64_t>(Off, sizeof(HeapHeader) + 8U);
+  ASSERT_TRUE(V);
+  EXPECT_EQ(*V, UINT64_C(0x1122334455667788));
+  EXPECT_FALSE(Heap->load<uint8_t>(Off, 64U));
+}
+
+TEST_P(RefHeapModes, EmptyDataSlot) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  auto P = Heap->makeData<TestData>(1U, 0U, 0U);
+  ASSERT_TRUE(P);
+  const auto *Header = Heap->getHeader(P->getOffset());
+  ASSERT_NE(Header, nullptr);
+  EXPECT_EQ(Header->Kind, HeapKind::Struct);
+  EXPECT_EQ(Heap->getOffset(P->get()), P->getOffset());
+}
+
+TEST_P(RefHeapModes, DataSlotTooBig) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  auto P = Heap->makeData<TestData>(1U, 0U, UINT64_C(1) << 32);
+  ASSERT_FALSE(P);
+  EXPECT_EQ(P.error(), ErrCode::Value::RefHeapFull);
+}
+
+TEST_P(RefHeapModes, DataSlotReset) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  auto P = Heap->makeData<TestData>(1U, 0U, 16U);
+  ASSERT_TRUE(P);
+  const auto *Obj = P->get();
+  const uint32_t Off = P->getOffset();
+  P->reset();
+  EXPECT_EQ(Heap->getOffset(Obj), 0U);
+  EXPECT_EQ(Heap->getHeader(Off), nullptr);
 }
 
 TEST_P(RefHeapModes, ExternBoxes) {

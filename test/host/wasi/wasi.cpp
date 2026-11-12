@@ -4646,6 +4646,41 @@ std::string readFile(const std::filesystem::path &Path) {
 }
 } // namespace
 
+// fd_write on an append fd leaves the offset at the end of the file, and
+// fd_pwrite does not move it.
+TEST(WasiTest, FdWriteAppendMovesOffsetToEnd) {
+  SymlinkTestRoot Root("wasmedge-wasi-append-offset");
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  auto FdResult = Env.pathOpen(
+      RootFd, "append.txt"sv, static_cast<__wasi_lookupflags_t>(0),
+      __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+      __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL,
+      static_cast<__wasi_rights_t>(0), __WASI_FDFLAGS_APPEND);
+  ASSERT_TRUE(FdResult);
+  const __wasi_fd_t Fd = *FdResult;
+
+  const std::array<uint8_t, 2> Data = {'a', 'b'};
+  std::array<WasmEdge::Span<const uint8_t>, 1> IOVs = {Data};
+  __wasi_size_t NWritten = 0;
+  __wasi_filesize_t Offset = 0;
+
+  ASSERT_TRUE(Env.fdWrite(Fd, IOVs, NWritten));
+  ASSERT_TRUE(Env.fdSeek(Fd, 0, __WASI_WHENCE_SET, Offset));
+  ASSERT_TRUE(Env.fdWrite(Fd, IOVs, NWritten));
+  ASSERT_TRUE(Env.fdTell(Fd, Offset));
+  EXPECT_EQ(Offset, UINT64_C(4));
+
+  ASSERT_TRUE(Env.fdPwrite(Fd, IOVs, 0, NWritten));
+  ASSERT_TRUE(Env.fdTell(Fd, Offset));
+  EXPECT_EQ(Offset, UINT64_C(4));
+
+  EXPECT_TRUE(Env.fdClose(Fd));
+  Env.fini();
+}
+
 // path_remove_directory acts on a symlink itself and never removes its target.
 TEST(WasiTest, PathRemoveDirectoryDoesNotFollowSymlink) {
   namespace fs = std::filesystem;

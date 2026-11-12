@@ -616,9 +616,8 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
 
     auto AddFp = Builder.createFAdd(LHS, RHS);
 
-    assuming(LLVM::Core::MinNum != LLVM::Core::NotIntrinsic);
-    auto MinFp = Builder.createIntrinsic(LLVM::Core::MinNum, {LHS.getType()},
-                                         {LHS, RHS});
+    auto MinFp =
+        Builder.createSelect(Builder.createFCmpOLT(LHS, RHS), LHS, RHS);
 
     auto Ret = Builder.createSelect(UEQ, Builder.createSelect(UNO, AddFp, OrFp),
                                     MinFp);
@@ -644,9 +643,8 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
 
     auto AddFp = Builder.createFAdd(LHS, RHS);
 
-    assuming(LLVM::Core::MaxNum != LLVM::Core::NotIntrinsic);
-    auto MaxFp = Builder.createIntrinsic(LLVM::Core::MaxNum, {LHS.getType()},
-                                         {LHS, RHS});
+    auto MaxFp =
+        Builder.createSelect(Builder.createFCmpOGT(LHS, RHS), LHS, RHS);
 
     auto Ret = Builder.createSelect(
         UEQ, Builder.createSelect(UNO, AddFp, AndFp), MaxFp);

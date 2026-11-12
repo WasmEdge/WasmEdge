@@ -43,6 +43,10 @@ public:
   /// The table shared by the whole process. It is never destroyed.
   WASMEDGE_EXPORT static CanonicalTypeTable &getGlobal() noexcept;
 
+  /// Use `Table` as the global table of this runtime copy. Fails if this copy
+  /// already uses a different global table.
+  WASMEDGE_EXPORT static bool attachGlobal(CanonicalTypeTable *Table) noexcept;
+
   /// Register a rec group and return the id of its first sub type.
   ///
   /// `Start` is the module type index of `Group[0]`, and `ModuleIds` holds the

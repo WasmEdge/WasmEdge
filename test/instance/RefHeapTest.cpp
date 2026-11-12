@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "runtime/refheap.h"
+#include "runtime/typetable.h"
 
 #include "common/config.h"
 #include "system/allocator.h"
@@ -843,5 +844,29 @@ INSTANTIATE_TEST_SUITE_P(Modes, RefHeapModes,
                            return Info.param == HeapMode::Flat ? "Flat"
                                                                : "Chunk";
                          });
+
+TEST(RefHeap, AttachGlobal) {
+  auto *Heap = RefHeap::getGlobal();
+  ASSERT_NE(Heap, nullptr);
+  EXPECT_TRUE(RefHeap::attachGlobal(Heap));
+  EXPECT_EQ(RefHeap::getGlobal(), Heap);
+  RefHeap::Limits L;
+  L.Mode = HeapMode::Chunk;
+  auto Other = RefHeap::create(L);
+  ASSERT_TRUE(Other);
+  EXPECT_FALSE(RefHeap::attachGlobal(Other->get()));
+  EXPECT_FALSE(RefHeap::attachGlobal(nullptr));
+  EXPECT_EQ(RefHeap::getGlobal(), Heap);
+
+  auto &Types = Runtime::CanonicalTypeTable::getGlobal();
+  EXPECT_TRUE(Runtime::CanonicalTypeTable::attachGlobal(&Types));
+  Runtime::CanonicalTypeTable OtherTypes;
+  EXPECT_FALSE(Runtime::CanonicalTypeTable::attachGlobal(&OtherTypes));
+  EXPECT_EQ(&Runtime::CanonicalTypeTable::getGlobal(), &Types);
+
+  EXPECT_TRUE(wasmedge_refheap_attach(Heap, &Types));
+  EXPECT_FALSE(wasmedge_refheap_attach(Other->get(), &Types));
+  EXPECT_FALSE(wasmedge_refheap_attach(Heap, &OtherTypes));
+}
 
 } // namespace

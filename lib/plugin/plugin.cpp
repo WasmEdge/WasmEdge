@@ -5,6 +5,8 @@
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/version.h"
+#include "runtime/refheap.h"
+#include "runtime/typetable.h"
 #include "wasmedge/wasmedge.h"
 
 // BUILTIN-PLUGIN: Headers for built-in plug-ins.
@@ -437,9 +439,31 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
     return false;
   }
 
+  auto AttachHeap = [&Lib, &Path]() noexcept {
+    auto *Heap = Runtime::RefHeap::getGlobal();
+    if (Heap == nullptr) {
+      spdlog::error("Plugin {} needs a reference heap that the host cannot "
+                    "create."sv,
+                    u8string(Path));
+      return false;
+    }
+    if (auto Attach = Lib->get<decltype(wasmedge_refheap_attach)>(
+            "wasmedge_refheap_attach");
+        Attach && !Attach(Heap, &Runtime::CanonicalTypeTable::getGlobal())) {
+      spdlog::error("Plugin {} cannot use the reference heap of the host."sv,
+                    u8string(Path));
+      return false;
+    }
+    return true;
+  };
+
   if (auto GetDescriptor =
           Lib->get<Plugin::PluginDescriptor const *()>("GetDescriptor")) {
-    Result = unsafeRegisterPlugin(GetDescriptor());
+    const auto *Descriptor = GetDescriptor();
+    if (Descriptor->APIVersion == CurrentAPIVersion && !AttachHeap()) {
+      return false;
+    }
+    Result = unsafeRegisterPlugin(Descriptor);
   }
 
   if (!Result) {
@@ -455,6 +479,8 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
                PluginNameLookup.end()) {
       // Already registered under this name: don't build a CAPIPluginRegister,
       // it would leak since registerPlugin() would reject the duplicate.
+      return false;
+    } else if (Descriptor->APIVersion == CurrentAPIVersion && !AttachHeap()) {
       return false;
     } else {
       Result = unsafeRegisterPlugin(

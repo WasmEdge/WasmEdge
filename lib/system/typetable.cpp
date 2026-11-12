@@ -44,9 +44,35 @@ uint32_t CanonicalTypeTable::getFieldSize(const ValType &StorageType) noexcept {
   return StorageType.getBitWidth() / 8;
 }
 
+namespace {
+std::atomic<CanonicalTypeTable *> GlobalTable = nullptr;
+std::mutex GlobalTableMutex;
+} // namespace
+
 CanonicalTypeTable &CanonicalTypeTable::getGlobal() noexcept {
-  static CanonicalTypeTable *Table = new CanonicalTypeTable();
+  if (auto *Table = GlobalTable.load(std::memory_order_acquire)) {
+    return *Table;
+  }
+  std::unique_lock Lock(GlobalTableMutex);
+  auto *Table = GlobalTable.load(std::memory_order_relaxed);
+  if (Table == nullptr) {
+    Table = new CanonicalTypeTable();
+    GlobalTable.store(Table, std::memory_order_release);
+  }
   return *Table;
+}
+
+bool CanonicalTypeTable::attachGlobal(CanonicalTypeTable *Table) noexcept {
+  if (Table == nullptr) {
+    return false;
+  }
+  std::unique_lock Lock(GlobalTableMutex);
+  auto *Current = GlobalTable.load(std::memory_order_relaxed);
+  if (Current == nullptr) {
+    GlobalTable.store(Table, std::memory_order_release);
+    return true;
+  }
+  return Current == Table;
 }
 
 size_t CanonicalTypeTable::KeyHash::operator()(

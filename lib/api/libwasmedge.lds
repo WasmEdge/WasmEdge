@@ -38,6 +38,7 @@ WASMEDGE_0.17 {
 
 WASMEDGE_0.18 {
   global:
+    wasmedge_refheap_attach;
     WasmEdge_ModuleInstanceAddFunction;
     WasmEdge_ModuleInstanceAddTable;
     WasmEdge_ModuleInstanceAddMemory;

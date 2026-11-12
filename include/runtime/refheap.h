@@ -181,6 +181,10 @@ public:
   /// It is never destroyed.
   WASMEDGE_EXPORT static RefHeap *getGlobal() noexcept;
 
+  /// Use `Heap` as the global heap of this runtime copy. Fails if this copy
+  /// already uses a different global heap.
+  WASMEDGE_EXPORT static bool attachGlobal(RefHeap *Heap) noexcept;
+
   ~RefHeap() noexcept;
   RefHeap(const RefHeap &) = delete;
   RefHeap &operator=(const RefHeap &) = delete;
@@ -590,3 +594,16 @@ Expect<SharedHeapPtr<T>> RefHeap::makeSharedWithTail(uint32_t TailBytes,
 
 } // namespace Runtime
 } // namespace WasmEdge
+
+/// Give the runtime copy that defines this function the host heap and the
+/// host canonical type table. The plugin loader calls it after it checks the
+/// API version of the plugin descriptor.
+///
+/// Every runtime copy exports this function, the shared library included, so
+/// the loader finds it in a plugin that links its own copy of the runtime,
+/// statically or as another shared library, and the copy then uses the host
+/// heap. A plugin that links the shared library of the host finds the host
+/// function, and the call does nothing. A plugin without this function has no
+/// runtime copy of its own.
+extern "C" WASMEDGE_EXPORT bool wasmedge_refheap_attach(void *Heap,
+                                                        void *Types) noexcept;

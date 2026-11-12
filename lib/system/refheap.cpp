@@ -3,6 +3,7 @@
 
 #include "runtime/refheap.h"
 #include "runtime/instance/function.h"
+#include "runtime/typetable.h"
 
 #include "common/config.h"
 #include "common/types.h"
@@ -112,12 +113,36 @@ void RefHeap::initDescriptor() noexcept {
   Desc.FuncSlotMask = P.SlotSize - 1;
 }
 
+namespace {
+std::atomic<RefHeap *> GlobalHeap = nullptr;
+std::mutex GlobalHeapMutex;
+} // namespace
+
 RefHeap *RefHeap::getGlobal() noexcept {
-  static RefHeap *Heap = []() noexcept -> RefHeap * {
+  if (auto *Heap = GlobalHeap.load(std::memory_order_acquire)) {
+    return Heap;
+  }
+  std::unique_lock Lock(GlobalHeapMutex);
+  auto *Heap = GlobalHeap.load(std::memory_order_relaxed);
+  if (Heap == nullptr) {
     auto Res = create(Limits{});
-    return Res ? Res->release() : nullptr;
-  }();
+    Heap = Res ? Res->release() : nullptr;
+    GlobalHeap.store(Heap, std::memory_order_release);
+  }
   return Heap;
+}
+
+bool RefHeap::attachGlobal(RefHeap *Heap) noexcept {
+  if (Heap == nullptr || Heap->getMode() != getDefaultMode()) {
+    return false;
+  }
+  std::unique_lock Lock(GlobalHeapMutex);
+  auto *Current = GlobalHeap.load(std::memory_order_relaxed);
+  if (Current == nullptr) {
+    GlobalHeap.store(Heap, std::memory_order_release);
+    return true;
+  }
+  return Current == Heap;
 }
 
 RefHeap::~RefHeap() noexcept {
@@ -772,3 +797,10 @@ void RefHeap::freeData(uint32_t Off) noexcept {
 
 } // namespace Runtime
 } // namespace WasmEdge
+
+bool wasmedge_refheap_attach(void *Heap, void *Types) noexcept {
+  using namespace WasmEdge::Runtime;
+  return RefHeap::attachGlobal(static_cast<RefHeap *>(Heap)) &&
+         CanonicalTypeTable::attachGlobal(
+             static_cast<CanonicalTypeTable *>(Types));
+}

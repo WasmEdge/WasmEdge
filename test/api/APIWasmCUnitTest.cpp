@@ -66,6 +66,9 @@ namespace {
   wasm_##name##_vec_new(&out, 0, nullptr);                                     \
   EXPECT_EQ(0U, out.size);                                                     \
   wasm_##name##_vec_delete(&out);                                              \
+  wasm_##name##_vec_new(&out, n, nullptr);                                     \
+  EXPECT_EQ(0U, out.size);                                                     \
+  EXPECT_EQ(nullptr, out.data);                                                \
   wasm_##name##_vec_new(&out, n, vals);                                        \
   EXPECT_EQ((size_t)(n), out.size);                                            \
   EXPECT_NE(nullptr, out.data);                                                \
@@ -73,6 +76,12 @@ namespace {
   wasm_##name##_vec_copy(nullptr, nullptr);                                    \
   wasm_##name##_vec_copy(nullptr, &out);                                       \
   wasm_##name##_vec_copy(&copy, nullptr);                                      \
+  {                                                                            \
+    wasm_##name##_vec_t nodata_##name = {(size_t)(n), nullptr};                \
+    wasm_##name##_vec_copy(&copy, &nodata_##name);                             \
+    EXPECT_EQ(0U, copy.size);                                                  \
+    EXPECT_EQ(nullptr, copy.data);                                             \
+  }                                                                            \
   wasm_##name##_vec_copy(&copy, &out);                                         \
   EXPECT_EQ(out.size, copy.size);
 
@@ -103,6 +112,10 @@ extern void recordingFinalizer(void *env);
     ASSERT_NE(nullptr, cp_##name);                                             \
     EXPECT_TRUE(wasm_##name##_same(obj, cp_##name));                           \
     wasm_##name##_delete(cp_##name);                                           \
+    EXPECT_EQ(nullptr, wasm_##name##_copy(nullptr));                           \
+    EXPECT_TRUE(wasm_##name##_same(nullptr, nullptr));                         \
+    EXPECT_FALSE(wasm_##name##_same(obj, nullptr));                            \
+    EXPECT_FALSE(wasm_##name##_same(nullptr, obj));                            \
   }                                                                            \
   /* host_info round-trip */                                                   \
   {                                                                            \
@@ -111,6 +124,10 @@ extern void recordingFinalizer(void *env);
     wasm_##name##_set_host_info(obj, &marker_##name);                          \
     EXPECT_EQ(&marker_##name, wasm_##name##_get_host_info(obj));               \
     wasm_##name##_set_host_info(obj, nullptr);                                 \
+    EXPECT_EQ(nullptr, wasm_##name##_get_host_info(nullptr));                  \
+    wasm_##name##_set_host_info(nullptr, &marker_##name);                      \
+    wasm_##name##_set_host_info_with_finalizer(nullptr, &marker_##name,        \
+                                               recordingFinalizer);            \
   }                                                                            \
   /* host_info_with_finalizer: fires on the last delete */                     \
   {                                                                            \
@@ -209,6 +226,11 @@ TEST(APIWasmCTest, FuncType) {
   for (uint32_t i = 1; i < 8; i++) {
     wasm_valtype_vec_copy(&vt[i], &vt[0]);
   }
+  wasm_valtype_vec_t nodata = {4, nullptr};
+  EXPECT_EQ(nullptr, wasm_functype_new(nullptr, &vt[1]));
+  EXPECT_EQ(nullptr, wasm_functype_new(&vt[0], nullptr));
+  EXPECT_EQ(nullptr, wasm_functype_new(&nodata, &vt[1]));
+  EXPECT_EQ(nullptr, wasm_functype_new(&vt[0], &nodata));
   wasm_functype_t *functypes[4] = {
       wasm_functype_new(&vt[0], &vt[1]), wasm_functype_new(&vt[2], &vt[3]),
       wasm_functype_new(&vt[4], &vt[5]), wasm_functype_new(&vt[6], &vt[7])};
@@ -487,6 +509,10 @@ TEST(APIWasmCTest, ImportType) {
   wasm_name_new_from_string(&names[0], "global1");
   wasm_name_new_from_string(&names[1], "global2");
   wasm_name_new_from_string(&names[2], "global3");
+  wasm_name_t nodata = {4, nullptr};
+  EXPECT_EQ(nullptr, wasm_importtype_new(&nodata, &names[0], externtypes[0]));
+  EXPECT_EQ(nullptr,
+            wasm_importtype_new(&modnames[0], &nodata, externtypes[0]));
   wasm_importtype_t *importtypes[3] = {
       wasm_importtype_new(&modnames[0], &names[0], externtypes[0]),
       wasm_importtype_new(&modnames[1], &names[1], externtypes[1]),
@@ -549,6 +575,8 @@ TEST(APIWasmCTest, ExportType) {
   wasm_name_new_from_string(&names[0], "global1");
   wasm_name_new_from_string(&names[1], "global2");
   wasm_name_new_from_string(&names[2], "global3");
+  wasm_name_t nodata = {4, nullptr};
+  EXPECT_EQ(nullptr, wasm_exporttype_new(&nodata, externtypes[0]));
   wasm_exporttype_t *exporttypes[3] = {
       wasm_exporttype_new(&names[0], externtypes[0]),
       wasm_exporttype_new(&names[1], externtypes[1]),
@@ -630,6 +658,7 @@ TEST(APIWasmCTest, Frame) {
   wasm_frame_t *frame_copy = wasm_frame_copy(frame);
   ASSERT_NE(nullptr, frame_copy);
   EXPECT_EQ(0U, wasm_frame_func_index(frame_copy));
+  EXPECT_EQ(nullptr, wasm_frame_copy(nullptr));
 
   // wasm_frame_delete null guard via WASM_DECLARE_OWN_TEST.
   WASM_DECLARE_OWN_TEST(frame, frame_copy)
@@ -742,11 +771,14 @@ TEST(APIWasmCTest, Module) {
   // wasm_module_validate null guards + happy path.
   EXPECT_FALSE(wasm_module_validate(nullptr, &bin));
   EXPECT_FALSE(wasm_module_validate(store, nullptr));
+  wasm_byte_vec_t nodata = {sizeof(MinimalModuleBin), nullptr};
+  EXPECT_FALSE(wasm_module_validate(store, &nodata));
   EXPECT_TRUE(wasm_module_validate(store, &bin));
 
   // wasm_module_new null guards + happy path.
   EXPECT_EQ(nullptr, wasm_module_new(nullptr, &bin));
   EXPECT_EQ(nullptr, wasm_module_new(store, nullptr));
+  EXPECT_EQ(nullptr, wasm_module_new(store, &nodata));
   wasm_module_t *module = wasm_module_new(store, &bin);
   wasm_module_t *module_fin = wasm_module_new(store, &bin);
   wasm_byte_vec_delete(&bin);
@@ -857,6 +889,29 @@ TEST(APIWasmCTest, Func) {
   EXPECT_EQ(1, env_slot);
 
   wasm_functype_delete(ftype);
+
+  // wasm_func_call with data-less args and results vecs.
+  wasm_functype_t *ftype11 = wasm_functype_new_1_1(wasm_valtype_new(WASM_I32),
+                                                   wasm_valtype_new(WASM_I32));
+  wasm_func_t *func11 = wasm_func_new(
+      store, ftype11,
+      [](const wasm_val_vec_t *args, wasm_val_vec_t *results) -> wasm_trap_t * {
+        results->data[0] = args->data[0];
+        return nullptr;
+      });
+  wasm_functype_delete(ftype11);
+  ASSERT_NE(nullptr, func11);
+  wasm_val_vec_t nodata = {1, nullptr};
+  EXPECT_EQ(nullptr, wasm_func_call(func11, &nodata, &nodata));
+  wasm_val_t arg = i32Val(7);
+  wasm_val_t res = i32Val(0);
+  wasm_val_vec_t args = {1, &arg};
+  wasm_val_vec_t results = {1, &res};
+  EXPECT_EQ(nullptr, wasm_func_call(func11, &args, &results));
+  EXPECT_EQ(7, res.of.i32);
+  arg.kind = 77;
+  EXPECT_EQ(nullptr, wasm_func_call(func11, &args, &results));
+  wasm_func_delete(func11);
 
   // wasm-c-api does not define wasm_func_vec_t, so no vec ops here.
 
@@ -1071,6 +1126,11 @@ TEST(APIWasmCTest, Instance) {
   wasm_instance_t *instance =
       wasm_instance_new(store, module, &empty_imports, nullptr);
   ASSERT_NE(nullptr, instance);
+  wasm_extern_vec_t nodata_imports = {1, nullptr};
+  wasm_instance_t *instance_nodata =
+      wasm_instance_new(store, module, &nodata_imports, nullptr);
+  ASSERT_NE(nullptr, instance_nodata);
+  wasm_instance_delete(instance_nodata);
   wasm_instance_t *instance_fin =
       wasm_instance_new(store, module, &empty_imports, nullptr);
   ASSERT_NE(nullptr, instance_fin);
@@ -1080,6 +1140,10 @@ TEST(APIWasmCTest, Instance) {
   wasm_instance_exports(instance, &exports);
   EXPECT_EQ(0U, exports.size);
   wasm_extern_vec_delete(&exports);
+  wasm_instance_exports(nullptr, &exports);
+  EXPECT_EQ(0U, exports.size);
+  EXPECT_EQ(nullptr, exports.data);
+  wasm_instance_exports(instance, nullptr);
 
   WASM_DECLARE_REF_TEST(instance, instance, instance_fin)
 
@@ -1178,6 +1242,7 @@ TEST(APIWasmCTest, Extern) {
   wasm_externtype_delete(etm);
 
   WASM_DECLARE_REF_TEST(extern, ef, ef_fin)
+  EXPECT_EQ(nullptr, wasm_extern_type(nullptr));
 
   // Vec ops over a mixed wasm_extern_t * array. WASM_DECLARE_VEC_TEST takes
   // ownership of vals[i], so reborrow each X via wasm_X_copy first to avoid
@@ -1225,6 +1290,114 @@ TEST(APIWasmCTest, Ref) {
   EXPECT_TRUE(true);
 }
 
+TEST(APIWasmCTest, UnsupportedType) {
+  // (module
+  //   (func (export "f") (result v128) (v128.const i64x2 0 0))
+  //   (global (export "g") (mut v128) (v128.const i64x2 0 0))
+  //   (table (export "t") 1 anyref)
+  //   (func (export "ok") (result i32) (i32.const 1)))
+  const uint8_t wasm[] = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+      0x00, 0x01, 0x7b, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x01,
+      0x04, 0x04, 0x01, 0x6e, 0x00, 0x01, 0x06, 0x16, 0x01, 0x7b, 0x01, 0xfd,
+      0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x07, 0x12, 0x04, 0x01, 0x66, 0x00,
+      0x00, 0x01, 0x67, 0x03, 0x00, 0x01, 0x74, 0x01, 0x00, 0x02, 0x6f, 0x6b,
+      0x00, 0x01, 0x0a, 0x1b, 0x02, 0x14, 0x00, 0xfd, 0x0c, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x0b, 0x04, 0x00, 0x41, 0x01, 0x0b};
+
+  // Kinds outside the wasm C API enums are rejected on construction.
+  EXPECT_EQ(nullptr, wasm_valtype_new(77));
+  EXPECT_EQ(nullptr, wasm_globaltype_new(wasm_valtype_new(WASM_I32), 5));
+  wasm_limits_t limits = {1, 1};
+  EXPECT_EQ(nullptr, wasm_tabletype_new(wasm_valtype_new(WASM_I32), &limits));
+  wasm_valtype_t *null_types[1] = {nullptr};
+  wasm_valtype_vec_t null_elem, no_types;
+  wasm_valtype_vec_new(&null_elem, 1, null_types);
+  wasm_valtype_vec_new_empty(&no_types);
+  EXPECT_EQ(nullptr, wasm_functype_new(&null_elem, &no_types));
+  EXPECT_EQ(nullptr, wasm_functype_new(&no_types, &null_elem));
+  wasm_valtype_vec_delete(&null_elem);
+  wasm_val_t bad_val = i32Val(0);
+  bad_val.kind = 77;
+  wasm_val_vec_t bad_vec;
+  wasm_val_vec_new(&bad_vec, 1, &bad_val);
+  ASSERT_EQ(1U, bad_vec.size);
+  EXPECT_EQ(WASM_EXTERNREF, bad_vec.data[0].kind);
+  EXPECT_EQ(nullptr, bad_vec.data[0].of.ref);
+  wasm_val_vec_delete(&bad_vec);
+
+  wasm_engine_t *engine = wasm_engine_new();
+  wasm_store_t *store = wasm_store_new(engine);
+  wasm_byte_vec_t bin;
+  wasm_byte_vec_new(&bin, sizeof(wasm),
+                    reinterpret_cast<const wasm_byte_t *>(wasm));
+  wasm_module_t *module = wasm_module_new(store, &bin);
+  wasm_byte_vec_delete(&bin);
+  ASSERT_NE(nullptr, module);
+
+  // Export types the wasm C API cannot express come back without a type.
+  wasm_exporttype_vec_t exptypes, exptypes_copy;
+  wasm_module_exports(module, &exptypes);
+  ASSERT_EQ(4U, exptypes.size);
+  EXPECT_EQ(nullptr, wasm_exporttype_type(exptypes.data[0]));
+  EXPECT_EQ(nullptr, wasm_exporttype_type(exptypes.data[1]));
+  EXPECT_EQ(nullptr, wasm_exporttype_type(exptypes.data[2]));
+  EXPECT_NE(nullptr, wasm_exporttype_type(exptypes.data[3]));
+  wasm_exporttype_vec_copy(&exptypes_copy, &exptypes);
+  ASSERT_EQ(4U, exptypes_copy.size);
+  EXPECT_EQ(nullptr, wasm_exporttype_type(exptypes_copy.data[0]));
+  EXPECT_NE(nullptr, wasm_exporttype_type(exptypes_copy.data[3]));
+  wasm_exporttype_vec_delete(&exptypes_copy);
+  wasm_exporttype_vec_delete(&exptypes);
+
+  wasm_extern_vec_t no_imports = WASM_EMPTY_VEC;
+  wasm_instance_t *instance =
+      wasm_instance_new(store, module, &no_imports, nullptr);
+  ASSERT_NE(nullptr, instance);
+  wasm_extern_vec_t exports;
+  wasm_instance_exports(instance, &exports);
+  ASSERT_EQ(4U, exports.size);
+  wasm_func_t *func = wasm_extern_as_func(exports.data[0]);
+  wasm_global_t *global = wasm_extern_as_global(exports.data[1]);
+  wasm_table_t *table = wasm_extern_as_table(exports.data[2]);
+  wasm_func_t *func_ok = wasm_extern_as_func(exports.data[3]);
+
+  // A function with a v128 result has no type and traps when called.
+  EXPECT_EQ(nullptr, wasm_extern_type(exports.data[0]));
+  EXPECT_EQ(nullptr, wasm_func_type(func));
+  wasm_val_t res = i32Val(0);
+  wasm_val_vec_t no_args = WASM_EMPTY_VEC;
+  wasm_val_vec_t results = {1, &res};
+  wasm_trap_t *trap = wasm_func_call(func, &no_args, &results);
+  EXPECT_NE(nullptr, trap);
+  wasm_trap_delete(trap);
+  EXPECT_EQ(nullptr, wasm_func_call(func_ok, &no_args, &results));
+  EXPECT_EQ(WASM_I32, res.kind);
+  EXPECT_EQ(1, res.of.i32);
+
+  // A v128 global has no type, reads as a null reference, and ignores writes.
+  EXPECT_EQ(nullptr, wasm_global_type(global));
+  wasm_val_t got = i32Val(1);
+  wasm_global_get(global, &got);
+  EXPECT_EQ(WASM_EXTERNREF, got.kind);
+  EXPECT_EQ(nullptr, got.of.ref);
+  wasm_val_t to_set = i32Val(1);
+  wasm_global_set(global, &to_set);
+
+  // An anyref table has no type and hands out no element.
+  EXPECT_EQ(nullptr, wasm_table_type(table));
+  EXPECT_EQ(nullptr, wasm_table_get(table, 0));
+  EXPECT_FALSE(wasm_table_set(table, 0, nullptr));
+
+  wasm_extern_vec_delete(&exports);
+  wasm_instance_delete(instance);
+  wasm_module_delete(module);
+  wasm_store_delete(store);
+  wasm_engine_delete(engine);
+}
+
 TEST(APIWasmCTest, Val) {
   wasm_val_t vals[4] = {
       i32Val(42),
@@ -1246,6 +1419,13 @@ TEST(APIWasmCTest, Val) {
   wasm_val_vec_copy(nullptr, &in_vec);
   wasm_val_vec_copy(&copy_vec, nullptr);
   EXPECT_EQ(0U, copy_vec.size);
+  wasm_val_vec_t nodata_vec = {4, nullptr};
+  wasm_val_vec_copy(&copy_vec, &nodata_vec);
+  EXPECT_EQ(0U, copy_vec.size);
+  EXPECT_EQ(nullptr, copy_vec.data);
+  wasm_val_vec_new(&nodata_vec, 4, nullptr);
+  EXPECT_EQ(0U, nodata_vec.size);
+  EXPECT_EQ(nullptr, nodata_vec.data);
 
   // Perform copy.
   wasm_val_vec_copy(&copy_vec, &in_vec);

@@ -67,7 +67,8 @@ Two workflows further narrow their work *within* a run:
   the `wasi_nn_rpc` entry in
   [`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml).
 - **`docker`** builds only the image set affected by the change on pull requests,
-  and all images on `push` or `schedule`.
+  and all images on `push` or `schedule`. The manylinux plugins images build on
+  the published base image unless the base image inputs or the workflow change.
 
 ### Extensions path-filter design
 

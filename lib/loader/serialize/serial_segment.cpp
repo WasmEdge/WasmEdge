@@ -35,8 +35,11 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
   // Element segment: mode:u32 + tableidx:u32 + offset:expr + elemkind:reftype +
   // vec(u32) + vec(expr)
   //
-  // Modes 0x00 to 0x04 only express a nullable funcref element type, and 0x00
-  // and 0x04 also imply table index 0.
+  // Modes 0x00 to 0x03 only express a (ref func) element type and mode 0x04
+  // only a nullable funcref element type; 0x00 and 0x04 also imply table
+  // index 0.
+  const bool IsRefFunc =
+      Seg.getRefType() == ValType(TypeCode::Ref, TypeCode::FuncRef);
   const bool IsFuncRef =
       Seg.getRefType() == ValType(TypeCode::RefNull, TypeCode::FuncRef);
   // Modes 0x00 to 0x03 can only express ref.func initialisers.
@@ -56,14 +59,17 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
       Seg.getMode() == AST::ElementSegment::ElemMode::Declarative;
 
   uint8_t Mode;
-  if (!IsFuncRef) {
-    // Must use mode 0x05, 0x06 or 0x07: an expression form carrying a reftype.
-    Mode = 0x04U | (IsPassive ? 0x01U : IsDeclarative ? 0x03U : 0x02U);
+  if (IsRefFunc && AllRefFunc) {
+    Mode = IsPassive       ? 0x01U
+           : IsDeclarative ? 0x03U
+                           : (Seg.getIdx() != 0 ? 0x02U : 0x00U);
   } else {
-    Mode = static_cast<uint8_t>(AllRefFunc ? 0x00U : 0x04U) |
+    // Mode 0x04 needs a nullable funcref on table 0; modes 0x05 to 0x07 carry
+    // the reftype.
+    Mode = 0x04U |
            (IsPassive       ? 0x01U
             : IsDeclarative ? 0x03U
-                            : (Seg.getIdx() != 0 ? 0x02U : 0x00U));
+                            : (IsFuncRef && Seg.getIdx() == 0 ? 0x00U : 0x02U));
   }
   OutVec.push_back(Mode);
 

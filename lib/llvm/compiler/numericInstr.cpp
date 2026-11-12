@@ -3,7 +3,9 @@
 
 #include "compiler/function_compiler.h"
 
+#include <cmath>
 #include <limits>
+#include <vector>
 
 namespace WasmEdge {
 
@@ -56,23 +58,27 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
     break;
   case OpCode::F32__ceil:
   case OpCode::F64__ceil:
-    assuming(LLVM::Core::Ceil != LLVM::Core::NotIntrinsic);
-    stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Ceil, stackPop()));
+    stackPush(compileRoundOp(stackPop(), RoundMode::Ceil));
     break;
   case OpCode::F32__floor:
   case OpCode::F64__floor:
-    assuming(LLVM::Core::Floor != LLVM::Core::NotIntrinsic);
-    stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Floor, stackPop()));
+    stackPush(compileRoundOp(stackPop(), RoundMode::Floor));
     break;
   case OpCode::F32__trunc:
   case OpCode::F64__trunc:
-    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
-    stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Trunc, stackPop()));
+    stackPush(compileRoundOp(stackPop(), RoundMode::Trunc));
     break;
   case OpCode::F32__nearest:
   case OpCode::F64__nearest: {
     const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
     LLVM::Value Value = stackPop();
+
+#if defined(__x86_64__)
+    if (!Context.SupportSSE4_1) {
+      stackPush(compileRound(Value, RoundMode::Nearest));
+      break;
+    }
+#endif
 
 #if LLVM_VERSION_MAJOR < 12 || defined(__s390x__)
 #else
@@ -746,53 +752,132 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
   return {};
 }
 
+namespace {
+
+struct TruncBounds {
+  LLVMRealPredicate LowerPredicate;
+  LLVM::Value Lower;
+  LLVM::Value Upper;
+};
+
+// A value truncates into the integer type when it is above the lower bound
+// and below the upper one. The lower bound is inclusive when the exclusive one
+// is not representable in the floating-point type.
+TruncBounds getTruncBounds(LLVM::Type IntType, LLVM::Type FPType,
+                           bool IsSigned) noexcept {
+  assuming(FPType.isFloatTy() || FPType.isDoubleTy());
+  const auto BitWidth = static_cast<int>(IntType.getIntegerBitWidth());
+  assuming(BitWidth == 32 || BitWidth == 64);
+  if (!IsSigned) {
+    return {LLVMRealOGT, LLVM::Value::getConstReal(FPType, -1.0),
+            LLVM::Value::getConstReal(FPType, std::ldexp(1.0, BitWidth))};
+  }
+  const double Upper = std::ldexp(1.0, BitWidth - 1);
+  if (static_cast<unsigned int>(BitWidth) <= FPType.getFPMantissaWidth()) {
+    return {LLVMRealOGT, LLVM::Value::getConstReal(FPType, -Upper - 1.0),
+            LLVM::Value::getConstReal(FPType, Upper)};
+  }
+  return {LLVMRealOGE, LLVM::Value::getConstReal(FPType, -Upper),
+          LLVM::Value::getConstReal(FPType, Upper)};
+}
+
+} // namespace
+
+LLVM::Value FunctionCompiler::compileRoundOp(LLVM::Value Value,
+                                             RoundMode Mode) noexcept {
+#if defined(__x86_64__)
+  if (!Context.SupportSSE4_1) {
+    return compileRound(Value, Mode);
+  }
+#endif
+  switch (Mode) {
+  case RoundMode::Ceil:
+    assuming(LLVM::Core::Ceil != LLVM::Core::NotIntrinsic);
+    return Builder.createUnaryIntrinsic(LLVM::Core::Ceil, Value);
+  case RoundMode::Floor:
+    assuming(LLVM::Core::Floor != LLVM::Core::NotIntrinsic);
+    return Builder.createUnaryIntrinsic(LLVM::Core::Floor, Value);
+  case RoundMode::Trunc:
+    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
+    return Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
+  default:
+    assumingUnreachable();
+  }
+}
+
+LLVM::Value FunctionCompiler::compileRound(LLVM::Value Value,
+                                           RoundMode Mode) noexcept {
+  const auto Ty = Value.getType();
+  const auto ElementTy = Ty.isVectorTy() ? Ty.getElementType() : Ty;
+  auto GetConst = [&](double N) noexcept {
+    auto Element = LLVM::Value::getConstReal(ElementTy, N);
+    if (Ty.isVectorTy()) {
+      return LLVM::Value::getConstVector(
+          std::vector<LLVM::Value>(Ty.getVectorSize(), Element));
+    }
+    return Element;
+  };
+  auto CopySign = [&](LLVM::Value Magnitude) noexcept {
+    assuming(LLVM::Core::CopySign != LLVM::Core::NotIntrinsic);
+    return Builder.createIntrinsic(LLVM::Core::CopySign, {Ty},
+                                   {Magnitude, Value});
+  };
+  // Every value at or above this limit is an integer, and adding the limit to
+  // a smaller magnitude rounds it to the nearest integer, ties to even.
+  auto Limit = GetConst(
+      std::ldexp(1.0, static_cast<int>(ElementTy.getFPMantissaWidth()) - 1));
+  auto One = GetConst(1.0);
+
+  assuming(LLVM::Core::Fabs != LLVM::Core::NotIntrinsic);
+  auto Abs = Builder.createUnaryIntrinsic(LLVM::Core::Fabs, Value);
+  auto Rounded = Builder.createFSub(Builder.createFAdd(Abs, Limit), Limit);
+  switch (Mode) {
+  case RoundMode::Nearest:
+    break;
+  case RoundMode::Trunc:
+    Rounded = Builder.createSelect(Builder.createFCmpOGT(Rounded, Abs),
+                                   Builder.createFSub(Rounded, One), Rounded);
+    break;
+  case RoundMode::Floor:
+    Rounded = CopySign(Rounded);
+    Rounded = Builder.createSelect(Builder.createFCmpOGT(Rounded, Value),
+                                   Builder.createFSub(Rounded, One), Rounded);
+    break;
+  case RoundMode::Ceil:
+    Rounded = CopySign(Rounded);
+    Rounded = Builder.createSelect(Builder.createFCmpOLT(Rounded, Value),
+                                   Builder.createFAdd(Rounded, One), Rounded);
+    break;
+  }
+  return Builder.createSelect(Builder.createFCmpULT(Abs, Limit),
+                              CopySign(Rounded), Value);
+}
+
 void FunctionCompiler::compileSignedTrunc(LLVM::Type IntType) noexcept {
   auto NormBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.norm");
   auto NotMinBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.notmin");
   auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.notmax");
   auto Value = stackPop();
-  const auto [Precise, MinFp, MaxFp] =
-      [IntType, Value]() -> std::tuple<bool, LLVM::Value, LLVM::Value> {
-    const auto BitWidth = IntType.getIntegerBitWidth();
-    const auto [Min, Max] = [BitWidth]() -> std::tuple<int64_t, int64_t> {
-      switch (BitWidth) {
-      case 32:
-        return {std::numeric_limits<int32_t>::min(),
-                std::numeric_limits<int32_t>::max()};
-      case 64:
-        return {std::numeric_limits<int64_t>::min(),
-                std::numeric_limits<int64_t>::max()};
-      default:
-        assumingUnreachable();
-      }
-    }();
-    auto FPType = Value.getType();
-    assuming(FPType.isFloatTy() || FPType.isDoubleTy());
-    const auto FPWidth = FPType.getFPMantissaWidth();
-    return {BitWidth <= FPWidth, LLVM::Value::getConstReal(FPType, Min),
-            LLVM::Value::getConstReal(FPType, Max)};
-  }();
+  const auto Bounds = getTruncBounds(IntType, Value.getType(), true);
 
   auto IsNotNan = Builder.createLikely(Builder.createFCmpORD(Value, Value));
   Builder.createCondBr(IsNotNan, NormBB,
                        getTrapBB(ErrCode::Value::InvalidConvToInt));
 
   Builder.positionAtEnd(NormBB);
-  assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
-  auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
-  auto IsNotUnderflow =
-      Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+  auto IsNotUnderflow = Builder.createLikely(
+      Builder.createFCmp(Bounds.LowerPredicate, Value, Bounds.Lower));
   Builder.createCondBr(IsNotUnderflow, NotMinBB,
                        getTrapBB(ErrCode::Value::IntegerOverflow));
 
   Builder.positionAtEnd(NotMinBB);
-  auto IsNotOverflow = Builder.createLikely(
-      Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+  auto IsNotOverflow =
+      Builder.createLikely(Builder.createFCmpOLT(Value, Bounds.Upper));
   Builder.createCondBr(IsNotOverflow, NotMaxBB,
                        getTrapBB(ErrCode::Value::IntegerOverflow));
 
   Builder.positionAtEnd(NotMaxBB);
-  stackPush(Builder.createFPToSI(Trunc, IntType));
+  stackPush(Builder.createFPToSI(Value, IntType));
 }
 
 void FunctionCompiler::compileSignedTruncSat(LLVM::Type IntType) noexcept {
@@ -802,46 +887,30 @@ void FunctionCompiler::compileSignedTruncSat(LLVM::Type IntType) noexcept {
   auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ssat.notmax");
   auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ssat.end");
   auto Value = stackPop();
-  const auto [Precise, MinInt, MaxInt, MinFp, MaxFp] = [IntType, Value]()
-      -> std::tuple<bool, uint64_t, uint64_t, LLVM::Value, LLVM::Value> {
-    const auto BitWidth = IntType.getIntegerBitWidth();
-    const auto [Min, Max] = [BitWidth]() -> std::tuple<int64_t, int64_t> {
-      switch (BitWidth) {
-      case 32:
-        return {std::numeric_limits<int32_t>::min(),
-                std::numeric_limits<int32_t>::max()};
-      case 64:
-        return {std::numeric_limits<int64_t>::min(),
-                std::numeric_limits<int64_t>::max()};
-      default:
-        assumingUnreachable();
-      }
-    }();
-    auto FPType = Value.getType();
-    assuming(FPType.isFloatTy() || FPType.isDoubleTy());
-    const auto FPWidth = FPType.getFPMantissaWidth();
-    return {BitWidth <= FPWidth, static_cast<uint64_t>(Min),
-            static_cast<uint64_t>(Max), LLVM::Value::getConstReal(FPType, Min),
-            LLVM::Value::getConstReal(FPType, Max)};
-  }();
+  const auto Bounds = getTruncBounds(IntType, Value.getType(), true);
+  const bool Is32 = IntType.getIntegerBitWidth() == 32;
+  const auto MinInt =
+      static_cast<uint64_t>(Is32 ? std::numeric_limits<int32_t>::min()
+                                 : std::numeric_limits<int64_t>::min());
+  const auto MaxInt =
+      static_cast<uint64_t>(Is32 ? std::numeric_limits<int32_t>::max()
+                                 : std::numeric_limits<int64_t>::max());
 
   auto IsNotNan = Builder.createLikely(Builder.createFCmpORD(Value, Value));
   Builder.createCondBr(IsNotNan, NormBB, EndBB);
 
   Builder.positionAtEnd(NormBB);
-  assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
-  auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
-  auto IsNotUnderflow =
-      Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+  auto IsNotUnderflow = Builder.createLikely(
+      Builder.createFCmp(Bounds.LowerPredicate, Value, Bounds.Lower));
   Builder.createCondBr(IsNotUnderflow, NotMinBB, EndBB);
 
   Builder.positionAtEnd(NotMinBB);
-  auto IsNotOverflow = Builder.createLikely(
-      Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+  auto IsNotOverflow =
+      Builder.createLikely(Builder.createFCmpOLT(Value, Bounds.Upper));
   Builder.createCondBr(IsNotOverflow, NotMaxBB, EndBB);
 
   Builder.positionAtEnd(NotMaxBB);
-  auto IntValue = Builder.createFPToSI(Trunc, IntType);
+  auto IntValue = Builder.createFPToSI(Value, IntType);
   Builder.createBr(EndBB);
 
   Builder.positionAtEnd(EndBB);
@@ -859,48 +928,26 @@ void FunctionCompiler::compileUnsignedTrunc(LLVM::Type IntType) noexcept {
   auto NotMinBB = LLVM::BasicBlock::create(LLContext, F.Fn, "utrunc.notmin");
   auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "utrunc.notmax");
   auto Value = stackPop();
-  const auto [Precise, MinFp, MaxFp] =
-      [IntType, Value]() -> std::tuple<bool, LLVM::Value, LLVM::Value> {
-    const auto BitWidth = IntType.getIntegerBitWidth();
-    const auto [Min, Max] = [BitWidth]() -> std::tuple<uint64_t, uint64_t> {
-      switch (BitWidth) {
-      case 32:
-        return {std::numeric_limits<uint32_t>::min(),
-                std::numeric_limits<uint32_t>::max()};
-      case 64:
-        return {std::numeric_limits<uint64_t>::min(),
-                std::numeric_limits<uint64_t>::max()};
-      default:
-        assumingUnreachable();
-      }
-    }();
-    auto FPType = Value.getType();
-    assuming(FPType.isFloatTy() || FPType.isDoubleTy());
-    const auto FPWidth = FPType.getFPMantissaWidth();
-    return {BitWidth <= FPWidth, LLVM::Value::getConstReal(FPType, Min),
-            LLVM::Value::getConstReal(FPType, Max)};
-  }();
+  const auto Bounds = getTruncBounds(IntType, Value.getType(), false);
 
   auto IsNotNan = Builder.createLikely(Builder.createFCmpORD(Value, Value));
   Builder.createCondBr(IsNotNan, NormBB,
                        getTrapBB(ErrCode::Value::InvalidConvToInt));
 
   Builder.positionAtEnd(NormBB);
-  assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
-  auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
-  auto IsNotUnderflow =
-      Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+  auto IsNotUnderflow = Builder.createLikely(
+      Builder.createFCmp(Bounds.LowerPredicate, Value, Bounds.Lower));
   Builder.createCondBr(IsNotUnderflow, NotMinBB,
                        getTrapBB(ErrCode::Value::IntegerOverflow));
 
   Builder.positionAtEnd(NotMinBB);
-  auto IsNotOverflow = Builder.createLikely(
-      Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+  auto IsNotOverflow =
+      Builder.createLikely(Builder.createFCmpOLT(Value, Bounds.Upper));
   Builder.createCondBr(IsNotOverflow, NotMaxBB,
                        getTrapBB(ErrCode::Value::IntegerOverflow));
 
   Builder.positionAtEnd(NotMaxBB);
-  stackPush(Builder.createFPToUI(Trunc, IntType));
+  stackPush(Builder.createFPToUI(Value, IntType));
 }
 
 void FunctionCompiler::compileUnsignedTruncSat(LLVM::Type IntType) noexcept {
@@ -909,47 +956,27 @@ void FunctionCompiler::compileUnsignedTruncSat(LLVM::Type IntType) noexcept {
   auto NotMaxBB = LLVM::BasicBlock::create(LLContext, F.Fn, "usat.notmax");
   auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "usat.end");
   auto Value = stackPop();
-  const auto [Precise, MinInt, MaxInt, MinFp, MaxFp] = [IntType, Value]()
-      -> std::tuple<bool, uint64_t, uint64_t, LLVM::Value, LLVM::Value> {
-    const auto BitWidth = IntType.getIntegerBitWidth();
-    const auto [Min, Max] = [BitWidth]() -> std::tuple<uint64_t, uint64_t> {
-      switch (BitWidth) {
-      case 32:
-        return {std::numeric_limits<uint32_t>::min(),
-                std::numeric_limits<uint32_t>::max()};
-      case 64:
-        return {std::numeric_limits<uint64_t>::min(),
-                std::numeric_limits<uint64_t>::max()};
-      default:
-        assumingUnreachable();
-      }
-    }();
-    auto FPType = Value.getType();
-    assuming(FPType.isFloatTy() || FPType.isDoubleTy());
-    const auto FPWidth = FPType.getFPMantissaWidth();
-    return {BitWidth <= FPWidth, Min, Max,
-            LLVM::Value::getConstReal(FPType, Min),
-            LLVM::Value::getConstReal(FPType, Max)};
-  }();
+  const auto Bounds = getTruncBounds(IntType, Value.getType(), false);
+  const uint64_t MaxInt = IntType.getIntegerBitWidth() == 32
+                              ? std::numeric_limits<uint32_t>::max()
+                              : std::numeric_limits<uint64_t>::max();
 
-  assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
-  auto Trunc = Builder.createUnaryIntrinsic(LLVM::Core::Trunc, Value);
-  auto IsNotUnderflow =
-      Builder.createLikely(Builder.createFCmpOGE(Trunc, MinFp));
+  auto IsNotUnderflow = Builder.createLikely(
+      Builder.createFCmp(Bounds.LowerPredicate, Value, Bounds.Lower));
   Builder.createCondBr(IsNotUnderflow, NormBB, EndBB);
 
   Builder.positionAtEnd(NormBB);
-  auto IsNotOverflow = Builder.createLikely(
-      Builder.createFCmp(Precise ? LLVMRealOLE : LLVMRealOLT, Trunc, MaxFp));
+  auto IsNotOverflow =
+      Builder.createLikely(Builder.createFCmpOLT(Value, Bounds.Upper));
   Builder.createCondBr(IsNotOverflow, NotMaxBB, EndBB);
 
   Builder.positionAtEnd(NotMaxBB);
-  auto IntValue = Builder.createFPToUI(Trunc, IntType);
+  auto IntValue = Builder.createFPToUI(Value, IntType);
   Builder.createBr(EndBB);
 
   Builder.positionAtEnd(EndBB);
   auto PHIRet = Builder.createPHI(IntType);
-  PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, MinInt), CurrBB);
+  PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, 0), CurrBB);
   PHIRet.addIncoming(LLVM::Value::getConstInt(IntType, MaxInt), NormBB);
   PHIRet.addIncoming(IntValue, NotMaxBB);
 

@@ -33,7 +33,9 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -2399,6 +2401,735 @@ TEST(AOTTmpValues, LoopKeepsNativeStackFlat) {
   ASSERT_TRUE(R);
   ASSERT_EQ(R->size(), 1u);
   EXPECT_EQ((*R)[0].first.get<uint32_t>(), 500000u);
+}
+
+// Compiles the module to both output formats and runs the export "f" of each
+// in the AOT run mode, comparing the bit patterns of the results.
+template <typename T>
+void expectCompiledResult(
+    Span<const Byte> Wasm, bool IsGenericBinary, std::vector<ValType> ArgTypes,
+    std::vector<std::pair<std::vector<ValVariant>, T>> Cases) {
+  auto ToBits = [](T Value) noexcept {
+    uint64_t Bits = 0;
+    std::memcpy(&Bits, &Value, sizeof(T));
+    return Bits;
+  };
+  const std::string Name =
+      testing::UnitTest::GetInstance()->current_test_info()->name();
+  for (const auto Format : {CompilerConfigure::OutputFormat::Native,
+                            CompilerConfigure::OutputFormat::Wasm}) {
+    const bool IsNative = Format == CompilerConfigure::OutputFormat::Native;
+    const ScopedTempFile Artifact("AOTLibcall" + Name,
+                                  IsNative ? WASMEDGE_LIB_EXTENSION : ".wasm");
+    const auto &Path = Artifact.get();
+
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setOutputFormat(Format);
+    Conf.getCompilerConfigure().setGenericBinary(IsGenericBinary);
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+    {
+      WasmEdge::Loader::Loader Loader(Conf);
+      WasmEdge::Validator::Validator ValidatorEngine(Conf);
+      WasmEdge::LLVM::Compiler Compiler(Conf);
+      WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+      auto Module = Loader.parseModule(Wasm);
+      ASSERT_TRUE(Module);
+      ASSERT_TRUE(ValidatorEngine.validate(**Module));
+      auto Data = Compiler.compile(**Module);
+      ASSERT_TRUE(Data);
+      ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+    }
+
+    WasmEdge::VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Path));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    for (const auto &[Args, Expected] : Cases) {
+      auto Result = VM.execute("f", Args, ArgTypes);
+      ASSERT_TRUE(Result);
+      ASSERT_EQ((*Result).size(), 1U);
+      EXPECT_EQ(ToBits((*Result)[0].first.template get<T>()), ToBits(Expected));
+    }
+    VM.cleanup();
+  }
+}
+
+TEST(AOTLibcall, F32Ceil) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32.ceil (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x8d, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 2.0F},
+       {{ValVariant(-1.5F)}, -1.0F},
+       {{ValVariant(0.5F)}, 1.0F},
+       {{ValVariant(-0.5F)}, -0.0F},
+       {{ValVariant(2.5F)}, 3.0F},
+       {{ValVariant(3.5F)}, 4.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388608.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32Floor) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32.floor (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x8e, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 1.0F},
+       {{ValVariant(-1.5F)}, -2.0F},
+       {{ValVariant(0.5F)}, 0.0F},
+       {{ValVariant(-0.5F)}, -1.0F},
+       {{ValVariant(2.5F)}, 2.0F},
+       {{ValVariant(3.5F)}, 3.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388607.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32Trunc) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32.trunc (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x8f, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 1.0F},
+       {{ValVariant(-1.5F)}, -1.0F},
+       {{ValVariant(0.5F)}, 0.0F},
+       {{ValVariant(-0.5F)}, -0.0F},
+       {{ValVariant(2.5F)}, 2.0F},
+       {{ValVariant(3.5F)}, 3.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388607.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32Nearest) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32.nearest (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x90, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 2.0F},
+       {{ValVariant(-1.5F)}, -2.0F},
+       {{ValVariant(0.5F)}, 0.0F},
+       {{ValVariant(-0.5F)}, -0.0F},
+       {{ValVariant(2.5F)}, 2.0F},
+       {{ValVariant(3.5F)}, 4.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388608.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64Ceil) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64.ceil (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x9b, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 2.0},
+       {{ValVariant(-1.5)}, -1.0},
+       {{ValVariant(0.5)}, 1.0},
+       {{ValVariant(-0.5)}, -0.0},
+       {{ValVariant(2.5)}, 3.0},
+       {{ValVariant(3.5)}, 4.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370496.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64Floor) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64.floor (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x9c, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 1.0},
+       {{ValVariant(-1.5)}, -2.0},
+       {{ValVariant(0.5)}, 0.0},
+       {{ValVariant(-0.5)}, -1.0},
+       {{ValVariant(2.5)}, 2.0},
+       {{ValVariant(3.5)}, 3.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370495.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64Trunc) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64.trunc (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x9d, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 1.0},
+       {{ValVariant(-1.5)}, -1.0},
+       {{ValVariant(0.5)}, 0.0},
+       {{ValVariant(-0.5)}, -0.0},
+       {{ValVariant(2.5)}, 2.0},
+       {{ValVariant(3.5)}, 3.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370495.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64Nearest) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64.nearest (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0x9e, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 2.0},
+       {{ValVariant(-1.5)}, -2.0},
+       {{ValVariant(0.5)}, 0.0},
+       {{ValVariant(-0.5)}, -0.0},
+       {{ValVariant(2.5)}, 2.0},
+       {{ValVariant(3.5)}, 4.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370496.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, I32TruncF32S) {
+  // (module
+  //   (func (export "f") (param f32) (result i32)
+  //     (i32.trunc_f32_s (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xa8, 0x0b};
+  expectCompiledResult<int32_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                {{{ValVariant(-3.75F)}, INT32_C(-3)}});
+}
+
+TEST(AOTLibcall, I32TruncF32U) {
+  // (module
+  //   (func (export "f") (param f32) (result i32)
+  //     (i32.trunc_f32_u (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xa9, 0x0b};
+  expectCompiledResult<uint32_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                 {{{ValVariant(3.75F)}, UINT32_C(3)}});
+}
+
+TEST(AOTLibcall, I32TruncF64S) {
+  // (module
+  //   (func (export "f") (param f64) (result i32)
+  //     (i32.trunc_f64_s (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xaa, 0x0b};
+  expectCompiledResult<int32_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                {{{ValVariant(-3.75)}, INT32_C(-3)}});
+}
+
+TEST(AOTLibcall, I32TruncF64U) {
+  // (module
+  //   (func (export "f") (param f64) (result i32)
+  //     (i32.trunc_f64_u (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xab, 0x0b};
+  expectCompiledResult<uint32_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                 {{{ValVariant(3.75)}, UINT32_C(3)}});
+}
+
+TEST(AOTLibcall, I64TruncF32S) {
+  // (module
+  //   (func (export "f") (param f32) (result i64)
+  //     (i64.trunc_f32_s (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xae, 0x0b};
+  expectCompiledResult<int64_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                {{{ValVariant(-3.75F)}, INT64_C(-3)}});
+}
+
+TEST(AOTLibcall, I64TruncF32U) {
+  // (module
+  //   (func (export "f") (param f32) (result i64)
+  //     (i64.trunc_f32_u (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xaf, 0x0b};
+  expectCompiledResult<uint64_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                 {{{ValVariant(3.75F)}, UINT64_C(3)}});
+}
+
+TEST(AOTLibcall, I64TruncF64S) {
+  // (module
+  //   (func (export "f") (param f64) (result i64)
+  //     (i64.trunc_f64_s (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xb0, 0x0b};
+  expectCompiledResult<int64_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                {{{ValVariant(-3.75)}, INT64_C(-3)}});
+}
+
+TEST(AOTLibcall, I64TruncF64U) {
+  // (module
+  //   (func (export "f") (param f64) (result i64)
+  //     (i64.trunc_f64_u (local.get 0))))
+  std::array<WasmEdge::Byte, 36> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00, 0xb1, 0x0b};
+  expectCompiledResult<uint64_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                 {{{ValVariant(3.75)}, UINT64_C(3)}});
+}
+
+TEST(AOTLibcall, I32TruncSatF32S) {
+  // (module
+  //   (func (export "f") (param f32) (result i32)
+  //     (i32.trunc_sat_f32_s (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7d, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x00, 0x0b};
+  expectCompiledResult<int32_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                {{{ValVariant(-3.75F)}, INT32_C(-3)}});
+}
+
+TEST(AOTLibcall, I32TruncSatF32U) {
+  // (module
+  //   (func (export "f") (param f32) (result i32)
+  //     (i32.trunc_sat_f32_u (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7d, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x01, 0x0b};
+  expectCompiledResult<uint32_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                 {{{ValVariant(3.75F)}, UINT32_C(3)}});
+}
+
+TEST(AOTLibcall, I32TruncSatF64S) {
+  // (module
+  //   (func (export "f") (param f64) (result i32)
+  //     (i32.trunc_sat_f64_s (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7c, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x02, 0x0b};
+  expectCompiledResult<int32_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                {{{ValVariant(-3.75)}, INT32_C(-3)}});
+}
+
+TEST(AOTLibcall, I32TruncSatF64U) {
+  // (module
+  //   (func (export "f") (param f64) (result i32)
+  //     (i32.trunc_sat_f64_u (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7c, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x03, 0x0b};
+  expectCompiledResult<uint32_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                 {{{ValVariant(3.75)}, UINT32_C(3)}});
+}
+
+TEST(AOTLibcall, I64TruncSatF32S) {
+  // (module
+  //   (func (export "f") (param f32) (result i64)
+  //     (i64.trunc_sat_f32_s (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x04, 0x0b};
+  expectCompiledResult<int64_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                {{{ValVariant(-3.75F)}, INT64_C(-3)}});
+}
+
+TEST(AOTLibcall, I64TruncSatF32U) {
+  // (module
+  //   (func (export "f") (param f32) (result i64)
+  //     (i64.trunc_sat_f32_u (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x05, 0x0b};
+  expectCompiledResult<uint64_t>(Wasm, true, {ValType(TypeCode::F32)},
+                                 {{{ValVariant(3.75F)}, UINT64_C(3)}});
+}
+
+TEST(AOTLibcall, I64TruncSatF64S) {
+  // (module
+  //   (func (export "f") (param f64) (result i64)
+  //     (i64.trunc_sat_f64_s (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x06, 0x0b};
+  expectCompiledResult<int64_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                {{{ValVariant(-3.75)}, INT64_C(-3)}});
+}
+
+TEST(AOTLibcall, I64TruncSatF64U) {
+  // (module
+  //   (func (export "f") (param f64) (result i64)
+  //     (i64.trunc_sat_f64_u (local.get 0))))
+  std::array<WasmEdge::Byte, 37> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+      0x01, 0x60, 0x01, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x08, 0x01,
+      0x06, 0x00, 0x20, 0x00, 0xfc, 0x07, 0x0b};
+  expectCompiledResult<uint64_t>(Wasm, true, {ValType(TypeCode::F64)},
+                                 {{{ValVariant(3.75)}, UINT64_C(3)}});
+}
+
+TEST(AOTLibcall, F32x4Ceil) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32x4.extract_lane 0 (f32x4.ceil (f32x4.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x13, 0xfd, 0x67, 0xfd, 0x1f, 0x00, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 2.0F},
+       {{ValVariant(-1.5F)}, -1.0F},
+       {{ValVariant(0.5F)}, 1.0F},
+       {{ValVariant(-0.5F)}, -0.0F},
+       {{ValVariant(2.5F)}, 3.0F},
+       {{ValVariant(3.5F)}, 4.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388608.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32x4Floor) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32x4.extract_lane 0 (f32x4.floor (f32x4.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x13, 0xfd, 0x68, 0xfd, 0x1f, 0x00, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 1.0F},
+       {{ValVariant(-1.5F)}, -2.0F},
+       {{ValVariant(0.5F)}, 0.0F},
+       {{ValVariant(-0.5F)}, -1.0F},
+       {{ValVariant(2.5F)}, 2.0F},
+       {{ValVariant(3.5F)}, 3.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388607.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32x4Trunc) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32x4.extract_lane 0 (f32x4.trunc (f32x4.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x13, 0xfd, 0x69, 0xfd, 0x1f, 0x00, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 1.0F},
+       {{ValVariant(-1.5F)}, -1.0F},
+       {{ValVariant(0.5F)}, 0.0F},
+       {{ValVariant(-0.5F)}, -0.0F},
+       {{ValVariant(2.5F)}, 2.0F},
+       {{ValVariant(3.5F)}, 3.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388607.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32x4Nearest) {
+  // (module
+  //   (func (export "f") (param f32) (result f32)
+  //     (f32x4.extract_lane 0 (f32x4.nearest (f32x4.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7d, 0x01, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x13, 0xfd, 0x6a, 0xfd, 0x1f, 0x00, 0x0b};
+  expectCompiledResult<float>(
+      Wasm, true, {ValType(TypeCode::F32)},
+      {{{ValVariant(1.5F)}, 2.0F},
+       {{ValVariant(-1.5F)}, -2.0F},
+       {{ValVariant(0.5F)}, 0.0F},
+       {{ValVariant(-0.5F)}, -0.0F},
+       {{ValVariant(2.5F)}, 2.0F},
+       {{ValVariant(3.5F)}, 4.0F},
+       {{ValVariant(-0.0F)}, -0.0F},
+       {{ValVariant(8388607.5F)}, 8388608.0F},
+       {{ValVariant(16777216.0F)}, 16777216.0F},
+       {{ValVariant(std::numeric_limits<float>::infinity())},
+        std::numeric_limits<float>::infinity()},
+       {{ValVariant(std::numeric_limits<float>::quiet_NaN())},
+        std::numeric_limits<float>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64x2Ceil) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64x2.extract_lane 0 (f64x2.ceil (f64x2.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x14, 0xfd, 0x74, 0xfd, 0x21, 0x00, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 2.0},
+       {{ValVariant(-1.5)}, -1.0},
+       {{ValVariant(0.5)}, 1.0},
+       {{ValVariant(-0.5)}, -0.0},
+       {{ValVariant(2.5)}, 3.0},
+       {{ValVariant(3.5)}, 4.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370496.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64x2Floor) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64x2.extract_lane 0 (f64x2.floor (f64x2.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x14, 0xfd, 0x75, 0xfd, 0x21, 0x00, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 1.0},
+       {{ValVariant(-1.5)}, -2.0},
+       {{ValVariant(0.5)}, 0.0},
+       {{ValVariant(-0.5)}, -1.0},
+       {{ValVariant(2.5)}, 2.0},
+       {{ValVariant(3.5)}, 3.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370495.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64x2Trunc) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64x2.extract_lane 0 (f64x2.trunc (f64x2.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 42> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20,
+      0x00, 0xfd, 0x14, 0xfd, 0x7a, 0xfd, 0x21, 0x00, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 1.0},
+       {{ValVariant(-1.5)}, -1.0},
+       {{ValVariant(0.5)}, 0.0},
+       {{ValVariant(-0.5)}, -0.0},
+       {{ValVariant(2.5)}, 2.0},
+       {{ValVariant(3.5)}, 3.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370495.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F64x2Nearest) {
+  // (module
+  //   (func (export "f") (param f64) (result f64)
+  //     (f64x2.extract_lane 0 (f64x2.nearest (f64x2.splat (local.get 0))))))
+  std::array<WasmEdge::Byte, 43> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+      0x60, 0x01, 0x7c, 0x01, 0x7c, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+      0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20,
+      0x00, 0xfd, 0x14, 0xfd, 0x94, 0x01, 0xfd, 0x21, 0x00, 0x0b};
+  expectCompiledResult<double>(
+      Wasm, true, {ValType(TypeCode::F64)},
+      {{{ValVariant(1.5)}, 2.0},
+       {{ValVariant(-1.5)}, -2.0},
+       {{ValVariant(0.5)}, 0.0},
+       {{ValVariant(-0.5)}, -0.0},
+       {{ValVariant(2.5)}, 2.0},
+       {{ValVariant(3.5)}, 4.0},
+       {{ValVariant(-0.0)}, -0.0},
+       {{ValVariant(4503599627370495.5)}, 4503599627370496.0},
+       {{ValVariant(9007199254740992.0)}, 9007199254740992.0},
+       {{ValVariant(std::numeric_limits<double>::infinity())},
+        std::numeric_limits<double>::infinity()},
+       {{ValVariant(std::numeric_limits<double>::quiet_NaN())},
+        std::numeric_limits<double>::quiet_NaN()}});
+}
+
+TEST(AOTLibcall, F32MaxInlined) {
+  // (module
+  //   (func (param f32 f32) (result f32)
+  //     (f32.max (local.get 0) (local.get 1)))
+  //   (func (export "f") (param f32 f32) (result f32)
+  //     (call 0 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 49> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07,
+      0x01, 0x60, 0x02, 0x7d, 0x7d, 0x01, 0x7d, 0x03, 0x03, 0x02,
+      0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x0a,
+      0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x97, 0x0b,
+      0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+  expectCompiledResult<float>(Wasm, false,
+                              {ValType(TypeCode::F32), ValType(TypeCode::F32)},
+                              {{{ValVariant(1.5F), ValVariant(2.5F)}, 2.5F}});
+}
+
+TEST(AOTLibcall, F32MinInlined) {
+  // (module
+  //   (func (param f32 f32) (result f32)
+  //     (f32.min (local.get 0) (local.get 1)))
+  //   (func (export "f") (param f32 f32) (result f32)
+  //     (call 0 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 49> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07,
+      0x01, 0x60, 0x02, 0x7d, 0x7d, 0x01, 0x7d, 0x03, 0x03, 0x02,
+      0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x0a,
+      0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x96, 0x0b,
+      0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+  expectCompiledResult<float>(Wasm, false,
+                              {ValType(TypeCode::F32), ValType(TypeCode::F32)},
+                              {{{ValVariant(1.5F), ValVariant(2.5F)}, 1.5F}});
+}
+
+TEST(AOTLibcall, F64MaxInlined) {
+  // (module
+  //   (func (param f64 f64) (result f64)
+  //     (f64.max (local.get 0) (local.get 1)))
+  //   (func (export "f") (param f64 f64) (result f64)
+  //     (call 0 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 49> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07,
+      0x01, 0x60, 0x02, 0x7c, 0x7c, 0x01, 0x7c, 0x03, 0x03, 0x02,
+      0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x0a,
+      0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0xa5, 0x0b,
+      0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+  expectCompiledResult<double>(Wasm, false,
+                               {ValType(TypeCode::F64), ValType(TypeCode::F64)},
+                               {{{ValVariant(1.5), ValVariant(2.5)}, 2.5}});
+}
+
+TEST(AOTLibcall, F64MinInlined) {
+  // (module
+  //   (func (param f64 f64) (result f64)
+  //     (f64.min (local.get 0) (local.get 1)))
+  //   (func (export "f") (param f64 f64) (result f64)
+  //     (call 0 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 49> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07,
+      0x01, 0x60, 0x02, 0x7c, 0x7c, 0x01, 0x7c, 0x03, 0x03, 0x02,
+      0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x0a,
+      0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0xa4, 0x0b,
+      0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+  expectCompiledResult<double>(Wasm, false,
+                               {ValType(TypeCode::F64), ValType(TypeCode::F64)},
+                               {{{ValVariant(1.5), ValVariant(2.5)}, 1.5}});
 }
 
 } // namespace

@@ -571,6 +571,85 @@ TEST_P(RefHeapModes, PrivateConstructor) {
   EXPECT_EQ(Heap->decodeObject(HeapKind::Exception, P->getOffset()), P->get());
 }
 
+TEST_P(RefHeapModes, ExternBoxes) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  int HostA = 0;
+  int HostB = 0;
+  auto A1 = Heap->boxExtern(&HostA);
+  auto A2 = Heap->boxExtern(&HostA);
+  auto B = Heap->boxExtern(&HostB);
+  ASSERT_TRUE(A1);
+  ASSERT_TRUE(A2);
+  ASSERT_TRUE(B);
+  ASSERT_NE(*A1, nullptr);
+  EXPECT_EQ(*A1, *A2);
+  EXPECT_NE(*A1, *B);
+  const uint32_t Off = Heap->getOffset(*A1);
+  EXPECT_LT(Off - RefHeap::getPartBase(HeapKind::ExternBox),
+            RefHeap::kPartSize);
+  EXPECT_EQ(Heap->decodeObject(HeapKind::ExternBox, Off), *A1);
+  EXPECT_EQ(Heap->unboxExtern(*A1), &HostA);
+  EXPECT_EQ(Heap->unboxExtern(*B), &HostB);
+
+  auto Null = Heap->boxExtern(nullptr);
+  ASSERT_TRUE(Null);
+  EXPECT_EQ(*Null, nullptr);
+  EXPECT_EQ(Heap->unboxExtern(nullptr), nullptr);
+  EXPECT_EQ(Heap->unboxExtern(&HostA), nullptr);
+  int Count = 0;
+  auto F = Heap->makeUnique<Counted>(Count, UINT64_C(1));
+  ASSERT_TRUE(F);
+  EXPECT_EQ(Heap->unboxExtern(F->get()), nullptr);
+}
+
+TEST_P(RefHeapModes, ExternBoxesFillPartition) {
+  MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, 65536});
+  const uint32_t Slots = 65536 / RefHeap::getSlotSize(HeapKind::ExternBox);
+  std::vector<uint8_t> Hosts(Slots + 1);
+  uint32_t Boxed = 0;
+  for (; Boxed <= Slots; ++Boxed) {
+    auto Box = Heap->boxExtern(&Hosts[Boxed]);
+    if (!Box) {
+      EXPECT_EQ(Box.error(), ErrCode::Value::RefHeapFull);
+      break;
+    }
+  }
+  ASSERT_GT(Boxed, 0U);
+  EXPECT_LE(Boxed, Slots);
+  auto Again = Heap->boxExtern(&Hosts[0]);
+  ASSERT_TRUE(Again);
+  EXPECT_EQ(Heap->unboxExtern(*Again), &Hosts[0]);
+}
+
+TEST_P(RefHeapModes, ExternBoxThreads) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  constexpr uint32_t kThreads = 8;
+  constexpr uint32_t kHosts = 64;
+  std::vector<uint64_t> Hosts(kHosts);
+  std::vector<std::vector<const void *>> Seen(kThreads);
+  std::vector<std::thread> Workers;
+  for (uint32_t T = 0; T < kThreads; ++T) {
+    Workers.emplace_back([&, T] {
+      for (uint32_t I = 0; I < kHosts; ++I) {
+        auto Box = Heap->boxExtern(&Hosts[(I + T * 7) % kHosts]);
+        Seen[T].push_back(Box ? static_cast<const void *>(*Box) : nullptr);
+      }
+    });
+  }
+  for (auto &W : Workers) {
+    W.join();
+  }
+  for (uint32_t I = 0; I < kHosts; ++I) {
+    auto Box = Heap->boxExtern(&Hosts[I]);
+    ASSERT_TRUE(Box);
+    for (uint32_t T = 0; T < kThreads; ++T) {
+      const uint32_t Pos = (I + kHosts - (T * 7) % kHosts) % kHosts;
+      EXPECT_EQ(Seen[T][Pos], *Box);
+    }
+    EXPECT_EQ(Heap->unboxExtern(*Box), &Hosts[I]);
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(Modes, RefHeapModes,
                          ::testing::Values(HeapMode::Flat, HeapMode::Chunk),
                          [](const ::testing::TestParamInfo<HeapMode> &Info) {

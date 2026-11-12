@@ -427,6 +427,35 @@ const RefHeap::Part *RefHeap::findPart(uint32_t Off) const noexcept {
   return P;
 }
 
+Expect<const ExternBox *> RefHeap::boxExtern(const void *Host) noexcept {
+  if (Host == nullptr) {
+    return nullptr;
+  }
+  std::unique_lock Lock(BoxMutex);
+  if (auto It = Boxes.find(Host); It != Boxes.end()) {
+    return It->second;
+  }
+  EXPECTED_TRY(auto Res, construct<ExternBox>(0, Host));
+  try {
+    Boxes.emplace(Host, Res.first);
+  } catch (const std::bad_alloc &) {
+    destroy(Res.first, Res.second);
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  return Res.first;
+}
+
+const void *RefHeap::unboxExtern(const void *Obj) const noexcept {
+  if (Obj == nullptr) {
+    return nullptr;
+  }
+  const uint32_t Off = getOffset(Obj);
+  if (decodeObject(HeapKind::ExternBox, Off) != Obj) {
+    return nullptr;
+  }
+  return static_cast<const ExternBox *>(Obj)->Host;
+}
+
 HeapHeader *RefHeap::getHeader(uint32_t Off) const noexcept {
   if ((Off & kTagI31) != 0) {
     return nullptr;

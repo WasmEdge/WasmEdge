@@ -26,6 +26,7 @@
 #include <new>
 #include <shared_mutex>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -80,6 +81,15 @@ template <typename T> struct HeapTraits;
 
 template <typename T> class UniqueHeapPtr;
 template <typename T> class SharedHeapPtr;
+
+/// Box of a host pointer that an externref holds.
+struct ExternBox {
+  explicit ExternBox(const void *H) noexcept : Host(H) {}
+  const void *Host;
+};
+template <> struct HeapTraits<ExternBox> {
+  static constexpr HeapKind Kind = HeapKind::ExternBox;
+};
 
 /// Heap with a data region and an object region, addressed by 32-bit offsets.
 class RefHeap {
@@ -196,6 +206,15 @@ public:
   Expect<UniqueHeapPtr<T>> makeUnique(ArgsT &&...Args) noexcept {
     return makeUniqueWithTail<T>(0, std::forward<ArgsT>(Args)...);
   }
+  /// Box of `Host`, or null for a null `Host`. The same host pointer always
+  /// gives the same box. Boxes live until the heap is destroyed.
+  WASMEDGE_EXPORT Expect<const ExternBox *>
+  boxExtern(const void *Host) noexcept;
+
+  /// Host pointer in the box whose object starts at `Obj`, or null if `Obj`
+  /// is not a live box of this heap.
+  WASMEDGE_EXPORT const void *unboxExtern(const void *Obj) const noexcept;
+
   /// Owning handle of an object that `UniqueHeapPtr::release` gave out, or
   /// an empty handle if `Ptr` is not a live object of `T` in this heap.
   template <typename T> UniqueHeapPtr<T> adopt(T *Ptr) noexcept;
@@ -341,6 +360,8 @@ private:
   std::multimap<uint32_t, uint32_t> FreeRuns;
   std::vector<uint32_t> ClassFree[kClassCount];
   Part Parts[kPartCount];
+  std::mutex BoxMutex;
+  std::unordered_map<const void *, const ExternBox *> Boxes;
 };
 
 /// Owning handle of a heap object. It cannot be copied.

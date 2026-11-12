@@ -455,10 +455,10 @@ struct RefVariant {
   makeException(const Runtime::Instance::ExceptionInstance *P) noexcept {
     return make(ValType(TypeCode::Ref, TypeCode::ExnRef), P);
   }
-  // Make an external reference to a host object.
-  static RefVariant makeExtern(const void *P) noexcept {
-    return make(ValType(TypeCode::RefNull, TypeCode::ExternRef), P);
-  }
+  // Make an external reference to a host object. The host pointer goes into
+  // a box in the reference heap. A null pointer or a full heap gives a null
+  // reference.
+  WASMEDGE_EXPORT static RefVariant makeExtern(const void *P) noexcept;
 
   // Getters for the referenced instance of each kind.
   const Runtime::Instance::FunctionInstance *getFuncInst() const noexcept {
@@ -477,8 +477,12 @@ struct RefVariant {
   const Runtime::Instance::CompositeBase *getCompositeInst() const noexcept {
     return getPtr<const Runtime::Instance::CompositeBase>();
   }
-  // Getter for the host object of an external reference.
-  template <typename T> T *getExternPtr() const noexcept { return getPtr<T>(); }
+  // Getter for the host object of an external reference, or null if the
+  // reference does not hold a box.
+  WASMEDGE_EXPORT const void *getExternHost() const noexcept;
+  template <typename T> T *getExternPtr() const noexcept {
+    return static_cast<T *>(const_cast<void *>(getExternHost()));
+  }
 
   // Tag bit of an i31 value in the pointer word.
   static constexpr uint32_t kI31Tag = 1U;

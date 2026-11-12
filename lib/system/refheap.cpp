@@ -4,6 +4,7 @@
 #include "runtime/refheap.h"
 
 #include "common/config.h"
+#include "common/types.h"
 #include "system/allocator.h"
 
 #include <algorithm>
@@ -426,6 +427,31 @@ const RefHeap::Part *RefHeap::findPart(uint32_t Off) const noexcept {
   }
   return P;
 }
+
+} // namespace Runtime
+
+RefVariant RefVariant::makeExtern(const void *P) noexcept {
+  const ValType VT(TypeCode::RefNull, TypeCode::ExternRef);
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  if (P == nullptr || Heap == nullptr) {
+    return make<void>(VT, nullptr);
+  }
+  auto Box = Heap->boxExtern(P);
+  if (!Box) {
+    return make<void>(VT, nullptr);
+  }
+  return make(VT, *Box);
+}
+
+const void *RefVariant::getExternHost() const noexcept {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  if (Heap == nullptr) {
+    return nullptr;
+  }
+  return Heap->unboxExtern(getPtr<const void>());
+}
+
+namespace Runtime {
 
 Expect<const ExternBox *> RefHeap::boxExtern(const void *Host) noexcept {
   if (Host == nullptr) {

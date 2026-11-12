@@ -19,6 +19,7 @@
 #include "executor/coredump.h"
 #include "executor/restore.h"
 #include "loader/serialize.h"
+#include "runtime/refheap.h"
 #include "runtime/typetable.h"
 #include "vm/vm.h"
 
@@ -621,6 +622,11 @@ std::array<WasmEdge::Byte, 120> I31Wasm{
     0x20, 0x00, 0xfb, 0x1e, 0x0b, 0x06, 0x00, 0xd0, 0x6c, 0xfb, 0x1d, 0x0b,
     0x0b, 0x00, 0x20, 0x00, 0xfb, 0x1c, 0x20, 0x01, 0xfb, 0x1c, 0xd3, 0x0b};
 
+class NopHost : public Runtime::HostFunction<NopHost> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &) { return {}; }
+};
+
 static uint64_t refWord(const WasmEdge::RefVariant &Ref) noexcept {
   const auto Raw = Ref.getRawData();
   std::array<uint64_t, 2> Words;
@@ -662,6 +668,27 @@ TEST(RefVariant, Factories) {
   EXPECT_EQ(Extern.getType(), ValType(TypeCode::RefNull, TypeCode::ExternRef));
   EXPECT_EQ(Extern.getExternPtr<std::byte>(), Addr + 8);
   EXPECT_EQ(retrieveExternRef<std::byte>(Extern), Addr + 8);
+  EXPECT_TRUE(Extern.isSameRef(RefVariant::makeExtern(Addr + 8)));
+  EXPECT_FALSE(Extern.isSameRef(RefVariant::makeExtern(Addr + 9)));
+  {
+    auto *Heap = Runtime::RefHeap::getGlobal();
+    ASSERT_NE(Heap, nullptr);
+    const void *Word = RefVariant(Def, Extern).getCompositeInst();
+    EXPECT_NE(Word, static_cast<const void *>(Addr + 8));
+    EXPECT_EQ(Heap->unboxExtern(Word), Addr + 8);
+  }
+  {
+    const ValType ExternVT(TypeCode::RefNull, TypeCode::ExternRef);
+    EXPECT_EQ(RefVariant(ExternVT, Func).getExternPtr<void>(), nullptr);
+    EXPECT_EQ(RefVariant(ExternVT, RefVariant::makeI31(5)).getExternPtr<void>(),
+              nullptr);
+    auto Host = Runtime::Instance::FunctionInstance::create(
+        std::make_unique<NopHost>());
+    ASSERT_TRUE(Host);
+    EXPECT_EQ(RefVariant(ExternVT, RefVariant::makeFunc(Host->get()))
+                  .getExternPtr<void>(),
+              nullptr);
+  }
 
   for (const auto &Null :
        {RefVariant::makeExtern(nullptr),

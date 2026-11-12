@@ -231,7 +231,11 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Value WasmEdge_ValueGenFuncRef(
 ///
 /// \param Ref the reference to the external object.
 ///
-/// \returns WasmEdge_Value struct with the external reference.
+/// The runtime keeps one entry for each distinct non-null `Ref` until the
+/// process exits, and the number of entries is limited.
+///
+/// \returns WasmEdge_Value struct with the external reference. If the runtime
+/// cannot store a non-null `Ref`, the result is a null external reference.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
 WasmEdge_ValueGenExternRef(void *Ref) WASMEDGE_CAPI_NOEXCEPT;
 

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include <algorithm>
+#include <optional>
 #include <type_traits>
 #include <unordered_map>
 
@@ -248,10 +249,10 @@ inline wasm_val_t conv_cval_from_wasmedge(wasm::Store *,
 inline wasm::Val conv_cppval_from_wasmedge(wasm::Store *,
                                            const WasmEdge::ValVariant &,
                                            const WasmEdge::ValType &);
-inline WasmEdge::ValVariant
+inline std::optional<WasmEdge::ValVariant>
 conv_cval_to_wasmedge(const wasm_val_t &, const WasmEdge::ValType &,
                       const WasmEdge::Runtime::Instance::ModuleInstance *);
-inline WasmEdge::ValVariant
+inline std::optional<WasmEdge::ValVariant>
 conv_cppval_to_wasmedge(const wasm::Val &, const WasmEdge::ValType &,
                         const WasmEdge::Runtime::Instance::ModuleInstance *);
 inline wasm::Val conv_val_to_cpp(const wasm_val_t &);
@@ -332,9 +333,14 @@ public:
       }
 
       // Get the results.
+      bool converted = true;
       if (!trap) {
-        for (size_t i = 0; i < Rets.size(); ++i) {
-          Rets[i] = conv_cval_to_wasmedge(returns.data[i], rtypes[i], nullptr);
+        for (size_t i = 0; i < Rets.size() && converted; ++i) {
+          auto ret = conv_cval_to_wasmedge(returns.data[i], rtypes[i], nullptr);
+          converted = ret.has_value();
+          if (converted) {
+            Rets[i] = std::move(*ret);
+          }
         }
       }
       for (auto &param : pdata) {
@@ -343,6 +349,9 @@ public:
       if (trap) {
         wasm_trap_delete(trap);
         return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
+      }
+      if (!converted) {
+        return Unexpect(WasmEdge::ErrCode::Value::RefHeapFull);
       }
     } else {
       // Prepare the arguments.
@@ -367,7 +376,11 @@ public:
         return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
       }
       for (size_t i = 0; i < Rets.size(); ++i) {
-        Rets[i] = conv_cppval_to_wasmedge(returns[i], rtypes[i], nullptr);
+        auto ret = conv_cppval_to_wasmedge(returns[i], rtypes[i], nullptr);
+        if (!ret) {
+          return Unexpect(WasmEdge::ErrCode::Value::RefHeapFull);
+        }
+        Rets[i] = std::move(*ret);
       }
     }
     return {};
@@ -485,6 +498,16 @@ private:
   uint32_t TabCount = 0;
   uint32_t MemCount = 0;
 };
+
+// Make the externref of a wasm::Ref, or nothing if the reference heap cannot
+// box a non-null ref.
+std::optional<WasmEdge::RefVariant> make_externref(const wasm::Ref *ref) {
+  const auto val = WasmEdge::RefVariant::makeExtern(ref);
+  if (ref != nullptr && val.isNull()) {
+    return std::nullopt;
+  }
+  return val;
+}
 
 } // namespace
 
@@ -755,12 +778,15 @@ struct wasm_global_t : public wasm::Global,
   wasm_global_t(wasm::Store *s, const wasm::GlobalType &gt,
                 const wasm::Val &v) noexcept
       : wasm_ref_base_t<wasm_global_t>(s), owned(true), keepval(v.copy()),
-        inst(new WasmEdge::Runtime::Instance::GlobalInstance(
-            WasmEdge::AST::GlobalType(
-                conv_valtype_to_wasmedge(gt.content()->kind()),
-                conv_valmut_to_wasmedge(gt.mutability())),
-            conv_cppval_to_wasmedge(
-                v, conv_valtype_to_wasmedge(gt.content()->kind()), nullptr))) {}
+        inst(nullptr) {
+    const auto vt = conv_valtype_to_wasmedge(gt.content()->kind());
+    if (auto val = conv_cppval_to_wasmedge(v, vt, nullptr)) {
+      inst = new WasmEdge::Runtime::Instance::GlobalInstance(
+          WasmEdge::AST::GlobalType(vt,
+                                    conv_valmut_to_wasmedge(gt.mutability())),
+          *val);
+    }
+  }
   // Non-owning view (wasm_instance_exports).
   wasm_global_t(wasm::Store *s,
                 WasmEdge::Runtime::Instance::GlobalInstance *gi) noexcept
@@ -798,8 +824,11 @@ struct wasm_table_t : public wasm::Table, public wasm_ref_base_t<wasm_table_t> {
                            WasmEdge::ValType(WasmEdge::TypeCode::FuncRef)),
                        0, inst->getSize());
       }
+    } else if (const auto val = make_externref(r)) {
+      inst->fillRefs(*val, 0, inst->getSize());
     } else {
-      inst->fillRefs(WasmEdge::RefVariant::makeExtern(r), 0, inst->getSize());
+      delete inst;
+      inst = nullptr;
     }
   }
   // Non-owning view (wasm_instance_exports).
@@ -1148,8 +1177,9 @@ retrieve_funcinst(const wasm::Ref *ref) {
 
 // Make the WasmEdge::RefVariant of the reference type from a wasm::Ref. The
 // type index of a typed function reference is resolved in the module `mod`,
-// and a function whose type does not match becomes a null funcref.
-WasmEdge::RefVariant
+// and a function whose type does not match becomes a null funcref. Gives
+// nothing if the reference heap cannot box a non-null external reference.
+std::optional<WasmEdge::RefVariant>
 make_refvariant(const wasm::Ref *ref, const WasmEdge::ValType &vt,
                 const WasmEdge::Runtime::Instance::ModuleInstance *mod) {
   if (vt.isFuncRefType()) {
@@ -1164,7 +1194,7 @@ make_refvariant(const wasm::Ref *ref, const WasmEdge::ValType &vt,
     }
     return WasmEdge::RefVariant(WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
   }
-  return WasmEdge::RefVariant::makeExtern(ref);
+  return make_externref(ref);
 }
 
 // Make the wasm::Val of a reference. The wasm::Val constructors only build
@@ -1275,49 +1305,58 @@ wasm::Val conv_cppval_from_wasmedge(wasm::Store *store,
   return wasm::Val();
 }
 
-// wasm_val_t to WasmEdge::ValVariant conversion.
-WasmEdge::ValVariant
+// wasm_val_t to WasmEdge::ValVariant conversion. Gives nothing if the
+// reference heap cannot box a non-null external reference.
+std::optional<WasmEdge::ValVariant>
 conv_cval_to_wasmedge(const wasm_val_t &v, const WasmEdge::ValType &vt,
                       const WasmEdge::Runtime::Instance::ModuleInstance *mod) {
   // Note: the conversion will not transfer the ownership of wasm_ref_t*.
   if (vt.isRefType()) {
-    return make_refvariant(
-        wasm::is_ref(static_cast<wasm::ValKind>(v.kind)) ? v.of.ref : nullptr,
-        vt, mod);
+    if (auto ref = make_refvariant(
+            wasm::is_ref(static_cast<wasm::ValKind>(v.kind)) ? v.of.ref
+                                                             : nullptr,
+            vt, mod)) {
+      return WasmEdge::ValVariant(*ref);
+    }
+    return std::nullopt;
   }
   switch (v.kind) {
   case wasm_valkind_enum::WASM_I32:
-    return v.of.i32;
+    return WasmEdge::ValVariant(v.of.i32);
   case wasm_valkind_enum::WASM_I64:
-    return v.of.i64;
+    return WasmEdge::ValVariant(v.of.i64);
   case wasm_valkind_enum::WASM_F32:
-    return v.of.f32;
+    return WasmEdge::ValVariant(v.of.f32);
   case wasm_valkind_enum::WASM_F64:
-    return v.of.f64;
+    return WasmEdge::ValVariant(v.of.f64);
   default:
-    return WasmEdge::RefVariant();
+    return WasmEdge::ValVariant(WasmEdge::RefVariant());
   }
 }
 
-// wasm::Val to WasmEdge::ValVariant conversion.
-WasmEdge::ValVariant conv_cppval_to_wasmedge(
+// wasm::Val to WasmEdge::ValVariant conversion. Gives nothing if the
+// reference heap cannot box a non-null external reference.
+std::optional<WasmEdge::ValVariant> conv_cppval_to_wasmedge(
     const wasm::Val &v, const WasmEdge::ValType &vt,
     const WasmEdge::Runtime::Instance::ModuleInstance *mod) {
   // Note: the conversion will not transfer the ownership of wasm::Ref.
   if (vt.isRefType()) {
-    return make_refvariant(v.is_ref() ? v.ref() : nullptr, vt, mod);
+    if (auto ref = make_refvariant(v.is_ref() ? v.ref() : nullptr, vt, mod)) {
+      return WasmEdge::ValVariant(*ref);
+    }
+    return std::nullopt;
   }
   switch (v.kind()) {
   case wasm::ValKind::I32:
-    return v.i32();
+    return WasmEdge::ValVariant(v.i32());
   case wasm::ValKind::I64:
-    return v.i64();
+    return WasmEdge::ValVariant(v.i64());
   case wasm::ValKind::F32:
-    return v.f32();
+    return WasmEdge::ValVariant(v.f32());
   case wasm::ValKind::F64:
-    return v.f64();
+    return WasmEdge::ValVariant(v.f64());
   default:
-    return WasmEdge::RefVariant();
+    return WasmEdge::ValVariant(WasmEdge::RefVariant());
   }
 }
 
@@ -1889,8 +1928,15 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
   std::vector<WasmEdge::ValVariant> params(ptypes.size());
   if (args && args->data) {
     for (size_t i = 0; i < ptypes.size() && i < args->size; ++i) {
-      params[i] = conv_cval_to_wasmedge(args->data[i], ptypes[i],
-                                        func->inst->getModule());
+      auto param = conv_cval_to_wasmedge(args->data[i], ptypes[i],
+                                         func->inst->getModule());
+      if (!param) {
+        return static_cast<wasm_trap_t *>(
+            buildTrap(func->store, WasmEdge::ErrCode::Value::RefHeapFull,
+                      lookupFuncIdx(func->inst))
+                .release());
+      }
+      params[i] = std::move(*param);
     }
   }
 
@@ -2873,8 +2919,13 @@ wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &args,
 
   std::vector<WasmEdge::ValVariant> params(ptypes.size());
   for (size_t i = 0; i < ptypes.size() && i < args.size(); ++i) {
-    params[i] =
+    auto param =
         conv_cppval_to_wasmedge(args[i], ptypes[i], self->inst->getModule());
+    if (!param) {
+      return buildTrap(self->store, WasmEdge::ErrCode::Value::RefHeapFull,
+                       lookupFuncIdx(self->inst));
+    }
+    params[i] = std::move(*param);
   }
 
   auto res = self->store->engine->exec.invoke(self->inst, params, ptypes);
@@ -2903,7 +2954,12 @@ wasm::own<wasm::Global> wasm::Global::make(wasm::Store *store,
                                            const wasm::GlobalType *type,
                                            const wasm::Val &val) {
   if (store && type) {
-    return wasm::make_own(new (std::nothrow) wasm_global_t(store, *type, val));
+    auto global =
+        wasm::make_own(new (std::nothrow) wasm_global_t(store, *type, val));
+    if (global && static_cast<wasm_global_t *>(global.get())->inst == nullptr) {
+      return nullptr;
+    }
+    return global;
   }
   return nullptr;
 }
@@ -2930,9 +2986,13 @@ void wasm::Global::set(const wasm::Val &val) {
   if (!make_valtype_from_wasmedge(global->inst->getGlobalType().getValType())) {
     return;
   }
-  global->keepval = val.copy();
-  global->inst->getValue() = conv_cppval_to_wasmedge(
+  auto conv = conv_cppval_to_wasmedge(
       val, global->inst->getGlobalType().getValType(), nullptr);
+  if (!conv) {
+    return;
+  }
+  global->keepval = val.copy();
+  global->inst->getValue() = std::move(*conv);
 }
 
 // <<<<<<<< wasm::Global functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2949,8 +3009,9 @@ wasm::own<wasm::Table> wasm::Table::make(wasm::Store *store,
   if (store && type) {
     auto table =
         wasm::make_own(new (std::nothrow) wasm_table_t(store, *type, init));
-    if (table && static_cast<wasm_table_t *>(table.get())->inst->getSize() !=
-                     type->limits().min) {
+    if (table && (static_cast<wasm_table_t *>(table.get())->inst == nullptr ||
+                  static_cast<wasm_table_t *>(table.get())->inst->getSize() !=
+                      type->limits().min)) {
       return nullptr;
     }
     return table;
@@ -2989,8 +3050,8 @@ bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
   auto *inst = static_cast<wasm_table_t *>(this)->inst;
   if (inst->getTableType().getRefType().isExternRefType()) {
     // For the externref of the element type, set the ref.
-    if (inst->setRefAddr(static_cast<uint32_t>(index),
-                         WasmEdge::RefVariant::makeExtern(ref))) {
+    const auto val = make_externref(ref);
+    if (val && inst->setRefAddr(static_cast<uint32_t>(index), *val)) {
       return true;
     }
   } else if (inst->getTableType().getRefType().isFuncRefType()) {
@@ -3020,16 +3081,26 @@ wasm::Table::size_t wasm::Table::size() const {
 }
 
 bool wasm::Table::grow(wasm::Table::size_t delta, const wasm::Ref *ref) {
-  size_t orig = size();
-  if (static_cast<wasm_table_t *>(this)->inst->growTable(
-          static_cast<uint32_t>(delta))) {
-    for (size_t i = orig; i < orig + delta; ++i) {
-      set(i, ref);
+  auto *inst = static_cast<wasm_table_t *>(this)->inst;
+  WasmEdge::RefVariant val(inst->getTableType().getRefType());
+  if (ref != nullptr) {
+    if (inst->getTableType().getRefType().isExternRefType()) {
+      if (auto ext = make_externref(ref)) {
+        val = *ext;
+      }
+    } else if (inst->getTableType().getRefType().isFuncRefType()) {
+      auto *cfunc =
+          static_cast<const wasm_func_t *>(static_cast<const wasm::Func *>(
+              static_cast<const wasm::Extern *>(ref)));
+      if (cfunc->inst) {
+        val = WasmEdge::RefVariant::makeFunc(cfunc->inst);
+      }
     }
-    return true;
-  } else {
-    return false;
+    if (val.isNull()) {
+      return false;
+    }
   }
+  return inst->growTable(static_cast<uint32_t>(delta), val);
 }
 
 // <<<<<<<< wasm::Table functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

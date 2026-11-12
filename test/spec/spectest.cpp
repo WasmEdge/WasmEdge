@@ -157,11 +157,13 @@ parseValueList(const simdjson::dom::array &Args) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::RefVariant(Code));
         } else {
-          // ExternRef and AnyRef are non-opaque references. Add 0x1 uint32_t
-          // prefix in this case to present non-null.
+          // ExternRef and AnyRef are non-opaque references. Add 1 to the
+          // host value in this case to present non-null.
           Result.emplace_back(WasmEdge::RefVariant(
-              Code, WasmEdge::RefVariant::makeExtern(reinterpret_cast<void *>(
-                        std::stoul(std::string(ValueStr)) + 0x100000000ULL))));
+              Code,
+              WasmEdge::RefVariant::makeExtern(reinterpret_cast<void *>(
+                  static_cast<uintptr_t>(std::stoul(std::string(ValueStr))) +
+                  1U))));
         }
         ResultTypes.emplace_back(Code);
       } else if (Type == "funcref"sv) {
@@ -514,7 +516,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     }
     // Explicitly expected the reference value.
     return static_cast<uint32_t>(
-               reinterpret_cast<uintptr_t>(R.getExternPtr<void>())) ==
+               reinterpret_cast<uintptr_t>(R.getExternPtr<void>()) - 1U) ==
            static_cast<uint32_t>(std::stoul(ValStr));
   };
 

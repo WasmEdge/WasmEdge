@@ -686,6 +686,21 @@ TEST(APICoreTest, Value) {
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
           ->data()[1],
       2U);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  {
+    WasmEdge_FunctionTypeContext *EmptyFuncType =
+        WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+    WasmEdge_FunctionInstanceContext *FuncCxt =
+        WasmEdge_FunctionInstanceCreate(EmptyFuncType, externTerm, nullptr, 0);
+    ASSERT_NE(FuncCxt, nullptr);
+    Val = WasmEdge_ValueGenFuncRef(FuncCxt);
+    Val.Type = WasmEdge_ValTypeGenExternRef();
+    EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+    WasmEdge_FunctionInstanceDelete(FuncCxt);
+    WasmEdge_FunctionTypeDelete(EmptyFuncType);
+  }
 }
 
 TEST(APICoreTest, String) {

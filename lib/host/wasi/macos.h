@@ -238,7 +238,7 @@ inline constexpr clockid_t toClockId(__wasi_clockid_t Clock) noexcept {
 
 inline constexpr timespec toTimespec(__wasi_timestamp_t Timestamp) noexcept {
   using namespace std::chrono;
-  const auto Total = nanoseconds(Timestamp);
+  const auto Total = duration<uint64_t, std::nano>(Timestamp);
   const auto Second = duration_cast<seconds>(Total);
   const auto Nano = Total - Second;
   timespec Result{};
@@ -256,7 +256,8 @@ fromTimespec(const timespec &Time) noexcept {
 
 inline constexpr timeval toTimeval(__wasi_timestamp_t Timestamp) noexcept {
   using namespace std::chrono;
-  const auto Total = duration_cast<microseconds>(nanoseconds(Timestamp));
+  const auto Total =
+      duration_cast<microseconds>(duration<uint64_t, std::nano>(Timestamp));
   const auto Second = duration_cast<seconds>(Total);
   const auto Micro = Total - Second;
   timeval Result{};

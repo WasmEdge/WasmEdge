@@ -404,7 +404,8 @@ private:
   Expect<ValMut> loadMutability(ASTNodeAttr From);
   Expect<void> loadFieldType(AST::FieldType &FType);
   Expect<void> loadCompositeType(AST::CompositeType &CType);
-  Expect<void> loadLimit(AST::Limit &Lim);
+  Expect<void> loadLimit(AST::Limit &Lim,
+                         ASTNodeAttr From = ASTNodeAttr::Type_Limit);
   Expect<void> loadType(AST::SubType &SType);
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);

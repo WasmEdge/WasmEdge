@@ -59,7 +59,7 @@ TEST(wasmedgePluginTests, C_DefaultPaths) {
   // The list starts and ends with a separator, and the entry is an absolute
   // path, which contains the colon of the drive on Windows.
   const std::string Paths =
-      Separator + std::filesystem::current_path().u8string() + Separator;
+      Separator + std::filesystem::current_path().string() + Separator;
 #if WASMEDGE_OS_WINDOWS
   ASSERT_EQ(::_putenv_s("WASMEDGE_PLUGIN_PATH", Paths.c_str()), 0);
 #else

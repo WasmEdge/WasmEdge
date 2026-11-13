@@ -1058,20 +1058,15 @@ TEST_F(ValidatorRegressionTest,
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
-TEST_F(ValidatorRegressionTest, LocalGroupWithZeroCountRejectsUnknownType) {
+TEST_F(ValidatorRegressionTest, ZeroCountLocalRejectsUnknownType) {
   // Module: (module
   //   (type (struct (field i32)))
   //   (type (func))
-  //   (func (type 1) (local (ref null 5)) with a repeat count of 0))
+  //   (func (type 1)))
+  // The function body declares 0 locals of type (ref null 5).
   std::array<WasmEdge::Byte, 31> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: a struct type and a function type
-      0x01, 0x08, 0x02, 0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00,
-      // Function section: one function of type 1
-      0x03, 0x02, 0x01, 0x01,
-      // Code section: one body, one local group of 0 locals of type
-      // (ref null 5)
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01,
       0x0a, 0x07, 0x01, 0x05, 0x01, 0x00, 0x63, 0x05, 0x0b};
 
   auto Result = LoadEngine->parseModule(Wasm);

@@ -6,7 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <string>
 
 namespace {
 WasmEdge_ModuleInstanceContext *createModuleC() {
@@ -46,6 +49,35 @@ WasmEdge_ModuleInstanceContext *createModuleCPP() {
   return ModCxt;
 }
 } // namespace
+
+TEST(wasmedgePluginTests, C_DefaultPaths) {
+#if WASMEDGE_OS_WINDOWS
+  const std::string Separator = ";";
+#else
+  const std::string Separator = ":";
+#endif
+  // The list starts and ends with a separator, and the entry is an absolute
+  // path, which contains the colon of the drive on Windows.
+  const std::string Paths =
+      Separator + std::filesystem::current_path().u8string() + Separator;
+#if WASMEDGE_OS_WINDOWS
+  ASSERT_EQ(::_putenv_s("WASMEDGE_PLUGIN_PATH", Paths.c_str()), 0);
+#else
+  ASSERT_EQ(::setenv("WASMEDGE_PLUGIN_PATH", Paths.c_str(), 1), 0);
+#endif
+  WasmEdge_PluginLoadWithDefaultPaths();
+#if WASMEDGE_OS_WINDOWS
+  ::_putenv_s("WASMEDGE_PLUGIN_PATH", "");
+#else
+  ::unsetenv("WASMEDGE_PLUGIN_PATH");
+#endif
+  EXPECT_NE(
+      WasmEdge_PluginFind(WasmEdge_StringWrap("wasmedge_plugintest_c", 21U)),
+      nullptr);
+  EXPECT_NE(
+      WasmEdge_PluginFind(WasmEdge_StringWrap("wasmedge_plugintest_cpp", 23U)),
+      nullptr);
+}
 
 TEST(wasmedgePluginTests, C_Run) {
   auto *ExecCxt = WasmEdge_ExecutorCreate(nullptr, nullptr);

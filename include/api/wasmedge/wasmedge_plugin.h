@@ -84,7 +84,8 @@ extern "C" {
 /// Load plugins with the default search paths.
 ///
 /// The default paths are:
-///   1. The environment variable "WASMEDGE_PLUGIN_PATH".
+///   1. The paths in the environment variable "WASMEDGE_PLUGIN_PATH",
+///      separated by ':' (';' on Windows). Empty entries are ignored.
 ///   2. The "../plugin/" directory related to the WasmEdge installation path.
 ///   3. The "wasmedge/" directory under the library path if WasmEdge is
 ///      installed under "/usr".

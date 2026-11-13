@@ -1,0 +1,10 @@
+{
+  "name": "wasmedge",
+  "private": true,
+  "description": "Node.js development dependencies for WasmEdge CI (commitlint)",
+  "devDependencies": {
+    "@commitlint/config-conventional": "20.2.0",
+    "commitlint": "20.2.0",
+    "conventional-changelog-conventionalcommits": "9.1.0"
+  }
+}

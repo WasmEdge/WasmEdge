@@ -1,0 +1,3 @@
+# Mirrors WebAssembly/wasi-testsuite test-runner/requirements (prod)
+colorama>=0.4.3
+requests

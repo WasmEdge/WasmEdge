@@ -245,6 +245,11 @@ TEST(TypeTest, LoadTableType) {
   //   6.  Load limit with min and max.
   //   7.  Load invalid ExternRef without Ref-Types proposal.
   //   8.  Load invalid reference type without Ref-Types proposal.
+  //   9.  Load invalid shared limits (with min and max) in table type with
+  //       Threads proposal.
+  //   10. Load invalid shared limits (without max) in table type with Threads
+  //       proposal.
+  //   11. Load valid shared limit in memory type with Threads proposal.
 
   Vec = {
       0x04U, // Table section
@@ -325,6 +330,49 @@ TEST(TypeTest, LoadTableType) {
       0x00U  // Min = 0
   };
   EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+
+  {
+    WasmEdge::Configure ConfThreads;
+    ConfThreads.addProposal(WasmEdge::Proposal::Threads);
+    WasmEdge::Loader::Loader LdrThreads(ConfThreads);
+
+    // Shared limits flag (0x03 - Shared with min and max) on table type should
+    // be rejected even with the Threads proposal enabled.
+    Vec = {
+        0x04U, // Table section
+        0x05U, // Content size = 5
+        0x01U, // Vector length = 1
+        0x70U, // Reference type (FuncRef)
+        0x03U, // Shared with max
+        0x01U, // Min = 1
+        0x01U  // Max = 1
+    };
+    EXPECT_FALSE(LdrThreads.parseModule(prefixedVec(Vec)));
+
+    // Shared limits flag (0x02 - Shared without max) on table type should
+    // also be rejected even with the Threads proposal enabled.
+    Vec = {
+        0x04U, // Table section
+        0x04U, // Content size = 4
+        0x01U, // Vector length = 1
+        0x70U, // Reference type (FuncRef)
+        0x02U, // Shared without max
+        0x01U  // Min = 1
+    };
+    EXPECT_FALSE(LdrThreads.parseModule(prefixedVec(Vec)));
+
+    // Shared limits flag (0x03 - Shared with min and max) on memory type should
+    // still load successfully with the Threads proposal enabled.
+    Vec = {
+        0x05U, // Memory section
+        0x04U, // Content size = 4
+        0x01U, // Vector length = 1
+        0x03U, // Shared with max
+        0x01U, // Min = 1
+        0x01U  // Max = 1
+    };
+    EXPECT_TRUE(LdrThreads.parseModule(prefixedVec(Vec)));
+  }
 }
 
 TEST(TypeTest, LoadMemoryType) {

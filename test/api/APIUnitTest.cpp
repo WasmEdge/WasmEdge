@@ -2558,6 +2558,19 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
+  MemCxt = WasmEdge_MemoryInstanceCreateWithPageLimit(nullptr, 2);
+  EXPECT_EQ(MemCxt, nullptr);
+  MemLim = WasmEdge_LimitCreate(1, false);
+  MemType = WasmEdge_MemoryTypeCreate(MemLim);
+  MemCxt = WasmEdge_MemoryInstanceCreateWithPageLimit(MemType, 2);
+  WasmEdge_LimitDelete(MemLim);
+  WasmEdge_MemoryTypeDelete(MemType);
+  EXPECT_NE(MemCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_MemoryInstanceGrowPage(MemCxt, 1)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_MemoryOutOfBounds,
+                         WasmEdge_MemoryInstanceGrowPage(MemCxt, 1)));
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 2U);
+  WasmEdge_MemoryInstanceDelete(MemCxt);
   MemLim = WasmEdge_LimitCreateWithMax(1, 3, false, false);
   MemType = WasmEdge_MemoryTypeCreate(MemLim);
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);

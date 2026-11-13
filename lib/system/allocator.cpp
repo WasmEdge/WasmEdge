@@ -31,6 +31,8 @@ static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
 // -Wunused-const-variable error when applying -Werror.
 static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
 static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
+// The memory starts at the 4G offset of the reserved 12G region.
+static inline constexpr const uint64_t kMaxPageCount = (k12G - k4G) / kPageSize;
 #endif
 
 } // namespace
@@ -47,6 +49,7 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    winapi::VirtualFree(Reserved, 0, winapi::MEM_RELEASE_);
     return nullptr;
   }
   return Pointer;
@@ -63,6 +66,7 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    munmap(Reserved, k12G);
     return nullptr;
   }
   return Pointer;
@@ -81,6 +85,9 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
                                            uint64_t NewPageCount) noexcept {
   assuming(NewPageCount > OldPageCount);
 #if WASMEDGE_OS_WINDOWS
+  if (Pointer == nullptr || NewPageCount > kMaxPageCount) {
+    return nullptr;
+  }
   if (winapi::VirtualAlloc(Pointer + OldPageCount * kPageSize,
                            (NewPageCount - OldPageCount) * kPageSize,
                            winapi::MEM_COMMIT_,
@@ -91,6 +98,9 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
 #elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
                              (defined(__riscv) && __riscv_xlen == 64)) ||      \
     defined(__s390x__)
+  if (Pointer == nullptr || NewPageCount > kMaxPageCount) {
+    return nullptr;
+  }
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {

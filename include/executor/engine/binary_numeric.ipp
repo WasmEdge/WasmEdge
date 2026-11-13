@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "common/nan.h"
 #include "executor/executor.h"
 
 #include <cmath>
@@ -160,18 +161,7 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
     if (!std::isnan(Z1)) {
       Z1 = Z2;
     }
-    // Set the most significant bit of the payload to 1.
-    if constexpr (sizeof(T) == sizeof(uint32_t)) {
-      uint32_t I32;
-      std::memcpy(&I32, &Z1, sizeof(T));
-      I32 |= static_cast<uint32_t>(0x01U) << 22;
-      std::memcpy(&Z1, &I32, sizeof(T));
-    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-      uint64_t I64;
-      std::memcpy(&I64, &Z1, sizeof(T));
-      I64 |= static_cast<uint64_t>(0x01U) << 51;
-      std::memcpy(&Z1, &I64, sizeof(T));
-    }
+    Z1 = quietNaN(Z1);
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return -0.0.
@@ -192,18 +182,7 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
     if (!std::isnan(Z1)) {
       Z1 = Z2;
     }
-    // Set the most significant bit of the payload to 1.
-    if constexpr (sizeof(T) == sizeof(uint32_t)) {
-      uint32_t I32;
-      std::memcpy(&I32, &Z1, sizeof(T));
-      I32 |= static_cast<uint32_t>(0x01U) << 22;
-      std::memcpy(&Z1, &I32, sizeof(T));
-    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-      uint64_t I64;
-      std::memcpy(&I64, &Z1, sizeof(T));
-      I64 |= static_cast<uint64_t>(0x01U) << 51;
-      std::memcpy(&Z1, &I64, sizeof(T));
-    }
+    Z1 = quietNaN(Z1);
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return +0.0.
@@ -225,11 +204,50 @@ TypeF<T> Executor::runCopysignOp(ValVariant &Val1,
   return {};
 }
 
+inline Expect<void> Executor::runAdd128Op(ValVariant &Val1Lo,
+                                          ValVariant &Val1Hi,
+                                          const ValVariant &Val2Lo,
+                                          const ValVariant &Val2Hi) const {
+  // Store (v1 + v2) modulo 2^128 in the low and high halves of v1.
+  const uint64_t LhsLo = Val1Lo.get<uint64_t>();
+  const uint64_t Lo = LhsLo + Val2Lo.get<uint64_t>();
+  Val1Lo.get<uint64_t>() = Lo;
+  Val1Hi.get<uint64_t>() +=
+      Val2Hi.get<uint64_t>() + static_cast<uint64_t>(Lo < LhsLo);
+  return {};
+}
+
+inline Expect<void> Executor::runSub128Op(ValVariant &Val1Lo,
+                                          ValVariant &Val1Hi,
+                                          const ValVariant &Val2Lo,
+                                          const ValVariant &Val2Hi) const {
+  // Store (v1 - v2) modulo 2^128 in the low and high halves of v1.
+  const uint64_t LhsLo = Val1Lo.get<uint64_t>();
+  const uint64_t RhsLo = Val2Lo.get<uint64_t>();
+  Val1Lo.get<uint64_t>() = LhsLo - RhsLo;
+  Val1Hi.get<uint64_t>() -=
+      Val2Hi.get<uint64_t>() + static_cast<uint64_t>(LhsLo < RhsLo);
+  return {};
+}
+
+template <typename T>
+TypeI<T> Executor::runMulWideOp(ValVariant &Val1, ValVariant &Val2) const {
+  // Multiply two T values and store the low half in v1 and the high half in v2.
+  const uint64_t Lhs = Val1.get<uint64_t>();
+  const uint64_t Rhs = Val2.get<uint64_t>();
+  const uint128_t Product =
+      static_cast<uint128_t>(Lhs) * static_cast<uint128_t>(Rhs);
+  uint64_t Hi = static_cast<uint64_t>(Product >> 64U);
+  if constexpr (std::is_signed_v<T>) {
+    Hi -= (Lhs >> 63U) ? Rhs : 0U;
+    Hi -= (Rhs >> 63U) ? Lhs : 0U;
+  }
+  Val1.get<uint64_t>() = static_cast<uint64_t>(Product);
+  Val2.get<uint64_t>() = Hi;
+  return {};
+}
+
 } // namespace Executor
 } // namespace WasmEdge
 
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-#include "executor/engine/binary_numeric_vector_msvc.ipp"
-#else
 #include "executor/engine/binary_numeric_vector.ipp"
-#endif // MSVC

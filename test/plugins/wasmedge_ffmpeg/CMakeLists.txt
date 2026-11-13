@@ -10,6 +10,8 @@ wasmedge_add_executable(wasmedgeFFmpegTests
   avcodec/avPacket.cpp
   avcodec/avCodecCtx.cpp
 
+  avdevice/avDevice.cpp
+
   avfilter/avfilter_func.cpp
   avfilter/avfilter.cpp
 
@@ -31,8 +33,13 @@ wasmedge_add_executable(wasmedgeFFmpegTests
 
   swscale/swscale_func.cpp
 
+  ffmpeg_env.cpp
   utils.cpp
 )
+
+# The tests inspect buffer reference counts with libavutil directly.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBAVUTIL REQUIRED IMPORTED_TARGET libavutil)
 
 # Downloading a sample file
 execute_process(
@@ -55,6 +62,7 @@ target_include_directories(wasmedgeFFmpegTests
 target_link_libraries(wasmedgeFFmpegTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
+  PkgConfig::LIBAVUTIL
 )
 
 # Link to the WasmEdge library

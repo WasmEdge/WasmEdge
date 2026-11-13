@@ -39,8 +39,6 @@ public:
     }
   }
   tesseract::TessBaseAPI *TesseractApi = new tesseract::TessBaseAPI();
-
-  static Plugin::PluginRegister Register;
 };
 
 } // namespace WasmEdgeOCR

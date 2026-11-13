@@ -60,6 +60,8 @@ TEST(TypeTest, LoadFunctionType) {
   //       proposal.
   //   15. Load invalid function type with multi-value returns without
   //       Multi-Value proposal.
+  //   16. Load invalid function type with bare type index in parameter list.
+  //   17. Load invalid function type with bare type index in result list.
 
   Vec = {
       0x01U, // Type section
@@ -227,6 +229,30 @@ TEST(TypeTest, LoadFunctionType) {
       0x7CU, 0x7DU                // Result list
   };
   EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+
+  // Load invalid function type with bare type index in parameter list.
+  Vec = {
+      0x01U, // Type section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x60U, // Function type header
+      0x01U, // Parameter length = 1
+      0x00U, // Bare type index (not a legal value type)
+      0x00U  // Result length = 0
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  // Load invalid function type with bare type index in result list.
+  Vec = {
+      0x01U, // Type section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x60U, // Function type header
+      0x00U, // Parameter length = 0
+      0x01U, // Result length = 1
+      0x00U  // Bare type index (not a legal value type)
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadTableType) {
@@ -250,6 +276,7 @@ TEST(TypeTest, LoadTableType) {
   //   10. Load invalid shared limits (without max) in table type with Threads
   //       proposal.
   //   11. Load valid shared limit in memory type with Threads proposal.
+  //   12. Load invalid table type with bare type index.
 
   Vec = {
       0x04U, // Table section
@@ -373,6 +400,17 @@ TEST(TypeTest, LoadTableType) {
     };
     EXPECT_TRUE(LdrThreads.parseModule(prefixedVec(Vec)));
   }
+
+  // Load invalid table type with bare type index.
+  Vec = {
+      0x04U, // Table section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x00U, // Bare type index (not a legal reference type)
+      0x00U, // Limit with only has min
+      0x00U  // Min = 0
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadMemoryType) {

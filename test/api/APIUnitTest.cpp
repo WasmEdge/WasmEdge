@@ -2490,7 +2490,20 @@ TEST(APICoreTest, Instance) {
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
 
-  // Table instance create with init
+  // Table instance create with init (nullable reference)
+  TabLim = WasmEdge_LimitCreate(5, false);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  WasmEdge_LimitDelete(TabLim);
+  Val = WasmEdge_ValueGenI32(100);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_TableInstanceDelete(TabCxt);
+  WasmEdge_TableTypeDelete(TabType);
+
+  // Table instance create with init (non-nullable reference)
   VType = WasmEdge_ValTypeGenExternRef();
   // TODO: Forcibly change to non-nullable. Refine this after providing the
   // corresponding API.
@@ -2506,6 +2519,15 @@ TEST(APICoreTest, Instance) {
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_EQ(TabCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128((static_cast<int128_t>(1) << 64) + 1);
+#else
+  int128_t VTab = {/* Low */ 1, /* High */ 1};
+  Val = WasmEdge_ValueGenV128(VTab);
+#endif
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_EQ(TabCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(&TabType);
@@ -2706,6 +2728,18 @@ TEST(APICoreTest, Instance) {
   WasmEdge_GlobalInstanceDelete(GlobVCxt);
   EXPECT_TRUE(true);
 
+  // Global instance with nullable reference
+  GlobVType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenExternRef(),
+                                        WasmEdge_Mutability_Var);
+  GlobVCxt =
+      WasmEdge_GlobalInstanceCreate(GlobVType, WasmEdge_ValueGenI32(100));
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_NE(GlobVCxt, nullptr);
+  WasmEdge_GlobalInstanceDelete(GlobVCxt);
+  WasmEdge_GlobalTypeDelete(GlobVType);
+
   // Global instance with non-nullable reference
   VType = WasmEdge_ValTypeGenExternRef();
   // TODO: Forcibly change to non-nullable. Refine this after providing the
@@ -2716,6 +2750,15 @@ TEST(APICoreTest, Instance) {
   GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
   EXPECT_EQ(GlobVCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128((static_cast<int128_t>(1) << 64) + 1);
+#else
+  int128_t VGlob = {/* Low */ 1, /* High */ 1};
+  Val = WasmEdge_ValueGenV128(VGlob);
+#endif
   GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
   EXPECT_EQ(GlobVCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(&GlobVType);
@@ -2730,6 +2773,9 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
                          WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenI32(100);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   WasmEdge_GlobalInstanceDelete(GlobVCxt);

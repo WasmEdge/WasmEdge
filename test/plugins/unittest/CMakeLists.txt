@@ -41,33 +41,33 @@ target_include_directories(wasmedgePluginTestModuleCPP
 )
 
 # The test executable for C API
-wasmedge_add_executable(wasmedgePluginUnittestsC
-  unittest_c.cpp
+wasmedge_add_executable(wasmedgePluginCTests
+  PluginCTest.cpp
 )
 
-target_include_directories(wasmedgePluginUnittestsC
+target_include_directories(wasmedgePluginCTests
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
 )
 
-target_link_libraries(wasmedgePluginUnittestsC
+target_link_libraries(wasmedgePluginCTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
 
 # The test executable for C++ API
-wasmedge_add_executable(wasmedgePluginUnittestsCPP
-  unittest_cpp.cpp
+wasmedge_add_executable(wasmedgePluginCPPTests
+  PluginCPPTest.cpp
 )
 
-target_include_directories(wasmedgePluginUnittestsCPP
+target_include_directories(wasmedgePluginCPPTests
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
 )
 
-target_link_libraries(wasmedgePluginUnittestsCPP
+target_link_libraries(wasmedgePluginCPPTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
@@ -82,11 +82,11 @@ if(WASMEDGE_LINK_PLUGINS_STATIC)
     PRIVATE
     wasmedgeCAPI
   )
-  target_link_libraries(wasmedgePluginUnittestsC
+  target_link_libraries(wasmedgePluginCTests
     PRIVATE
     wasmedgeCAPI
   )
-  target_link_libraries(wasmedgePluginUnittestsCPP
+  target_link_libraries(wasmedgePluginCPPTests
     PRIVATE
     wasmedgeCAPI
   )
@@ -99,15 +99,15 @@ else()
     PRIVATE
     wasmedge_shared
   )
-  target_link_libraries(wasmedgePluginUnittestsC
+  target_link_libraries(wasmedgePluginCTests
     PRIVATE
     wasmedge_shared
   )
-  target_link_libraries(wasmedgePluginUnittestsCPP
+  target_link_libraries(wasmedgePluginCPPTests
     PRIVATE
     wasmedge_shared
   )
 endif()
 
-add_test(wasmedgePluginUnittestsC wasmedgePluginUnittestsC)
-add_test(wasmedgePluginUnittestsCPP wasmedgePluginUnittestsCPP)
+add_test(wasmedgePluginCTests wasmedgePluginCTests)
+add_test(wasmedgePluginCPPTests wasmedgePluginCPPTests)

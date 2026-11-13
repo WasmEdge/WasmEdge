@@ -138,10 +138,7 @@ protected:
   WasiCryptoExpect<void> optionsSetU64(__wasi_options_t OptionsHandle,
                                        std::string_view Name, uint64_t Value);
 
-  // Not supported, buffer placement must be on a page.
-  //   WasiCryptoExpect<void>
-  //   optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
-  //                         std::string_view Name, Span<uint8_t> Buf);
+  // optionsSetGuestBuffer is not supported: the buffer must be page-placed.
 
   WasiCryptoExpect<__wasi_secrets_manager_t>
   secretsManagerOpen(std::optional<__wasi_options_t> OptOptionsHandle);

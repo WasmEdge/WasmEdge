@@ -1,0 +1,215 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "common/func.h"
+#include "helper.h"
+
+namespace {
+template <typename T, typename M>
+inline T *getHostFunc(const M &Mod, const char *Name) {
+  if (Mod) {
+    auto *FuncInst = Mod->findFuncExports(Name);
+    if (FuncInst && FuncInst->isHostFunction()) {
+      return dynamic_cast<T *>(&FuncInst->getHostFunc());
+    }
+  }
+  return nullptr;
+}
+} // namespace
+
+namespace WasmEdge {
+namespace Host {
+namespace WasiCrypto {
+using namespace std::literals;
+
+using WasiCryptoCommonTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoCommonTest, Options) {
+  // Symmetric options.
+  {
+    // Open options.
+    WASI_CRYPTO_EXPECT_SUCCESS(SymmetricOptionsHandle,
+                               optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC));
+
+    // Set options.
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSet(SymmetricOptionsHandle, "context"sv, "foo"_u8));
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSet(SymmetricOptionsHandle, "salt"sv, "foo"_u8));
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSet(SymmetricOptionsHandle, "nonce"sv, "foo"_u8));
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSetU64(SymmetricOptionsHandle, "memory_limit"sv, 0));
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSetU64(SymmetricOptionsHandle, "ops_limit"sv, 0));
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSetU64(SymmetricOptionsHandle, "parallelism"sv, 0));
+
+    // Unsupported options.
+    WASI_CRYPTO_EXPECT_FAILURE(
+        optionsSet(SymmetricOptionsHandle, "foo"sv, "foo"_u8),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        optionsSetU64(SymmetricOptionsHandle, "foo"sv, 0),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    writeDummyMemoryContent();
+    writeString("foo"sv, 0);
+    uint32_t NameSize = 3;
+    auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
+        WasiCryptoCommonMod, "options_set_guest_buffer");
+    ASSERT_NE(Func, nullptr);
+    EXPECT_TRUE(Func->run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              SymmetricOptionsHandle, 0, NameSize, 0, NameSize},
+                          Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    WASI_CRYPTO_EXPECT_TRUE(optionsClose(SymmetricOptionsHandle));
+  }
+
+  // Signature options.
+  {
+    // Open options.
+    WASI_CRYPTO_EXPECT_SUCCESS(SigOptionsHandle,
+                               optionsOpen(__WASI_ALGORITHM_TYPE_SIGNATURES));
+
+    // Unsupported options.
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSet(SigOptionsHandle, "foo"sv, "foo"_u8),
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(SigOptionsHandle, "foo"sv, 0),
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    writeDummyMemoryContent();
+    writeString("foo"sv, 0);
+    uint32_t NameSize = 3;
+    auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
+        WasiCryptoCommonMod, "options_set_guest_buffer");
+    ASSERT_NE(Func, nullptr);
+    EXPECT_TRUE(Func->run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              SigOptionsHandle, 0, NameSize, 0, NameSize},
+                          Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    // Close options.
+    WASI_CRYPTO_EXPECT_TRUE(optionsClose(SigOptionsHandle));
+  }
+
+  // Key exchange options.
+  {
+    // Open options.
+    WASI_CRYPTO_EXPECT_SUCCESS(KxOptionsHandle,
+                               optionsOpen(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE));
+    // Unsupported options.
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSet(KxOptionsHandle, "foo"sv, "foo"_u8),
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(KxOptionsHandle, "foo"sv, 0),
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    writeDummyMemoryContent();
+    writeString("foo"sv, 0);
+    uint32_t NameSize = 3;
+    auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
+        WasiCryptoCommonMod, "options_set_guest_buffer");
+    ASSERT_NE(Func, nullptr);
+    EXPECT_TRUE(Func->run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              KxOptionsHandle, 0, NameSize, 0, NameSize},
+                          Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    // Close options.
+    WASI_CRYPTO_EXPECT_TRUE(optionsClose(KxOptionsHandle));
+  }
+}
+
+TEST_F(WasiCryptoCommonTest, SecretsManager) {
+  // Open secrets manager.
+  WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
+
+  // Generate and store a key.
+  std::string_view Alg = "HKDF-EXTRACT/SHA-256";
+  WASI_CRYPTO_EXPECT_SUCCESS(KeyHandle,
+                             symmetricKeyGenerate(Alg, std::nullopt));
+  std::vector<uint8_t> KeyId(32);
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyStoreManaged(SmHandle, KeyHandle, KeyId));
+
+  // Verify key ID and version.
+  std::vector<uint8_t> OutId(32);
+  WASI_CRYPTO_EXPECT_SUCCESS(IdRes, symmetricKeyId(KeyHandle, OutId));
+  EXPECT_EQ(std::get<0>(IdRes), 32u);
+  EXPECT_EQ(std::get<1>(IdRes), 0u);
+  EXPECT_EQ(OutId, KeyId);
+
+  // Replace the key.
+  WASI_CRYPTO_EXPECT_SUCCESS(NewKeyHandle,
+                             symmetricKeyGenerate(Alg, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      NewVersion,
+      symmetricKeyReplaceManaged(SmHandle, KeyHandle, NewKeyHandle));
+  EXPECT_EQ(NewVersion, 1u);
+
+  // Verify that the old key handle remains valid.
+  WASI_CRYPTO_EXPECT_SUCCESS(OldIdRes, symmetricKeyId(KeyHandle, OutId));
+  EXPECT_EQ(std::get<0>(OldIdRes), 32u);
+  EXPECT_EQ(std::get<1>(OldIdRes), 0u);
+  EXPECT_EQ(OutId, KeyId);
+
+  // Verify new key ID and version.
+  WASI_CRYPTO_EXPECT_SUCCESS(NewIdRes, symmetricKeyId(NewKeyHandle, OutId));
+  EXPECT_EQ(std::get<0>(NewIdRes), 32u);
+  EXPECT_EQ(std::get<1>(NewIdRes), 1u);
+  EXPECT_EQ(OutId, KeyId);
+
+  // Invalidate the key.
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerInvalidate(SmHandle, KeyId, 0));
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerInvalidate(SmHandle, KeyId, 1));
+
+  // Test invalidate missing key.
+  WASI_CRYPTO_EXPECT_FAILURE(
+      secretsManagerInvalidate(SmHandle, "non-existent"_u8, 0),
+      __WASI_CRYPTO_ERRNO_NOT_FOUND);
+
+  // Close secrets manager.
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle));
+
+  // Test invalid handle after close.
+  WASI_CRYPTO_EXPECT_FAILURE(secretsManagerInvalidate(SmHandle, KeyId, 0),
+                             __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(NewKeyHandle));
+
+  // Test keypair managed replacement retains old handle.
+  std::string_view KpAlg = "Ed25519";
+  WASI_CRYPTO_EXPECT_SUCCESS(SmHandle2, secretsManagerOpen(std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg, std::nullopt));
+  std::vector<uint8_t> KpId(32);
+  WASI_CRYPTO_EXPECT_TRUE(keypairStoreManaged(SmHandle2, KpHandle, KpId));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      NewKpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      NewKpVersion, keypairReplaceManaged(SmHandle2, KpHandle, NewKpHandle));
+  EXPECT_EQ(NewKpVersion, 1u);
+
+  std::vector<uint8_t> OutKpId(32);
+  WASI_CRYPTO_EXPECT_SUCCESS(OldKpIdRes, keypairId(KpHandle, OutKpId));
+  EXPECT_EQ(std::get<0>(OldKpIdRes), 32u);
+  EXPECT_EQ(std::get<1>(OldKpIdRes), 0u);
+  EXPECT_EQ(OutKpId, KpId);
+
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(NewKpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle2));
+}
+
+} // namespace WasiCrypto
+} // namespace Host
+} // namespace WasmEdge

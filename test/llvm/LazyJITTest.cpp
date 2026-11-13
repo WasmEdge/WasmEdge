@@ -9,10 +9,7 @@
 ///
 /// \file
 /// This file contains tests for the lazy JIT (per-function) compilation
-/// feature. It verifies that:
-/// 1. Lazy JIT mode can be enabled via configuration
-/// 2. Functions are compiled on-demand rather than upfront
-/// 3. The behavior is correct compared to eager compilation
+/// feature against eager compilation.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -32,7 +29,48 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 
-// Module with 6 functions: add, mul, sub, const42, unused1, unused2
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (type (;1;) (func (result i32)))
+//   (type (;2;) (func (param i32) (result i32)))
+//   (type (;3;) (func (param i32 i32 i32) (result i32)))
+//   (export "add" (func 0))
+//   (export "mul" (func 1))
+//   (export "sub" (func 2))
+//   (export "const42" (func 3))
+//   (export "unused1" (func 4))
+//   (export "unused2" (func 5))
+//   (func (;0;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+//   (func (;1;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.mul
+//   )
+//   (func (;2;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.sub
+//   )
+//   (func (;3;) (type 1) (result i32)
+//     i32.const 42
+//   )
+//   (func (;4;) (type 2) (param i32) (result i32)
+//     local.get 0
+//     i32.const 100
+//     i32.add
+//   )
+//   (func (;5;) (type 3) (param i32 i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//     local.get 2
+//     i32.mul
+//   )
+// )
 std::vector<uint8_t> SimpleWasm = {
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x17, 0x04, 0x60,
     0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f,
@@ -48,6 +86,28 @@ std::vector<uint8_t> SimpleWasm = {
     0x6a, 0x0b, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x20, 0x02, 0x6c,
     0x0b};
 
+// (module
+//   (type (;0;) (func (param i32) (result i32)))
+//   (export "fib" (func 0))
+//   (func (;0;) (type 0) (param i32) (result i32)
+//     local.get 0
+//     i32.const 2
+//     i32.lt_s
+//     if (result i32) ;; label = @1
+//       i32.const 1
+//     else
+//       local.get 0
+//       i32.const 2
+//       i32.sub
+//       call 0
+//       local.get 0
+//       i32.const 1
+//       i32.sub
+//       call 0
+//       i32.add
+//     end
+//   )
+// )
 std::vector<uint8_t> FibonacciWasm = {
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
     0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07,
@@ -56,60 +116,25 @@ std::vector<uint8_t> FibonacciWasm = {
     0x20, 0x00, 0x41, 0x02, 0x6b, 0x10, 0x00, 0x20, 0x00, 0x41, 0x01,
     0x6b, 0x10, 0x00, 0x6a, 0x0b, 0x0b};
 
-// Module with 1 imported function and 3 local functions:
-//   import "env" "host_add" (func (param i32 i32) (result i32))
-//   export "call_host"  -> calls host_add
-//   export "double_add" -> calls host_add twice, adds results
-//   export "local_mul"  -> pure local i32.mul
-std::vector<uint8_t> ImportWasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x03, 0x65, 0x6e, 0x76,
-    0x08, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03,
-    0x04, 0x03, 0x00, 0x00, 0x00, 0x07, 0x26, 0x03, 0x09, 0x63, 0x61, 0x6c,
-    0x6c, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x00, 0x01, 0x0a, 0x64, 0x6f, 0x75,
-    0x62, 0x6c, 0x65, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x02, 0x09, 0x6c, 0x6f,
-    0x63, 0x61, 0x6c, 0x5f, 0x6d, 0x75, 0x6c, 0x00, 0x03, 0x0a, 0x22, 0x03,
-    0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b, 0x0f, 0x00, 0x20,
-    0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x6a,
-    0x0b, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6c, 0x0b};
-
-// Library module exporting "add" and "mul" (i32,i32)->i32
-std::vector<uint8_t> MathLibWasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x0d,
-    0x02, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03, 0x6d, 0x75, 0x6c, 0x00,
-    0x01, 0x0a, 0x11, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b,
-    0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6c, 0x0b};
-
-// Consumer module importing "math"."add" and "math"."mul",
-// exporting "add_and_square" = (a+b)*(a+b) and "sum_of_squares" = a*a+b*b
-std::vector<uint8_t> MathConsumerWasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
-    0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x17, 0x02, 0x04, 0x6d,
-    0x61, 0x74, 0x68, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x04, 0x6d,
-    0x61, 0x74, 0x68, 0x03, 0x6d, 0x75, 0x6c, 0x00, 0x00, 0x03, 0x03,
-    0x02, 0x00, 0x00, 0x07, 0x23, 0x02, 0x0e, 0x61, 0x64, 0x64, 0x5f,
-    0x61, 0x6e, 0x64, 0x5f, 0x73, 0x71, 0x75, 0x61, 0x72, 0x65, 0x00,
-    0x02, 0x0e, 0x73, 0x75, 0x6d, 0x5f, 0x6f, 0x66, 0x5f, 0x73, 0x71,
-    0x75, 0x61, 0x72, 0x65, 0x73, 0x00, 0x03, 0x0a, 0x23, 0x02, 0x10,
-    0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01,
-    0x10, 0x00, 0x10, 0x01, 0x0b, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00,
-    0x10, 0x01, 0x20, 0x01, 0x20, 0x01, 0x10, 0x01, 0x10, 0x00, 0x0b};
-
-// Module exercising the runtime intrinsics table from lazily compiled code:
-//   (memory 1)
-//   export "trap" -> unreachable   (reaches the trap intrinsic)
-//   export "grow" -> memory.grow   (reaches the memory-grow intrinsic)
-std::vector<uint8_t> IntrinsicsWasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02,
-    0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03,
-    0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x0f, 0x02,
-    0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x04, 0x67, 0x72, 0x6f,
-    0x77, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x03, 0x00, 0x00, 0x0b, 0x06,
-    0x00, 0x20, 0x00, 0x40, 0x00, 0x0b};
-
-// Self-recursive f(n) = n ? f(n-1)+1 : 0; the non-tail "+1" grows the native
-// stack so the AOT/JIT stack-limit check fires instead of TCO into a loop.
+// The non-tail "+1" grows the native stack so the stack-limit check fires.
+// (module
+//   (type (;0;) (func (param i64) (result i64)))
+//   (export "f" (func $f))
+//   (func $f (;0;) (type 0) (param $n i64) (result i64)
+//     local.get $n
+//     i64.eqz
+//     if (result i64) ;; label = @1
+//       i64.const 0
+//     else
+//       local.get $n
+//       i64.const 1
+//       i64.sub
+//       call $f
+//       i64.const 1
+//       i64.add
+//     end
+//   )
+// )
 std::vector<uint8_t> RecurseWasm = {
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
     0x60, 0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
@@ -133,53 +158,50 @@ public:
   }
 };
 
-class LazyJITTest : public ::testing::Test {
-protected:
-  // Helper to create a VM with eager JIT
-  std::unique_ptr<VM::VM> createEagerJITVM() {
-    Configure Conf;
-    Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-    Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O1);
-    return std::make_unique<VM::VM>(Conf);
-  }
+// Creates a VM with eager JIT.
+std::unique_ptr<VM::VM> createEagerJITVM() {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+  return std::make_unique<VM::VM>(Conf);
+}
 
-  // Helper to create a VM with eager JIT and a specific stack-size budget
-  std::unique_ptr<VM::VM> createEagerJITVM(uint64_t MaxStackSize) {
-    Configure Conf;
-    Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-    Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O1);
-    Conf.getRuntimeConfigure().setMaxStackSize(MaxStackSize);
-    return std::make_unique<VM::VM>(Conf);
-  }
+// Creates a VM with eager JIT and a specific stack-size budget.
+std::unique_ptr<VM::VM> createEagerJITVM(uint64_t MaxStackSize) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+  Conf.getRuntimeConfigure().setMaxStackSize(MaxStackSize);
+  return std::make_unique<VM::VM>(Conf);
+}
 
-  // Helper to create a VM with lazy JIT
-  std::unique_ptr<VM::VM> createLazyJITVM() {
-    Configure Conf;
-    Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
-    Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O1);
-    return std::make_unique<VM::VM>(Conf);
-  }
+// Creates a VM with lazy JIT.
+std::unique_ptr<VM::VM> createLazyJITVM() {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+  return std::make_unique<VM::VM>(Conf);
+}
 
-  // Helper to create a VM with lazy JIT and a specific native stack-size budget
-  std::unique_ptr<VM::VM> createLazyJITVM(uint64_t MaxStackSize) {
-    Configure Conf;
-    Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
-    Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O1);
-    Conf.getRuntimeConfigure().setMaxStackSize(MaxStackSize);
-    return std::make_unique<VM::VM>(Conf);
-  }
-};
+// Creates a VM with lazy JIT and a specific native stack-size budget.
+std::unique_ptr<VM::VM> createLazyJITVM(uint64_t MaxStackSize) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+  Conf.getRuntimeConfigure().setMaxStackSize(MaxStackSize);
+  return std::make_unique<VM::VM>(Conf);
+}
 
-TEST_F(LazyJITTest, ConfigurationDefaultDisabled) {
+TEST(LazyJITTest, ConfigurationDefaultDisabled) {
   Configure Conf;
   EXPECT_EQ(Conf.getRuntimeConfigure().getRunMode(), RunMode::Interpreter);
 }
 
-TEST_F(LazyJITTest, ConfigurationEnableDisable) {
+TEST(LazyJITTest, ConfigurationEnableDisable) {
   Configure Conf;
 
   // Enable lazy JIT
@@ -191,7 +213,7 @@ TEST_F(LazyJITTest, ConfigurationEnableDisable) {
   EXPECT_NE(Conf.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 }
 
-TEST_F(LazyJITTest, RuntimeConfigureIndependent) {
+TEST(LazyJITTest, RuntimeConfigureIndependent) {
   RuntimeConfigure RConf1;
   RuntimeConfigure RConf2;
 
@@ -200,7 +222,7 @@ TEST_F(LazyJITTest, RuntimeConfigureIndependent) {
   EXPECT_NE(RConf2.getRunMode(), RunMode::LazyJIT);
 }
 
-TEST_F(LazyJITTest, LazyJITCorrectness) {
+TEST(LazyJITTest, LazyJITCorrectness) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -237,7 +259,7 @@ TEST_F(LazyJITTest, LazyJITCorrectness) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITRepeatCalls) {
+TEST(LazyJITTest, LazyJITRepeatCalls) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -272,7 +294,7 @@ TEST_F(LazyJITTest, LazyJITRepeatCalls) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITFibonacci) {
+TEST(LazyJITTest, LazyJITFibonacci) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(FibonacciWasm));
@@ -297,7 +319,7 @@ TEST_F(LazyJITTest, LazyJITFibonacci) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, EagerVsLazyResultsMatch) {
+TEST(LazyJITTest, EagerVsLazyResultsMatch) {
   auto EagerVM = createEagerJITVM();
   auto LazyVM = createLazyJITVM();
 
@@ -341,7 +363,7 @@ TEST_F(LazyJITTest, EagerVsLazyResultsMatch) {
   LazyVM->cleanup();
 }
 
-TEST_F(LazyJITTest, EagerVsLazyFibonacciMatch) {
+TEST(LazyJITTest, EagerVsLazyFibonacciMatch) {
   auto EagerVM = createEagerJITVM();
   auto LazyVM = createLazyJITVM();
 
@@ -371,7 +393,7 @@ TEST_F(LazyJITTest, EagerVsLazyFibonacciMatch) {
   LazyVM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITCallNonExistent) {
+TEST(LazyJITTest, LazyJITCallNonExistent) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -387,7 +409,7 @@ TEST_F(LazyJITTest, LazyJITCallNonExistent) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITMultipleInstantiations) {
+TEST(LazyJITTest, LazyJITMultipleInstantiations) {
   for (int Idx = 0; Idx < 3; ++Idx) {
     auto VM = createLazyJITVM();
 
@@ -409,7 +431,7 @@ TEST_F(LazyJITTest, LazyJITMultipleInstantiations) {
   }
 }
 
-TEST_F(LazyJITTest, LazyJITReinstantiateSameVM) {
+TEST(LazyJITTest, LazyJITReinstantiateSameVM) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -448,7 +470,7 @@ TEST_F(LazyJITTest, LazyJITReinstantiateSameVM) {
   EXPECT_GT(VM->getLazyCompiledFuncCount(), CompiledBefore);
 }
 
-TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
+TEST(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -510,13 +532,51 @@ TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITWithImports) {
+TEST(LazyJITTest, LazyJITWithImports) {
+  // (module
+  //   (type (;0;) (func (param i32 i32) (result i32)))
+  //   (import "env" "host_add" (func (;0;) (type 0)))
+  //   (export "call_host" (func 1))
+  //   (export "double_add" (func 2))
+  //   (export "local_mul" (func 3))
+  //   (func (;1;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 1
+  //     call 0
+  //   )
+  //   (func (;2;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 1
+  //     call 0
+  //     local.get 0
+  //     local.get 1
+  //     call 0
+  //     i32.add
+  //   )
+  //   (func (;3;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 1
+  //     i32.mul
+  //   )
+  // )
+  std::vector<uint8_t> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+      0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x03, 0x65, 0x6e, 0x76,
+      0x08, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03,
+      0x04, 0x03, 0x00, 0x00, 0x00, 0x07, 0x26, 0x03, 0x09, 0x63, 0x61, 0x6c,
+      0x6c, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x00, 0x01, 0x0a, 0x64, 0x6f, 0x75,
+      0x62, 0x6c, 0x65, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x02, 0x09, 0x6c, 0x6f,
+      0x63, 0x61, 0x6c, 0x5f, 0x6d, 0x75, 0x6c, 0x00, 0x03, 0x0a, 0x22, 0x03,
+      0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b, 0x0f, 0x00, 0x20,
+      0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x6a,
+      0x0b, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6c, 0x0b};
+
   TestEnvModule HostMod;
 
   auto VM = createLazyJITVM();
   ASSERT_TRUE(VM->registerModule(HostMod));
 
-  ASSERT_TRUE(VM->loadWasm(ImportWasm));
+  ASSERT_TRUE(VM->loadWasm(Wasm));
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
@@ -556,7 +616,66 @@ TEST_F(LazyJITTest, LazyJITWithImports) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITWasmImportsWasm) {
+TEST(LazyJITTest, LazyJITWasmImportsWasm) {
+  // (module
+  //   (type (;0;) (func (param i32 i32) (result i32)))
+  //   (export "add" (func 0))
+  //   (export "mul" (func 1))
+  //   (func (;0;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 1
+  //     i32.add
+  //   )
+  //   (func (;1;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 1
+  //     i32.mul
+  //   )
+  // )
+  std::vector<uint8_t> MathLibWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+      0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x0d,
+      0x02, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03, 0x6d, 0x75, 0x6c, 0x00,
+      0x01, 0x0a, 0x11, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b,
+      0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6c, 0x0b};
+  // (module
+  //   (type (;0;) (func (param i32 i32) (result i32)))
+  //   (import "math" "add" (func (;0;) (type 0)))
+  //   (import "math" "mul" (func (;1;) (type 0)))
+  //   (export "add_and_square" (func 2))
+  //   (export "sum_of_squares" (func 3))
+  //   (func (;2;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 1
+  //     call 0
+  //     local.get 0
+  //     local.get 1
+  //     call 0
+  //     call 1
+  //   )
+  //   (func (;3;) (type 0) (param i32 i32) (result i32)
+  //     local.get 0
+  //     local.get 0
+  //     call 1
+  //     local.get 1
+  //     local.get 1
+  //     call 1
+  //     call 0
+  //   )
+  // )
+  std::vector<uint8_t> MathConsumerWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+      0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x17, 0x02, 0x04, 0x6d,
+      0x61, 0x74, 0x68, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x04, 0x6d,
+      0x61, 0x74, 0x68, 0x03, 0x6d, 0x75, 0x6c, 0x00, 0x00, 0x03, 0x03,
+      0x02, 0x00, 0x00, 0x07, 0x23, 0x02, 0x0e, 0x61, 0x64, 0x64, 0x5f,
+      0x61, 0x6e, 0x64, 0x5f, 0x73, 0x71, 0x75, 0x61, 0x72, 0x65, 0x00,
+      0x02, 0x0e, 0x73, 0x75, 0x6d, 0x5f, 0x6f, 0x66, 0x5f, 0x73, 0x71,
+      0x75, 0x61, 0x72, 0x65, 0x73, 0x00, 0x03, 0x0a, 0x23, 0x02, 0x10,
+      0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01,
+      0x10, 0x00, 0x10, 0x01, 0x0b, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00,
+      0x10, 0x01, 0x20, 0x01, 0x20, 0x01, 0x10, 0x01, 0x10, 0x00, 0x0b};
+
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->registerModule("math", MathLibWasm));
@@ -598,7 +717,7 @@ TEST_F(LazyJITTest, LazyJITWasmImportsWasm) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITReferenceModuleNotReleasedOnCleanup) {
+TEST(LazyJITTest, LazyJITReferenceModuleNotReleasedOnCleanup) {
   bool Destroyed = false;
   auto Deleter = [&Destroyed](AST::Module *M) {
     Destroyed = true;
@@ -622,7 +741,7 @@ TEST_F(LazyJITTest, LazyJITReferenceModuleNotReleasedOnCleanup) {
   EXPECT_TRUE(Destroyed);
 }
 
-TEST_F(LazyJITTest, LazyJITReferenceModuleNotReleasedOnVMDestruction) {
+TEST(LazyJITTest, LazyJITReferenceModuleNotReleasedOnVMDestruction) {
   bool Destroyed = false;
   auto Deleter = [&Destroyed](AST::Module *M) {
     Destroyed = true;
@@ -646,7 +765,7 @@ TEST_F(LazyJITTest, LazyJITReferenceModuleNotReleasedOnVMDestruction) {
   EXPECT_TRUE(Destroyed);
 }
 
-TEST_F(LazyJITTest, JITAddLookupFailure) {
+TEST(LazyJITTest, JITAddLookupFailure) {
   Configure Conf;
   Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
   Conf.getCompilerConfigure().setOptimizationLevel(
@@ -687,14 +806,34 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
 }
 
-TEST_F(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {
-  // Batch modules only declare the "intrinsics" global; it resolves against
-  // the infrastructure module's definition patched at prepare time. Run two
-  // operations that call back into the runtime through that table — an
-  // unresolved or null table pointer would crash instead.
+TEST(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {
+  // (module
+  //   (type (;0;) (func (result i32)))
+  //   (type (;1;) (func (param i32) (result i32)))
+  //   (memory (;0;) 1)
+  //   (export "trap" (func 0))
+  //   (export "grow" (func 1))
+  //   (func (;0;) (type 0) (result i32)
+  //     unreachable
+  //   )
+  //   (func (;1;) (type 1) (param i32) (result i32)
+  //     local.get 0
+  //     memory.grow
+  //   )
+  // )
+  std::vector<uint8_t> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02,
+      0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03,
+      0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x0f, 0x02,
+      0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x04, 0x67, 0x72, 0x6f,
+      0x77, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x03, 0x00, 0x00, 0x0b, 0x06,
+      0x00, 0x20, 0x00, 0x40, 0x00, 0x0b};
+
+  // Both calls reach the runtime through the "intrinsics" table patched at
+  // prepare time; an unresolved table pointer would crash.
   auto VM = createLazyJITVM();
 
-  ASSERT_TRUE(VM->loadWasm(IntrinsicsWasm));
+  ASSERT_TRUE(VM->loadWasm(Wasm));
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
@@ -712,7 +851,7 @@ TEST_F(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {
   EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
 }
 
-TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {
+TEST(LazyJITTest, LazyJITConcurrentSameFunction) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -744,7 +883,7 @@ TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITConcurrentDifferentFunctions) {
+TEST(LazyJITTest, LazyJITConcurrentDifferentFunctions) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
@@ -797,7 +936,7 @@ TEST_F(LazyJITTest, LazyJITConcurrentDifferentFunctions) {
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITConcurrentFibonacci) {
+TEST(LazyJITTest, LazyJITConcurrentFibonacci) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(FibonacciWasm));
@@ -842,7 +981,7 @@ TEST_F(LazyJITTest, LazyJITConcurrentFibonacci) {
 
 // Deep JIT recursion must trap with CallStackExhausted instead of overflowing
 // the native stack; f(20000) goes far past the 64 KiB budget.
-TEST_F(LazyJITTest, LazyJITCallStackExhaustion) {
+TEST(LazyJITTest, LazyJITCallStackExhaustion) {
   auto VM = createLazyJITVM(UINT64_C(65536));
 
   ASSERT_TRUE(VM->loadWasm(RecurseWasm));
@@ -860,7 +999,7 @@ TEST_F(LazyJITTest, LazyJITCallStackExhaustion) {
 
 // The native stack limit also stays above the running thread's stack bottom,
 // so even an unbounded budget traps on an asyncExecute worker thread.
-TEST_F(LazyJITTest, JITCallStackExhaustionOnAsyncThread) {
+TEST(LazyJITTest, JITCallStackExhaustionOnAsyncThread) {
   auto VM = createEagerJITVM(UINT64_MAX);
 
   ASSERT_TRUE(VM->loadWasm(RecurseWasm));
@@ -877,9 +1016,3 @@ TEST_F(LazyJITTest, JITCallStackExhaustionOnAsyncThread) {
 }
 
 } // namespace
-
-GTEST_API_ int main(int argc, char **argv) {
-  WasmEdge::Log::setErrorLoggingLevel();
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

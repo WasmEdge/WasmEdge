@@ -3,7 +3,7 @@
 
 wasmedge_setup_simdjson()
 
-wasmedge_add_executable(wasmedgeComponentRegressionTests
+wasmedge_add_executable(wasmedgeComponentTests
   ComponentRegressionTest.cpp
   ComponentLoaderTest.cpp
   ComponentValidatorTest.cpp
@@ -11,15 +11,15 @@ wasmedge_add_executable(wasmedgeComponentRegressionTests
   ComponentCanonInvokeTest.cpp
 )
 
-add_test(wasmedgeComponentRegressionTests wasmedgeComponentRegressionTests)
+add_test(wasmedgeComponentTests wasmedgeComponentTests)
 
-target_link_libraries(wasmedgeComponentRegressionTests
+target_link_libraries(wasmedgeComponentTests
   PRIVATE
   wasmedgeVM
   ${GTEST_BOTH_LIBRARIES}
 )
 
-target_include_directories(wasmedgeComponentRegressionTests
+target_include_directories(wasmedgeComponentTests
   PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )

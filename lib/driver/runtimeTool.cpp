@@ -433,6 +433,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.getStatisticsConfigure().setCostLimit(Opt.GasLim.value().back());
   }
   setMemoryPageLimit(Opt, Conf);
+  setTableSizeLimit(Opt, Conf);
   Conf.getRuntimeConfigure().setMaxStackSize(Opt.StackLim.value());
   setStatisticsConfigure(Opt, Conf);
   // Determine the effective run mode.

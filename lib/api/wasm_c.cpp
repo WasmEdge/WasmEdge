@@ -776,7 +776,10 @@ struct wasm_table_t : public wasm::Table, public wasm_ref_base_t<wasm_table_t> {
         inst(new WasmEdge::Runtime::Instance::TableInstance(
             WasmEdge::AST::TableType(
                 conv_reftype_to_wasmedge(tt.element()->kind()), tt.limits().min,
-                tt.limits().max))) {
+                tt.limits().max),
+            store->engine->exec.getConfigure()
+                .getRuntimeConfigure()
+                .getMaxTableSize())) {
     if (inst->getTableType().getRefType().isFuncRefType()) {
       if (r && static_cast<const wasm_ref_t *>(r)->category ==
                    wasm_category_enum::FUNC) {
@@ -814,7 +817,10 @@ struct wasm_memory_t : public wasm::Memory,
   wasm_memory_t(wasm::Store *s, const wasm::MemoryType &mt) noexcept
       : wasm_ref_base_t<wasm_memory_t>(s), owned(true),
         inst(new WasmEdge::Runtime::Instance::MemoryInstance(
-            WasmEdge::AST::MemoryType(mt.limits().min, mt.limits().max))) {}
+            WasmEdge::AST::MemoryType(mt.limits().min, mt.limits().max),
+            store->engine->exec.getConfigure()
+                .getRuntimeConfigure()
+                .getMaxMemoryPage())) {}
   // Non-owning view (wasm_instance_exports).
   wasm_memory_t(wasm::Store *s,
                 WasmEdge::Runtime::Instance::MemoryInstance *mi) noexcept
@@ -2938,9 +2944,12 @@ wasm::own<wasm::Table> wasm::Table::make(wasm::Store *store,
   if (store && type) {
     auto table =
         wasm::make_own(new (std::nothrow) wasm_table_t(store, *type, init));
-    if (table && static_cast<wasm_table_t *>(table.get())->inst->getSize() !=
-                     type->limits().min) {
-      return nullptr;
+    if (table) {
+      const auto *inst = static_cast<wasm_table_t *>(table.get())->inst;
+      if (inst->getSize() !=
+          std::min<uint64_t>(type->limits().min, inst->getSizeLimit())) {
+        return nullptr;
+      }
     }
     return table;
   }

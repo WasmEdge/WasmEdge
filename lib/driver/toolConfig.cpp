@@ -188,6 +188,13 @@ void setMemoryPageLimit(const struct DriverToolOptions &Opt,
   }
 }
 
+void setTableSizeLimit(const struct DriverToolOptions &Opt,
+                       Configure &Conf) noexcept {
+  if (Opt.TabLim.value().size() > 0) {
+    Conf.getRuntimeConfigure().setMaxTableSize(Opt.TabLim.value().back());
+  }
+}
+
 bool registerLinkedModules(const struct DriverToolOptions &Opt,
                            VM::VM &VM) noexcept {
   for (const auto &ModEntry : Opt.LinkedModules.value()) {

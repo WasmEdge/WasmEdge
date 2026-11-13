@@ -26,6 +26,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 
 namespace WasmEdge {
@@ -37,8 +38,9 @@ class ModuleInstance;
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const AST::TableType &TType) noexcept
-      : TableInstance(TType, RefVariant(TType.getRefType())) {
+  TableInstance(const AST::TableType &TType,
+                uint64_t SizeLim = getMaxAddress(AddressType::I64)) noexcept
+      : TableInstance(TType, RefVariant(TType.getRefType()), SizeLim) {
     // The reference type should be nullable because there is no initial ref.
     // This constructor only handles abstract heap types correctly for null
     // refs. For concrete type indices, the caller should use the two-arg
@@ -47,17 +49,26 @@ public:
     assuming(TType.getRefType().isAbsHeapType());
   }
   /// The table size stays 0 if the allocation of the initial size failed.
-  TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
-      : TabType(TType), InitValue(InitVal), LiveSize(0) {
+  TableInstance(const AST::TableType &TType, const RefVariant &InitVal,
+                uint64_t SizeLim = getMaxAddress(AddressType::I64)) noexcept
+      : TabType(TType), InitValue(InitVal), SizeLimit(SizeLim), LiveSize(0) {
+    using namespace std::literals;
     // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
+    uint64_t Size = TType.getLimit().getMin();
+    if (Size > SizeLimit) {
+      spdlog::error("Table Instance: Limited {} size in configuration."sv,
+                    SizeLimit);
+      Size = SizeLimit;
+    }
     TabType.getLimit().setMin(0);
-    growRefs(TType.getLimit().getMin(), InitVal);
+    growRefs(Size, InitVal);
   }
   /// Constructor for a table instance defined by a module.
   TableInstance(const ModuleInstance *Mod, const AST::TableType &TType,
-                const RefVariant &InitVal) noexcept
-      : TableInstance(TType, InitVal) {
+                const RefVariant &InitVal,
+                uint64_t SizeLim = getMaxAddress(AddressType::I64)) noexcept
+      : TableInstance(TType, InitVal, SizeLim) {
     ModInst = Mod;
   }
   TableInstance(const TableInstance &) = delete;
@@ -72,6 +83,9 @@ public:
     // The table size is bound to the limit in the table type.
     return TabType.getLimit().getMin();
   }
+
+  /// Get the size limit from the configuration.
+  uint64_t getSizeLimit() const noexcept { return SizeLimit; }
 
   /// Get a stable pointer to the live size field for compiled code.
   const uint64_t *getSizePtr() const noexcept { return &LiveSize; }
@@ -96,6 +110,7 @@ public:
 
   /// Grow table with initialization value.
   bool growTable(const uint64_t Count, const RefVariant &Val) noexcept {
+    using namespace std::literals;
     if (Count == 0) {
       return true;
     }
@@ -107,6 +122,13 @@ public:
       MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
     if (Count > MaxSizeCaped - Min) {
+      return false;
+    }
+    assuming(SizeLimit >= Min);
+    if (Count > SizeLimit - Min) {
+      spdlog::error("Table Instance: Table grow failed, exceeded limited {} "
+                    "size in configuration."sv,
+                    SizeLimit);
       return false;
     }
     return growRefs(Count, Val);
@@ -212,8 +234,8 @@ private:
     const uint64_t NewSize = Size + Count;
     if (NewSize > Capacity) {
       // Grow geometrically, and fall back to the exact size.
-      const uint64_t NewCap =
-          std::max(NewSize, std::min(MaxSize, Capacity + Capacity / 2));
+      const uint64_t NewCap = std::max(
+          NewSize, std::min({MaxSize, SizeLimit, Capacity + Capacity / 2}));
       if (!reserveRefs(NewCap) &&
           (NewCap == NewSize || !reserveRefs(NewSize))) {
         return false;
@@ -249,6 +271,7 @@ private:
   RefVariant InitValue;
   RefVariant *DataPtr = nullptr;
   uint64_t Capacity = 0;
+  uint64_t SizeLimit;
   uint64_t LiveSize;
   /// @}
 };

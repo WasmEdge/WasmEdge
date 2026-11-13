@@ -20,6 +20,7 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
   Configure Conf = createConfigure(Opt);
 
   setMemoryPageLimit(Opt, Conf);
+  setTableSizeLimit(Opt, Conf);
 
   Conf.addHostRegistration(HostRegistration::Wasi);
 

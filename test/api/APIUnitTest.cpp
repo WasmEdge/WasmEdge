@@ -839,6 +839,12 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for table size limit.
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxTableSize(Conf), 10000000U);
+  WasmEdge_ConfigureSetMaxTableSize(ConfNull, 1234U);
+  WasmEdge_ConfigureSetMaxTableSize(Conf, 1234U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxTableSize(ConfNull), 1234U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxTableSize(Conf), 1234U);
   // Tests for stack size limit.
   EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), 0U);
   WasmEdge_ConfigureSetMaxStackSize(ConfNull, 65536U);
@@ -2520,6 +2526,23 @@ TEST(APICoreTest, Instance) {
   WasmEdge_LimitDelete(TabLim);
   WasmEdge_TableTypeDelete(TabType);
   EXPECT_EQ(TabCxt, nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithSizeLimit(nullptr, 12);
+  EXPECT_EQ(TabCxt, nullptr);
+  TabLim = WasmEdge_LimitCreate(10, false);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreateWithSizeLimit(TabType, 12);
+  EXPECT_NE(TabCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceGrow(TabCxt, 2)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
+                         WasmEdge_TableInstanceGrow(TabCxt, 1)));
+  EXPECT_EQ(WasmEdge_TableInstanceGetSize(TabCxt), 12U);
+  WasmEdge_TableInstanceDelete(TabCxt);
+  TabCxt = WasmEdge_TableInstanceCreateWithSizeLimit(TabType, 4);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_NE(TabCxt, nullptr);
+  EXPECT_EQ(WasmEdge_TableInstanceGetSize(TabCxt), 4U);
+  WasmEdge_TableInstanceDelete(TabCxt);
   TabLim = WasmEdge_LimitCreateWithMax(10, 20, false, false);
   TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
@@ -2595,6 +2618,12 @@ TEST(APICoreTest, Instance) {
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
+  TabCxt = WasmEdge_TableInstanceCreateWithInitAndSizeLimit(TabType, Val, 6);
+  EXPECT_NE(TabCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceGrow(TabCxt, 1)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
+                         WasmEdge_TableInstanceGrow(TabCxt, 1)));
+  WasmEdge_TableInstanceDelete(TabCxt);
   WasmEdge_TableTypeDelete(TabType);
 
   // Table instance create with init (non-nullable reference)
@@ -2652,6 +2681,19 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
+  MemCxt = WasmEdge_MemoryInstanceCreateWithPageLimit(nullptr, 2);
+  EXPECT_EQ(MemCxt, nullptr);
+  MemLim = WasmEdge_LimitCreate(1, false);
+  MemType = WasmEdge_MemoryTypeCreate(MemLim);
+  MemCxt = WasmEdge_MemoryInstanceCreateWithPageLimit(MemType, 2);
+  WasmEdge_LimitDelete(MemLim);
+  WasmEdge_MemoryTypeDelete(MemType);
+  EXPECT_NE(MemCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_MemoryInstanceGrowPage(MemCxt, 1)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_MemoryOutOfBounds,
+                         WasmEdge_MemoryInstanceGrowPage(MemCxt, 1)));
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 2U);
+  WasmEdge_MemoryInstanceDelete(MemCxt);
   MemLim = WasmEdge_LimitCreateWithMax(1, 3, false, false);
   MemType = WasmEdge_MemoryTypeCreate(MemLim);
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);

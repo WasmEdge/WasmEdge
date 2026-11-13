@@ -3,6 +3,7 @@
 
 #include "executor/executor.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace WasmEdge {
@@ -42,7 +43,8 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // Pop result from the stack.
       RefVariant InitTabValue = StackMgr.pop().get<RefVariant>();
       // Create and add the table instance to the module instance.
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      ModInst.addTable(TabSeg.getTableType(), InitTabValue,
+                       Conf.getRuntimeConfigure().getMaxTableSize());
     } else {
       // No init expression case. Use the null reference to initialize.
       // Normalize the type to the bottom abstract heap type so that null
@@ -50,13 +52,14 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       auto BotType = toBottomType(StackMgr.getModule(),
                                   TabSeg.getTableType().getRefType());
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      ModInst.addTable(TabSeg.getTableType(), InitTabValue,
+                       Conf.getRuntimeConfigure().getMaxTableSize());
     }
     // Set the table pointers of the instantiated table.
     const auto Index = ModInst.getTableNum() - 1;
     auto *TabInst = ModInst.unsafeGetTable(Index);
     const auto &Lim = TabSeg.getTableType().getLimit();
-    if (TabInst->getSize() != Lim.getMin()) {
+    if (TabInst->getSize() != std::min(Lim.getMin(), TabInst->getSizeLimit())) {
       spdlog::error(ErrCode::Value::AllocationFailed);
       spdlog::error(
           ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));

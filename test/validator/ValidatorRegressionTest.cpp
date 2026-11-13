@@ -18,6 +18,7 @@
 #include "vm/vm.h"
 
 #include <gtest/gtest.h>
+#include <initializer_list>
 #include <vector>
 
 namespace {
@@ -167,6 +168,25 @@ generateWasmWithSubtypeChain(int NumTotalTypes) {
   WasmBytes.insert(WasmBytes.end(), NameSectionPayloadContent.begin(),
                    NameSectionPayloadContent.end());
 
+  return WasmBytes;
+}
+
+// Generates a Wasm module with one section that holds Count copies of an
+// entry.
+static std::vector<WasmEdge::Byte>
+generateWasmWithEntries(WasmEdge::Byte SectionId, uint32_t Count,
+                        std::initializer_list<WasmEdge::Byte> Entry) {
+  std::vector<WasmEdge::Byte> Content = encodeLEB128(Count);
+  for (uint32_t I = 0; I < Count; ++I) {
+    Content.insert(Content.end(), Entry);
+  }
+  std::vector<WasmEdge::Byte> WasmBytes = {0x00, 0x61, 0x73, 0x6d,
+                                           0x01, 0x00, 0x00, 0x00};
+  WasmBytes.push_back(SectionId);
+  std::vector<WasmEdge::Byte> SizeLeb =
+      encodeLEB128(static_cast<uint32_t>(Content.size()));
+  WasmBytes.insert(WasmBytes.end(), SizeLeb.begin(), SizeLeb.end());
+  WasmBytes.insert(WasmBytes.end(), Content.begin(), Content.end());
   return WasmBytes;
 }
 
@@ -1110,6 +1130,39 @@ TEST_F(ValidatorRegressionTest, DisabledProposals) {
   Res = Validate(GlobalGetWasm, WasmEdge::Proposal::ExtendedConst);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::InvalidGlobalIdx);
+}
+
+// Test that a module with more than 100 memories is rejected.
+TEST_F(ValidatorRegressionTest, MemoryCountLimit) {
+  // Module: (module (memory 0) ...), with 100 and with 101 memories.
+  auto Wasm = generateWasmWithEntries(0x05, 100, {0x00, 0x00});
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+
+  Wasm = generateWasmWithEntries(0x05, 101, {0x00, 0x00});
+  Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TooManyMemories);
+}
+
+// Test that a module with more than 100 tables is rejected.
+TEST_F(ValidatorRegressionTest, TableCountLimit) {
+  // Module: (module (table 0 funcref) ...), with 100 and with 101 tables.
+  auto Wasm = generateWasmWithEntries(0x04, 100, {0x70, 0x00, 0x00});
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+
+  Wasm = generateWasmWithEntries(0x04, 101, {0x70, 0x00, 0x00});
+  Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::TooManyTables);
 }
 
 // Test that the conversions between any and extern after unreachable result

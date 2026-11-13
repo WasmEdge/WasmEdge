@@ -431,6 +431,7 @@ Expect<RestorePlan> buildPlan(const RestoreRequest &Req,
     }
     if (Type != Live.getRefType() || !sameLimit(Limit, Live.getLimit()) ||
         (Live.getLimit().hasMax() && Size > Live.getLimit().getMax()) ||
+        Size > TabMap.Instances[I]->getSizeLimit() ||
         Size > getMaxAddress(Live.getLimit().getAddrType())) {
       return Unexpect(Mismatch);
     }
@@ -558,6 +559,28 @@ Expect<void> restore(const RestoreRequest &Req) noexcept {
     }
     Grown.emplace_back(&Instance, Memory.Pages - Old);
   }
+  std::vector<std::pair<Runtime::Instance::TableInstance *, uint64_t>>
+      GrownTables;
+  for (auto &Table : Plan.Tables) {
+    auto &Instance = *Table.Instance;
+    const auto Old = Instance.getSize();
+    const auto Size = Table.Refs.size();
+    if (Size <= Old) {
+      continue;
+    }
+    if (!Instance.growTable(Size - Old)) {
+      for (auto &[Grew, Count] : GrownTables) {
+        const auto Shrunk = Grew->shrinkTable(Count);
+        assuming(Shrunk);
+      }
+      for (auto &[Grew, Pages] : Grown) {
+        const auto Shrunk = Grew->shrinkPage(Pages);
+        assuming(Shrunk);
+      }
+      return Unexpect(ErrCode::Value::CoredumpAllocationFailed);
+    }
+    GrownTables.emplace_back(&Instance, Size - Old);
+  }
   for (auto &Memory : Plan.Memories) {
     auto &Instance = *Memory.Instance;
     const auto Old = Instance.getPageSize();
@@ -580,9 +603,10 @@ Expect<void> restore(const RestoreRequest &Req) noexcept {
     auto &Instance = *Table.Instance;
     const auto Old = Instance.getSize();
     const auto Size = Table.Refs.size();
-    const auto Resized = Size < Old ? Instance.shrinkTable(Old - Size)
-                                    : Instance.growTable(Size - Old);
-    assuming(Resized);
+    if (Size < Old) {
+      const auto Shrunk = Instance.shrinkTable(Old - Size);
+      assuming(Shrunk);
+    }
     const auto Written = Instance.setRefs(Table.Refs, 0, 0, Size);
     assuming(Written);
   }

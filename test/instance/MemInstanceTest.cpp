@@ -123,6 +123,26 @@ TEST(TableInstanceTest, ShrinkAndRegrow) {
   EXPECT_TRUE(Table.getRefAddr(0)->isNull());
 }
 
+TEST(TableInstanceTest, SizeLimit) {
+  Runtime::Instance::TableInstance Clamped(AST::TableType(TypeCode::FuncRef, 5),
+                                           2);
+  EXPECT_EQ(Clamped.getSize(), 2U);
+  EXPECT_EQ(*Clamped.getSizePtr(), 2U);
+  EXPECT_FALSE(Clamped.growTable(1));
+
+  Runtime::Instance::TableInstance Table(
+      AST::TableType(TypeCode::FuncRef, 1, 8), 4);
+  EXPECT_EQ(Table.getSizeLimit(), 4U);
+  EXPECT_FALSE(Table.growTable(4));
+  ASSERT_TRUE(Table.growTable(3));
+  EXPECT_EQ(Table.getSize(), 4U);
+  EXPECT_FALSE(Table.growTable(1));
+
+  Runtime::Instance::TableInstance Unlimited(
+      AST::TableType(TypeCode::FuncRef, 1, 8));
+  EXPECT_TRUE(Unlimited.growTable(7));
+}
+
 TEST(MemInstanceTest, Limit__Pages) {
   using MemInst = WasmEdge::Runtime::Instance::MemoryInstance;
   WasmEdge::Configure Conf;

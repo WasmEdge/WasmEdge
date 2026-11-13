@@ -1565,6 +1565,35 @@ TEST_F(CoredumpState, RestoreMemoryGrowAndLimits) {
   }
 }
 
+TEST_F(CoredumpState, RestoreTableGrowAndLimits) {
+  Runtime::Instance::ModuleInstance Source("source");
+  Runtime::Instance::ModuleInstance Target("different-name");
+  ASSERT_TRUE(Source.addHostTable(
+      "t", std::make_unique<Runtime::Instance::TableInstance>(
+               AST::TableType(TypeCode::FuncRef, 3, 3))));
+  ASSERT_TRUE(Target.addHostTable(
+      "t", std::make_unique<Runtime::Instance::TableInstance>(
+               AST::TableType(TypeCode::FuncRef, 1, 3))));
+  Coredump::Request Req;
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{
+      &Source};
+  Req.Modules = Sources;
+  AST::Module Dump;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const std::array Targets{&Target};
+  ASSERT_TRUE(Coredump::restore({Targets, Path}));
+  EXPECT_EQ(Target.getTableInstances()[0]->getSize(), 3U);
+  Runtime::Instance::ModuleInstance Limited("limited");
+  ASSERT_TRUE(Limited.addHostTable(
+      "t", std::make_unique<Runtime::Instance::TableInstance>(
+               AST::TableType(TypeCode::FuncRef, 1, 3), 2)));
+  const std::array LimitedModules{&Limited};
+  const auto Result = Coredump::restore({LimitedModules, Path});
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CoredumpMismatch);
+  EXPECT_EQ(Limited.getTableInstances()[0]->getSize(), 1U);
+}
+
 TEST_F(CoredumpState, RestoreSharedInstances) {
   const Byte Imports[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02,
                        0x23, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x06,

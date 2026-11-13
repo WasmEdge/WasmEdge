@@ -244,6 +244,12 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::Value::MultiTables);
   }
+  // The number of tables is limited.
+  if (Checker.getTables().size() > RuntimeConfigure::DefaultMaxTableCount) {
+    spdlog::error(ErrCode::Value::TooManyTables);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(ErrCode::Value::TooManyTables);
+  }
 
   // Multiple memories are for the MultiMemories proposal.
   if (Checker.getMemories().size() > 1 &&
@@ -252,6 +258,12 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     spdlog::error(ErrInfo::InfoProposal(Proposal::MultiMemories));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::Value::MultiMemories);
+  }
+  // The number of memories is limited.
+  if (Checker.getMemories().size() > RuntimeConfigure::DefaultMaxMemoryCount) {
+    spdlog::error(ErrCode::Value::TooManyMemories);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(ErrCode::Value::TooManyMemories);
   }
 
   // Set the validated flag.

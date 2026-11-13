@@ -260,16 +260,24 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   std::vector<std::filesystem::path> Result;
   std::error_code Error;
 
-  // Extra directories from environ variable
+  // Extra directories from environ variable. Empty entries are skipped.
   if (const auto ExtraEnv = ::getenv("WASMEDGE_PLUGIN_PATH")) {
+#if WASMEDGE_OS_WINDOWS
+    const char Separator = ';';
+#else
+    const char Separator = ':';
+#endif
     std::string_view ExtraEnvStr = ExtraEnv;
-    for (auto Sep = ExtraEnvStr.find(':'); Sep != std::string_view::npos;
-         Sep = ExtraEnvStr.find(':')) {
-      Result.push_back(u8path(ExtraEnvStr.substr(0, Sep)));
-      const auto Next = ExtraEnvStr.find_first_not_of(':', Sep);
-      ExtraEnvStr = ExtraEnvStr.substr(Next);
+    while (!ExtraEnvStr.empty()) {
+      const auto Sep = ExtraEnvStr.find(Separator);
+      if (const auto Entry = ExtraEnvStr.substr(0, Sep); !Entry.empty()) {
+        Result.push_back(u8path(Entry));
+      }
+      if (Sep == std::string_view::npos) {
+        break;
+      }
+      ExtraEnvStr.remove_prefix(Sep + 1);
     }
-    Result.push_back(u8path(ExtraEnvStr));
   }
 
   // Plugin directory for the WasmEdge installation.

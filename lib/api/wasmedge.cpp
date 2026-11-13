@@ -739,6 +739,9 @@ WasmEdge_ValueGetV128(const WasmEdge_Value Val) noexcept {
 
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) noexcept {
+  if (!WasmEdge_ValTypeIsRef(Val.Type)) {
+    return false;
+  }
   return WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
              to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
       .get<WasmEdge::RefVariant>()

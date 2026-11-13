@@ -1058,6 +1058,156 @@ TEST_F(ValidatorRegressionTest,
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
+TEST_F(ValidatorRegressionTest, ConvertAnyPolymorphicStackAfterUnreachable) {
+  // Module: (module
+  //   (func (export "f")
+  //     (local (ref extern))
+  //     unreachable
+  //     extern.convert_any
+  //     local.set 0))
+  std::array<WasmEdge::Byte, 39> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: [] -> []
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 func of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Export section: "f"
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00,
+      // Code section: 1 func body
+      0x0a, 0x0c, 0x01, 0x0a, 0x01, 0x01, 0x64, 0x6f, 0x00, 0xfb, 0x1b,
+      0x21, 0x00, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, ConvertExternPolymorphicStackAfterUnreachable) {
+  // Module: (module
+  //   (func (export "f")
+  //     (local (ref any))
+  //     unreachable
+  //     any.convert_extern
+  //     local.set 0))
+  std::array<WasmEdge::Byte, 39> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: [] -> []
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 func of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Export section: "f"
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00,
+      // Code section: 1 func body
+      0x0a, 0x0c, 0x01, 0x0a, 0x01, 0x01, 0x64, 0x6e, 0x00, 0xfb, 0x1a,
+      0x21, 0x00, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, ConvertAnyResultAfterUnreachable) {
+  // Module: (module
+  //   (func (export "f") (result (ref extern))
+  //     unreachable
+  //     extern.convert_any))
+  std::array<WasmEdge::Byte, 36> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: [] -> [(ref extern)]
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x01, 0x64, 0x6f,
+      // Function section: 1 func of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Export section: "f"
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00,
+      // Code section: 1 func body
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0x00, 0xfb, 0x1b, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, ConvertExternResultAfterUnreachable) {
+  // Module: (module
+  //   (func (export "f") (result (ref any))
+  //     unreachable
+  //     any.convert_extern))
+  std::array<WasmEdge::Byte, 36> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: [] -> [(ref any)]
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x01, 0x64, 0x6e,
+      // Function section: 1 func of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Export section: "f"
+      0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00,
+      // Code section: 1 func body
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0x00, 0xfb, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, ConvertAnyRejectsInvalidOperandType) {
+  // Module: (module
+  //   (func (param i32)
+  //     local.get 0
+  //     extern.convert_any))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: [i32] -> []
+      0x01, 0x05, 0x01, 0x60, 0x01, 0x7f, 0x00,
+      // Function section: 1 func of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 func body
+      0x0a, 0x08, 0x01, 0x06, 0x00, 0x20, 0x00, 0xfb, 0x1b, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, ConvertExternRejectsInvalidOperandType) {
+  // Module: (module
+  //   (func (param i32)
+  //     local.get 0
+  //     any.convert_extern))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: [i32] -> []
+      0x01, 0x05, 0x01, 0x60, 0x01, 0x7f, 0x00,
+      // Function section: 1 func of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 func body
+      0x0a, 0x08, 0x01, 0x06, 0x00, 0x20, 0x00, 0xfb, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

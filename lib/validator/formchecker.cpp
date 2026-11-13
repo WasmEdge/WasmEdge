@@ -991,11 +991,32 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   }
   case OpCode::Any__convert_extern: {
-    EXPECTED_TRY(auto Type, popType(TypeCode::ExternRef));
+    EXPECTED_TRY(auto Type, popType());
+    if (Type == unreachableVType()) {
+      pushType(unreachableVType());
+      return {};
+    }
+    if (!AST::TypeMatcher::matchType(Types, ValType(TypeCode::ExternRef),
+                                     *Type)) {
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error(ErrInfo::InfoMismatch(
+          VTypeToAST(ValType(TypeCode::ExternRef)), VTypeToAST(Type)));
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
     return StackTrans({}, {ValType(Type->getCode(), TypeCode::AnyRef)});
   }
   case OpCode::Extern__convert_any: {
-    EXPECTED_TRY(auto Type, popType(TypeCode::AnyRef));
+    EXPECTED_TRY(auto Type, popType());
+    if (Type == unreachableVType()) {
+      pushType(unreachableVType());
+      return {};
+    }
+    if (!AST::TypeMatcher::matchType(Types, ValType(TypeCode::AnyRef), *Type)) {
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error(ErrInfo::InfoMismatch(
+          VTypeToAST(ValType(TypeCode::AnyRef)), VTypeToAST(Type)));
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
     return StackTrans({}, {ValType(Type->getCode(), TypeCode::ExternRef)});
   }
   case OpCode::Ref__i31:

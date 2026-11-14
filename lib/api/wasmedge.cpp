@@ -2931,6 +2931,21 @@ WasmEdge_MemoryInstanceCreate(
   return nullptr;
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
+WasmEdge_MemoryInstanceCreateWithPageLimit(
+    const WasmEdge_MemoryTypeContext *MemType,
+    const uint64_t PageLimit) noexcept {
+  try {
+    if (MemType) {
+      return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
+          *fromMemTypeCxt(MemType), PageLimit));
+    }
+  } catch (...) {
+    handleCAPIError();
+  }
+  return nullptr;
+}
+
 WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
 WasmEdge_MemoryInstanceGetMemoryType(
     const WasmEdge_MemoryInstanceContext *Cxt) noexcept {

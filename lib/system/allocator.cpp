@@ -9,14 +9,13 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
-#elif defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||     \
-    defined(__arm__) || (defined(__riscv) && __riscv_xlen == 64) ||            \
-    defined(__s390x__)
-#include <sys/mman.h>
 #else
-#include <cctype>
+#if defined(HAVE_MMAP)
+#include <sys/mman.h>
+#endif
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #endif
 
 namespace WasmEdge {
@@ -24,13 +23,16 @@ namespace WasmEdge {
 namespace {
 static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
 
-#if WASMEDGE_OS_WINDOWS || defined(HAVE_MMAP) && defined(__x86_64__) ||        \
-    defined(__aarch64__) || (defined(__riscv) && __riscv_xlen == 64) ||        \
-    defined(__s390x__)
+#if WASMEDGE_OS_WINDOWS ||                                                     \
+    (defined(HAVE_MMAP) &&                                                     \
+     (defined(__x86_64__) || defined(__aarch64__) ||                           \
+      (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)))
 // Only define these two constants on the supported platform to avoid
 // -Wunused-const-variable error when applying -Werror.
 static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
 static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
+// The memory starts at the 4G offset of the reserved 12G region.
+static inline constexpr const uint64_t kMaxPageCount = (k12G - k4G) / kPageSize;
 #endif
 
 } // namespace
@@ -47,11 +49,13 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    winapi::VirtualFree(Reserved, 0, winapi::MEM_RELEASE_);
     return nullptr;
   }
   return Pointer;
-#elif defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||     \
-    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
+#elif defined(HAVE_MMAP) &&                                                    \
+    (defined(__x86_64__) || defined(__aarch64__) ||                            \
+     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__))
   auto Reserved = reinterpret_cast<uint8_t *>(
       mmap(nullptr, k12G, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
@@ -63,10 +67,14 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    munmap(Reserved, k12G);
     return nullptr;
   }
   return Pointer;
 #else
+  if (PageCount > std::numeric_limits<size_t>::max() / kPageSize) {
+    return nullptr;
+  }
   auto Result = reinterpret_cast<uint8_t *>(std::malloc(kPageSize * PageCount));
   if (Result == nullptr) {
     return nullptr;
@@ -81,6 +89,9 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
                                            uint64_t NewPageCount) noexcept {
   assuming(NewPageCount > OldPageCount);
 #if WASMEDGE_OS_WINDOWS
+  if (Pointer == nullptr || NewPageCount > kMaxPageCount) {
+    return nullptr;
+  }
   if (winapi::VirtualAlloc(Pointer + OldPageCount * kPageSize,
                            (NewPageCount - OldPageCount) * kPageSize,
                            winapi::MEM_COMMIT_,
@@ -88,9 +99,12 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
     return nullptr;
   }
   return Pointer;
-#elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
-                             (defined(__riscv) && __riscv_xlen == 64)) ||      \
-    defined(__s390x__)
+#elif defined(HAVE_MMAP) &&                                                    \
+    (defined(__x86_64__) || defined(__aarch64__) ||                            \
+     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__))
+  if (Pointer == nullptr || NewPageCount > kMaxPageCount) {
+    return nullptr;
+  }
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
@@ -98,6 +112,9 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
   }
   return Pointer;
 #else
+  if (NewPageCount > std::numeric_limits<size_t>::max() / kPageSize) {
+    return nullptr;
+  }
   auto Result = reinterpret_cast<uint8_t *>(
       std::realloc(Pointer, NewPageCount * kPageSize));
   if (Result == nullptr) {
@@ -120,9 +137,9 @@ WASMEDGE_EXPORT uint8_t *Allocator::shrink(uint8_t *Pointer,
     return nullptr;
   }
   return Pointer;
-#elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
-                             (defined(__riscv) && __riscv_xlen == 64)) ||      \
-    defined(__s390x__)
+#elif defined(HAVE_MMAP) &&                                                    \
+    (defined(__x86_64__) || defined(__aarch64__) ||                            \
+     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__))
   if (mmap(Pointer + NewPageCount * kPageSize,
            (OldPageCount - NewPageCount) * kPageSize, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_NORESERVE, -1,
@@ -139,9 +156,9 @@ WASMEDGE_EXPORT uint8_t *Allocator::shrink(uint8_t *Pointer,
 WASMEDGE_EXPORT void Allocator::release(uint8_t *Pointer, uint64_t) noexcept {
 #if WASMEDGE_OS_WINDOWS
   winapi::VirtualFree(Pointer - k4G, 0, winapi::MEM_RELEASE_);
-#elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
-                             (defined(__riscv) && __riscv_xlen == 64)) ||      \
-    defined(__s390x__)
+#elif defined(HAVE_MMAP) &&                                                    \
+    (defined(__x86_64__) || defined(__aarch64__) ||                            \
+     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__))
   if (Pointer == nullptr) {
     return;
   }

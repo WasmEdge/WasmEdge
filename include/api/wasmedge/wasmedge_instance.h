@@ -848,6 +848,27 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType)
     WASMEDGE_CAPI_NOEXCEPT;
 
+/// Creation of the WasmEdge_MemoryInstanceContext with the page limit.
+///
+/// The caller owns the object and should call `WasmEdge_MemoryInstanceDelete`
+/// to destroy it if the returned object is not added to a
+/// `WasmEdge_ModuleInstanceContext`.
+/// The memory instance will not grow beyond the page limit, no matter what the
+/// maximum of the memory type is. This is the same limit as the one set by
+/// `WasmEdge_ConfigureSetMaxMemoryPage` for the memories instantiated from
+/// WASM modules. If the minimum of the memory type is larger than the page
+/// limit, the memory instance is created with the page limit as its size.
+///
+/// \param MemType the memory type context to initialize the memory instance
+/// context.
+/// \param PageLimit the limit of the page count of the memory instance.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
+WasmEdge_MemoryInstanceCreateWithPageLimit(
+    const WasmEdge_MemoryTypeContext *MemType,
+    const uint64_t PageLimit) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Get the memory type context from a memory instance.
 ///
 /// The memory type context links to the memory type in the memory instance

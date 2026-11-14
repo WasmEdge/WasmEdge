@@ -933,6 +933,37 @@ TEST(CompileSubcommand, OutputFormat) {
   EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(NativeOutput.c_str());
 }
+
+TEST(CompileSubcommand, OptimizeFlagWarning) {
+  std::string Output = TestDataPath + "/opt_warn_out.wasm";
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  std::vector<std::string> Warnings;
+  WasmEdge::Log::setLoggingCallback(
+      [&Warnings](const spdlog::details::log_msg &Msg) {
+        if (Msg.level == spdlog::level::warn) {
+          Warnings.emplace_back(Msg.payload.data(), Msg.payload.size());
+        }
+      });
+
+  Warnings.clear();
+  EXPECT_EQ(callCompile({Path, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  EXPECT_TRUE(std::none_of(Warnings.begin(), Warnings.end(), [](const auto &W) {
+    return W.find("Unknown --optimize value") != std::string::npos;
+  }));
+
+  Warnings.clear();
+  EXPECT_EQ(callCompile({"--optimize", "invalid", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  EXPECT_TRUE(std::any_of(Warnings.begin(), Warnings.end(), [](const auto &W) {
+    return W.find("Unknown --optimize value: \"invalid\"") != std::string::npos;
+  }));
+
+  WasmEdge::Log::setLoggingCallback(nullptr);
+}
 #endif // WASMEDGE_USE_LLVM
 
 TEST(RunSubcommand, RunModeFlagParses) {

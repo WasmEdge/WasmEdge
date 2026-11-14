@@ -675,6 +675,22 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairImport) {
                                              __WASI_KEYPAIR_ENCODING_PEM),
                                __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
 
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ReconstructedKpHandle,
+        keypairFromPkAndSk(ImportedPkHandle, ImportedSkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(ReconstructedKpHandle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        OtherPkHandle,
+        publickeyImport(
+            __WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg,
+            Span<const uint8_t>(Other.data(), PkSize),
+            __WASI_PUBLICKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_FAILURE(
+        keypairFromPkAndSk(OtherPkHandle, ImportedSkHandle),
+        __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
+
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(ImportedSkHandle));
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ImportedPkHandle));
     WASI_CRYPTO_EXPECT_TRUE(keypairClose(ImportedKpHandle));
@@ -721,6 +737,30 @@ TEST_F(WasiCryptoTest, KxMlKemKnownAnswerTests) {
     std::vector<uint8_t> Secret(ExpectedSecret.size());
     WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SecretHandle, Secret));
     EXPECT_EQ(Secret, ExpectedSecret);
+
+    // Public key validation.
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(PkHandle));
+
+    // Keypair derivation from matching components.
+    WASI_CRYPTO_EXPECT_SUCCESS(DerivedKpHandle,
+                               keypairFromPkAndSk(PkHandle, SkHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(DerivedPkHandle,
+                               keypairPublickey(DerivedKpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(DerivedSkHandle,
+                               keypairSecretkey(DerivedKpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        DerivedPkOutputHandle,
+        publickeyExport(DerivedPkHandle, __WASI_PUBLICKEY_ENCODING_RAW));
+    std::vector<uint8_t> DerivedPk(ExpectedPk.size());
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(DerivedPkOutputHandle, DerivedPk));
+    EXPECT_EQ(DerivedPk, ExpectedPk);
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(DerivedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(DerivedSkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(DerivedKpHandle));
+
+    // DH is not supported for ML-KEM.
+    WASI_CRYPTO_EXPECT_FAILURE(kxDh(PkHandle, SkHandle),
+                               __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));

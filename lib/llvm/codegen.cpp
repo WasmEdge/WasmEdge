@@ -243,10 +243,10 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
           u8string(ObjectName).c_str(), "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
-                                          "--shared", "--gc-sections",
-                                          "--discard-all", ObjectName.c_str(),
-                                          "-o", u8string(OutputPath).c_str()},
+      std::initializer_list<const char *>{
+          "ld.lld", "--eh-frame-hdr", "--shared", "--gc-sections",
+          "--discard-all", "--no-undefined", ObjectName.c_str(), "-o",
+          u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_WINDOWS
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
@@ -281,6 +281,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     spdlog::info("codegen done"sv);
   } else {
     spdlog::error("link error"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
 
 #if WASMEDGE_OS_MACOS
@@ -326,7 +327,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OS.close();
   }
 
-  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
+  if (auto Res = outputNativeLibrary(SharedObjectName, OSVec); !Res) {
+    std::error_code Error;
+    std::filesystem::remove(SharedObjectName, Error);
+    return Unexpect(Res);
+  }
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =

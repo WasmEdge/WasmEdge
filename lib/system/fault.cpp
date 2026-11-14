@@ -24,6 +24,7 @@ namespace {
 
 std::atomic_uint handlerCount = 0;
 thread_local Fault *localHandler = nullptr;
+thread_local bool isCollectingStackTrace = false;
 
 #if defined(SA_SIGINFO)
 void signalHandler(int Signal, siginfo_t *Siginfo, void *) {
@@ -116,8 +117,16 @@ Fault::~Fault() noexcept {
 
 [[noreturn]] void Fault::emitFault(ErrCode Error) {
   assuming(localHandler != nullptr);
-  auto Buffer = stackTrace(localHandler->StackTraceBuffer);
-  localHandler->StackTraceSize = Buffer.size();
+  // Walking the stack may fault again when the fault happened at an address
+  // without any unwind information, such as a jump to an unmapped address.
+  // Report that nested fault without a stack trace.
+  if (std::exchange(isCollectingStackTrace, true)) {
+    localHandler->StackTraceSize = 0;
+  } else {
+    auto Buffer = stackTrace(localHandler->StackTraceBuffer);
+    localHandler->StackTraceSize = Buffer.size();
+  }
+  isCollectingStackTrace = false;
   longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));
 }
 

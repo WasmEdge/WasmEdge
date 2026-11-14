@@ -68,37 +68,14 @@ struct Compiler::CompileContext {
   LLVM::Message SubtargetFeatures;
 
 #if defined(__x86_64__)
-#if defined(__XOP__)
-  bool SupportXOP = true;
-#else
   bool SupportXOP = false;
-#endif
-
-#if defined(__SSE4_1__)
-  bool SupportSSE4_1 = true;
-#else
   bool SupportSSE4_1 = false;
-#endif
-
-#if defined(__SSSE3__)
-  bool SupportSSSE3 = true;
-#else
   bool SupportSSSE3 = false;
-#endif
-
-#if defined(__SSE2__)
   bool SupportSSE2 = true;
-#else
-  bool SupportSSE2 = false;
-#endif
 #endif
 
 #if defined(__aarch64__)
-#if defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
   bool SupportNEON = true;
-#else
-  bool SupportNEON = false;
-#endif
 #endif
 
   std::vector<const AST::CompositeType *> CompositeTypes;

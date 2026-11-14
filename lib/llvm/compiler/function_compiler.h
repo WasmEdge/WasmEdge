@@ -33,6 +33,9 @@ public:
   Expect<void> compileMemoryOp(const AST::Instruction &Instr) noexcept;
   Expect<void> compileNumericOp(const AST::Instruction &Instr) noexcept;
   Expect<void> compileRefOp(const AST::Instruction &Instr) noexcept;
+  enum class RoundMode { Ceil, Floor, Trunc, Nearest };
+  LLVM::Value compileRoundOp(LLVM::Value Value, RoundMode Mode) noexcept;
+  LLVM::Value compileRound(LLVM::Value Value, RoundMode Mode) noexcept;
   void compileSignedTrunc(LLVM::Type IntType) noexcept;
   void compileSignedTruncSat(LLVM::Type IntType) noexcept;
   void compileUnsignedTrunc(LLVM::Type IntType) noexcept;

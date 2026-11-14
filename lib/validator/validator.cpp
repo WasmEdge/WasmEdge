@@ -386,6 +386,11 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
   EXPECTED_TRY(Checker.validate(Tab.getRefType()));
   // Validate table limits.
   const auto &Lim = Tab.getLimit();
+  if (Lim.isShared()) {
+    spdlog::error(ErrCode::Value::InvalidLimit);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(ErrCode::Value::InvalidLimit);
+  }
   EXPECTED_TRY(validate(Lim).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return E;

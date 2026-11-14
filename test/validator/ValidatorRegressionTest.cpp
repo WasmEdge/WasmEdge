@@ -1058,6 +1058,18 @@ TEST_F(ValidatorRegressionTest,
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
+TEST_F(ValidatorRegressionTest, SharedTableRejectsValidation) {
+  AST::Module Mod;
+  AST::TableSegment TabSeg;
+  TabSeg.getTableType() =
+      AST::TableType(ValType(TypeCode::FuncRef), AST::Limit(1, 1, false, true));
+  Mod.getTableSection().getContent().push_back(std::move(TabSeg));
+
+  auto ValidationResult = ValidEngine->validate(Mod);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidLimit);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

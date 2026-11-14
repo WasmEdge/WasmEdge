@@ -221,7 +221,7 @@ Expect<void> Loader::loadCompositeType(AST::CompositeType &CType) {
 }
 
 // Load binary to construct Limit node. See "include/loader/loader.h".
-Expect<void> Loader::loadLimit(AST::Limit &Lim) {
+Expect<void> Loader::loadLimit(AST::Limit &Lim, ASTNodeAttr From) {
   // Read the limit type flag.
   EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
@@ -256,7 +256,8 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
       }
     }
   }
-  if (Lim.isShared() && !Conf.hasProposal(Proposal::Threads)) {
+  if (Lim.isShared() && (!Conf.hasProposal(Proposal::Threads) ||
+                         From == ASTNodeAttr::Type_Table)) {
     if (Conf.hasProposal(Proposal::Memory64)) {
       return logLoadError(ErrCode::Value::MalformedLimitFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
@@ -359,10 +360,11 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
 // Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   // Read limit.
-  return loadLimit(MemType.getLimit()).map_error([](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
-    return E;
-  });
+  return loadLimit(MemType.getLimit(), ASTNodeAttr::Type_Memory)
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
+        return E;
+      });
 }
 
 // Load binary to construct TableType node. See "include/loader/loader.h".
@@ -373,10 +375,11 @@ Expect<void> Loader::loadType(AST::TableType &TabType) {
   TabType.setRefType(Type);
 
   // Read limit.
-  return loadLimit(TabType.getLimit()).map_error([](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
-    return E;
-  });
+  return loadLimit(TabType.getLimit(), ASTNodeAttr::Type_Table)
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
+        return E;
+      });
 }
 
 // Load binary to construct GlobalType node. See "include/loader/loader.h".

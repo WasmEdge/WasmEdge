@@ -1058,6 +1058,26 @@ TEST_F(ValidatorRegressionTest,
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
+TEST_F(ValidatorRegressionTest, ZeroCountLocalRejectsUnknownType) {
+  // Module: (module
+  //   (type (struct (field i32)))
+  //   (type (func))
+  //   (func (type 1)))
+  // The function body declares 0 locals of type (ref null 5).
+  std::array<WasmEdge::Byte, 31> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01,
+      0x0a, 0x07, 0x01, 0x05, 0x01, 0x00, 0x63, 0x05, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::InvalidFuncTypeIdx);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

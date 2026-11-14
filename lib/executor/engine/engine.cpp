@@ -211,13 +211,14 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
                             Instr.getSourceIndex(), Instr);
     case OpCode::Array__new:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(), 1,
-                           StackMgr.pop().get<uint32_t>());
+                           StackMgr.pop().get<uint32_t>(), Instr);
     case OpCode::Array__new_default:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(), 0,
-                           StackMgr.pop().get<uint32_t>());
+                           StackMgr.pop().get<uint32_t>(), Instr);
     case OpCode::Array__new_fixed:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(),
-                           Instr.getSourceIndex(), Instr.getSourceIndex());
+                           Instr.getSourceIndex(), Instr.getSourceIndex(),
+                           Instr);
     case OpCode::Array__new_data:
       return runArrayNewDataOp(StackMgr, Instr.getTargetIndex(),
                                Instr.getSourceIndex(), Instr);

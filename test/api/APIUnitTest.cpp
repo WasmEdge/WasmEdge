@@ -2426,6 +2426,12 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
+  TabLim = WasmEdge_LimitCreate(UINT64_C(1) << 62, true);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_EQ(TabCxt, nullptr);
   TabLim = WasmEdge_LimitCreateWithMax(10, 20, false, false);
   TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
   TabCxt = WasmEdge_TableInstanceCreate(TabType);

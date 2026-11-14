@@ -2872,7 +2872,13 @@ wasm::own<wasm::Table> wasm::Table::make(wasm::Store *store,
                                          const wasm::TableType *type,
                                          const wasm::Ref *init) {
   if (store && type) {
-    return wasm::make_own(new (std::nothrow) wasm_table_t(store, *type, init));
+    auto table =
+        wasm::make_own(new (std::nothrow) wasm_table_t(store, *type, init));
+    if (table && static_cast<wasm_table_t *>(table.get())->inst->getSize() !=
+                     type->limits().min) {
+      return nullptr;
+    }
+    return table;
   }
   return nullptr;
 }

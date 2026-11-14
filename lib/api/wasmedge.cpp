@@ -2792,7 +2792,13 @@ WasmEdge_TableInstanceCreate(
         spdlog::error(WasmEdge::ErrCode::Value::NonNullRequired);
         return nullptr;
       }
-      return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(TType));
+      auto TabInst =
+          std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(TType);
+      if (TabInst->getSize() != TType.getLimit().getMin()) {
+        spdlog::error(WasmEdge::ErrCode::Value::AllocationFailed);
+        return nullptr;
+      }
+      return toTabCxt(TabInst.release());
     }
   } catch (...) {
     handleCAPIError();
@@ -2825,8 +2831,14 @@ WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
         spdlog::error(WasmEdge::ErrCode::Value::NonNullRequired);
         return nullptr;
       }
-      return toTabCxt(
-          new WasmEdge::Runtime::Instance::TableInstance(TType, Val));
+      auto TabInst =
+          std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(TType,
+                                                                       Val);
+      if (TabInst->getSize() != TType.getLimit().getMin()) {
+        spdlog::error(WasmEdge::ErrCode::Value::AllocationFailed);
+        return nullptr;
+      }
+      return toTabCxt(TabInst.release());
     }
   } catch (...) {
     handleCAPIError();

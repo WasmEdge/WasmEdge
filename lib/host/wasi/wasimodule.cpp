@@ -10,6 +10,7 @@ namespace WasmEdge {
 namespace Host {
 
 WasiModule::WasiModule() : ModuleInstance("wasi_snapshot_preview1") {
+  setFileSystem(&Env);
   addHostFunc("args_get", std::make_unique<WasiArgsGet>(Env));
   addHostFunc("args_sizes_get", std::make_unique<WasiArgsSizesGet>(Env));
   addHostFunc("environ_get", std::make_unique<WasiEnvironGet>(Env));

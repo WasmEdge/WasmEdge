@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "tts_core.h"
-#include "host/wasi/vfs_io.h"
+#include "host/filesystem.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <map>
@@ -357,16 +357,17 @@ std::string processTTSPromptText(const std::string &Text) {
   return ProcessedText;
 }
 
+constexpr __wasi_filesize_t MaxSpeakerProfileSize = 16U * 1024U * 1024U;
+
 std::optional<TTSSpeakerProfile>
 getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
-  WasmEdge::FStream::IFStream JsonFile(FilePath, Env.getEnv());
-  if (!JsonFile.is_open()) {
+  const auto JsonText = Env.readFile(FilePath, MaxSpeakerProfileSize);
+  if (!JsonText) {
     return std::nullopt;
   }
   try {
-    nlohmann::json JsonData;
-    JsonFile >> JsonData;
-    JsonFile.close();
+    const nlohmann::json JsonData =
+        nlohmann::json::parse(JsonText->begin(), JsonText->end());
 
     // Initialize the outputs.
     std::string AudioOutputText = "<|audio_start|>\n";
@@ -500,17 +501,18 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
 
   // Save .wav file if path is provided.
   if (!GraphRef.TTSOutputFilePath.empty()) {
-    WasmEdge::FStream::OFStream File(GraphRef.TTSOutputFilePath,
-                                     std::ios_base::out | std::ios_base::binary,
-                                     Env.getEnv());
+    auto File = Env.openFile(GraphRef.TTSOutputFilePath,
+                             __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                             __WASI_RIGHTS_FD_WRITE);
     if (!File) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "codesToSpeech: Failed to open file '{}' for writing"sv,
-                GraphRef.TTSOutputFilePath);
+      LOG_WARN("codesToSpeech: Failed to open file '{}' for writing: {}. "sv
+               "The audio is only in the output."sv,
+               GraphRef.TTSOutputFilePath, File.error())
+    } else if (auto Res = (*File)->write(CxtRef.LlamaOutputs); !Res) {
+      LOG_WARN("codesToSpeech: Failed to write file '{}': {}. "sv
+               "The audio is only in the output."sv,
+               GraphRef.TTSOutputFilePath, Res.error())
     }
-    File.write(reinterpret_cast<const char *>(CxtRef.LlamaOutputs.data()),
-               CxtRef.LlamaOutputs.size());
-    File.close();
   }
 
   return ErrNo::Success;

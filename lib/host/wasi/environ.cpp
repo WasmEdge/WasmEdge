@@ -104,8 +104,6 @@ void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
       }
     }
 
-    std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
-
     FdMap.emplace(0, VINode::stdIn(kStdInDefaultRights, kNoInheritingRights));
     FdMap.emplace(1, VINode::stdOut(kStdOutDefaultRights, kNoInheritingRights));
     FdMap.emplace(2, VINode::stdErr(kStdErrDefaultRights, kNoInheritingRights));
@@ -188,8 +186,6 @@ Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
       }
     }
 
-    std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
-
     int NewFd = 3;
     for (auto &PreopenedDir : PreopenedDirs) {
       FdMap.emplace(NewFd++, std::move(PreopenedDir));
@@ -217,94 +213,94 @@ void Environ::fini() noexcept {
 
 Environ::~Environ() noexcept { fini(); }
 
-WasiExpect<bool> Environ::pathExists(std::string_view Path) const noexcept {
-  __wasi_filestat_t Filestat;
-  // Using the first default preopened FD 3 as the working directory.
-  __wasi_fd_t BaseFd = 3;
-  auto StatResult = const_cast<Environ *>(this)->pathFilestatGet(
-      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0), Filestat);
-  if (StatResult) {
-    return true;
-  }
-  if (StatResult.error() == __WASI_ERRNO_NOENT) {
-    return false;
-  }
-  return WasiUnexpect(StatResult.error());
-}
-
-WasiExpect<bool> Environ::pathCanRead(std::string_view Path) const noexcept {
-  // Using the first default preopened FD 3 as the working directory.
-  __wasi_fd_t BaseFd = 3;
-  auto Result = const_cast<Environ *>(this)->pathOpen(
-      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0),
-      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
-      __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
-
-  if (Result) {
-    const_cast<Environ *>(this)->fdClose(*Result);
-    return true;
-  }
-  if (Result.error() == __WASI_ERRNO_ACCES ||
-      Result.error() == __WASI_ERRNO_NOENT) {
-    return false;
-  }
-  return WasiUnexpect(Result.error());
-}
-
-WasiExpect<bool> Environ::pathCanWrite(std::string_view Path) const noexcept {
-  // Using the first default preopened FD 3 as the working directory.
-  __wasi_fd_t BaseFd = 3;
-  auto Result = const_cast<Environ *>(this)->pathOpen(
-      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0),
-      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_WRITE,
-      __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
-
-  if (Result) {
-    __wasi_fdstat_t FdStat{};
-    auto StatResult = fdFdstatGet(*Result, FdStat);
-    auto CloseResult = const_cast<Environ *>(this)->fdClose(*Result);
-    if (!StatResult) {
-      return WasiUnexpect(StatResult.error());
+WasiExpect<std::shared_ptr<VINode>>
+Environ::findPreopen(std::string_view &Path) const noexcept {
+  // The leading "/" and "./" are not significant, as in the WASI libc.
+  auto Strip = [](std::string_view Name) noexcept {
+    while (true) {
+      if (!Name.empty() && Name[0] == '/') {
+        Name.remove_prefix(1);
+      } else if (Name.size() >= 2 && Name[0] == '.' && Name[1] == '/') {
+        Name.remove_prefix(2);
+      } else if (Name == "."sv) {
+        Name.remove_prefix(1);
+      } else {
+        return Name;
+      }
     }
-    if (!CloseResult) {
-      return WasiUnexpect(CloseResult.error());
+  };
+
+  // The preopened directory with the longest name containing the path wins,
+  // and the last one preopened among the equal names.
+  Path = Strip(Path);
+  std::shared_ptr<VINode> Dir;
+  __wasi_fd_t DirFd = 0;
+  std::size_t DirLen = 0;
+  {
+    std::shared_lock Lock(FdMutex);
+    for (const auto &Entry : FdMap) {
+      const auto &Node = Entry.second;
+      const auto Name = Strip(Node->name());
+      if (Node->name().empty() ||
+          (Dir && (Name.size() < DirLen ||
+                   (Name.size() == DirLen && Entry.first < DirFd)))) {
+        continue;
+      }
+      if (Name.empty() ||
+          (Path.size() >= Name.size() && Path.substr(0, Name.size()) == Name &&
+           (Path.size() == Name.size() || Path[Name.size()] == '/'))) {
+        Dir = Node;
+        DirFd = Entry.first;
+        DirLen = Name.size();
+      }
     }
-    return (EndianValue(FdStat.fs_rights_base).le() & __WASI_RIGHTS_FD_WRITE) !=
-           0;
   }
-  if (Result.error() == __WASI_ERRNO_ACCES ||
-      Result.error() == __WASI_ERRNO_NOENT) {
-    return false;
+  if (!Dir) {
+    return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  return WasiUnexpect(Result.error());
+  Path = Strip(Path.substr(DirLen));
+  return Dir;
 }
 
-WasiExpect<__wasi_rights_t>
-Environ::pathGetStats(std::string_view Path) const noexcept {
-  __wasi_rights_t Rights = static_cast<__wasi_rights_t>(0);
-  auto StatResult = pathExists(Path);
-  if (StatResult.error()) {
-    return WasiUnexpect(StatResult.error());
+WasiExpect<std::shared_ptr<Host::File>>
+Environ::open(std::string_view Path, __wasi_oflags_t OpenFlags,
+              __wasi_rights_t Rights, __wasi_fdflags_t FdFlags) const noexcept {
+  if (!VINode::isPathValid(Path)) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
-  if (StatResult) {
-    // File exists, so we can get file stats
-    Rights |= __WASI_RIGHTS_PATH_FILESTAT_GET;
+  EXPECTED_TRY(auto Dir, findPreopen(Path));
+  if (Path.empty()) {
+    return WasiUnexpect(__WASI_ERRNO_ISDIR);
   }
-  StatResult = pathCanRead(Path);
-  if (StatResult.error()) {
-    return WasiUnexpect(StatResult.error());
+  // The rights asked for must all be granted. Seeking is granted on top when
+  // the directory allows it, so that the file is opened for the asked access.
+  const auto Inheriting = VINode::imply(Dir->fsRightsInheriting());
+  if ((Inheriting & Rights) != Rights) {
+    return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  if (StatResult) {
-    Rights |= __WASI_RIGHTS_FD_READ;
+  Rights |= Inheriting & (__WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL);
+  // Creating exclusively fails on a symbolic link at the path, as open() does.
+  const auto LookupFlags = (OpenFlags & __WASI_OFLAGS_EXCL) != 0
+                               ? static_cast<__wasi_lookupflags_t>(0)
+                               : __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
+  EXPECTED_TRY(auto Node,
+               VINode::pathOpen(std::move(Dir), Path, LookupFlags, OpenFlags,
+                                Rights, static_cast<__wasi_rights_t>(0),
+                                FdFlags));
+  return std::shared_ptr<Host::File>(std::move(Node));
+}
+
+WasiExpect<void>
+Environ::createDirectory(std::string_view Path) const noexcept {
+  if (!VINode::isPathValid(Path)) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
-  StatResult = pathCanWrite(Path);
-  if (StatResult.error()) {
-    return WasiUnexpect(StatResult.error());
+  EXPECTED_TRY(auto Dir, findPreopen(Path));
+  // The path of a preopened directory itself names an existing directory.
+  if (Path.empty()) {
+    return WasiUnexpect(__WASI_ERRNO_EXIST);
   }
-  if (StatResult) {
-    Rights |= __WASI_RIGHTS_FD_WRITE;
-  }
-  return Rights;
+  return VINode::pathCreateDirectory(std::move(Dir), Path);
 }
 
 } // namespace WASI

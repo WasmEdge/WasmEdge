@@ -15,6 +15,8 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 namespace {
 
+constexpr __wasi_filesize_t MaxImageSize = UINT32_C(1) << 30;
+
 // Take the ownership of both wrapper members. Video input is not supported:
 // the lazy video bitmap is released before the video context it refers to,
 // and a null bitmap is returned so that callers report a load failure.
@@ -245,10 +247,16 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         LOG_DEBUG(GraphRef.EnableDebugLog,
                   "setInput: load the image bitmap from file: {}"sv,
                   CxtRef.Conf.ImagePath)
-        mtmd::bitmap Bitmap =
-            adoptBitmapWrapper(mtmd_helper_bitmap_init_from_file(
-                GraphRef.VisionContext.get(), CxtRef.Conf.ImagePath.c_str(),
-                false, mtmd_helper_init_opt_default()));
+        mtmd::bitmap Bitmap;
+        if (auto Image = Env.readFile(CxtRef.Conf.ImagePath, MaxImageSize);
+            Image) {
+          Bitmap.ptr =
+              adoptBitmapWrapper(mtmd_helper_bitmap_init_from_buf(
+                                     GraphRef.VisionContext.get(),
+                                     Image->data(), Image->size(), false,
+                                     mtmd_helper_init_opt_default()))
+                  .ptr;
+        }
         if (Bitmap.ptr == nullptr) {
           RET_ERROR(ErrNo::InvalidArgument,
                     "setInput: unable to load the image bitmap from file: "sv

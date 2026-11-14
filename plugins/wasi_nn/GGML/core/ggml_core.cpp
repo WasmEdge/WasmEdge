@@ -5,7 +5,6 @@
 #include "GGML/utils.h"
 #include "common/filesystem.h"
 #include "common/types.h"
-#include "host/wasi/vfs_io.h"
 #include "wasinnenv.h"
 #include <cstdint>
 
@@ -108,7 +107,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
   auto Weight = Builders[0];
   const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                   Weight.size());
-  if (BinModel.substr(0, 8) == "preload:"sv) {
+  if (Env.isPreloaded(Weight) && BinModel.substr(0, 8) == "preload:"sv) {
     GraphRef.Params.model.path = BinModel.substr(8);
   } else {
     LOG_DEBUG(GraphRef.EnableDebugLog,
@@ -116,20 +115,13 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
               "a tmpfile."sv)
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
-    GraphRef.Params.model.path = "ggml-model.bin"sv;
-    WasmEdge::FStream::OFStream TempFile(
-        GraphRef.Params.model.path, std::ios_base::out | std::ios_base::binary,
-        Env.getEnv());
-    if (!TempFile) {
+    if (!GraphRef.TempModel.create(Weight, ".gguf"sv)) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "load: Failed to create the temporary file. Currently, our "sv
-                "workaround involves creating a temporary model file named "sv
-                "\"ggml-model.bin\" and passing this filename as a "sv
-                "parameter to the ggml llama library."sv)
+                "workaround involves creating a temporary model file and "sv
+                "passing its path as a parameter to the ggml llama library."sv)
     }
-    TempFile.write(BinModel.data(),
-                   static_cast<std::streamsize>(BinModel.size()));
-    TempFile.close();
+    GraphRef.Params.model.path = GraphRef.TempModel.path();
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "load: Write model into a tmpfile...Done"sv)
   }

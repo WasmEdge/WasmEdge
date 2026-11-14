@@ -8,6 +8,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "wasinn_llama_log.h"
+#include "wasinn_tempfile.h"
 #include "wasinntypes.h"
 #include <ggml.h>
 #include <list>
@@ -56,6 +57,9 @@ struct Graph {
   bool CpuMoe = false;
   int64_t NCpuMoe = 0;
   std::list<std::string> TensorBuftOverrides;
+  // The file holding a model loaded from the bytes of the guest. Declared
+  // before the model, which may keep the file mapped until it is freed.
+  TempModelFile TempModel;
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;

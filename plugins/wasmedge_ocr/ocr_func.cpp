@@ -3,16 +3,56 @@
 
 #include "ocr_func.h"
 
+#include "common/span.h"
 #include "common/spdlog.h"
+#include "host/filesystem.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
-#include <string>
+#include <new>
+#include <string_view>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeOCR {
+
+namespace {
+
+constexpr __wasi_filesize_t MaxImageSize = UINT32_C(1) << 30;
+
+// Read the image of the guest path with the filesystem of the caller.
+Pix *readImage(const Host::FileSystem *FS, std::string_view Path) {
+  if (FS == nullptr) {
+    return nullptr;
+  }
+  auto File = FS->open(Path, static_cast<__wasi_oflags_t>(0),
+                       __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
+  if (!File) {
+    return nullptr;
+  }
+  // The size of the file is the offset of its end.
+  auto Size = (*File)->seek(0, __WASI_WHENCE_END);
+  if (!Size || *Size > MaxImageSize || !(*File)->seek(0, __WASI_WHENCE_SET)) {
+    return nullptr;
+  }
+  std::vector<uint8_t> Data;
+  try {
+    Data.resize(static_cast<std::size_t>(*Size));
+  } catch (const std::bad_alloc &) {
+    return nullptr;
+  }
+  auto ReadSize = (*File)->read(Data);
+  if (!ReadSize) {
+    return nullptr;
+  }
+  return pixReadMem(Data.data(), *ReadSize);
+}
+
+} // namespace
 
 Expect<uint32_t> NumOfExtractions::body(const Runtime::CallingFrame &Frame,
                                         uint32_t ImagePathPtr,
@@ -26,8 +66,8 @@ Expect<uint32_t> NumOfExtractions::body(const Runtime::CallingFrame &Frame,
   if (unlikely(ImagePtr.size() != ImagePathLen)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  const std::string ImagePath(ImagePtr.data(), ImagePtr.size());
-  Pix *image = pixRead(ImagePath.c_str());
+  Pix *image = readImage(Frame.getFileSystem(),
+                         std::string_view(ImagePtr.data(), ImagePtr.size()));
   if (image == nullptr) {
     spdlog::error("[WasmEdge-OCR] Failed to read the image file."sv);
     return static_cast<uint32_t>(0);

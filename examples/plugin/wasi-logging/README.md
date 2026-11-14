@@ -49,12 +49,14 @@ Then we get `target/wasm32-wasip1/debug/wasi-logging-example.wasm`.
 
 For the logging context of the `log` function in Rust, developers can use the `""` or `"stdout"` to log to the console, use the `"stderr"` to log to standard error output, or use the file name to log into the target file.
 
+The log file is opened through WASI with the permissions of the program, so it must be under a directory preopened by `--dir` which is not read-only. Otherwise, the message is printed to the console with the context as its label, such as `[log/output.log] Info Level Message`.
+
 ## Run the example
 
 We can run this example with `wasmedge` like
 
 ```sh
-wasmedge target/wasm32-wasip1/debug/wasi-logging-example.wasm
+wasmedge --dir .:. target/wasm32-wasip1/debug/wasi-logging-example.wasm
 ```
 
 This example should run successfully and print out the log as follow.

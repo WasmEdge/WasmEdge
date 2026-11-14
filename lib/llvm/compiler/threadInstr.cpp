@@ -517,10 +517,12 @@ void FunctionCompiler::compileAtomicRMWOp(
     } else {
       Ret = Builder.createAtomicRMW(BinOp, Ptr, switchEndian(Value),
                                     LLVMAtomicOrderingSequentiallyConsistent);
+      Ret.setVolatile(true);
     }
   } else {
     Ret = Builder.createAtomicRMW(BinOp, Ptr, switchEndian(Value),
                                   LLVMAtomicOrderingSequentiallyConsistent);
+    Ret.setVolatile(true);
   }
   Ret = switchEndian(Ret);
 #if LLVM_VERSION_MAJOR < 13

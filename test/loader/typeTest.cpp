@@ -227,6 +227,29 @@ TEST(TypeTest, LoadFunctionType) {
       0x7CU, 0x7DU                // Result list
   };
   EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+
+  // 15. Bare type index is not a valid value type (must be prefixed by ref or ref null).
+  Vec = {
+      0x01U, // Type section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x60U, // Function type header
+      0x01U, // Parameter length = 1
+      0x00U, // Parameter with bare type index 0 (invalid value type)
+      0x00U  // Result length = 0
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x01U, // Type section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x60U, // Function type header
+      0x00U, // Parameter length = 0
+      0x01U, // Result length = 1
+      0x00U  // Result with bare type index 0 (invalid value type)
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadTableType) {
@@ -325,6 +348,17 @@ TEST(TypeTest, LoadTableType) {
       0x00U  // Min = 0
   };
   EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+
+  // 9. Bare type index is not a valid reference type.
+  Vec = {
+      0x04U, // Table section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x00U, // Bare type index 0 (invalid reference type)
+      0x00U, // Limit with only min
+      0x00U  // Min = 0
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadMemoryType) {

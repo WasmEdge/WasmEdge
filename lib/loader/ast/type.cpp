@@ -7,7 +7,8 @@ namespace WasmEdge {
 namespace Loader {
 
 // Load binary and decode HeapType. See "include/loader/loader.h".
-Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
+Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
+                                     bool AllowTypeIndex) {
   // Read the heap type code.
   auto Val = FMgr.readS33();
   if (unlikely(!Val)) {
@@ -69,7 +70,11 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
       return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
   } else {
-    // Type index case. Legal if the function reference proposal is enabled.
+    // Type index case.
+    if (!AllowTypeIndex) {
+      return logLoadError(FailCode, FMgr.getLastOffset(), From);
+    }
+    // Legal if the function reference proposal is enabled.
     if (!Conf.hasProposal(Proposal::FunctionReferences)) {
       return logNeedProposal(FailCode, Proposal::FunctionReferences,
                              FMgr.getLastOffset(), From);
@@ -115,7 +120,7 @@ Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
     return loadHeapType(Code, From);
   }
   default:
-    return loadHeapType(TypeCode::RefNull, From);
+    return loadHeapType(TypeCode::RefNull, From, /*AllowTypeIndex=*/false);
   }
 }
 

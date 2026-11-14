@@ -398,7 +398,8 @@ private:
   Expect<void> loadSegment(AST::DataSegment &DataSeg);
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
-  Expect<ValType> loadHeapType(TypeCode TC, ASTNodeAttr From);
+  Expect<ValType> loadHeapType(TypeCode TC, ASTNodeAttr From,
+                               bool AllowTypeIndex = true);
   Expect<ValType> loadRefType(ASTNodeAttr From);
   Expect<ValType> loadValType(ASTNodeAttr From, bool IsStorageType = false);
   Expect<ValMut> loadMutability(ASTNodeAttr From);

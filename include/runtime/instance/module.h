@@ -46,7 +46,8 @@ namespace WasmEdge {
 
 namespace Executor {
 class Executor;
-}
+class ComponentExecutor;
+} // namespace Executor
 
 namespace Runtime {
 
@@ -339,6 +340,7 @@ public:
 
 protected:
   friend class Executor::Executor;
+  friend class Executor::ComponentExecutor;
   friend class ComponentInstance;
   friend class Runtime::CallingFrame;
 

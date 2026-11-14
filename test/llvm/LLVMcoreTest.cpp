@@ -36,6 +36,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -2103,6 +2104,140 @@ public:
 private:
   std::filesystem::path Path;
 };
+
+// Embedded module sketch (i32.atomic.store, non-shared):
+// (module
+//   (memory 1 1)
+//   (func (export "f") (result i32)
+//     i32.const 5 i32.const 0 i32.const 7 i32.atomic.store i32.const 1 i32.add)
+//   (func (export "typed") (result i64)
+//     i64.const 5 i32.const 0 i32.const 7 i32.atomic.store i64.const 1 i64.add)
+//   (func (export "read") (result i32)
+//     i32.const 0 i32.load8_u))
+// Variants use shared memory and per-store value-const/store opcodes and
+// alignment immediates.
+void runAtomicStoreStack(RunMode Mode, bool Typed) {
+  const std::array<Byte, 96> AtomicStoreWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+      0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7e, 0x03, 0x04, 0x03, 0x00, 0x01,
+      0x00, 0x05, 0x04, 0x01, 0x01, 0x01, 0x01, 0x07, 0x14, 0x03, 0x01, 0x66,
+      0x00, 0x00, 0x05, 0x74, 0x79, 0x70, 0x65, 0x64, 0x00, 0x01, 0x04, 0x72,
+      0x65, 0x61, 0x64, 0x00, 0x02, 0x0a, 0x29, 0x03, 0x0f, 0x00, 0x41, 0x05,
+      0x41, 0x00, 0x41, 0x07, 0xfe, 0x17, 0x02, 0x00, 0x41, 0x01, 0x6a, 0x0b,
+      0x0f, 0x00, 0x42, 0x05, 0x41, 0x00, 0x41, 0x07, 0xfe, 0x17, 0x02, 0x00,
+      0x42, 0x01, 0x7c, 0x0b, 0x07, 0x00, 0x41, 0x00, 0x2d, 0x00, 0x00, 0x0b};
+  struct StoreCase {
+    std::string_view Name;
+    Byte ValueConst;
+    Byte Opcode;
+    Byte Alignment;
+  };
+  const std::array<StoreCase, 7> Cases{{
+      {"i32.atomic.store", 0x41, 0x17, 0x02},
+      {"i32.atomic.store8", 0x41, 0x19, 0x00},
+      {"i32.atomic.store16", 0x41, 0x1a, 0x01},
+      {"i64.atomic.store", 0x42, 0x18, 0x03},
+      {"i64.atomic.store8", 0x42, 0x1b, 0x00},
+      {"i64.atomic.store16", 0x42, 0x1c, 0x01},
+      {"i64.atomic.store32", 0x42, 0x1d, 0x02},
+  }};
+
+  for (size_t Index = 0; Index < Cases.size(); ++Index) {
+    const auto &Case = Cases[Index];
+    for (const bool Shared : {false, true}) {
+      SCOPED_TRACE(std::string(Case.Name));
+      SCOPED_TRACE(Shared ? "shared" : "non-shared");
+      auto Bytes = AtomicStoreWasm;
+      Bytes[28] = Shared ? 0x03 : 0x01;
+      Bytes[62] = Bytes[78] = Case.ValueConst;
+      Bytes[65] = Bytes[81] = Case.Opcode;
+      Bytes[66] = Bytes[82] = Case.Alignment;
+
+      Configure Conf;
+      Conf.addProposal(Proposal::Threads);
+      Conf.getRuntimeConfigure().setRunMode(Mode);
+      if (Mode == RunMode::AOT) {
+        Conf.getCompilerConfigure().setOutputFormat(
+            CompilerConfigure::OutputFormat::Native);
+      }
+      std::optional<ScopedTempFile> Artifact;
+      VM::VM VM(Conf);
+      if (Mode == RunMode::AOT) {
+        Artifact.emplace("AtomicStoreStack-" + std::to_string(Index) + "-" +
+                             std::to_string(Shared) + "-" +
+                             std::to_string(Typed),
+                         WASMEDGE_LIB_EXTENSION);
+        Loader::Loader Loader(Conf);
+        Validator::Validator ValidatorEngine(Conf);
+        LLVM::Compiler Compiler(Conf);
+        LLVM::CodeGen CodeGen(Conf);
+        auto Module = Loader.parseModule(Bytes);
+        ASSERT_TRUE(Module);
+        ASSERT_TRUE(ValidatorEngine.validate(**Module));
+        auto Data = Compiler.compile(**Module);
+        ASSERT_TRUE(Data);
+        ASSERT_TRUE(CodeGen.codegen(Bytes, std::move(*Data), Artifact->get()));
+        ASSERT_TRUE(VM.loadWasm(Artifact->get()));
+      } else {
+        ASSERT_TRUE(VM.loadWasm(Bytes));
+      }
+      ASSERT_TRUE(VM.validate());
+      ASSERT_TRUE(VM.instantiate());
+
+      const auto *Module = VM.getActiveModule();
+      ASSERT_NE(Module, nullptr);
+      const auto *Func = Module->findFuncExports(Typed ? "typed"sv : "f"sv);
+      ASSERT_NE(Func, nullptr);
+      ASSERT_EQ(Func->isCompiledFunction(),
+                Mode == RunMode::JIT || Mode == RunMode::AOT);
+      auto Result = VM.execute(Typed ? "typed"sv : "f"sv);
+      ASSERT_TRUE(Result);
+      ASSERT_EQ(Result->size(), 1u);
+      ASSERT_EQ((*Result)[0].second,
+                ValType(Typed ? TypeCode::I64 : TypeCode::I32));
+      if (Typed) {
+        EXPECT_EQ((*Result)[0].first.get<uint64_t>(), 6u);
+      } else {
+        EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 6u);
+      }
+      auto Read = VM.execute("read"sv);
+      ASSERT_TRUE(Read);
+      ASSERT_EQ(Read->size(), 1u);
+      EXPECT_EQ((*Read)[0].second, ValType(TypeCode::I32));
+      EXPECT_EQ((*Read)[0].first.get<uint32_t>(), 7u);
+      if (Mode != RunMode::Interpreter) {
+        EXPECT_TRUE(Func->isCompiledFunction());
+      }
+      VM.cleanup();
+    }
+  }
+}
+
+TEST(AtomicStoreStack, Interpreter) {
+  runAtomicStoreStack(RunMode::Interpreter, false);
+}
+
+TEST(AtomicStoreStack, InterpreterTyped) {
+  runAtomicStoreStack(RunMode::Interpreter, true);
+}
+
+TEST(AtomicStoreStack, JIT) { runAtomicStoreStack(RunMode::JIT, false); }
+
+TEST(AtomicStoreStack, JITTyped) { runAtomicStoreStack(RunMode::JIT, true); }
+
+TEST(AtomicStoreStack, LazyJIT) {
+  runAtomicStoreStack(RunMode::LazyJIT, false);
+}
+
+TEST(AtomicStoreStack, LazyJITTyped) {
+  runAtomicStoreStack(RunMode::LazyJIT, true);
+}
+
+TEST(AtomicStoreStack, NativeAOT) { runAtomicStoreStack(RunMode::AOT, false); }
+
+TEST(AtomicStoreStack, NativeAOTTyped) {
+  runAtomicStoreStack(RunMode::AOT, true);
+}
 
 TEST(NativeRunMode, LoadSharedLibraryRequiresAOTMode) {
   std::array<WasmEdge::Byte, 34> NativeRunModeWasm{

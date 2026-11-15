@@ -278,6 +278,42 @@ static const std::array<uint8_t, 50> Add128Wasm{
     0x64, 0x65, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20,
     0x00, 0x20, 0x01, 0x20, 0x02, 0x20, 0x03, 0xfc, 0x13, 0x0b};
 
+// reference.wasm: exports "_start" which executes ref.null extern and drop.
+static const std::array<uint8_t, 39> ReferenceWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+    0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0a,
+    0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00,
+    0x0a, 0x07, 0x01, 0x05, 0x00, 0xd0, 0x6f, 0x1a, 0x0b};
+
+// function_reference.wasm: exports "_start" which executes ref.func and
+// call_ref.
+static const std::array<uint8_t, 70> FunctionReferenceWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x0a, 0x01, 0x06, 0x5f,
+    0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00,
+    0x01, 0x00, 0x0a, 0x0b, 0x02, 0x02, 0x00, 0x0b, 0x06, 0x00, 0xd2, 0x00,
+    0x14, 0x00, 0x0b, 0x00, 0x11, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04,
+    0x01, 0x00, 0x01, 0x66, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+std::string referencePath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(ReferenceWasm.data(), ReferenceWasm.size(),
+                           "reference.wasm");
+  }
+  return Path;
+}
+
+std::string functionReferencePath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(FunctionReferenceWasm.data(),
+                           FunctionReferenceWasm.size(),
+                           "function_reference.wasm");
+  }
+  return Path;
+}
+
 std::string simplePath() {
   static std::string Path;
   if (Path.empty()) {
@@ -718,6 +754,21 @@ TEST(ValidateSubcommand, DisableProposalFlags) {
             EXIT_SUCCESS);
 }
 
+TEST(ValidateSubcommand, DisableReferenceProposalDependencies) {
+  std::string RefPathStr = referencePath();
+  std::string FuncRefPathStr = functionReferencePath();
+  const char *RefPath = RefPathStr.c_str();
+  const char *FuncRefPath = FuncRefPathStr.c_str();
+
+  EXPECT_EQ(callValidate({RefPath}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({FuncRefPath}), EXIT_SUCCESS);
+  EXPECT_NE(callValidate({"--disable-reference-types", RefPath}), EXIT_SUCCESS);
+  EXPECT_NE(callValidate({"--disable-function-reference", FuncRefPath}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-gc", RefPath}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-gc", FuncRefPath}), EXIT_SUCCESS);
+}
+
 TEST(ValidateSubcommand, EnableProposalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
@@ -827,6 +878,27 @@ TEST(CompileSubcommand, ProposalFlags) {
   std::filesystem::remove(Output.c_str());
   EXPECT_EQ(callCompile(
                 {"--enable-wide-arithmetic", WidePath.c_str(), Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+}
+
+TEST(CompileSubcommand, DisableReferenceProposalDependencies) {
+  std::string Output = TestDataPath + "/reference_dep_out.wasm";
+  std::string RefPathStr = referencePath();
+  std::string FuncRefPathStr = functionReferencePath();
+  const char *RefPath = RefPathStr.c_str();
+  const char *FuncRefPath = FuncRefPathStr.c_str();
+
+  EXPECT_EQ(callCompile({RefPath, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  EXPECT_EQ(callCompile({FuncRefPath, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_NE(callCompile({"--disable-reference-types", RefPath, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  EXPECT_NE(callCompile(
+                {"--disable-function-reference", FuncRefPath, Output.c_str()}),
             EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
 }
@@ -1088,6 +1160,19 @@ TEST(RunSubcommand, ProposalFlags) {
   EXPECT_EQ(callRun({"--reactor", "--enable-all", Path, "add", "1", "2"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", "--wasm-2", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, DisableReferenceProposalDependencies) {
+  std::string RefPathStr = referencePath();
+  std::string FuncRefPathStr = functionReferencePath();
+  const char *RefPath = RefPathStr.c_str();
+  const char *FuncRefPath = FuncRefPathStr.c_str();
+
+  EXPECT_EQ(callRun({RefPath}), EXIT_SUCCESS);
+  EXPECT_EQ(callRun({FuncRefPath}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--disable-reference-types", RefPath}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--disable-function-reference", FuncRefPath}),
             EXIT_SUCCESS);
 }
 

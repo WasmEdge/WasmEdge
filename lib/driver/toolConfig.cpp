@@ -74,16 +74,16 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   // Handle the proposal removal which has dependency.
   // The GC proposal depends on the func-ref proposal, and the func-ref proposal
   // depends on the ref-types proposal.
-  if (Opt.PropGC.value()) {
+  const bool NoRefTypes = Opt.PropRefTypes.value();
+  const bool NoFuncRef = NoRefTypes || Opt.PropFunctionReference.value();
+  const bool NoGC = NoFuncRef || Opt.PropGC.value();
+  if (NoGC) {
     Conf.removeProposal(Proposal::GC);
   }
-  if (Opt.PropFunctionReference.value()) {
-    // This will automatically not work if the GC proposal not disabled.
+  if (NoFuncRef) {
     Conf.removeProposal(Proposal::FunctionReferences);
   }
-  if (Opt.PropRefTypes.value()) {
-    // This will automatically not work if the GC or func-ref proposal not
-    // disabled.
+  if (NoRefTypes) {
     Conf.removeProposal(Proposal::ReferenceTypes);
   }
 

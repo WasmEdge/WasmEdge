@@ -248,7 +248,7 @@ public:
     return {};
   }
 
-  /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
+  /// Copy a uint8 array into Data[Offset : Offset + Length - 1].
   Expect<void> setArray(const uint8_t *Arr, const uint64_t Offset,
                         const uint64_t Length,
                         const bool IsReverse = false) noexcept {

@@ -78,7 +78,7 @@ public:
   /// Getter for table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
 
-  /// Check whether access is out of bounds.
+  /// Check whether access is within bounds.
   bool checkAccessBound(const uint64_t Offset,
                         const uint64_t Length) const noexcept {
     // Due to applying the Memory64 proposal, we should avoid the overflow issue

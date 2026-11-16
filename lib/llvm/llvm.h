@@ -172,8 +172,6 @@ public:
   static inline unsigned int FShr = 0;
   static inline unsigned int LifetimeEnd = 0;
   static inline unsigned int LifetimeStart = 0;
-  static inline unsigned int MaxNum = 0;
-  static inline unsigned int MinNum = 0;
   static inline unsigned int Nearbyint = 0;
   static inline unsigned int Roundeven = 0;
   static inline unsigned int SAddSat = 0;
@@ -268,8 +266,6 @@ private:
     FShr = getIntrinsicID("llvm.fshr"sv);
     LifetimeEnd = getIntrinsicID("llvm.lifetime.end"sv);
     LifetimeStart = getIntrinsicID("llvm.lifetime.start"sv);
-    MaxNum = getIntrinsicID("llvm.maxnum"sv);
-    MinNum = getIntrinsicID("llvm.minnum"sv);
     Nearbyint = getIntrinsicID("llvm.nearbyint"sv);
     Roundeven = getIntrinsicID("llvm.roundeven"sv);
     SAddSat = getIntrinsicID("llvm.sadd.sat"sv);

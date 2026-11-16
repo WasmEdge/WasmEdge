@@ -1243,20 +1243,24 @@ void FunctionCompiler::compileVectorFAbs(LLVM::Type VectorTy) noexcept {
 
 void FunctionCompiler::compileVectorFCeil(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [this](auto V) noexcept {
-    assuming(LLVM::Core::Ceil != LLVM::Core::NotIntrinsic);
-    return Builder.createUnaryIntrinsic(LLVM::Core::Ceil, V);
+    return compileRoundOp(V, RoundMode::Ceil);
   });
 }
 
 void FunctionCompiler::compileVectorFFloor(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [this](auto V) noexcept {
-    assuming(LLVM::Core::Floor != LLVM::Core::NotIntrinsic);
-    return Builder.createUnaryIntrinsic(LLVM::Core::Floor, V);
+    return compileRoundOp(V, RoundMode::Floor);
   });
 }
 
 void FunctionCompiler::compileVectorFNearest(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [&](auto V) noexcept {
+#if defined(__x86_64__)
+    if (!Context.SupportSSE4_1) {
+      return compileRound(V, RoundMode::Nearest);
+    }
+#endif
+
 #if LLVM_VERSION_MAJOR < 12 || defined(__s390x__)
 #else
     assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
@@ -1305,8 +1309,7 @@ void FunctionCompiler::compileVectorFSqrt(LLVM::Type VectorTy) noexcept {
 
 void FunctionCompiler::compileVectorFTrunc(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [this](auto V) noexcept {
-    assuming(LLVM::Core::Trunc != LLVM::Core::NotIntrinsic);
-    return Builder.createUnaryIntrinsic(LLVM::Core::Trunc, V);
+    return compileRoundOp(V, RoundMode::Trunc);
   });
 }
 

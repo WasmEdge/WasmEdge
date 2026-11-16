@@ -750,6 +750,9 @@ WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) noexcept {
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionInstanceContext *
 WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) noexcept {
+  if (!WasmEdge_ValTypeIsFuncRef(Val.Type)) {
+    return nullptr;
+  }
   return toFuncCxt(WasmEdge::retrieveFuncRef(
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
@@ -758,6 +761,9 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) noexcept {
 
 WASMEDGE_CAPI_EXPORT void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) noexcept {
+  if (!WasmEdge_ValTypeIsExternRef(Val.Type)) {
+    return nullptr;
+  }
   const WasmEdge::RefVariant Ref =
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))

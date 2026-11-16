@@ -594,27 +594,39 @@ TEST(APICoreTest, Value) {
   WasmEdge_Value Val = WasmEdge_ValueGenI32(INT32_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
   Val = WasmEdge_ValueGenI64(INT64_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
   Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF64(Val),
             -std::numeric_limits<double>::infinity());
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
 #if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
 #else
   int128_t V = {/* Low */ UINT64_MAX, /* High */ INT64_MAX};
   Val = WasmEdge_ValueGenV128(V);
   EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
 #endif
   Val = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
@@ -636,8 +648,6 @@ TEST(APICoreTest, Value) {
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), HostFunc);
   EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
-  WasmEdge_FunctionInstanceDelete(HostFunc);
-  WasmEdge_FunctionTypeDelete(FuncType);
 
   Val = WasmEdge_ValueGenExternRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
@@ -652,6 +662,26 @@ TEST(APICoreTest, Value) {
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
           ->data()[1],
       2U);
+
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  // Numeric v128 values whose bit pattern matches reference type codes
+  // in the lower 64 bits must strictly return nullptr.
+  const int128_t FakeFuncRefBits =
+      (static_cast<int128_t>(reinterpret_cast<uintptr_t>(HostFunc)) << 64) |
+      static_cast<uint64_t>(0x70ULL);
+  Val = WasmEdge_ValueGenV128(FakeFuncRefBits);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+
+  const int128_t FakeExternRefBits =
+      (static_cast<int128_t>(reinterpret_cast<uintptr_t>(&Vec)) << 64) |
+      static_cast<uint64_t>(0x6FULL);
+  Val = WasmEdge_ValueGenV128(FakeExternRefBits);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+#endif
+
+  WasmEdge_FunctionInstanceDelete(HostFunc);
+  WasmEdge_FunctionTypeDelete(FuncType);
 }
 
 TEST(APICoreTest, String) {

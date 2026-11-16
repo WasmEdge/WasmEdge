@@ -2401,6 +2401,171 @@ TEST(AOTTmpValues, LoopKeepsNativeStackFlat) {
   EXPECT_EQ((*R)[0].first.get<uint32_t>(), 500000u);
 }
 
+TEST(AOTAtomicStore, LeftoverOperandStack) {
+  // An atomic store instruction consumes an address and a value from the
+  // operand stack and pushes nothing. AOT/JIT must pop the address rather than
+  // leaving it on the stack (issue #5559).
+  //
+  // (module
+  //   (memory 1 1 shared)
+  //   (func (export "i32_store") (result i32)
+  //     i32.const 10 i32.const 0 i32.const 1 i32.atomic.store i32.const 5
+  //     i32.add)
+  //   (func (export "i32_store8") (result i32)
+  //     i32.const 20 i32.const 0 i32.const 2 i32.atomic.store8 i32.const 5
+  //     i32.add)
+  //   (func (export "i32_store16") (result i32)
+  //     i32.const 30 i32.const 0 i32.const 3 i32.atomic.store16 i32.const 5
+  //     i32.add)
+  //   (func (export "i64_store") (result i64)
+  //     i64.const 40 i32.const 0 i64.const 4 i64.atomic.store i64.const 5
+  //     i64.add)
+  //   (func (export "i64_store8") (result i64)
+  //     i64.const 50 i32.const 0 i64.const 5 i64.atomic.store8 i64.const 5
+  //     i64.add)
+  //   (func (export "i64_store16") (result i64)
+  //     i64.const 60 i32.const 0 i64.const 6 i64.atomic.store16 i64.const 5
+  //     i64.add)
+  //   (func (export "i64_store32") (result i64)
+  //     i64.const 70 i32.const 0 i64.const 7 i64.atomic.store32 i64.const 5
+  //     i64.add)
+  //   (func (export "f32_store") (result f32)
+  //     f32.const 2.5 i32.const 0 i32.const 8 i32.atomic.store f32.const 1
+  //     f32.add))
+  std::array<WasmEdge::Byte, 286> AtomicStoreWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60,
+      0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7e, 0x60, 0x00, 0x01, 0x7d, 0x03,
+      0x09, 0x08, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x02, 0x05, 0x04,
+      0x01, 0x03, 0x01, 0x01, 0x07, 0x69, 0x08, 0x09, 0x69, 0x33, 0x32, 0x5f,
+      0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x00, 0x0a, 0x69, 0x33, 0x32, 0x5f,
+      0x73, 0x74, 0x6f, 0x72, 0x65, 0x38, 0x00, 0x01, 0x0b, 0x69, 0x33, 0x32,
+      0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x31, 0x36, 0x00, 0x02, 0x09, 0x69,
+      0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x0a, 0x69,
+      0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x38, 0x00, 0x04, 0x0b,
+      0x69, 0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x31, 0x36, 0x00,
+      0x05, 0x0b, 0x69, 0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x33,
+      0x32, 0x00, 0x06, 0x09, 0x66, 0x33, 0x32, 0x5f, 0x73, 0x74, 0x6f, 0x72,
+      0x65, 0x00, 0x07, 0x0a, 0x88, 0x01, 0x08, 0x0f, 0x00, 0x41, 0x0a, 0x41,
+      0x00, 0x41, 0x01, 0xfe, 0x17, 0x02, 0x00, 0x41, 0x05, 0x6a, 0x0b, 0x0f,
+      0x00, 0x41, 0x14, 0x41, 0x00, 0x41, 0x02, 0xfe, 0x19, 0x00, 0x00, 0x41,
+      0x05, 0x6a, 0x0b, 0x0f, 0x00, 0x41, 0x1e, 0x41, 0x00, 0x41, 0x03, 0xfe,
+      0x1a, 0x01, 0x00, 0x41, 0x05, 0x6a, 0x0b, 0x0f, 0x00, 0x42, 0x28, 0x41,
+      0x00, 0x42, 0x04, 0xfe, 0x18, 0x03, 0x00, 0x42, 0x05, 0x7c, 0x0b, 0x0f,
+      0x00, 0x42, 0x32, 0x41, 0x00, 0x42, 0x05, 0xfe, 0x1b, 0x00, 0x00, 0x42,
+      0x05, 0x7c, 0x0b, 0x0f, 0x00, 0x42, 0x3c, 0x41, 0x00, 0x42, 0x06, 0xfe,
+      0x1c, 0x01, 0x00, 0x42, 0x05, 0x7c, 0x0b, 0x10, 0x00, 0x42, 0xc6, 0x00,
+      0x41, 0x00, 0x42, 0x07, 0xfe, 0x1d, 0x02, 0x00, 0x42, 0x05, 0x7c, 0x0b,
+      0x15, 0x00, 0x43, 0x00, 0x00, 0x20, 0x40, 0x41, 0x00, 0x41, 0x08, 0xfe,
+      0x17, 0x02, 0x00, 0x43, 0x00, 0x00, 0x80, 0x3f, 0x92, 0x0b};
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Threads);
+
+  {
+    auto Mod = compileToJIT(Conf, AtomicStoreWasm);
+    ASSERT_NE(Mod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+    auto InstOrErr = ExecEngine.instantiateModule(Store, *Mod);
+    ASSERT_TRUE(InstOrErr);
+    auto Inst = std::move(*InstOrErr);
+
+    auto CheckFuncI32 = [&](std::string_view Name, uint32_t Expected) {
+      const auto *Func = Inst->findFuncExports(Name);
+      ASSERT_NE(Func, nullptr);
+      ASSERT_TRUE(Func->isCompiledFunction());
+      auto Res = ExecEngine.invoke(Func, {}, {});
+      ASSERT_TRUE(Res);
+      ASSERT_EQ(Res->size(), 1u);
+      EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected) << Name;
+    };
+
+    auto CheckFuncI64 = [&](std::string_view Name, uint64_t Expected) {
+      const auto *Func = Inst->findFuncExports(Name);
+      ASSERT_NE(Func, nullptr);
+      ASSERT_TRUE(Func->isCompiledFunction());
+      auto Res = ExecEngine.invoke(Func, {}, {});
+      ASSERT_TRUE(Res);
+      ASSERT_EQ(Res->size(), 1u);
+      EXPECT_EQ((*Res)[0].first.get<uint64_t>(), Expected) << Name;
+    };
+
+    auto CheckFuncF32 = [&](std::string_view Name, float Expected) {
+      const auto *Func = Inst->findFuncExports(Name);
+      ASSERT_NE(Func, nullptr);
+      ASSERT_TRUE(Func->isCompiledFunction());
+      auto Res = ExecEngine.invoke(Func, {}, {});
+      ASSERT_TRUE(Res);
+      ASSERT_EQ(Res->size(), 1u);
+      EXPECT_FLOAT_EQ((*Res)[0].first.get<float>(), Expected) << Name;
+    };
+
+    CheckFuncI32("i32_store", 15u);
+    CheckFuncI32("i32_store8", 25u);
+    CheckFuncI32("i32_store16", 35u);
+    CheckFuncI64("i64_store", 45u);
+    CheckFuncI64("i64_store8", 55u);
+    CheckFuncI64("i64_store16", 65u);
+    CheckFuncI64("i64_store32", 75u);
+    CheckFuncF32("f32_store", 3.5f);
+  }
+
+  const ScopedTempFile Artifact("AOTAtomicStoreTest", WASMEDGE_LIB_EXTENSION);
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+  {
+    Loader::Loader LoaderEngine(Conf);
+    Validator::Validator ValidatorEngine(Conf);
+    LLVM::Compiler Compiler(Conf);
+    LLVM::CodeGen CodeGen(Conf);
+
+    auto Module = LoaderEngine.parseModule(AtomicStoreWasm);
+    ASSERT_TRUE(Module);
+    ASSERT_TRUE(ValidatorEngine.validate(**Module));
+    auto Data = Compiler.compile(**Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(
+        CodeGen.codegen(AtomicStoreWasm, std::move(*Data), Artifact.get()));
+  }
+
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Artifact.get()));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  auto CheckAOTI32 = [&](std::string_view Name, uint32_t Expected) {
+    auto Res = VM.execute(Name);
+    ASSERT_TRUE(Res) << Name;
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected) << Name;
+  };
+  auto CheckAOTI64 = [&](std::string_view Name, uint64_t Expected) {
+    auto Res = VM.execute(Name);
+    ASSERT_TRUE(Res) << Name;
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint64_t>(), Expected) << Name;
+  };
+  auto CheckAOTF32 = [&](std::string_view Name, float Expected) {
+    auto Res = VM.execute(Name);
+    ASSERT_TRUE(Res) << Name;
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_FLOAT_EQ((*Res)[0].first.get<float>(), Expected) << Name;
+  };
+
+  CheckAOTI32("i32_store", 15u);
+  CheckAOTI32("i32_store8", 25u);
+  CheckAOTI32("i32_store16", 35u);
+  CheckAOTI64("i64_store", 45u);
+  CheckAOTI64("i64_store8", 55u);
+  CheckAOTI64("i64_store16", 65u);
+  CheckAOTI64("i64_store32", 75u);
+  CheckAOTF32("f32_store", 3.5f);
+
+  VM.cleanup();
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

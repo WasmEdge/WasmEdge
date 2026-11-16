@@ -540,4 +540,26 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
+TEST(SegmentTest, LoadElementSegmentLegacyTableIndex) {
+  // (module (table 1 funcref) (elem 1 (i32.const 0)))
+  // Without the BulkMemoryOperations and ReferenceTypes proposals the table
+  // index is the first field of the segment; it must not be replaced by 0.
+  WasmEdge::Configure LegacyConf;
+  LegacyConf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LegacyLdr(LegacyConf);
+
+  const std::vector<WasmEdge::Byte> Wasm = {
+      // Preamble
+      0x00U, 0x61U, 0x73U, 0x6DU, 0x01U, 0x00U, 0x00U, 0x00U,
+      // Table section: one funcref table with a minimum of 1
+      0x04U, 0x04U, 0x01U, 0x70U, 0x00U, 0x01U,
+      // Element section: one segment, table index 1, offset 0, no initializers
+      0x09U, 0x06U, 0x01U, 0x01U, 0x41U, 0x00U, 0x0BU, 0x00U};
+
+  auto Result = LegacyLdr.parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  ASSERT_EQ((*Result)->getElementSection().getContent().size(), 1U);
+  EXPECT_EQ((*Result)->getElementSection().getContent()[0].getIdx(), 1U);
+}
+
 } // namespace

@@ -479,10 +479,11 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
     TTSBatch.logits[I] = true;
   }
   TTSBatch.n_tokens = static_cast<int32_t>(NCodes);
-  if (llama_decode(GraphRef.TTSContext.get(), TTSBatch) != 0) {
+  const auto Status = llama_decode(GraphRef.TTSContext.get(), TTSBatch);
+  llama_batch_free(TTSBatch);
+  if (Status != 0) {
     RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval."sv)
   }
-  llama_batch_free(TTSBatch);
 
   // Get embeddings.
   const int NEmbd = llama_model_n_embd(GraphRef.TTSModel.get());

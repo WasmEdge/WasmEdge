@@ -472,9 +472,13 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
   llama_batch TTSBatch =
       llama_batch_init(NCodes, /* embd */ 0, /* n_seq_max */ 1);
   for (uint32_t I = 0; I < NCodes; ++I) {
-    common_batch_add(TTSBatch, CxtRef.LlamaOutputTokens[I], I,
-                     /* seq_ids */ {0}, /* logits */ true);
+    TTSBatch.token[I] = CxtRef.LlamaOutputTokens[I];
+    TTSBatch.pos[I] = static_cast<llama_pos>(I);
+    TTSBatch.n_seq_id[I] = 1;
+    TTSBatch.seq_id[I][0] = 0;
+    TTSBatch.logits[I] = true;
   }
+  TTSBatch.n_tokens = static_cast<int32_t>(NCodes);
   if (llama_decode(GraphRef.TTSContext.get(), TTSBatch) != 0) {
     RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval."sv)
   }

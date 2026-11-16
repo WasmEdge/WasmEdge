@@ -115,9 +115,9 @@ Expect<void> Compiler::checkConfigure() noexcept {
   return {};
 }
 
-Expect<void> Compiler::optimize(LLVM::Module &LLModule,
-                                LLVM::TargetMachine &TM) noexcept {
-  spdlog::info("optimize start"sv);
+Expect<void>
+Compiler::createTargetMachine(LLVM::Module &LLModule,
+                              LLVM::TargetMachine &TM) const noexcept {
   auto Triple = LLModule.getTarget();
   auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
   if (ErrorMessage) {
@@ -148,6 +148,19 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
 #endif
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
+  if (!TM) {
+    spdlog::error("cannot create the target machine for {}"sv, Triple);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+  return {};
+}
+
+Expect<void> Compiler::optimize(LLVM::Module &LLModule,
+                                LLVM::TargetMachine &TM) noexcept {
+  spdlog::info("optimize start"sv);
+  if (!TM) {
+    EXPECTED_TRY(createTargetMachine(LLModule, TM));
+  }
 #if LLVM_VERSION_MAJOR < 16
   TM.setModuleDataLayout(LLModule);
 #endif
@@ -220,15 +233,21 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   return {};
 }
 
-// Initialize the LLVM module held by the data for compilation: set the
-// target triple and the PIC level, and return the LLVM context.
-static LLVM::Context initLLVMModule(LLVM::Data &D) noexcept {
-  auto LLContext = D.extract().getLLContext();
-  LLVM::Core::init(LLContext.unwrap());
+Expect<void> Compiler::initLLVMModule(LLVM::Data &D) const noexcept {
+  LLVM::Core::init(D.extract().getLLContext().unwrap());
   auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
+  if (sizeof(void *) < sizeof(uint64_t)) {
+    // The default data layout has 64-bit pointers. A 32-bit host needs the
+    // target layout before any instruction is built.
+    auto &TM = D.extract().TM;
+    if (!TM) {
+      EXPECTED_TRY(createTargetMachine(LLModule, TM));
+    }
+    TM.setModuleDataLayout(LLModule);
+  }
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
-  return LLContext;
+  return {};
 }
 
 Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
@@ -242,7 +261,8 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   spdlog::info("compile start"sv);
 
   LLVM::Data D;
-  auto LLContext = initLLVMModule(D);
+  EXPECTED_TRY(initLLVMModule(D));
+  auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
@@ -698,7 +718,8 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   spdlog::info("[lazy-jit]: compile infrastructure start"sv);
 
   Data D;
-  auto LLContext = initLLVMModule(D);
+  EXPECTED_TRY(initLLVMModule(D));
+  auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
@@ -750,7 +771,8 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   // and after a failed batch the leftover module must be discarded so its
   // declarations are not re-added on top of themselves.
   LLData.extract().resetModule();
-  auto LLContext = initLLVMModule(LLData);
+  EXPECTED_TRY(initLLVMModule(LLData));
+  auto LLContext = LLData.extract().getLLContext();
   auto &LLModule = LLData.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,

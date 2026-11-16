@@ -1157,7 +1157,8 @@ void Value::setNoTailCall() noexcept {
 }
 
 static inline Message getDefaultTargetTriple() noexcept {
-  return LLVMGetDefaultTargetTriple();
+  Message Triple(LLVMGetDefaultTargetTriple());
+  return LLVMNormalizeTargetTriple(Triple.unwrap());
 }
 static inline Message getHostCPUName() noexcept { return LLVMGetHostCPUName(); }
 static inline Message getHostCPUFeatures() noexcept {
@@ -1959,13 +1960,11 @@ public:
                                    Reloc, CodeModel);
   }
 
-#if LLVM_VERSION_MAJOR < 16
   void setModuleDataLayout(Module &M) noexcept {
     auto DL = LLVMCreateTargetDataLayout(Ref);
     LLVMSetModuleDataLayout(M.unwrap(), DL);
     LLVMDisposeTargetData(DL);
   }
-#endif
 
 #if LLVM_VERSION_MAJOR < 13
   void addAnalysisPasses(PassManager &P) noexcept {

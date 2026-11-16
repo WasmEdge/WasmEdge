@@ -28,7 +28,7 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   }
 
   LLVMTargetRef TheTarget = nullptr;
-  LLVM::Message Triple(LLVMGetDefaultTargetTriple());
+  LLVM::Message Triple = LLVM::getDefaultTargetTriple();
   char *TripleErr = nullptr;
   if (LLVMGetTargetFromTriple(Triple.string_view().data(), &TheTarget,
                               &TripleErr)) {

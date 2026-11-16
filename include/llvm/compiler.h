@@ -67,6 +67,13 @@ private:
   void compileFunctionDeclarations(const AST::FunctionSection &FunctionSec,
                                    const AST::CodeSection &CodeSec) noexcept;
   Expect<void> compileFunctionBody(uint32_t LocalFuncIndex) noexcept;
+  /// Create the target machine of the module target. The optimization and,
+  /// on a 32-bit host, the data layout of the module use it.
+  Expect<void> createTargetMachine(Module &LLModule,
+                                   TargetMachine &TM) const noexcept;
+  /// Initialize the LLVM module held by `D` for compilation: set the target
+  /// triple, the data layout on a 32-bit host, and the PIC level.
+  Expect<void> initLLVMModule(Data &D) const noexcept;
   Expect<void> optimize(Module &LLModule, TargetMachine &TM) noexcept;
 
   std::mutex Mutex;

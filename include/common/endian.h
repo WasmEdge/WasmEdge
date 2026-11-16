@@ -59,10 +59,8 @@ template <typename T> T byteswap(T V) {
   } else if constexpr (sizeof(T) == 8) {
     return static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(V)));
   } else if constexpr (sizeof(T) == 16) {
-    return (static_cast<__int128_t>(__builtin_bswap64(static_cast<uint64_t>(V)))
-            << 64) |
-           static_cast<__int128_t>(
-               __builtin_bswap64(static_cast<uint64_t>(V >> 64)));
+    return (static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(V))) << 64) |
+           static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(V >> 64)));
   }
 #elif defined(_MSC_VER)
   if constexpr (sizeof(T) == 2) {

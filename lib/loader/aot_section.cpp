@@ -5,7 +5,7 @@
 #include "common/spdlog.h"
 #include "system/allocator.h"
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if (WASMEDGE_OS_LINUX && !defined(__arm__)) || WASMEDGE_OS_MACOS
 extern "C" {
 extern void __register_frame(void *);
 extern void __deregister_frame(void *);
@@ -133,7 +133,7 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   CodesAddress = AOTSec.getCodesAddress();
 
   Registered = true;
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_LINUX && !defined(__arm__)
   if (EHFrameAddress) {
     __register_frame(EHFrameAddress);
   }
@@ -163,7 +163,7 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
 
 void AOTSection::unload() noexcept {
   if (Binary) {
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_LINUX && !defined(__arm__)
     if (Registered && EHFrameAddress) {
       __deregister_frame(EHFrameAddress);
     }

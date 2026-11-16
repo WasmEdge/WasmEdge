@@ -124,7 +124,9 @@ TEST(LinuxTest, fromTimespec) {
   const __time_t kNsec = 30;
   const timespec kTime = {kSec, kNsec};
   auto result = fromTimespec(kTime).raw();
-  const __wasi_timestamp_t kExpectResult = kSec * 1000 * 1000 * 1000 + kNsec;
+  const __wasi_timestamp_t kExpectResult =
+      static_cast<__wasi_timestamp_t>(kSec) * 1000 * 1000 * 1000 +
+      static_cast<__wasi_timestamp_t>(kNsec);
 
   EXPECT_EQ(result, kExpectResult);
 }

@@ -5,6 +5,7 @@
 #include "host/wasi/vfs_io.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <exception>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -466,23 +467,43 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
     Token -= 151672;
   }
 
+  if (CxtRef.LlamaOutputTokens.empty()) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "codesToSpeech: no audio codes in the output tokens."sv)
+  }
+  const auto NUBatch = llama_n_ubatch(GraphRef.TTSContext.get());
+  if (CxtRef.LlamaOutputTokens.size() > NUBatch) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "codesToSpeech: too many audio codes: {} exceeds the TTS "sv
+              "context's ubatch size {}."sv,
+              CxtRef.LlamaOutputTokens.size(), NUBatch)
+  }
+
   // Put codes into batch.
   const uint32_t NCodes =
       static_cast<uint32_t>(CxtRef.LlamaOutputTokens.size());
-  llama_batch TTSBatch =
-      llama_batch_init(NCodes, /* embd */ 0, /* n_seq_max */ 1);
-  for (uint32_t I = 0; I < NCodes; ++I) {
-    TTSBatch.token[I] = CxtRef.LlamaOutputTokens[I];
-    TTSBatch.pos[I] = static_cast<llama_pos>(I);
-    TTSBatch.n_seq_id[I] = 1;
-    TTSBatch.seq_id[I][0] = 0;
-    TTSBatch.logits[I] = true;
-  }
-  TTSBatch.n_tokens = static_cast<int32_t>(NCodes);
-  const auto Status = llama_decode(GraphRef.TTSContext.get(), TTSBatch);
-  llama_batch_free(TTSBatch);
-  if (Status != 0) {
-    RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval."sv)
+  try {
+    llama_batch_ext_ptr TTSBatch(
+        llama_batch_ext_init(GraphRef.TTSContext.get()));
+    for (uint32_t I = 0; I < NCodes; ++I) {
+      const int32_t Idx = llama_batch_ext_add_token(
+          TTSBatch.get(), 0, CxtRef.LlamaOutputTokens[I]);
+      const llama_pos Pos = static_cast<llama_pos>(I);
+      if (Idx < 0 || !llama_batch_ext_set_pos(TTSBatch.get(), Idx, &Pos) ||
+          !llama_batch_ext_set_output_embd(TTSBatch.get(), Idx, true)) {
+        RET_ERROR(ErrNo::RuntimeError,
+                  "codesToSpeech: failed to add audio code to batch."sv)
+      }
+    }
+    const auto Status = llama_process(
+        GraphRef.TTSContext.get(), LLAMA_PROCESS_TYPE_DECODE, TTSBatch.get());
+    if (Status != 0) {
+      RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval: {}."sv,
+                Status)
+    }
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval: {}"sv,
+              E.what())
   }
 
   // Get embeddings.

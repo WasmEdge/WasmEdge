@@ -40,7 +40,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, WASINN::Graph &G,
     int32_t Res = mtmd_helper_eval_chunks(
         GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
         GraphRef.VisionInputChunks.get(), CxtRef.NPos,
-        /* seq_id */ 0, static_cast<int32_t>(CxtRef.CurrentBatchSize),
+        /* seq_id */ 0, static_cast<int32_t>(getBatchSize(GraphRef)),
         /* logits_last */ true, &NewNPos);
     CxtRef.NPos = NewNPos;
     if (Res != 0) {
@@ -116,7 +116,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
       int32_t Res = mtmd_helper_eval_chunks(
           GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
           GraphRef.VisionInputChunks.get(), CxtRef.NPos,
-          /* seq_id */ 0, static_cast<int32_t>(CxtRef.CurrentBatchSize),
+          /* seq_id */ 0, static_cast<int32_t>(getBatchSize(GraphRef)),
           /* logits_last */ true, &NewNPos);
       CxtRef.NPos = NewNPos;
       if (Res != 0) {

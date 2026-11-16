@@ -126,21 +126,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
       }
     }
 
-    // Check whether the batch size changed.
-    if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
-      llama_batch_free(CxtRef.LlamaBatch);
-      CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
-      if (CxtRef.LlamaBatch.token == nullptr) {
-        // Force a reallocation on the next metadata pass and keep compute
-        // away from the empty batch until then.
-        CxtRef.CurrentBatchSize = 0;
-        G.setInvalid();
-        RET_ERROR(ErrNo::RuntimeError,
-                  "setInput: unable to allocate llama_batch."sv)
-      }
-      CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
-    }
-
     G.setReady();
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: found Metadata, processing...Done"sv)

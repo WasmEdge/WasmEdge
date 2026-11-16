@@ -593,22 +593,28 @@ TEST(APICoreTest, Value) {
   std::vector<uint32_t> Vec = {1U, 2U, 3U};
   WasmEdge_Value Val = WasmEdge_ValueGenI32(INT32_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenI64(INT64_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF64(Val),
             -std::numeric_limits<double>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<int128_t>(INT64_MAX) * 2 + 1);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #else
   int128_t V = {/* Low */ UINT64_MAX, /* High */ INT64_MAX};
   Val = WasmEdge_ValueGenV128(V);
   EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #endif
   Val = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
@@ -618,14 +624,13 @@ TEST(APICoreTest, Value) {
 
   WasmEdge_FunctionTypeContext *FuncType =
       WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
-  WasmEdge_FunctionInstanceContext *HostFunc =
-      WasmEdge_FunctionInstanceCreate(
-          FuncType,
-          [](void *, const WasmEdge_CallingFrameContext *,
-             const WasmEdge_Value *, WasmEdge_Value *) -> WasmEdge_Result {
-            return WasmEdge_Result_Success;
-          },
-          nullptr, 0);
+  WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(
+      FuncType,
+      [](void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *,
+         WasmEdge_Value *) -> WasmEdge_Result {
+        return WasmEdge_Result_Success;
+      },
+      nullptr, 0);
   Val = WasmEdge_ValueGenFuncRef(HostFunc);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));

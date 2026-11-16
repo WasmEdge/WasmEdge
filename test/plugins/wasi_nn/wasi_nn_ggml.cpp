@@ -1,0 +1,2099 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "helper.h"
+#include "wasinnfunc.h"
+
+#include "common/span.h"
+#include "common/types.h"
+#include "runtime/callingframe.h"
+#include "runtime/instance/module.h"
+
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+#include "driver/wasi_nn_rpc/wasi_nn_rpcserver/wasi_nn_rpcserver.h"
+#endif
+
+#include <gtest/gtest.h>
+
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <utility>
+#include <vector>
+
+namespace WasmEdge {
+namespace Host {
+namespace WASINN {
+using namespace std::literals;
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+TEST(WasiNNTest, GGMLBackend) {
+  // Create the wasi_nn module instance.
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  // Load the files.
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+  std::string Model = WasmEdge::Endian::native == WasmEdge::Endian::little
+                          ? "./wasinn_ggml_fixtures/stories260K.gguf"
+                          : "./wasinn_ggml_fixtures/granite-3.gguf";
+  std::vector<uint8_t> WeightRead = readEntireFile(Model);
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+  uint32_t OutBoundPtr = UINT32_C(61000 * 65536);
+  uint32_t StorePtr = UINT32_C(65536);
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Get the function "load".
+  auto *FuncInst = NNMod->findFuncExports("load");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = FuncInst->getHostFunc();
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
+
+  // GGML WASI-NN load tests.
+  // Test: load -- meaningless binaries.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- graph id ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- graph builder ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            OutBoundPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- GGML model bin ptr out of bounds.
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, OutBoundPtr,
+                  static_cast<uint32_t>(WeightRead.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- wrong metadata encoding when builders length > 1.
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
+                  BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
+  StorePtr += static_cast<uint32_t>(WeightRead.size());
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidEncoding));
+  }
+
+  // Test: load -- load successfully.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // GGML WASI-NN init_execution_context tests.
+  // Test: init_execution_context -- graph id invalid.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: init_execution_context -- initialize context successfully.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Test: get_output_single -- a freshly initialized context has an empty
+  // streamed-token vector, so it reports zero bytes instead of dereferencing
+  // past the end of the vector.
+  {
+    auto *SingleInst = NNMod->findFuncExports("get_output_single");
+    ASSERT_NE(SingleInst, nullptr);
+    auto &HostFuncGetOutputSingle = SingleInst->getHostFunc();
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0U);
+  }
+
+  // GGML WASI-NN set_input tests.
+  {
+    auto Graph = NNMod->getEnv().NNGraph.get(0);
+    ASSERT_NE(Graph, nullptr);
+    const auto &GGMLGraph = Graph->get<WasmEdge::Host::WASINN::GGML::Graph>();
+    const auto &Params = GGMLGraph.Params;
+    auto SetMetadata = [&](std::string_view Metadata) {
+      std::vector<uint8_t> MetadataData(Metadata.begin(), Metadata.end());
+      uint32_t EntryPtr = BuilderPtr;
+      writeFatPointer(MemInst, StorePtr, UINT32_C(1), EntryPtr);
+      writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), EntryPtr);
+      writeFatPointer(MemInst, StorePtr + UINT32_C(4),
+                      static_cast<uint32_t>(MetadataData.size()), EntryPtr);
+      writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+      writeBinaries<uint8_t>(MemInst, MetadataData, StorePtr + UINT32_C(4));
+      return HostFuncSetInput.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      UINT32_C(0), UINT32_C(1), BuilderPtr},
+                                  Errno);
+    };
+    struct LoadModeCase {
+      std::string_view Metadata;
+      llama_load_mode Expected;
+    };
+    const LoadModeCase Cases[] = {
+        {R"({"use-mmap":false})", LLAMA_LOAD_MODE_NONE},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"use-mmap":true})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"use-mlock":false})", LLAMA_LOAD_MODE_MMAP},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"use-mmap":false})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"use-mlock":false})", LLAMA_LOAD_MODE_NONE},
+        {R"({"load-mode":"mmap+mlock"})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"use-mmap":false})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"load-mode":"auto"})", LLAMA_LOAD_MODE_AUTO},
+        {R"({})", LLAMA_LOAD_MODE_AUTO},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"load-mode":"dio"})", LLAMA_LOAD_MODE_DIRECT_IO},
+        {R"({})", LLAMA_LOAD_MODE_DIRECT_IO},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"use-mmap":true,"use-mlock":false,"load-mode":"none"})",
+         LLAMA_LOAD_MODE_NONE},
+        {R"({"load-mode":"auto"})", LLAMA_LOAD_MODE_AUTO},
+    };
+    for (const auto &Case : Cases) {
+      SCOPED_TRACE(Case.Metadata);
+      ASSERT_TRUE(SetMetadata(Case.Metadata));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.load_mode, Case.Expected);
+    }
+
+    // Test: set_input -- metadata that would overflow the fixed tensor-split
+    // array, truncate n_batch / n_ubatch, or hand llama.cpp a value it aborts
+    // on is rejected and leaves the parameters untouched.
+    {
+      const int32_t PrevNBatch = Params.n_batch;
+      const int32_t PrevNUBatch = Params.n_ubatch;
+      const int PrevNThreads = Params.cpuparams.n_threads;
+      const int PrevNThreadsBatch = Params.cpuparams_batch.n_threads;
+      const ggml_type PrevCacheTypeK = Params.cache_type_k;
+      const ggml_type PrevCacheTypeV = Params.cache_type_v;
+      const enum llama_pooling_type PrevPoolingType = Params.pooling_type;
+      const int32_t PrevMirostat = Params.sampling.mirostat;
+      const size_t PrevNOverrides = GGMLGraph.TensorBuftOverrides.size();
+      std::string TooManySplits = R"({"tensor-split":")";
+      for (size_t I = 0; I < 256; I++) {
+        TooManySplits += I == 0 ? "1" : ",1";
+      }
+      TooManySplits += R"("})";
+      const std::string InvalidCases[] = {
+          TooManySplits,
+          R"({"tensor-split":"1,abc"})",
+          // Out of range for float: fails with eofbit also set.
+          R"({"tensor-split":"1e100"})",
+          R"({"tensor-split":"1,1e100"})",
+          R"({"tensor-split":""})",
+          R"({"batch-size":0})",
+          R"({"batch-size":4294967295})",
+          R"({"ubatch-size":-1})",
+          R"({"ubatch-size":4294967296})",
+          R"({"n-cpu-moe":-1})",
+          R"({"n-cpu-moe":513})",
+          R"({"threads":-2})",
+          R"({"threads":513})",
+          R"({"threads-batch":513})",
+          // GGML_TYPE_Q4_2 is deprecated with a zero block size.
+          R"({"cache-type-k":4})",
+          // GGML_TYPE_Q4_K is valid for weights but not for the KV cache.
+          R"({"cache-type-k":12})",
+          R"({"cache-type-v":1000})",
+          R"({"pooling-type":-2})",
+          R"({"pooling-type":99})",
+          // common_sampler_init asserts on unknown mirostat versions.
+          R"({"mirostat":-1})",
+          R"({"mirostat":3})",
+      };
+      for (const auto &Metadata : InvalidCases) {
+        SCOPED_TRACE(Metadata);
+        ASSERT_TRUE(SetMetadata(Metadata));
+        EXPECT_EQ(Errno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+      }
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_EQ(Params.n_ubatch, PrevNUBatch);
+      EXPECT_EQ(Params.cpuparams.n_threads, PrevNThreads);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, PrevNThreadsBatch);
+      EXPECT_EQ(Params.cache_type_k, PrevCacheTypeK);
+      EXPECT_EQ(Params.cache_type_v, PrevCacheTypeV);
+      EXPECT_EQ(Params.pooling_type, PrevPoolingType);
+      EXPECT_EQ(Params.sampling.mirostat, PrevMirostat);
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), PrevNOverrides);
+      for (float Split : Params.tensor_split) {
+        EXPECT_FLOAT_EQ(Split, 0.0f);
+      }
+    }
+
+    // Test: set_input -- valid batch sizes are applied (the prompt batch is
+    // reallocated on the change) and restored afterwards.
+    {
+      const int32_t PrevNBatch = Params.n_batch;
+      const int32_t PrevNUBatch = Params.n_ubatch;
+      ASSERT_TRUE(SetMetadata(R"({"batch-size":64,"ubatch-size":0})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.n_batch, 64);
+      EXPECT_EQ(Params.n_ubatch, 0);
+      ASSERT_TRUE(SetMetadata(R"({"batch-size":)" + std::to_string(PrevNBatch) +
+                              R"(,"ubatch-size":)" +
+                              std::to_string(PrevNUBatch) + "}"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_EQ(Params.n_ubatch, PrevNUBatch);
+    }
+
+    // Test: set_input -- in-range thread counts, KV cache types, pooling
+    // types, and mirostat versions are applied and restored afterwards.
+    {
+      const int PrevNThreads = Params.cpuparams.n_threads;
+      const int PrevNThreadsBatch = Params.cpuparams_batch.n_threads;
+      const ggml_type PrevCacheTypeK = Params.cache_type_k;
+      const ggml_type PrevCacheTypeV = Params.cache_type_v;
+      const enum llama_pooling_type PrevPoolingType = Params.pooling_type;
+      const int32_t PrevMirostat = Params.sampling.mirostat;
+      ASSERT_TRUE(SetMetadata(R"({"threads":2,"threads-batch":3,)"
+                              R"("cache-type-k":8,"cache-type-v":2,)"
+                              R"("pooling-type":1,"mirostat":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cpuparams.n_threads, 2);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, 3);
+      EXPECT_EQ(Params.cache_type_k, GGML_TYPE_Q8_0);
+      EXPECT_EQ(Params.cache_type_v, GGML_TYPE_Q4_0);
+      EXPECT_EQ(Params.pooling_type, LLAMA_POOLING_TYPE_MEAN);
+      EXPECT_EQ(Params.sampling.mirostat, 2);
+      ASSERT_TRUE(SetMetadata(
+          R"({"threads":)" + std::to_string(PrevNThreads) +
+          R"(,"threads-batch":)" + std::to_string(PrevNThreadsBatch) +
+          R"(,"cache-type-k":)" + std::to_string(PrevCacheTypeK) +
+          R"(,"cache-type-v":)" + std::to_string(PrevCacheTypeV) +
+          R"(,"pooling-type":)" + std::to_string(PrevPoolingType) +
+          R"(,"mirostat":)" + std::to_string(PrevMirostat) + "}"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cpuparams.n_threads, PrevNThreads);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, PrevNThreadsBatch);
+      EXPECT_EQ(Params.cache_type_k, PrevCacheTypeK);
+      EXPECT_EQ(Params.cache_type_v, PrevCacheTypeV);
+      EXPECT_EQ(Params.pooling_type, PrevPoolingType);
+      EXPECT_EQ(Params.sampling.mirostat, PrevMirostat);
+    }
+
+    // Test: set_input -- the MoE CPU overrides follow the latest metadata
+    // pass instead of accumulating behind the terminating empty pattern.
+    {
+      ASSERT_TRUE(SetMetadata(R"({"cpu-moe":true,"n-cpu-moe":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), 3U);
+      ASSERT_EQ(Params.tensor_buft_overrides.size(), 4U);
+      EXPECT_STREQ(Params.tensor_buft_overrides[0].pattern,
+                   "\\.ffn_(up|down|gate)_exps");
+      EXPECT_STREQ(Params.tensor_buft_overrides[1].pattern,
+                   "blk\\.0\\.ffn_(up|down|gate)_exps");
+      EXPECT_STREQ(Params.tensor_buft_overrides[2].pattern,
+                   "blk\\.1\\.ffn_(up|down|gate)_exps");
+      EXPECT_EQ(Params.tensor_buft_overrides[3].pattern, nullptr);
+      // A pass without the keys keeps the previous overrides.
+      ASSERT_TRUE(SetMetadata(R"({})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), 3U);
+      EXPECT_EQ(Params.tensor_buft_overrides.size(), 4U);
+      // A pass that changes them replaces the whole table.
+      ASSERT_TRUE(SetMetadata(R"({"cpu-moe":false,"n-cpu-moe":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), 1U);
+      ASSERT_EQ(Params.tensor_buft_overrides.size(), 2U);
+      EXPECT_STREQ(Params.tensor_buft_overrides[0].pattern,
+                   "blk\\.0\\.ffn_(up|down|gate)_exps");
+      EXPECT_EQ(Params.tensor_buft_overrides[1].pattern, nullptr);
+      ASSERT_TRUE(SetMetadata(R"({"n-cpu-moe":0})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_TRUE(GGMLGraph.TensorBuftOverrides.empty());
+      EXPECT_TRUE(Params.tensor_buft_overrides.empty());
+    }
+
+    // Test: set_input -- embd-normalize reaches the context config that the
+    // embedding path reads, and out-of-range values are rejected.
+    {
+      using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
+      auto Context = NNMod->getEnv().NNContext.get(0);
+      ASSERT_NE(Context, nullptr);
+      const auto &Conf =
+          Context->get<WasmEdge::Host::WASINN::GGML::Context>().Conf;
+      const EmbdNormalizeType PrevEmbdNormalize = Conf.EmbdNormalize;
+      EXPECT_EQ(PrevEmbdNormalize, EmbdNormalizeType::Euclidean);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":-2})"));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument));
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Conf.EmbdNormalize, EmbdNormalizeType::Taxicab);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+    }
+
+    // Test: set_input -- a valid tensor-split is applied and zero-padded,
+    // with separators and surrounding whitespace tolerated.
+    {
+      ASSERT_TRUE(SetMetadata(R"({"tensor-split":"3,2"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_FLOAT_EQ(Params.tensor_split[0], 3.0f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[1], 2.0f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[2], 0.0f);
+      ASSERT_TRUE(SetMetadata(R"({"tensor-split":" 1.5 , 0.5, "})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_FLOAT_EQ(Params.tensor_split[0], 1.5f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.5f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[2], 0.0f);
+      ASSERT_TRUE(SetMetadata(R"({"tensor-split":"0"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_FLOAT_EQ(Params.tensor_split[0], 0.0f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.0f);
+    }
+
+    // Test: set_input -- hostname keeps its single-address meaning and is
+    // stored verbatim as the sole entry of the hostnames list.
+    {
+      const std::vector<std::string> PrevHostnames = Params.hostnames;
+      EXPECT_EQ(PrevHostnames, std::vector<std::string>{"127.0.0.1"});
+      ASSERT_TRUE(SetMetadata(R"({"hostname":"0.0.0.0"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.hostnames, std::vector<std::string>{"0.0.0.0"});
+      ASSERT_TRUE(SetMetadata(R"({"hostname":"/tmp/a,b.sock"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.hostnames, std::vector<std::string>{"/tmp/a,b.sock"});
+      ASSERT_TRUE(SetMetadata(R"({"hostname":"127.0.0.1"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.hostnames, PrevHostnames);
+    }
+
+    // Test: set_input -- a rejected metadata object is applied atomically:
+    // the valid options that precede the invalid one are rolled back on the
+    // graph parameters, the graph settings, and the context config.
+    {
+      using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
+      const auto &Conf = NNMod->getEnv()
+                             .NNContext.get(0)
+                             ->get<WasmEdge::Host::WASINN::GGML::Context>()
+                             .Conf;
+      const float PrevTemp = Params.sampling.temp;
+      const int64_t PrevNPredict = Conf.NPredict;
+      const EmbdNormalizeType PrevEmbdNormalize = Conf.EmbdNormalize;
+      const bool PrevCpuMoe = GGMLGraph.CpuMoe;
+      const int32_t PrevNBatch = Params.n_batch;
+      ASSERT_TRUE(SetMetadata(R"({"temp":0.3,"n-predict":7,"embd-normalize":0,)"
+                              R"("cpu-moe":true,"batch-size":0})"));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument));
+      EXPECT_FLOAT_EQ(Params.sampling.temp, PrevTemp);
+      EXPECT_EQ(Conf.NPredict, PrevNPredict);
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+      EXPECT_EQ(GGMLGraph.CpuMoe, PrevCpuMoe);
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_TRUE(Params.tensor_buft_overrides.empty());
+    }
+  }
+
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData,
+                         StorePtr +
+                             static_cast<uint32_t>(TensorDim.size()) * 4);
+
+  // Test: set_input -- context id exceeds.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: set_input -- set input successfully.
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += static_cast<uint32_t>(TensorDim.size() * 4 + TensorData.size());
+
+  // GGML WASI-NN compute tests.
+  // Test: compute -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: compute -- compute until finish or context full.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_TRUE(
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::Success) ||
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::ContextFull));
+  }
+
+  // GGML WASI-NN get_output tests.
+  // Test: get_output -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // Should output more than 50 bytes.
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+  }
+
+  // Test: get_output -- an undersized buffer is rejected without any partial
+  // write. The required size is still reported through BytesWritten.
+  {
+    const uint32_t Needed = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    ASSERT_GE(Needed, 2U);
+    constexpr uint8_t GuardByte = 0xE7U;
+    const uint32_t GuardLen = Needed + 16U;
+    for (uint32_t I = 0; I < GuardLen; ++I) {
+      *MemInst.getPointer<uint8_t *>(StorePtr + I) = GuardByte;
+    }
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, Needed - 1U, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), Needed);
+    bool Untouched = true;
+    for (uint32_t I = 0; I < GuardLen; ++I) {
+      Untouched = Untouched &&
+                  (*MemInst.getPointer<uint8_t *>(StorePtr + I) == GuardByte);
+    }
+    EXPECT_TRUE(Untouched);
+  }
+
+  // Test: get_output -- an exact-size buffer succeeds.
+  {
+    const uint32_t Needed = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, Needed, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), Needed);
+  }
+
+  // Get the unload, finalize_execution_context, get_output_single, and
+  // fini_single host functions for the lifetime tests below.
+  FuncInst = NNMod->findFuncExports("unload");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncUnload = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("finalize_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncFinalize = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("get_output_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutputSingleDrain = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("fini_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncFiniSingle = FuncInst->getHostFunc();
+
+  // Test: init_execution_context -- create a second, token-less context so
+  // the graph stays pinned by two contexts across the unload below.
+  uint32_t NoTokenCtx = UINT32_C(0);
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    NoTokenCtx = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_EQ(NoTokenCtx, UINT32_C(1));
+  }
+
+  // Test: unload -- unload while both contexts are alive: returns
+  // immediately and the live contexts keep the model alive to drain.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: unload -- a second unload of the same handle is rejected; the
+  // handle died with the first call.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: init_execution_context -- the unloaded graph cannot create new
+  // contexts.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- drain the still-alive context after unload. The
+  // context pins the graph, so the buffered output stays readable.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+  }
+
+  // Test: get_output_single -- drain via the model after unload. Unlike
+  // get_output's buffered copy, this detokenizes through the graph-owned
+  // llama context, so it only works if the model survived the unload.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingleDrain.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, UINT32_C(65532), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: fini_single -- reset the still-alive context's streaming state
+  // after unload.
+  {
+    EXPECT_TRUE(HostFuncFiniSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: finalize_execution_context -- finalize both contexts. The second
+  // release drops the last pin and destroys the backend payload.
+  {
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{NoTokenCtx},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: finalize_execution_context -- a finalized handle stays dead.
+  {
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- reloading yields a fresh handle: id 0 is never reused, so
+  // stale handles keep failing instead of aliasing the new graph.
+  uint32_t FreshGraphId = UINT32_C(0);
+  {
+    *MemInst.getPointer<uint32_t *>(BuilderPtr) = UINT32_C(0xFFFFFFFF);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    FreshGraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_EQ(FreshGraphId, UINT32_C(1));
+  }
+
+  // Test: concurrent host ops -- one thread hammers dead and unknown handles
+  // while another runs real inference on the fresh graph. The dead handles
+  // must keep failing cleanly and the live path must stay unaffected.
+  {
+    uint32_t FreshCtx = UINT32_C(0);
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{FreshGraphId, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    FreshCtx = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_EQ(FreshCtx, UINT32_C(2));
+
+    // Re-marshal the input tensor: the earlier get_output tests overwrote the
+    // prompt bytes at StorePtr with model output and guard bytes.
+    BuilderPtr = SetInputEntryPtr;
+    writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                    BuilderPtr);
+    writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+    writeFatPointer(MemInst,
+                    StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                    static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+    writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+    writeBinaries<uint8_t>(MemInst, TensorData,
+                           StorePtr +
+                               static_cast<uint32_t>(TensorDim.size()) * 4);
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 FreshCtx, UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+    std::thread StaleThread([&]() {
+      WasmEdge::Runtime::Instance::ModuleInstance StaleMod("");
+      StaleMod.addHostMemory(
+          "memory",
+          std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+              WasmEdge::AST::MemoryType(1)));
+      WasmEdge::Runtime::CallingFrame StaleFrame(nullptr, &StaleMod);
+      std::array<WasmEdge::ValVariant, 1> StaleErrno = {UINT32_C(0)};
+      // A bounded number of rounds keeps the rejection logging finite while
+      // still overlapping the live computes on the main thread.
+      for (int Round = 0; Round < 100; ++Round) {
+        // The unloaded graph handle.
+        EXPECT_TRUE(
+            HostFuncInit.run(StaleFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0)},
+                             StaleErrno));
+        EXPECT_EQ(StaleErrno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+        // The finalized context handle.
+        EXPECT_TRUE(HostFuncCompute.run(
+            StaleFrame,
+            std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+            StaleErrno));
+        EXPECT_EQ(StaleErrno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+        // A never-allocated handle.
+        EXPECT_TRUE(HostFuncUnload.run(
+            StaleFrame,
+            std::initializer_list<WasmEdge::ValVariant>{UINT32_C(9999)},
+            StaleErrno));
+        EXPECT_EQ(StaleErrno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+      }
+    });
+    // Compute until finish or context full, as the earlier compute test does.
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshCtx},
+        Errno));
+    EXPECT_TRUE(
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::Success) ||
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::ContextFull));
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            FreshCtx, UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    StaleThread.join();
+
+    // Unload the fresh graph, drain the context once more, then finalize it.
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshGraphId},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            FreshCtx, UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshCtx},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: load -- metadata passed at load time reaches the llama context and
+  // the graph config: threads-batch is no longer overwritten by threads, and
+  // embd-normalize is applied to the config contexts inherit.
+  {
+    using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
+    const std::string LoadMetadata =
+        R"({"threads":2,"threads-batch":3,"embd-normalize":0})";
+    std::vector<uint8_t> LoadMetadataData(LoadMetadata.begin(),
+                                          LoadMetadata.end());
+    // The weights fat pointer is still at LoadEntryPtr; append the metadata
+    // fat pointer behind it.
+    uint32_t EntryPtr = LoadEntryPtr + UINT32_C(8);
+    writeFatPointer(MemInst, StorePtr,
+                    static_cast<uint32_t>(LoadMetadataData.size()), EntryPtr);
+    writeBinaries<uint8_t>(MemInst, LoadMetadataData, StorePtr);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    const uint32_t MetaGraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    auto MetaGraph = NNMod->getEnv().NNGraph.get(MetaGraphId);
+    ASSERT_NE(MetaGraph, nullptr);
+    const auto &MetaGGMLGraph =
+        MetaGraph->get<WasmEdge::Host::WASINN::GGML::Graph>();
+    ASSERT_NE(MetaGGMLGraph.LlamaContext, nullptr);
+    EXPECT_EQ(llama_n_threads(MetaGGMLGraph.LlamaContext.get()), 2);
+    EXPECT_EQ(llama_n_threads_batch(MetaGGMLGraph.LlamaContext.get()), 3);
+    EXPECT_EQ(MetaGGMLGraph.Conf.EmbdNormalize, EmbdNormalizeType::MaxAbsolute);
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{MetaGraphId},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+}
+
+TEST(WasiNNTest, DrainAfterUnloadHostOpTiers) {
+  // Pin each op's hostOpPolicy tier so a later edit cannot move set_input
+  // (NotDetached) or compute/init (Ready) onto a drain tier and let them
+  // reconfigure or re-run an unloaded graph.
+  using WasmEdge::Host::WASINN::GraphReq;
+  using WasmEdge::Host::WASINN::HostOp;
+  using WasmEdge::Host::WASINN::hostOpPolicy;
+  // Reconfigure- and compute-class ops require a live graph.
+  EXPECT_EQ(hostOpPolicy(HostOp::SetInput).Req, GraphReq::NotDetached);
+  EXPECT_EQ(hostOpPolicy(HostOp::InitExecCtx).Req, GraphReq::Ready);
+  EXPECT_EQ(hostOpPolicy(HostOp::Compute).Req, GraphReq::Ready);
+  EXPECT_EQ(hostOpPolicy(HostOp::ComputeSingle).Req, GraphReq::Ready);
+  // Drain-class ops keep working after unload while a context finishes.
+  EXPECT_EQ(hostOpPolicy(HostOp::GetOutput).Req, GraphReq::Any);
+  EXPECT_EQ(hostOpPolicy(HostOp::GetOutputSingle).Req, GraphReq::Drainable);
+  EXPECT_EQ(hostOpPolicy(HostOp::FiniSingle).Req, GraphReq::Any);
+}
+
+TEST(WasiNNTest, GraphStatusDetachedIsTerminal) {
+  // unload marks a graph Detached without the op mutex, so an in-flight
+  // set_input reload can finish afterwards; its trailing setReady/setInvalid
+  // must not overwrite Detached or a surviving context would regain compute
+  // rights on an unloaded graph.
+  using WasmEdge::Host::WASINN::Graph;
+  using WasmEdge::Host::WASINN::GraphStatus;
+
+  Graph Reloaded(Backend::GGML);
+  EXPECT_EQ(Reloaded.status(), GraphStatus::Ready);
+  Reloaded.setDetached();
+  Reloaded.setReady();
+  EXPECT_EQ(Reloaded.status(), GraphStatus::Detached);
+
+  Graph FailedReload(Backend::GGML);
+  FailedReload.setDetached();
+  FailedReload.setInvalid();
+  EXPECT_EQ(FailedReload.status(), GraphStatus::Detached);
+
+  // Outside Detached, the Ready <-> Invalid reload transitions stay allowed.
+  Graph Live(Backend::GGML);
+  Live.setInvalid();
+  EXPECT_EQ(Live.status(), GraphStatus::Invalid);
+  Live.setReady();
+  EXPECT_EQ(Live.status(), GraphStatus::Ready);
+  Live.setDetached();
+  EXPECT_EQ(Live.status(), GraphStatus::Detached);
+}
+
+TEST(WasiNNTest, LoadByNameConcurrentBuildsShareOneGraph) {
+  // Two load_by_name calls for one name can miss the cache and build
+  // concurrently (MdMutex is not held across a load); the second finisher
+  // must adopt the first one's cached graph instead of keeping a duplicate.
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  auto &Env = NNMod->getEnv();
+  const std::string Name = "concurrent-build";
+  Env.RawMdMap.emplace(
+      Name, std::make_tuple(std::vector<std::vector<uint8_t>>{{0x00}},
+                            Backend::GGML, Device::CPU));
+
+  const auto Deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  auto SpinUntil = [&Deadline](auto Cond) {
+    while (!Cond()) {
+      if (std::chrono::steady_clock::now() > Deadline) {
+        return false;
+      }
+      std::this_thread::yield();
+    }
+    return true;
+  };
+
+  // A stand-in for a slow backend load: park each caller until released by
+  // entry order, then publish an empty graph wrapper like the real loader.
+  std::atomic<uint32_t> Entered{0};
+  std::atomic<uint32_t> ReleaseUpTo{0};
+  std::array<uint32_t, 2> PublishedIds = {0, 0};
+  auto SlowLoad = [&](WasmEdge::Host::WASINN::WasiNNEnvironment &E,
+                      WasmEdge::Span<const WasmEdge::Span<uint8_t>>, Backend BE,
+                      Device, std::string_view MdName,
+                      uint32_t &GraphIdOut) -> WasmEdge::Expect<ErrNo> {
+    const uint32_t Order = Entered.fetch_add(1) + 1;
+    while (ReleaseUpTo.load() < Order) {
+      std::this_thread::yield();
+    }
+    auto G = std::make_shared<WasmEdge::Host::WASINN::Graph>(BE);
+    G->setModelName(std::string(MdName));
+    auto Id = E.NNGraph.insert(std::move(G));
+    EXPECT_TRUE(Id.has_value());
+    GraphIdOut = *Id;
+    PublishedIds[Order - 1] = *Id;
+    return ErrNo::Success;
+  };
+
+  uint32_t FirstId = UINT32_C(0xFFFFFFFF);
+  uint32_t SecondId = UINT32_C(0xFFFFFFFF);
+  std::atomic<uint32_t> DoneCount{0};
+  std::thread First([&]() {
+    auto Res = Env.mdBuild(Name, FirstId, SlowLoad);
+    EXPECT_TRUE(Res.has_value());
+    DoneCount.fetch_add(1);
+  });
+  std::thread Second([&]() {
+    auto Res = Env.mdBuild(Name, SecondId, SlowLoad);
+    EXPECT_TRUE(Res.has_value());
+    DoneCount.fetch_add(1);
+  });
+
+  // Both callers sit inside their builds before either caches: this is the
+  // race window between a shared cache miss and the first cache write.
+  EXPECT_TRUE(SpinUntil([&]() { return Entered.load() == 2; }));
+  // The first entrant finishes its whole build and caches its graph.
+  ReleaseUpTo.store(1);
+  EXPECT_TRUE(SpinUntil([&]() { return DoneCount.load() == 1; }));
+  // The second entrant finishes and must fold onto the cached winner.
+  ReleaseUpTo.store(2);
+  First.join();
+  Second.join();
+
+  // Exactly one graph survives for the name: both callers hold the winner's
+  // id, the loser's build was dropped, and the cache resolves to the winner.
+  EXPECT_EQ(FirstId, SecondId);
+  const uint32_t WinnerId = FirstId;
+  EXPECT_NE(Env.NNGraph.get(WinnerId), nullptr);
+  EXPECT_EQ(Env.NNGraph.size(), 1U);
+  const uint32_t LoserId =
+      PublishedIds[0] == WinnerId ? PublishedIds[1] : PublishedIds[0];
+  EXPECT_NE(LoserId, WinnerId);
+  EXPECT_EQ(Env.NNGraph.get(LoserId), nullptr);
+  uint32_t CachedId = UINT32_C(0xFFFFFFFF);
+  EXPECT_TRUE(Env.mdGet(Name, CachedId));
+  EXPECT_EQ(CachedId, WinnerId);
+}
+
+TEST(WasiNNTest, LoadByNameSkipsDetachedGraphStillInTable) {
+  // unload publishes Detached before dropping the table entry, so a racing
+  // load_by_name can observe a Detached yet still-tabled graph. The name
+  // cache must treat it as unloaded - neither resolving it nor folding a
+  // build onto it - or the guest would get an already-rejected handle.
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  auto &Env = NNMod->getEnv();
+  const std::string Name = "detached-window";
+  Env.RawMdMap.emplace(
+      Name, std::make_tuple(std::vector<std::vector<uint8_t>>{{0x00}},
+                            Backend::GGML, Device::CPU));
+  auto StubLoad = [](WasmEdge::Host::WASINN::WasiNNEnvironment &E,
+                     WasmEdge::Span<const WasmEdge::Span<uint8_t>>, Backend BE,
+                     Device, std::string_view MdName,
+                     uint32_t &GraphIdOut) -> WasmEdge::Expect<ErrNo> {
+    auto G = std::make_shared<WasmEdge::Host::WASINN::Graph>(BE);
+    G->setModelName(std::string(MdName));
+    auto Id = E.NNGraph.insert(std::move(G));
+    EXPECT_TRUE(Id.has_value());
+    GraphIdOut = *Id;
+    return ErrNo::Success;
+  };
+
+  uint32_t BuiltId = UINT32_C(0xFFFFFFFF);
+  auto Res = Env.mdBuild(Name, BuiltId, StubLoad);
+  ASSERT_TRUE(Res.has_value());
+  EXPECT_EQ(*Res, ErrNo::Success);
+  uint32_t ResolvedId = UINT32_C(0xFFFFFFFF);
+  EXPECT_TRUE(Env.mdGet(Name, ResolvedId));
+  EXPECT_EQ(ResolvedId, BuiltId);
+
+  // Enter the mid-unload window: Detached is visible while the table entry
+  // and the cache entry still exist.
+  auto G = Env.NNGraph.get(BuiltId);
+  ASSERT_NE(G, nullptr);
+  G->setDetached();
+  EXPECT_NE(Env.NNGraph.get(BuiltId), nullptr);
+  EXPECT_FALSE(Env.mdGet(Name, ResolvedId));
+
+  // A Ready-tier graph-keyed op rejects the half-detached graph even though
+  // its handle still resolves.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto *FuncInst = NNMod->findFuncExports("init_execution_context"sv);
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{BuiltId, UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // A build finishing inside the window publishes its own graph instead of
+  // folding onto the dying one.
+  uint32_t RebuiltId = UINT32_C(0xFFFFFFFF);
+  Res = Env.mdBuild(Name, RebuiltId, StubLoad);
+  ASSERT_TRUE(Res.has_value());
+  EXPECT_EQ(*Res, ErrNo::Success);
+  EXPECT_NE(RebuiltId, BuiltId);
+  EXPECT_TRUE(Env.mdGet(Name, ResolvedId));
+  EXPECT_EQ(ResolvedId, RebuiltId);
+}
+
+TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
+  // A failed metadata reload leaves the graph Invalid with a null llama
+  // context; unload then makes it Detached, which Drainable admits, so the
+  // backend drain must reject the null context instead of dereferencing it.
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+  std::string Model = WasmEdge::Endian::native == WasmEdge::Endian::little
+                          ? "./wasinn_ggml_fixtures/stories260K.gguf"
+                          : "./wasinn_ggml_fixtures/granite-3.gguf";
+  std::vector<uint8_t> WeightRead = readEntireFile(Model);
+  ASSERT_FALSE(WeightRead.empty());
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  const uint32_t LoadEntryPtr = UINT32_C(0);
+  const uint32_t SetInputEntryPtr = UINT32_C(16);
+  const uint32_t BytesWrittenPtr = UINT32_C(40);
+  uint32_t StorePtr = UINT32_C(65536);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  auto GetHostFunc =
+      [&](std::string_view FuncName) -> WasmEdge::Runtime::HostFunctionBase & {
+    auto *FuncInst = NNMod->findFuncExports(FuncName);
+    EXPECT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isHostFunction());
+    return FuncInst->getHostFunc();
+  };
+  auto &HostFuncLoad = GetHostFunc("load"sv);
+  auto &HostFuncInit = GetHostFunc("init_execution_context"sv);
+  auto &HostFuncSetInput = GetHostFunc("set_input"sv);
+  auto &HostFuncComputeSingle = GetHostFunc("compute_single"sv);
+  auto &HostFuncGetOutputSingle = GetHostFunc("get_output_single"sv);
+  auto &HostFuncFiniSingle = GetHostFunc("fini_single"sv);
+  auto &HostFuncUnload = GetHostFunc("unload"sv);
+  auto &HostFuncFinalize = GetHostFunc("finalize_execution_context"sv);
+
+  // Load the model and stream one token so the context buffers output.
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
+                  BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
+  StorePtr += static_cast<uint32_t>(WeightRead.size());
+  EXPECT_TRUE(HostFuncLoad.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+          static_cast<uint32_t>(Device::CPU), BuilderPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  const uint32_t GraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+  BuilderPtr += 4;
+  EXPECT_TRUE(HostFuncInit.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{GraphId, BuilderPtr}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  const uint32_t CtxId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData,
+                         StorePtr +
+                             static_cast<uint32_t>(TensorDim.size()) * 4);
+  EXPECT_TRUE(HostFuncSetInput.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       CtxId, UINT32_C(0), SetInputEntryPtr},
+                                   Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncComputeSingle.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncGetOutputSingle.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CtxId, UINT32_C(0), StorePtr, UINT32_C(65532), BytesWrittenPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+  // A context-parameter reload that must fail: llama rejects a context whose
+  // n_seq_max exceeds LLAMA_MAX_SEQ, so set_input leaves the graph Invalid
+  // and the llama context null.
+  const std::string BadMetadata = "{\"embedding\": true, \"n-parallel\": 1000}";
+  std::vector<uint8_t> BadMetadataData(BadMetadata.begin(), BadMetadata.end());
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(BadMetadataData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, BadMetadataData,
+                         StorePtr +
+                             static_cast<uint32_t>(TensorDim.size()) * 4);
+  EXPECT_TRUE(HostFuncSetInput.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       CtxId, UINT32_C(1), SetInputEntryPtr},
+                                   Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Invalid is rejected by the Drainable tier before the unload.
+  EXPECT_TRUE(HostFuncGetOutputSingle.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CtxId, UINT32_C(0), StorePtr, UINT32_C(65532), BytesWrittenPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // unload admits the drain tier again; the null context must be rejected by
+  // the backend instead of crashing the drain.
+  EXPECT_TRUE(HostFuncUnload.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{GraphId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncGetOutputSingle.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CtxId, UINT32_C(0), StorePtr, UINT32_C(65532), BytesWrittenPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // The context still resets and finalizes cleanly without a llama context.
+  EXPECT_TRUE(HostFuncFiniSingle.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncFinalize.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+}
+
+namespace {
+// Table bookkeeping is covered backend-free in resource_table_test.cpp; these
+// check the host-function wiring: guards reject an id that is not a live
+// graph/context before dispatching to any backend, so no model is needed.
+void expectRejectsUnknownId(std::string_view FuncName) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = NNMod->findFuncExports(FuncName);
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFunc = FuncInst->getHostFunc();
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // The module is fresh, so no id exists; 9999 is plainly unknown.
+  const uint32_t UnknownId = 9999;
+  EXPECT_TRUE(HostFunc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UnknownId},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
+} // namespace
+
+TEST(WasiNNTest, UnloadRejectsInvalidGraphId) {
+  expectRejectsUnknownId("unload"sv);
+}
+
+TEST(WasiNNTest, FinalizeRejectsInvalidContextId) {
+  expectRejectsUnknownId("finalize_execution_context"sv);
+}
+
+TEST(WasiNNTest, ComputeRejectsInvalidContextId) {
+  expectRejectsUnknownId("compute"sv);
+}
+
+namespace {
+uint32_t runLoadByName(uint32_t NamePtr, uint32_t NameLen) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    return UINT32_C(0xFFFFFFFF);
+  }
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto &HostFunc = dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(
+      NNMod->findFuncExports("load_by_name")->getHostFunc());
+  std::array<WasmEdge::ValVariant, 1> Rets = {UINT32_C(0)};
+  HostFunc.run(CallFrame,
+               std::initializer_list<WasmEdge::ValVariant>{NamePtr, NameLen,
+                                                           UINT32_C(0)},
+               Rets);
+  return Rets[0].get<uint32_t>();
+}
+
+uint32_t runLoadByNameWithConfig(uint32_t NamePtr, uint32_t NameLen,
+                                 uint32_t ConfigPtr, uint32_t ConfigLen) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    return UINT32_C(0xFFFFFFFF);
+  }
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto &HostFunc = dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
+      NNMod->findFuncExports("load_by_name_with_config")->getHostFunc());
+  std::array<WasmEdge::ValVariant, 1> Rets = {UINT32_C(0)};
+  HostFunc.run(CallFrame,
+               std::initializer_list<WasmEdge::ValVariant>{
+                   NamePtr, NameLen, ConfigPtr, ConfigLen, UINT32_C(0)},
+               Rets);
+  return Rets[0].get<uint32_t>();
+}
+} // namespace
+
+TEST(WasiNNTest, WasiNNLoadByNameRejectsNameBeyondMemory) {
+  uint32_t E = runLoadByName(/*NamePtr=*/65500U, /*NameLen=*/64U);
+  if (E == 0xFFFFFFFFU) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  EXPECT_EQ(E, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ZeroLenName = runLoadByName(/*NamePtr=*/0xFFFFFFFFU, /*NameLen=*/0U);
+  EXPECT_EQ(ZeroLenName, static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
+
+TEST(WasiNNTest, WasiNNLoadByNameWithConfigRejectsOutOfBoundsExtent) {
+  uint32_t NameOOB =
+      runLoadByNameWithConfig(/*NamePtr=*/65500U, /*NameLen=*/64U,
+                              /*ConfigPtr=*/0U, /*ConfigLen=*/8U);
+  if (NameOOB == 0xFFFFFFFFU) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  EXPECT_EQ(NameOOB, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ConfigOOB = runLoadByNameWithConfig(
+      /*NamePtr=*/0U, /*NameLen=*/8U, /*ConfigPtr=*/65500U, /*ConfigLen=*/64U);
+  EXPECT_EQ(ConfigOOB, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ZeroLenName = runLoadByNameWithConfig(
+      /*NamePtr=*/0xFFFFFFFFU, /*NameLen=*/0U, /*ConfigPtr=*/0U,
+      /*ConfigLen=*/0U);
+  EXPECT_EQ(ZeroLenName, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ZeroLenConfig = runLoadByNameWithConfig(
+      /*NamePtr=*/0U, /*NameLen=*/0U, /*ConfigPtr=*/0xFFFFFFFFU,
+      /*ConfigLen=*/0U);
+  EXPECT_EQ(ZeroLenConfig, static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+TEST(WasiNNTest, GGMLBackendWithRPC) {
+  // wasi_nn_rpcserver has to be started outside this test,
+  // and the URI has to be set to $WASI_NN_RPC_TEST_URI.
+  // nn-preload has to be specified for "default".
+  /*
+    DIR=/tmp/build
+    export WASI_NN_RPC_TEST_URI=unix://${DIR}/wasi_nn_rpc.sock
+    export WASMEDGE_PLUGIN_PATH=${DIR}/plugins/wasi_nn
+    ${DIR}/tools/wasmedge/wasi_nn_rpcserver \
+      --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
+      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf
+  */
+  const auto NNRPCURI = ::getenv("WASI_NN_RPC_TEST_URI");
+  if (NNRPCURI == nullptr) {
+    GTEST_SKIP() << "WASI_NN_RPC_TEST_URI is unset";
+  }
+
+  // Create the wasi_nn module instance.
+  auto NNMod = createModule(NNRPCURI);
+  ASSERT_TRUE(NNMod);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+  uint32_t OutBoundPtr = UINT32_C(61000) * UINT32_C(65536);
+  uint32_t StorePtr = UINT32_C(65536);
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Get the function "load_by_name".
+  auto FuncInst = NNMod->findFuncExports("load_by_name");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByName = FuncInst->getHostFunc();
+  // Get the function "load_by_name_with_config".
+  FuncInst = NNMod->findFuncExports("load_by_name_with_config");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByNameWithConfig = FuncInst->getHostFunc();
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = FuncInst->getHostFunc();
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
+
+  // Test: load_by_name -- load successfully.
+  {
+    std::string Name = "default";
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    writeBinaries<char>(MemInst, NameVec, LoadEntryPtr);
+    EXPECT_TRUE(HostFuncLoadByName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, static_cast<uint32_t>(NameVec.size()), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Test: load_by_name_with_config -- load successfully.
+  {
+    std::string Name = "default";
+    std::string Config = "{}";
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    std::vector<char> ConfigVec(Config.begin(), Config.end());
+    uint32_t ConfigPtr = LoadEntryPtr + NameVec.size();
+    writeBinaries<char>(MemInst, NameVec, LoadEntryPtr);
+    writeBinaries<char>(MemInst, ConfigVec, ConfigPtr);
+    EXPECT_TRUE(HostFuncLoadByNameWithConfig.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, static_cast<uint32_t>(NameVec.size()), ConfigPtr,
+            static_cast<uint32_t>(ConfigVec.size()), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // GGML WASI-NN init_execution_context tests.
+  // Test: init_execution_context -- graph id invalid.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), BuilderPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: init_execution_context -- initialize context successfully.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // GGML WASI-NN set_input tests.
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
+
+  // Test: set_input -- context id exceeds.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: set_input -- set input successfully.
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += (TensorDim.size() * 4 + TensorData.size());
+
+  // GGML WASI-NN compute tests.
+  // Test: compute -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: compute -- compute until finish or context full.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    // FIXME: ErrNo propagation is not supported yet
+    //    EXPECT_TRUE(
+    //        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::Success)
+    //        || Errno[0].get<int32_t>() ==
+    //        static_cast<uint32_t>(ErrNo::ContextFull));
+  }
+
+  // GGML WASI-NN get_output tests.
+  // Test: get_output -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- output buffer too small.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 5, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output -- max_size is 0.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 0, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- max_size > 16 MiB.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  UINT32_C(0), UINT32_C(0), StorePtr,
+                                  (16U * 1024U * 1024U) + 1, BuilderPtr},
+                              Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- max_size near overflow.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr,
+            std::numeric_limits<uint32_t>::max(), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- max_size = 4 (buffer layout size, still too small for
+  // output).
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output -- max_size = 64 KiB - 4.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 - 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- max_size = 64 KiB.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- max_size = 64 KiB + 1.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 + 1, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- max_size = 16 MiB exactly.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  UINT32_C(0), UINT32_C(0), StorePtr,
+                                  16U * 1024U * 1024U, BuilderPtr},
+                              Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  uint32_t ExactSize = 0;
+  // Test: get_output -- get output successfully to find exact size.
+
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // Should output more than 50 bytes.
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+    ExactSize = BytesWritten;
+  }
+
+  // Test: get_output -- exactly max_size = ExactSize.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, ExactSize, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- memory allocation failure.
+  {
+    WasmEdge::Runtime::Instance::ModuleInstance SmallMod("");
+    SmallMod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1, 1))); // Max 1 page = 64 KiB
+    auto *SmallMemInstPtr = SmallMod.findMemoryExports("memory");
+    ASSERT_TRUE(SmallMemInstPtr != nullptr);
+    WasmEdge::Runtime::CallingFrame SmallCallFrame(nullptr, &SmallMod);
+
+    // Requesting a 100 KiB output buffer with only 1 page (64 KiB) of guest
+    // memory should fail client-side before issuing the RPC.
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        SmallCallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), UINT32_C(0), 100 * 1024, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+}
+
+TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
+  // wasi_nn_rpcserver has to be started outside this test,
+  // and the URI has to be set to $WASI_NN_RPC_TEST_URI.
+  // nn-preload has to be specified for "default".
+  /*
+    DIR=/tmp/build
+    export WASI_NN_RPC_TEST_URI=unix://${DIR}/wasi_nn_rpc.sock
+    export WASMEDGE_PLUGIN_PATH=${DIR}/plugins/wasi_nn
+    ${DIR}/tools/wasmedge/wasi_nn_rpcserver \
+      --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
+      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf
+  */
+  const auto NNRPCURI = ::getenv("WASI_NN_RPC_TEST_URI");
+  if (NNRPCURI == nullptr) {
+    GTEST_SKIP() << "WASI_NN_RPC_TEST_URI is unset";
+  }
+
+  // Create the wasi_nn module instance.
+  auto NNMod = createModule(NNRPCURI);
+  ASSERT_TRUE(NNMod);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+  uint32_t OutBoundPtr = UINT32_C(61000) * UINT32_C(65536);
+  uint32_t StorePtr = UINT32_C(65536);
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Get the function "load_by_name".
+  auto FuncInst = NNMod->findFuncExports("load_by_name");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByName = FuncInst->getHostFunc();
+  // Get the function "load_by_name_with_config".
+  FuncInst = NNMod->findFuncExports("load_by_name_with_config");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByNameWithConfig = FuncInst->getHostFunc();
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = FuncInst->getHostFunc();
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutputSingle = FuncInst->getHostFunc();
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncComputeSingle = FuncInst->getHostFunc();
+
+  // Test: load_by_name -- load successfully.
+  {
+    std::string Name = "default";
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    writeBinaries<char>(MemInst, NameVec, LoadEntryPtr);
+    EXPECT_TRUE(HostFuncLoadByName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, static_cast<uint32_t>(NameVec.size()), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Test: load_by_name_with_config -- load successfully.
+  {
+    std::string Name = "default";
+    std::string Config = "{}";
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    std::vector<char> ConfigVec(Config.begin(), Config.end());
+    uint32_t ConfigPtr = LoadEntryPtr + NameVec.size();
+    writeBinaries<char>(MemInst, NameVec, LoadEntryPtr);
+    writeBinaries<char>(MemInst, ConfigVec, ConfigPtr);
+    EXPECT_TRUE(HostFuncLoadByNameWithConfig.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, static_cast<uint32_t>(NameVec.size()), ConfigPtr,
+            static_cast<uint32_t>(ConfigVec.size()), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Test: init_execution_context -- initialize context successfully.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // GGML WASI-NN set_input tests.
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
+
+  // Test: set_input -- set input successfully.
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += (TensorDim.size() * 4 + TensorData.size());
+
+  // GGML WASI-NN compute_single tests.
+  // Test: compute_single -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: compute_single -- call compute_single once follow by a
+  // get_output_single.
+  {
+    // compute_single
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // get_output_single
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // GGML WASI-NN get_output_single tests.
+  // Test: get_output_single -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- output buffer too small.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1),
+                                                    StorePtr, 1, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output_single -- max_size is 0.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 0, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- max_size > 16 MiB.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutputSingle.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        UINT32_C(0), UINT32_C(0), StorePtr,
+                                        (16U * 1024U * 1024U) + 1, BuilderPtr},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- max_size near overflow.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr,
+            std::numeric_limits<uint32_t>::max(), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- max_size = 4 (buffer layout size, still too
+  // small for output).
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1),
+                                                    StorePtr, 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output_single -- max_size = 64 KiB - 4.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 - 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- max_size = 64 KiB.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- max_size = 64 KiB + 1.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 + 1, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- max_size = 16 MiB exactly.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutputSingle.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        UINT32_C(0), UINT32_C(0), StorePtr,
+                                        16U * 1024U * 1024U, BuilderPtr},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- exact buffer size.
+  {
+    uint32_t ExactSize = 0;
+    // Get the correct size first
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    ExactSize = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+
+    // Now request exactly that size
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, ExactSize, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- memory allocation failure.
+  {
+    WasmEdge::Runtime::Instance::ModuleInstance SmallMod("");
+    SmallMod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1, 1)));
+    auto *SmallMemInstPtr = SmallMod.findMemoryExports("memory");
+    ASSERT_TRUE(SmallMemInstPtr != nullptr);
+    WasmEdge::Runtime::CallingFrame SmallCallFrame(nullptr, &SmallMod);
+
+    // Requesting a 100 KiB output buffer with only 1 page (64 KiB) of guest
+    // memory should fail client-side before issuing the RPC.
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        SmallCallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), UINT32_C(0), 100 * 1024, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+}
+
+namespace {
+uint64_t hostFuncCallerPages(uint64_t MemoryBytes) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::WasiNNRPC::Server::HostFuncCaller Caller(Mod, "noop", MemoryBytes);
+  return Caller.getMemInst().getPageSize();
+}
+} // namespace
+
+TEST(WasiNNTest, RPCServerHostFuncCallerSizesMemoryByBytes) {
+  EXPECT_EQ(hostFuncCallerPages(0U), UINT64_C(0));
+  EXPECT_EQ(hostFuncCallerPages(1U), UINT64_C(1));
+  EXPECT_EQ(hostFuncCallerPages(UINT32_C(65536)), UINT64_C(1));
+  EXPECT_EQ(hostFuncCallerPages(UINT32_C(65537)), UINT64_C(2));
+  EXPECT_EQ(hostFuncCallerPages(UINT64_C(60) * UINT64_C(1024)), UINT64_C(1));
+}
+#endif // WASMEDGE_BUILD_WASI_NN_RPC
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+
+} // namespace WASINN
+} // namespace Host
+} // namespace WasmEdge

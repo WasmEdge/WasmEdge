@@ -2,9 +2,33 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasiNNTests
-  wasi_nn.cpp
+  helper.cpp
   resource_table_test.cpp
+  wasi_nn.cpp
 )
+
+foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
+  string(TOLOWER ${BACKEND} BACKEND)
+  if(BACKEND STREQUAL "openvino")
+    target_sources(wasiNNTests PRIVATE wasi_nn_openvino.cpp)
+  elseif(BACKEND STREQUAL "pytorch")
+    target_sources(wasiNNTests PRIVATE wasi_nn_pytorch.cpp)
+  elseif(BACKEND STREQUAL "tensorflowlite")
+    target_sources(wasiNNTests PRIVATE wasi_nn_tensorflowlite.cpp)
+  elseif(BACKEND STREQUAL "ggml")
+    target_sources(wasiNNTests PRIVATE wasi_nn_ggml.cpp)
+  elseif(BACKEND STREQUAL "piper")
+    target_sources(wasiNNTests PRIVATE wasi_nn_piper.cpp)
+  elseif(BACKEND STREQUAL "whisper")
+    target_sources(wasiNNTests PRIVATE wasi_nn_whisper.cpp)
+  elseif(BACKEND STREQUAL "chattts")
+    target_sources(wasiNNTests PRIVATE wasi_nn_chattts.cpp)
+  elseif(BACKEND STREQUAL "mlx")
+    target_sources(wasiNNTests PRIVATE wasi_nn_mlx.cpp)
+  elseif(BACKEND STREQUAL "bitnet")
+    target_sources(wasiNNTests PRIVATE wasi_nn_bitnet.cpp)
+  endif()
+endforeach()
 
 # Prepare the testing data for each backends.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})

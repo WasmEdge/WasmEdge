@@ -208,6 +208,48 @@ TEST_F(WasiCryptoTest, SecretsManager) {
   WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle2));
 }
 
+TEST_F(WasiCryptoTest, ArrayOutputPullReportsCompletion) {
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KeyHandle, symmetricKeyGenerate("HMAC/SHA-256"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(OutputHandle, symmetricKeyExport(KeyHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(KeySize, arrayOutputLen(OutputHandle));
+
+  std::vector<uint8_t> Buf(KeySize);
+  WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Buf));
+  EXPECT_EQ(Buf.size(), KeySize);
+
+  // Full read: handle must be closed once the whole payload is consumed.
+  EXPECT_FALSE(arrayOutputPull(OutputHandle, Buf));
+
+  // Partial read: pull half of a fresh export, then the remaining bytes.
+  WASI_CRYPTO_EXPECT_SUCCESS(PartialHandle, symmetricKeyExport(KeyHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(PartialSize, arrayOutputLen(PartialHandle));
+
+  std::vector<uint8_t> FirstHalf(PartialSize / 2);
+  std::vector<uint8_t> SecondHalf(PartialSize - FirstHalf.size());
+
+  // Pull the first half: unread data remains, so the handle stays open.
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      FirstRead, arrayOutputPull(PartialHandle, FirstHalf));
+  EXPECT_EQ(FirstRead, FirstHalf.size());
+
+  // Pull the remaining half: the payload is now fully consumed.
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      SecondRead, arrayOutputPull(PartialHandle, SecondHalf));
+  EXPECT_EQ(SecondRead, SecondHalf.size());
+
+  // The concatenated output must match the original exported payload.
+  FirstHalf.insert(FirstHalf.end(), SecondHalf.begin(), SecondHalf.end());
+  EXPECT_EQ(FirstHalf, Buf);
+
+  // Partial read: handle must close only after the final pull.
+  WASI_CRYPTO_EXPECT_FAILURE(
+      arrayOutputPull(PartialHandle, SecondHalf),
+      __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

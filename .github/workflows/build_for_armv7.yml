@@ -1,0 +1,241 @@
+name: Build and Test WasmEdge on armv7 arch
+
+concurrency:
+  group: build-armv7-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/build_for_armv7.yml"
+      - ".github/scripts/run-armv7-tests.sh"
+      - "include/**"
+      - "lib/**"
+      - "test/**"
+      - "!test/plugins/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/build_for_armv7.yml"
+      - ".github/scripts/run-armv7-tests.sh"
+      - "include/**"
+      - "lib/**"
+      - "test/**"
+      - "!test/plugins/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+
+permissions:
+  contents: read
+
+jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
+  cross_compile:
+    name: Cross-Compile for ARMv7
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    needs: lint
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Set up armhf multi-arch sources
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends git ca-certificates
+        git config --global --add safe.directory $(pwd)
+        dpkg --add-architecture armhf
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i '/^Types:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates\nComponents: main universe\nArchitectures: armhf\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' \
+          > /etc/apt/sources.list.d/armhf-ports.sources
+        apt-get update
+
+    - name: Install cross-compilation toolchain
+      run: |
+        # Install amd64 build tools and armhf cross-compiler + zlib
+        apt-get install -y --no-install-recommends \
+          cmake g++ dpkg-dev make \
+          gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+          zlib1g-dev:armhf libzstd-dev:armhf \
+          libffi-dev:armhf libxml2-dev:armhf
+
+        # Several armhf packages cannot be fully installed via apt because
+        # noble-security ships newer Multi-Arch:same versions for amd64 that
+        # conflict with the older armhf versions on noble-ports:
+        # 1. libedit-dev -> libedit2 -> libtinfo6 (version conflict)
+        # 2. llvm-20-dev -> llvm-20-tools -> libcurl4t64 -> libssh-4 (version conflict)
+        # 3. python3-minimal:armhf postinst tries to run a armhf binary
+        # Workaround: download only the dev/lib packages needed for
+        # cross-compilation (skip tools), then extract without postinst.
+        # libbsd0/libmd0 are runtime deps of libedit2 that the linker needs
+        # to resolve libedit.so.2 when linking against libLLVM.
+        mkdir -p /tmp/armhf-debs && cd /tmp/armhf-debs
+        apt-get download \
+          libedit-dev:armhf \
+          libedit2:armhf \
+          libbsd0:armhf \
+          libmd0:armhf \
+          libncurses-dev:armhf \
+          libncurses6:armhf \
+          libncursesw6:armhf \
+          libtinfo6:armhf \
+          llvm-20-dev:armhf \
+          llvm-20:armhf \
+          llvm-20-runtime:armhf \
+          llvm-20-linker-tools:armhf \
+          libllvm20:armhf \
+          libclang-cpp20:armhf \
+          liblld-20-dev:armhf \
+          liblld-20:armhf \
+          lld-20:armhf
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" /
+        done
+
+    - name: Build WasmEdge
+      run: |
+        cmake -Bbuild \
+          -DCMAKE_TOOLCHAIN_FILE=$(pwd)/cmake/arm-linux-gnueabihf.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DWASMEDGE_BUILD_TESTS=ON \
+          -DWASMEDGE_BUILD_TOOLS=ON \
+          -DWASMEDGE_BUILD_SHARED_LIB=ON \
+          -DWASMEDGE_USE_LLVM=ON \
+          -DLLVM_DIR=/usr/lib/arm-linux-gnueabihf/cmake/llvm-20 \
+          .
+        cmake --build build -j $(nproc)
+
+    - name: Package build artifacts
+      run: |
+        mkdir -p armv7-artifacts/build
+        cp -a build/tools armv7-artifacts/build/
+        cp -a build/lib armv7-artifacts/build/
+        # Copy the full test directory: executables, test data files, and
+        # spec test suites (fetched by FetchContent during CMake configure).
+        # Tests expect data files relative to their binary directory.
+        cp -a build/test armv7-artifacts/build/
+        # Remove build intermediates to reduce artifact size
+        find armv7-artifacts/build/test -type d -name CMakeFiles -exec rm -rf {} + 2>/dev/null || true
+        find armv7-artifacts/build/test \( -name '*.o' -o -name '*.d' \) -delete 2>/dev/null || true
+        tar -czf armv7-artifacts.tar.gz armv7-artifacts/
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: armv7-build-artifacts
+        path: armv7-artifacts.tar.gz
+        retention-days: 1
+
+  test_armv7:
+    name: Test on ARMv7 (QEMU)
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    needs: cross_compile
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: armv7-build-artifacts
+
+    - name: Set up armhf runtime environment
+      run: |
+        dpkg --add-architecture armhf
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i '/^Types:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates\nComponents: main universe\nArchitectures: armhf\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' \
+          > /etc/apt/sources.list.d/armhf-ports.sources
+        apt-get update
+
+        # Install QEMU, test utilities, and armhf cross-runtime for sysroot
+        apt-get install -y --no-install-recommends \
+          qemu-user-static tar wabt \
+          libc6-armhf-cross \
+          libstdc++6-armhf-cross \
+          libgcc-s1-armhf-cross \
+          libatomic1-armhf-cross
+
+        # Install armhf LLVM/LLD runtime libraries and their dependency
+        # closure via download+extract instead of apt-get install: libllvm20
+        # depends on libedit2 -> libtinfo6, which hits the same noble-security
+        # vs noble-ports Multi-Arch:same version skew as the cross_compile
+        # job. The extracted libraries land in /usr/lib/arm-linux-gnueabihf,
+        # where LD_LIBRARY_PATH and the sysroot symlinks below resolve them
+        # without needing postinst or ldconfig.
+        mkdir -p /tmp/armhf-debs && cd /tmp/armhf-debs
+        apt-get download \
+          libllvm20:armhf \
+          liblld-20:armhf \
+          libedit2:armhf \
+          libbsd0:armhf \
+          libmd0:armhf \
+          libtinfo6:armhf \
+          libffi8:armhf \
+          libxml2:armhf \
+          libicu74:armhf \
+          liblzma5:armhf \
+          libzstd1:armhf \
+          zlib1g:armhf
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" /
+        done
+
+        # Create symlinks so QEMU sysroot can find multi-arch libraries.
+        # With -L /usr/arm-linux-gnueabihf, QEMU translates guest absolute paths
+        # by prepending the sysroot prefix. The kernel resolves symlinks natively,
+        # so symlinks pointing outside the sysroot work correctly.
+        mkdir -p /usr/arm-linux-gnueabihf/usr/lib
+        ln -sf /usr/lib/arm-linux-gnueabihf /usr/arm-linux-gnueabihf/usr/lib/arm-linux-gnueabihf
+        mkdir -p /usr/arm-linux-gnueabihf/lib
+        ln -sf /lib/arm-linux-gnueabihf /usr/arm-linux-gnueabihf/lib/arm-linux-gnueabihf
+
+    - name: Extract artifacts and run the test suite
+      run: |
+        tar -xzf armv7-artifacts.tar.gz
+        chmod +x .github/scripts/run-armv7-tests.sh
+        ./.github/scripts/run-armv7-tests.sh armv7-artifacts
+
+    - name: Verify WasmEdge CLI tools
+      run: |
+        cd armv7-artifacts
+        qemu-arm-static \
+          -L /usr/arm-linux-gnueabihf \
+          -E LD_LIBRARY_PATH=/usr/lib/arm-linux-gnueabihf:build/lib \
+          build/tools/wasmedge/wasmedge -v
+        cd ../examples/wasm
+        wat2wasm fibonacci.wat -o fibonacci.wasm
+        qemu-arm-static \
+          -L /usr/arm-linux-gnueabihf \
+          -E LD_LIBRARY_PATH=/usr/lib/arm-linux-gnueabihf:../../armv7-artifacts/build/lib \
+          ../../armv7-artifacts/build/tools/wasmedge/wasmedge --reactor fibonacci.wasm fib 30

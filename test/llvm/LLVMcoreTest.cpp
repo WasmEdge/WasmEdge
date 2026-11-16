@@ -2408,9 +2408,30 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
   //
   // (module
   //   (memory 1 1 shared)
-  //   (func (export "i32_store") (result i32) ...)
-  //   ...
-  // )
+  //   (func (export "i32_store") (result i32)
+  //     i32.const 10 i32.const 0 i32.const 1 i32.atomic.store i32.const 5
+  //     i32.add)
+  //   (func (export "i32_store8") (result i32)
+  //     i32.const 20 i32.const 0 i32.const 2 i32.atomic.store8 i32.const 5
+  //     i32.add)
+  //   (func (export "i32_store16") (result i32)
+  //     i32.const 30 i32.const 0 i32.const 3 i32.atomic.store16 i32.const 5
+  //     i32.add)
+  //   (func (export "i64_store") (result i64)
+  //     i64.const 40 i32.const 0 i64.const 4 i64.atomic.store i64.const 5
+  //     i64.add)
+  //   (func (export "i64_store8") (result i64)
+  //     i64.const 50 i32.const 0 i64.const 5 i64.atomic.store8 i64.const 5
+  //     i64.add)
+  //   (func (export "i64_store16") (result i64)
+  //     i64.const 60 i32.const 0 i64.const 6 i64.atomic.store16 i64.const 5
+  //     i64.add)
+  //   (func (export "i64_store32") (result i64)
+  //     i64.const 70 i32.const 0 i64.const 7 i64.atomic.store32 i64.const 5
+  //     i64.add)
+  //   (func (export "f32_store") (result f32)
+  //     f32.const 2.5 i32.const 0 i32.const 8 i32.atomic.store f32.const 1
+  //     f32.add))
   std::array<WasmEdge::Byte, 286> AtomicStoreWasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60,
       0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7e, 0x60, 0x00, 0x01, 0x7d, 0x03,
@@ -2450,7 +2471,7 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
     ASSERT_TRUE(InstOrErr);
     auto Inst = std::move(*InstOrErr);
 
-    auto checkFuncI32 = [&](std::string_view Name, uint32_t Expected) {
+    auto CheckFuncI32 = [&](std::string_view Name, uint32_t Expected) {
       const auto *Func = Inst->findFuncExports(Name);
       ASSERT_NE(Func, nullptr);
       ASSERT_TRUE(Func->isCompiledFunction());
@@ -2460,7 +2481,7 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
       EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected) << Name;
     };
 
-    auto checkFuncI64 = [&](std::string_view Name, uint64_t Expected) {
+    auto CheckFuncI64 = [&](std::string_view Name, uint64_t Expected) {
       const auto *Func = Inst->findFuncExports(Name);
       ASSERT_NE(Func, nullptr);
       ASSERT_TRUE(Func->isCompiledFunction());
@@ -2470,7 +2491,7 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
       EXPECT_EQ((*Res)[0].first.get<uint64_t>(), Expected) << Name;
     };
 
-    auto checkFuncF32 = [&](std::string_view Name, float Expected) {
+    auto CheckFuncF32 = [&](std::string_view Name, float Expected) {
       const auto *Func = Inst->findFuncExports(Name);
       ASSERT_NE(Func, nullptr);
       ASSERT_TRUE(Func->isCompiledFunction());
@@ -2480,14 +2501,14 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
       EXPECT_FLOAT_EQ((*Res)[0].first.get<float>(), Expected) << Name;
     };
 
-    checkFuncI32("i32_store", 15u);
-    checkFuncI32("i32_store8", 25u);
-    checkFuncI32("i32_store16", 35u);
-    checkFuncI64("i64_store", 45u);
-    checkFuncI64("i64_store8", 55u);
-    checkFuncI64("i64_store16", 65u);
-    checkFuncI64("i64_store32", 75u);
-    checkFuncF32("f32_store", 3.5f);
+    CheckFuncI32("i32_store", 15u);
+    CheckFuncI32("i32_store8", 25u);
+    CheckFuncI32("i32_store16", 35u);
+    CheckFuncI64("i64_store", 45u);
+    CheckFuncI64("i64_store8", 55u);
+    CheckFuncI64("i64_store16", 65u);
+    CheckFuncI64("i64_store32", 75u);
+    CheckFuncF32("f32_store", 3.5f);
   }
 
   const ScopedTempFile Artifact("AOTAtomicStoreTest", WASMEDGE_LIB_EXTENSION);
@@ -2514,33 +2535,33 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
 
-  auto checkAOTI32 = [&](std::string_view Name, uint32_t Expected) {
+  auto CheckAOTI32 = [&](std::string_view Name, uint32_t Expected) {
     auto Res = VM.execute(Name);
     ASSERT_TRUE(Res) << Name;
     ASSERT_EQ(Res->size(), 1u);
     EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected) << Name;
   };
-  auto checkAOTI64 = [&](std::string_view Name, uint64_t Expected) {
+  auto CheckAOTI64 = [&](std::string_view Name, uint64_t Expected) {
     auto Res = VM.execute(Name);
     ASSERT_TRUE(Res) << Name;
     ASSERT_EQ(Res->size(), 1u);
     EXPECT_EQ((*Res)[0].first.get<uint64_t>(), Expected) << Name;
   };
-  auto checkAOTF32 = [&](std::string_view Name, float Expected) {
+  auto CheckAOTF32 = [&](std::string_view Name, float Expected) {
     auto Res = VM.execute(Name);
     ASSERT_TRUE(Res) << Name;
     ASSERT_EQ(Res->size(), 1u);
     EXPECT_FLOAT_EQ((*Res)[0].first.get<float>(), Expected) << Name;
   };
 
-  checkAOTI32("i32_store", 15u);
-  checkAOTI32("i32_store8", 25u);
-  checkAOTI32("i32_store16", 35u);
-  checkAOTI64("i64_store", 45u);
-  checkAOTI64("i64_store8", 55u);
-  checkAOTI64("i64_store16", 65u);
-  checkAOTI64("i64_store32", 75u);
-  checkAOTF32("f32_store", 3.5f);
+  CheckAOTI32("i32_store", 15u);
+  CheckAOTI32("i32_store8", 25u);
+  CheckAOTI32("i32_store16", 35u);
+  CheckAOTI64("i64_store", 45u);
+  CheckAOTI64("i64_store8", 55u);
+  CheckAOTI64("i64_store16", 65u);
+  CheckAOTI64("i64_store32", 75u);
+  CheckAOTF32("f32_store", 3.5f);
 
   VM.cleanup();
 }

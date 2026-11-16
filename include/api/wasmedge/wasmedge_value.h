@@ -287,7 +287,8 @@ WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 ///
 /// \param Val the WasmEdge_Value struct.
 ///
-/// \returns pointer to function instance context in the input struct.
+/// \returns pointer to function instance context in the input struct. NULL if
+/// the value is not of the matching reference type.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionInstanceContext *
 WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
@@ -295,7 +296,8 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 ///
 /// \param Val the WasmEdge_Value struct.
 ///
-/// \returns external reference in the input struct.
+/// \returns external reference in the input struct. NULL if the value is not
+/// of the matching reference type.
 WASMEDGE_CAPI_EXPORT extern void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 

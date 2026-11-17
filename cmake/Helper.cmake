@@ -476,7 +476,7 @@ function(wasmedge_setup_simdjson)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  1bcf71bd85059ab6574ea1159de9298dcc1212c5  # v4.6.4
+      GIT_TAG  a0d5ad9798f9e51706399b649929dafb91d9b714  # v5.2.0
       GIT_SHALLOW TRUE
     )
     set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)

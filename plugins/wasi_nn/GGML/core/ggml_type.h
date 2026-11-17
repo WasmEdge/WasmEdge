@@ -83,8 +83,6 @@ public:
       common_sampler_free(LlamaSampler);
       LlamaSampler = nullptr;
     }
-    llama_batch_free(LlamaBatch);
-    llama_batch_free(OutputBatch);
   }
   uint32_t GraphId;
   // Llama inputs:
@@ -96,12 +94,6 @@ public:
   // Data for computation:
   bool ComputeSingleStarted = false;
   struct common_sampler *LlamaSampler = nullptr;
-  // Handle the batch in the context to prevent reallocation during every
-  // computation. Value-initialized so destroying a context whose batches were
-  // never allocated frees nothing.
-  struct llama_batch LlamaBatch{};
-  struct llama_batch OutputBatch{};
-  int64_t CurrentBatchSize = 0;
   size_t ImagePosition = 0;
   int32_t NPos = 0;
   // Configs:

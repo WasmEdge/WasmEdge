@@ -195,22 +195,6 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
            llama_print_system_info())
 
   auto &CxtRef = C.get<Context>();
-  // Allocate the batch for input string prompt tokens. On failure the caller
-  // drops the context, whose destructor frees whatever was allocated.
-  CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
-  if (CxtRef.LlamaBatch.token == nullptr) {
-    RET_ERROR(ErrNo::RuntimeError,
-              "initExecCtx: unable to allocate llama_batch."sv)
-  }
-  CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
-
-  // Allocate the batch for output sampling. The batch size is always 1.
-  CxtRef.OutputBatch = allocBatch(1);
-  if (CxtRef.OutputBatch.token == nullptr) {
-    RET_ERROR(ErrNo::RuntimeError,
-              "initExecCtx: unable to allocate output batch."sv)
-  }
-
   // Allocate sampler.
   try {
     CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),

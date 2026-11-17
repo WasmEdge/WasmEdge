@@ -593,28 +593,61 @@ TEST(APICoreTest, Value) {
   std::vector<uint32_t> Vec = {1U, 2U, 3U};
   WasmEdge_Value Val = WasmEdge_ValueGenI32(INT32_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenI64(INT64_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF64(Val),
             -std::numeric_limits<double>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<int128_t>(INT64_MAX) * 2 + 1);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #else
   int128_t V = {/* Low */ UINT64_MAX, /* High */ INT64_MAX};
   Val = WasmEdge_ValueGenV128(V);
   EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #endif
   Val = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
   EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(
+      FuncType,
+      [](void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *,
+         WasmEdge_Value *) -> WasmEdge_Result {
+        return WasmEdge_Result_Success;
+      },
+      nullptr, 0);
+  Val = WasmEdge_ValueGenFuncRef(HostFunc);
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), HostFunc);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  WasmEdge_FunctionInstanceDelete(HostFunc);
+  WasmEdge_FunctionTypeDelete(FuncType);
+
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+
   Val = WasmEdge_ValueGenExternRef(&Vec);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
   EXPECT_EQ(
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
           ->data()[1],
@@ -2398,6 +2431,12 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
+  TabLim = WasmEdge_LimitCreate(UINT64_C(1) << 62, true);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_EQ(TabCxt, nullptr);
   TabLim = WasmEdge_LimitCreateWithMax(10, 20, false, false);
   TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
@@ -2462,7 +2501,20 @@ TEST(APICoreTest, Instance) {
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
 
-  // Table instance create with init
+  // Table instance create with init (nullable reference)
+  TabLim = WasmEdge_LimitCreate(5, false);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  WasmEdge_LimitDelete(TabLim);
+  Val = WasmEdge_ValueGenI32(100);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_TableInstanceDelete(TabCxt);
+  WasmEdge_TableTypeDelete(TabType);
+
+  // Table instance create with init (non-nullable reference)
   VType = WasmEdge_ValTypeGenExternRef();
   // TODO: Forcibly change to non-nullable. Refine this after providing the
   // corresponding API.
@@ -2478,6 +2530,15 @@ TEST(APICoreTest, Instance) {
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_EQ(TabCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128((static_cast<int128_t>(1) << 64) + 1);
+#else
+  int128_t VTab = {/* Low */ 1, /* High */ 1};
+  Val = WasmEdge_ValueGenV128(VTab);
+#endif
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_EQ(TabCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(&TabType);
@@ -2678,6 +2739,18 @@ TEST(APICoreTest, Instance) {
   WasmEdge_GlobalInstanceDelete(GlobVCxt);
   EXPECT_TRUE(true);
 
+  // Global instance with nullable reference
+  GlobVType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenExternRef(),
+                                        WasmEdge_Mutability_Var);
+  GlobVCxt =
+      WasmEdge_GlobalInstanceCreate(GlobVType, WasmEdge_ValueGenI32(100));
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_NE(GlobVCxt, nullptr);
+  WasmEdge_GlobalInstanceDelete(GlobVCxt);
+  WasmEdge_GlobalTypeDelete(GlobVType);
+
   // Global instance with non-nullable reference
   VType = WasmEdge_ValTypeGenExternRef();
   // TODO: Forcibly change to non-nullable. Refine this after providing the
@@ -2688,6 +2761,15 @@ TEST(APICoreTest, Instance) {
   GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
   EXPECT_EQ(GlobVCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128((static_cast<int128_t>(1) << 64) + 1);
+#else
+  int128_t VGlob = {/* Low */ 1, /* High */ 1};
+  Val = WasmEdge_ValueGenV128(VGlob);
+#endif
   GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
   EXPECT_EQ(GlobVCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(&GlobVType);
@@ -2702,6 +2784,9 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
                          WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenI32(100);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   WasmEdge_GlobalInstanceDelete(GlobVCxt);

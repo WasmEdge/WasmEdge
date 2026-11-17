@@ -5,40 +5,30 @@
 #include "GGML/core/ggml_core.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <algorithm>
+#include <exception>
 #include <fmt/ranges.h>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-namespace {
-
-// Fill a batch with tokens (smaller than batch size) and position data.
-void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
-               llama_batch &Batch, int &NPos, bool IsLogit = false) {
-  assuming(GraphRef.Params.n_batch >= static_cast<int64_t>(Tokens.size()));
-  assuming(Batch.token != nullptr);
-  assuming(Batch.pos != nullptr);
-  assuming(Batch.logits != nullptr);
-  // Fill the batch with pos information.
-  Batch.n_tokens = static_cast<int32_t>(Tokens.size());
-  for (uint32_t I = 0; I < Tokens.size(); I++) {
-    Batch.token[I] = Tokens[I];
-    Batch.pos[I] = NPos + I;
-    Batch.logits[I] = false;
+uint32_t getBatchSize(const Graph &GraphRef) noexcept {
+  const auto RequestedSize = static_cast<uint32_t>(GraphRef.Params.n_batch);
+  const auto ContextSize = llama_n_batch(GraphRef.LlamaContext.get());
+  if (RequestedSize > ContextSize) {
+    LOG_WARN(
+        "getBatchSize: requested batch-size {} exceeds the current context's "sv
+        "n_batch {}; using {}. Increasing batch-size via set_input does not "sv
+        "rebuild the context. Reload the model with the desired batch-size."sv,
+        RequestedSize, ContextSize, ContextSize)
   }
-
-  // Logits for sampling or the end of inputs.
-  if (IsLogit) {
-    Batch.logits[Tokens.size() - 1] = true;
-  }
-
-  // Move the position.
-  NPos += static_cast<int>(Tokens.size());
+  return std::min(RequestedSize, ContextSize);
 }
 
+namespace {
+
 // Evaluate tokens. Construct the batch from tokens and decode.
-ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
-                     llama_batch &Batch, int &NPos,
+ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef, int &NPos,
                      bool IsLogits = false) noexcept {
   // End the inference if the context is full.
   uint32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
@@ -51,33 +41,50 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
     return ErrNo::ContextFull;
   }
 
-  // Loop for decoding batches. Split tokens by batch size.
-  for (int I = 0; I < static_cast<int>(Tokens.size());
-       I += static_cast<int>(GraphRef.Params.n_batch)) {
-    int NEval = static_cast<int>(Tokens.size()) - I;
-    if (NEval > static_cast<int>(GraphRef.Params.n_batch)) {
-      NEval = static_cast<int>(GraphRef.Params.n_batch);
+  try {
+    llama_batch_ext_ptr Batch(
+        llama_batch_ext_init(GraphRef.LlamaContext.get()));
+    const auto BatchSize = getBatchSize(GraphRef);
+    if (BatchSize == 0) {
+      RET_ERROR(ErrNo::RuntimeError, "evaluateTokens: batch size is zero."sv)
     }
-
-    // Fill the batch with pos information.
-    fillBatch(Span<const llama_token>(Tokens.begin() + I, NEval), GraphRef,
-              Batch, NPos,
-              IsLogits && I + NEval >= static_cast<int>(Tokens.size()));
-
-    // Decode the batch.
-    auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
-    if (Status == 1) {
-      RET_ERROR(
-          ErrNo::RuntimeError,
-          "evaluateTokens: failed to llama_decode: try reducing the size of the batch "sv
-          "or increasing the size of context."sv)
+    for (size_t I = 0; I < Tokens.size();) {
+      const size_t NEval =
+          std::min(Tokens.size() - I, static_cast<size_t>(BatchSize));
+      llama_batch_ext_clear(Batch.get());
+      for (size_t J = 0; J < NEval; ++J) {
+        const int32_t Idx =
+            llama_batch_ext_add_token(Batch.get(), 0, Tokens[I + J]);
+        const llama_pos Pos = NPos + static_cast<llama_pos>(J);
+        if (Idx < 0 || !llama_batch_ext_set_pos(Batch.get(), Idx, &Pos)) {
+          RET_ERROR(ErrNo::RuntimeError,
+                    "evaluateTokens: failed to add token to batch."sv)
+        }
+      }
+      if (IsLogits && I + NEval == Tokens.size() &&
+          !llama_batch_ext_set_output_logits(
+              Batch.get(), static_cast<int32_t>(NEval - 1), true)) {
+        RET_ERROR(ErrNo::RuntimeError,
+                  "evaluateTokens: failed to set batch output."sv)
+      }
+      NPos += static_cast<int>(NEval);
+      const auto Status = llama_process(GraphRef.LlamaContext.get(),
+                                        LLAMA_PROCESS_TYPE_DECODE, Batch.get());
+      if (Status == 1) {
+        RET_ERROR(
+            ErrNo::RuntimeError,
+            "evaluateTokens: failed to process batch: try reducing the size of "sv
+            "the batch or increasing the size of context."sv)
+      }
+      if (Status != 0) {
+        RET_ERROR(ErrNo::RuntimeError,
+                  "evaluateTokens: failed to process batch: {}."sv, Status)
+      }
+      I += NEval;
     }
-    if (Status < 0) {
-      RET_ERROR(
-          ErrNo::RuntimeError,
-          "evaluateTokens: failed to llama_decode:  fatal error. Please open "sv
-          "an issue on GitHub."sv)
-    }
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "evaluateTokens: failed to process batch: {}"sv, E.what())
   }
 
   return ErrNo::Success;
@@ -131,7 +138,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   ReturnCode =
       evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
                                              CxtRef.LlamaInputs.size()),
-                     GraphRef, CxtRef.LlamaBatch, CxtRef.NPos, true);
+                     GraphRef, CxtRef.NPos, true);
   if (ReturnCode != ErrNo::Success) {
     RET_ERROR(ReturnCode, "{}: failed to evaluate input tokens."sv, LogPrefix)
   }
@@ -164,14 +171,20 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
         "header."sv)
   }
 
+  const auto BatchSize = std::min(getBatchSize(GraphRef),
+                                  llama_n_ubatch(GraphRef.LlamaContext.get()));
   // Check if the input is too long.
-  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
-      GraphRef.Params.n_batch) {
+  if (CxtRef.LlamaInputs.size() > BatchSize) {
     RET_ERROR(
         ErrNo::PromptTooLong,
-        "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
-        "size {}. Please reduce the input size or increase your batch-size."sv,
-        CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
+        "getEmbedding: the prompt has {} tokens, exceeding the effective "sv
+        "limit of {} (requested batch-size: {}, context n_batch: {}, "sv
+        "context n_ubatch: {}). Reduce the input size or reload the model "sv
+        "with larger batch-size and ubatch-size; changing these settings via "sv
+        "set_input alone does not rebuild the context."sv,
+        CxtRef.LlamaInputs.size(), BatchSize, GraphRef.Params.n_batch,
+        llama_n_batch(GraphRef.LlamaContext.get()),
+        llama_n_ubatch(GraphRef.LlamaContext.get()))
   }
 
   // Evaluate the input tokens.
@@ -184,25 +197,17 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get());
   std::vector<float> Embeddings(NEmbd);
 
-  for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
-    if (!CxtRef.LlamaBatch.logits[I]) {
-      continue;
-    }
-
-    // Try to get sequence embeddings.
-    auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
-                                          CxtRef.LlamaBatch.seq_id[I][0]);
-    if (Embd == nullptr) {
-      Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
-      if (Embd == nullptr) {
-        LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv, I);
-        continue;
-      }
-    }
-
-    // Normalize the embeddings.
+  const int32_t LastIndex = static_cast<int32_t>(CxtRef.LlamaInputs.size() - 1);
+  auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(), 0);
+  if (Embd == nullptr) {
+    Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), LastIndex);
+  }
+  if (Embd != nullptr) {
     common_embd_normalize(Embd, Embeddings.data(), NEmbd,
                           static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
+  } else {
+    LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv,
+              LastIndex);
   }
 
   std::string EmbeddingString;
@@ -257,8 +262,8 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
     return ErrNo::EndOfSequence;
   }
   // Evaluate the output token.
-  return evaluateTokens(Span<const llama_token>(&Id, 1), GraphRef,
-                        CxtRef.OutputBatch, CxtRef.NPos, true);
+  return evaluateTokens(Span<const llama_token>(&Id, 1), GraphRef, CxtRef.NPos,
+                        true);
 }
 
 #endif

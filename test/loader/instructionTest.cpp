@@ -135,9 +135,9 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
 
   Vec = {
       0x0AU,        // Code section
-      0x09U,        // Content size = 9
+      0x08U,        // Content size = 8
       0x01U,        // Vector length = 1
-      0x07U,        // Code segment size = 7
+      0x06U,        // Code segment size = 6
       0x00U,        // Local vec(0)
       0x03U,        // OpCode Loop.
       0xC0U, 0x40U, // Non-canonical SLEB128 blocktype.

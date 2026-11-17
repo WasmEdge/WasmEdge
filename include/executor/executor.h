@@ -667,7 +667,8 @@ private:
                               const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayNewOp(Runtime::StackManager &StackMgr,
                              const uint32_t TypeIdx, const uint32_t InitCnt,
-                             uint32_t Length) const noexcept;
+                             uint32_t Length,
+                             const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayNewDataOp(Runtime::StackManager &StackMgr,
                                  const uint32_t TypeIdx, const uint32_t DataIdx,
                                  const AST::Instruction &Instr) const noexcept;

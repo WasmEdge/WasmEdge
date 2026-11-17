@@ -279,7 +279,8 @@ WasmEdge_ValueGetV128(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 ///
 /// \param Val the WasmEdge_Value struct.
 ///
-/// \returns true if the value is a null reference, false if not.
+/// \returns true if the value is a null reference, false if not or if the
+/// value is not a reference type.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 

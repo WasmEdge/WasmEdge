@@ -1940,6 +1940,46 @@ TEST(ExecutorRegression, ScalarNaNResultsAreArithmeticJIT) {
 
 } // namespace
 
+/// A table whose initial size cannot be allocated must fail instantiation.
+TEST(ExecutorRegression, TableAllocationFailure) {
+  // (module (table i64 0x4000000000000000 funcref))
+  std::array<WasmEdge::Byte, 22> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x0c, 0x01,
+      0x70, 0x04, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x40};
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  auto Result = VM.instantiate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::AllocationFailed);
+}
+
+/// A table.grow whose new size cannot be allocated must return -1.
+TEST(ExecutorRegression, TableGrowAllocationFailure) {
+  // (module
+  //   (table i64 1 funcref)
+  //   (func (export "grow") (result i64)
+  //     ref.null func
+  //     i64.const 0x4000000000000000
+  //     table.grow 0))
+  std::array<WasmEdge::Byte, 57> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x04,
+      0x01, 0x07, 0x08, 0x01, 0x04, 0x67, 0x72, 0x6f, 0x77, 0x00, 0x00, 0x0a,
+      0x14, 0x01, 0x12, 0x00, 0xd0, 0x70, 0x42, 0x80, 0x80, 0x80, 0x80, 0x80,
+      0x80, 0x80, 0x80, 0xc0, 0x00, 0xfc, 0x0f, 0x00, 0x0b};
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto Result = VM.execute("grow");
+  ASSERT_TRUE(Result);
+  ASSERT_EQ(Result->size(), 1U);
+  EXPECT_EQ((*Result)[0].first.get<uint64_t>(), UINT64_MAX);
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();
   testing::InitGoogleTest(&argc, argv);

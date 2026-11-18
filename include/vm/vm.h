@@ -101,6 +101,11 @@ public:
   /// instantiated once the new instance is active, even if the function call
   /// then fails. A caller-owned AST module is not stored, so the stage keeps
   /// describing the previously loaded unit and never advances.
+  /// An active module instance stays callable until a new instance replaces
+  /// it, so it survives a failed load, validation, or instantiation.
+  /// Storing a path or bytecode unit releases an active component instance
+  /// right away, because that instance refers to the replaced component. A
+  /// caller-owned AST module releases it only when the module instantiates.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},
@@ -137,17 +142,13 @@ public:
                    Span<const ValType> ParamTypes = {});
 
   /// Let runtimeTool check which arguments should be prepared.
-  bool holdsModule() {
-    if (ActiveModInst) {
-      return true;
-    }
-    return false;
+  bool holdsModule() const {
+    std::shared_lock Lock(Mutex);
+    return static_cast<bool>(ActiveModInst);
   }
-  bool holdsComponent() {
-    if (ActiveCompInst) {
-      return true;
-    }
-    return false;
+  bool holdsComponent() const {
+    std::shared_lock Lock(Mutex);
+    return static_cast<bool>(ActiveCompInst);
   }
 
   /// Load given wasm file, wasm bytecode, or wasm module.
@@ -385,6 +386,11 @@ private:
   Expect<void> unsafeValidate();
 
   Expect<void> unsafeInstantiate();
+
+  /// The VM keeps one active instance kind at a time. Release the active
+  /// module instance, with its lazy JIT binding, when a component instance
+  /// becomes active.
+  void unsafeReleaseActiveModule();
 
   /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
   /// module if it does not carry one yet. Eager JIT compilation failures fall

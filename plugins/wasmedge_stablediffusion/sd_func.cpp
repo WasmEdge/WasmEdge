@@ -18,6 +18,7 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_STATIC
 #include "stb_image_resize.h"
+#include <limits>
 
 namespace WasmEdge {
 namespace Host {
@@ -58,10 +59,33 @@ namespace StableDiffusion {
     return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
   }
 
+// The stb loader, writer, and resizer take buffer sizes, dimensions, and
+// strides as int, and the plugin sizes allocations from Width * Height * 3.
+// Reject values outside the int range before converting or multiplying.
+constexpr uint64_t MaxInt =
+    static_cast<uint64_t>(std::numeric_limits<int>::max());
+constexpr uint64_t BytesPerPixel = 3;
+
 bool parameterCheck(SDEnviornment &Env, uint32_t Width, uint32_t Height,
                     uint32_t SessionId) {
   if (SessionId >= Env.getContextSize()) {
     spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid."sv);
+    return false;
+  }
+  if (unlikely(Width == 0 || Height == 0)) {
+    spdlog::error("[WasmEdge-StableDiffusion] Image size {}x{} is invalid."sv,
+                  Width, Height);
+    return false;
+  }
+  // Each dimension is handed to stb as an int, and the pixel buffer is sized
+  // from Width * Height * 3, so both the dimensions and that product have to
+  // stay inside the int range.
+  if (unlikely(static_cast<uint64_t>(Width) > MaxInt ||
+               static_cast<uint64_t>(Height) > MaxInt ||
+               static_cast<uint64_t>(Width) * Height >
+                   MaxInt / BytesPerPixel)) {
+    spdlog::error("[WasmEdge-StableDiffusion] Image size {}x{} is too large."sv,
+                  Width, Height);
     return false;
   }
   if (Width % 64 != 0) {
@@ -88,8 +112,15 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
     ControlImageBuffer = stbi_load(ControlImagePath.substr(5).data(), &Width,
                                    &Height, &Channel, 3);
   } else {
+    if (unlikely(ControlImage.size() > MaxInt)) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Control image buffer size {} is too large."sv,
+          ControlImage.size());
+      return nullptr;
+    }
     ControlImageBuffer = stbi_load_from_memory(
-        ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
+        ControlImage.data(), static_cast<int>(ControlImage.size()), &Width,
+        &Height, &Channel, 3);
   }
 
   if (ControlImageBuffer == nullptr) {
@@ -117,7 +148,14 @@ sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
     MaskImageBuffer =
         stbi_load(MaskImagePath.substr(5).data(), &Width, &Height, &Channel, 3);
   } else if (MaskImage.size() != 0) {
-    MaskImageBuffer = stbi_load_from_memory(MaskImage.data(), MaskImage.size(),
+    if (unlikely(MaskImage.size() > MaxInt)) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Mask image buffer size {} is too large."sv,
+          MaskImage.size());
+      return {0, 0, 1, nullptr};
+    }
+    MaskImageBuffer = stbi_load_from_memory(MaskImage.data(),
+                                            static_cast<int>(MaskImage.size()),
                                             &Width, &Height, &Channel, 3);
   } else {
     std::vector<uint8_t> Arr(Width * Height, 255);
@@ -161,10 +199,27 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
                  std::string OutputPath, uint32_t OutputPathLen,
                  uint32_t *BytesWritten, uint32_t OutBufferMaxSize,
                  uint8_t *OutputBufferSpanPtr) {
-  int Len;
+  int Len = 0;
+  if (unlikely(Results[0].data == nullptr)) {
+    spdlog::error("[WasmEdge-StableDiffusion] The result image is empty."sv);
+    for (uint32_t I = 0; I < BatchCount; I++) {
+      free(Results[I].data);
+    }
+    free(Results);
+    return false;
+  }
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
-      Results->height, Results->channel, &Len, nullptr);
+      reinterpret_cast<const unsigned char *>(Results[0].data), 0,
+      Results[0].width, Results[0].height, Results[0].channel, &Len, nullptr);
+  if (unlikely(Png == nullptr)) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Failed to encode the result image."sv);
+    for (uint32_t I = 0; I < BatchCount; I++) {
+      free(Results[I].data);
+    }
+    free(Results);
+    return false;
+  }
   if (OutputPathLen != 0) {
     size_t Last = OutputPath.find_last_of(".");
     std::string DummyName = OutputPath;
@@ -194,16 +249,21 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
     }
   }
   *BytesWritten = Len;
-  if (OutBufferMaxSize < *BytesWritten) {
+  const bool Fits = OutBufferMaxSize >= *BytesWritten;
+  if (Fits) {
+    std::copy_n(Png, *BytesWritten, OutputBufferSpanPtr);
+  } else {
     spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not enough."sv);
-    free(Png);
-    free(Results);
-    return false;
   }
-  std::copy_n(Png, *BytesWritten, OutputBufferSpanPtr);
+  // The image buffers are only released above when writing to a path, so free
+  // them here for the buffer-output case. They are set to nullptr after being
+  // freed, and free(nullptr) is a no-op.
+  for (uint32_t I = 0; I < BatchCount; I++) {
+    free(Results[I].data);
+  }
   free(Png);
   free(Results);
-  return true;
+  return Fits;
 }
 
 Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
@@ -495,49 +555,65 @@ Expect<uint32_t> SDImageToImage::body(
           "[WasmEdge-StableDiffusion] Load image from input image failed."sv);
       return static_cast<uint32_t>(ErrNo::InvalidArgument);
     }
-    if (Channel < 3) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The number of channels for the input image must be >= 3."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    if (ImageWidth <= 0) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The width of image must be greater than 0."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    if (ImageHeight <= 0) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The height of image must be greater than 0."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    // Resize image when its size does not match the width and height.
-    if (Height != static_cast<uint32_t>(ImageHeight) ||
-        Width != static_cast<uint32_t>(ImageWidth)) {
-      int ResizedHeight = Height;
-      int ResizedWidth = Width;
-      uint8_t *ResizedImageBuffer =
-          (uint8_t *)malloc(ResizedHeight * ResizedWidth * 3);
-      if (ResizedImageBuffer == nullptr) {
-        spdlog::error(
-            "[WasmEdge-StableDiffusion] Failed to allocate memory for resize input image."sv);
-        free(InputImageBuffer);
-        return static_cast<uint32_t>(ErrNo::InvalidArgument);
-      }
-      stbir_resize(InputImageBuffer, ImageWidth, ImageHeight, 0,
-                   ResizedImageBuffer, ResizedWidth, ResizedHeight, 0,
-                   STBIR_TYPE_UINT8, 3, STBIR_ALPHA_CHANNEL_NONE, 0,
-                   STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_FILTER_BOX,
-                   STBIR_FILTER_BOX, STBIR_COLORSPACE_SRGB, nullptr);
-      free(InputImageBuffer);
-      InputImageBuffer = ResizedImageBuffer;
-    }
   } else {
-    InputImageBuffer =
-        stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
-                              &ImageHeight, &Channel, 3);
+    if (unlikely(ImageSpan.size() > MaxInt)) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Input image buffer size {} is too large."sv,
+          ImageSpan.size());
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
+    InputImageBuffer = stbi_load_from_memory(
+        ImageSpan.data(), static_cast<int>(ImageSpan.size()), &ImageWidth,
+        &ImageHeight, &Channel, 3);
+    if (unlikely(InputImageBuffer == nullptr)) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Load image from input image failed."sv);
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
+  }
+  if (Channel < 3) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The number of channels for the input image must be >= 3."sv);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  if (ImageWidth <= 0) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The width of image must be greater than 0."sv);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  if (ImageHeight <= 0) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The height of image must be greater than 0."sv);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  // Resize image when its size does not match the width and height.
+  if (Height != static_cast<uint32_t>(ImageHeight) ||
+      Width != static_cast<uint32_t>(ImageWidth)) {
+    int ResizedHeight = Height;
+    int ResizedWidth = Width;
+    // Width and Height are bounded by parameterCheck, so this product
+    // cannot overflow, but compute it in 64-bit so the size the allocator
+    // sees is the size that was validated.
+    const uint64_t ResizedSize =
+        static_cast<uint64_t>(Width) * Height * BytesPerPixel;
+    uint8_t *ResizedImageBuffer =
+        (uint8_t *)malloc(static_cast<size_t>(ResizedSize));
+    if (ResizedImageBuffer == nullptr) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Failed to allocate memory for resize input image."sv);
+      free(InputImageBuffer);
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
+    stbir_resize(InputImageBuffer, ImageWidth, ImageHeight, 0,
+                 ResizedImageBuffer, ResizedWidth, ResizedHeight, 0,
+                 STBIR_TYPE_UINT8, 3, STBIR_ALPHA_CHANNEL_NONE, 0,
+                 STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_FILTER_BOX,
+                 STBIR_FILTER_BOX, STBIR_COLORSPACE_SRGB, nullptr);
+    free(InputImageBuffer);
+    InputImageBuffer = ResizedImageBuffer;
   }
   sd_image_t InputImage = {Width, Height, 3, InputImageBuffer};
   // Read control image

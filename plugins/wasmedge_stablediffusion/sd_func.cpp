@@ -203,7 +203,7 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
         if (I <= 0)
           FinalImagePath = DummyName + Extension;
         else
-          FinalImagePath += "_" + std::to_string(I + 1) + Extension;
+          FinalImagePath = DummyName + "_" + std::to_string(I + 1) + Extension;
         stbi_write_png(FinalImagePath.c_str(), Results[I].width,
                        Results[I].height, Results[I].channel, Results[I].data,
                        0, nullptr);

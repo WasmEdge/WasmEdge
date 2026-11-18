@@ -1867,21 +1867,18 @@ void Poller::wait() noexcept {
     }
   }
 
+  int Count = 0;
   // Nothing is subscribed: epoll_wait rejects an empty event buffer.
-  if (Events.empty()) {
-    return;
-  }
-
-  EPollEvents.resize(Events.size());
-  const int Count =
-      ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(), -1);
-  if (unlikely(Count < 0)) {
-    const auto Error = fromErrNo(errno);
-    for (auto &Event : Events) {
-      Event.Valid = true;
-      Event.error = Error;
+  if (!Events.empty()) {
+    EPollEvents.resize(Events.size());
+    Count = ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(), -1);
+    if (unlikely(Count < 0)) {
+      const auto Error = fromErrNo(errno);
+      for (auto &Event : Events) {
+        Event.Valid = true;
+        Event.error = Error;
+      }
     }
-    return;
   }
 
   auto ProcessEvent = [](const struct epoll_event &EPollEvent,

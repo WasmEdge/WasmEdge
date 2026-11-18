@@ -47,9 +47,8 @@ SDEnviornment::~SDEnviornment() noexcept {
   }
 }
 
-uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx, int32_t Nthreads,
-                                   uint32_t Wtype) noexcept {
-  Contexts.push_back({Ctx, Nthreads, Wtype});
+uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx, int32_t Nthreads) noexcept {
+  Contexts.push_back({Ctx, Nthreads});
   return Contexts.size() - 1;
 }
 

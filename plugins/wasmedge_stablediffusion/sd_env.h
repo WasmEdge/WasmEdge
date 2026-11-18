@@ -26,7 +26,6 @@ enum class ErrNo : uint32_t {
 struct ContextInfo {
   sd_ctx_t *Context;
   int32_t NThreads;
-  uint32_t Wtype;
 };
 
 class SDEnviornment {
@@ -39,14 +38,16 @@ public:
   ~SDEnviornment() noexcept;
   SDEnviornment(const SDEnviornment &) = delete;
   SDEnviornment &operator=(const SDEnviornment &) = delete;
-  uint32_t addContext(sd_ctx_t *Ctx, int32_t Nthreads, uint32_t Wtype) noexcept;
+  uint32_t addContext(sd_ctx_t *Ctx, int32_t Nthreads) noexcept;
   void freeContext(const uint32_t Id) noexcept;
   sd_ctx_t *getContext(const uint32_t Id) noexcept;
   size_t getContextSize() noexcept { return Contexts.size(); }
   int32_t getNThreads(const uint32_t Id) noexcept {
+    if (Id >= Contexts.size() || Contexts[Id].Context == nullptr) {
+      return 0;
+    }
     return Contexts[Id].NThreads;
   }
-  uint32_t getWtype(const uint32_t Id) noexcept { return Contexts[Id].Wtype; }
 
 private:
   bool EnableSDLog = false;

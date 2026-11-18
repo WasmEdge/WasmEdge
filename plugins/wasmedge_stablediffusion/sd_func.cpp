@@ -340,7 +340,7 @@ Expect<uint32_t> SDCreateContext::body(
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  *SessionId = Env.addContext(Ctx, NThreads, static_cast<sd_type_t>(Wtype));
+  *SessionId = Env.addContext(Ctx, NThreads);
   return static_cast<uint32_t>(ErrNo::Success);
 }
 

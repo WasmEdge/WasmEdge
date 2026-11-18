@@ -55,6 +55,13 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     // Set the table pointers of the instantiated table.
     const auto Index = ModInst.getTableNum() - 1;
     auto *TabInst = ModInst.unsafeGetTable(Index);
+    const auto &Lim = TabSeg.getTableType().getLimit();
+    if (TabInst->getSize() != Lim.getMin()) {
+      spdlog::error(ErrCode::Value::AllocationFailed);
+      spdlog::error(
+          ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+      return Unexpect(ErrCode::Value::AllocationFailed);
+    }
     ModInst.TableSizePtrs[Index] = TabInst->getSizePtr();
     ModInst.TableRefPtrs[Index] = &TabInst->getDataPtr();
   }

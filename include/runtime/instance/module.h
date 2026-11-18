@@ -674,8 +674,8 @@ protected:
   ModuleContext ModCtx{};
 
   /// Snapshot the instance vectors' buffers for compiled code. Call once, after
-  /// the last instance is added and before the start function runs; adding an
-  /// instance afterwards may reallocate and leave the context dangling.
+  /// the last instance is added and before the segments are initialized; adding
+  /// an instance afterwards may reallocate and leave the context dangling.
   void buildContext() noexcept {
     ModCtx.Memories = MemoryPtrs.data();
     ModCtx.MemorySizes = MemorySizePtrs.data();

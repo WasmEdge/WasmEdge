@@ -1607,8 +1607,7 @@ TEST(WasiNNTest, GGMLBackend) {
       }
     }
 
-    // Test: set_input -- valid batch sizes are applied (the prompt batch is
-    // reallocated on the change) and restored afterwards.
+    // Test: set_input -- valid batch sizes are applied and restored afterwards.
     {
       const int32_t PrevNBatch = Params.n_batch;
       const int32_t PrevNUBatch = Params.n_ubatch;
@@ -1773,6 +1772,126 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_EQ(GGMLGraph.CpuMoe, PrevCpuMoe);
       EXPECT_EQ(Params.n_batch, PrevNBatch);
       EXPECT_TRUE(Params.tensor_buft_overrides.empty());
+    }
+
+    {
+      auto Context = NNMod->getEnv().NNContext.get(0);
+      ASSERT_NE(Context, nullptr);
+      auto &GGMLContext = Context->get<WasmEdge::Host::WASINN::GGML::Context>();
+      const int32_t PrevNBatch = Params.n_batch;
+      const int32_t PrevNUBatch = Params.n_ubatch;
+      const int64_t PrevNPredict = GGMLContext.Conf.NPredict;
+      const float PrevTemp = Params.sampling.temp;
+      const auto PrevPoolingType = Params.pooling_type;
+      auto SetPrompt = [&]() {
+        uint32_t EntryPtr = BuilderPtr;
+        writeFatPointer(MemInst, StorePtr, UINT32_C(1), EntryPtr);
+        writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), EntryPtr);
+        writeFatPointer(MemInst, StorePtr + UINT32_C(4),
+                        static_cast<uint32_t>(TensorData.size()), EntryPtr);
+        writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+        writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + UINT32_C(4));
+        return HostFuncSetInput.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        UINT32_C(0), UINT32_C(0), BuilderPtr},
+                                    Errno);
+      };
+      auto Compute = [&]() {
+        return HostFuncCompute.run(
+            CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+            Errno);
+      };
+      ASSERT_TRUE(SetMetadata(
+          R"({"batch-size":2,"ubatch-size":0,"n-predict":1,"temp":0})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetPrompt());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_GT(GGMLContext.LlamaInputs.size(), 2U);
+      ASSERT_TRUE(Compute());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_EQ(GGMLContext.LlamaOutputTokens.size(), 1U);
+      const auto BatchedOutput = GGMLContext.LlamaOutputTokens.front();
+
+      ASSERT_TRUE(SetMetadata(R"({"batch-size":64,"ubatch-size":0})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetPrompt());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(Compute());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_EQ(GGMLContext.LlamaOutputTokens.size(), 1U);
+      EXPECT_EQ(GGMLContext.LlamaOutputTokens.front(), BatchedOutput);
+
+      GGMLContext.LlamaInputs.front() = LLAMA_TOKEN_NULL;
+      ASSERT_TRUE(Compute());
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::RuntimeError));
+
+      ASSERT_TRUE(SetMetadata(R"({"embedding":true})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetPrompt());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(Compute());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      const std::string Embedding(GGMLContext.LlamaOutputs.begin(),
+                                  GGMLContext.LlamaOutputs.end());
+      EXPECT_NE(Embedding.find(R"("n_embedding":)"), std::string::npos);
+      const auto ValuesStart = Embedding.find('[');
+      ASSERT_NE(ValuesStart, std::string::npos);
+      EXPECT_NE(Embedding.find_first_of("123456789", ValuesStart),
+                std::string::npos);
+
+      ASSERT_TRUE(SetMetadata(
+          R"({"embedding":false,"batch-size":64,"ubatch-size":4,"pooling-type":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetMetadata(R"({"embedding":true})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_EQ(llama_n_ubatch(GGMLGraph.LlamaContext.get()), 4U);
+      ASSERT_GT(llama_n_batch(GGMLGraph.LlamaContext.get()), 4U);
+      ASSERT_TRUE(SetPrompt());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_GT(GGMLContext.LlamaInputs.size(), 4U);
+      const auto FullInputs = GGMLContext.LlamaInputs;
+      GGMLContext.LlamaInputs.resize(4);
+      ASSERT_TRUE(Compute());
+      EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      GGMLContext.LlamaInputs.assign(FullInputs.begin(),
+                                     FullInputs.begin() + 5);
+      ASSERT_TRUE(Compute());
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::PromptTooLong));
+
+      ASSERT_TRUE(SetMetadata(R"({"embedding":false,"batch-size":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetMetadata(R"({"embedding":true})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetMetadata(R"({"batch-size":64})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(SetPrompt());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_GT(GGMLContext.LlamaInputs.size(),
+                llama_n_batch(GGMLGraph.LlamaContext.get()));
+      ASSERT_TRUE(Compute());
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::PromptTooLong));
+
+      ASSERT_TRUE(SetMetadata(
+          R"({"embedding":false,"batch-size":)" + std::to_string(PrevNBatch) +
+          R"(,"ubatch-size":)" + std::to_string(PrevNUBatch) +
+          R"(,"n-predict":)" + std::to_string(PrevNPredict) + R"(,"temp":)" +
+          std::to_string(PrevTemp) + R"(,"pooling-type":)" +
+          std::to_string(static_cast<int>(PrevPoolingType)) + "}"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+      ASSERT_TRUE(SetPrompt());
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      auto &MutableGraph = Graph->get<WasmEdge::Host::WASINN::GGML::Graph>();
+      MutableGraph.TextToSpeech = true;
+      GGMLContext.Conf.NPredict = 0;
+      ASSERT_TRUE(Compute());
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::RuntimeError));
+      MutableGraph.TextToSpeech = false;
+      GGMLContext.Conf.NPredict = PrevNPredict;
     }
   }
 

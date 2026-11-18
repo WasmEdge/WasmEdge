@@ -163,7 +163,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // For a named module, register it in the store.
   if (Name.has_value()) {
-    StoreMgr.registerModule(ModInst.get());
+    EXPECTED_TRY(StoreMgr.registerModule(ModInst.get()).map_error([&](auto E) {
+      spdlog::error(E);
+      return ReportModuleError(E);
+    }));
   }
 
   return ModInst;

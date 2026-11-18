@@ -1651,8 +1651,10 @@ void Poller::wait() noexcept {
   if (unlikely(Count < 0)) {
     const auto Error = fromErrNo(errno);
     for (auto &Event : Events) {
-      Event.Valid = true;
-      Event.error = Error;
+      if (!Event.Valid) {
+        Event.Valid = true;
+        Event.error = Error;
+      }
     }
   }
 

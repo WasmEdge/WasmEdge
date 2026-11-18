@@ -122,19 +122,23 @@ uint8_t *resizeImage(uint8_t *Buffer, int Width, int Height, int NewWidth,
   return Resized;
 }
 
+// preprocess_canny works in a fixed 10 MiB buffer and needs 32 bytes per pixel.
+constexpr uint64_t CannyMaxPixels = (10U * 1024U * 1024U - 64U * 1024U) / 32U;
+
 sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
                              bool CannyPreprocess) {
   uint8_t *ControlImageBuffer = nullptr;
-  sd_image_t *ControlImg = nullptr;
   int Channel = 0;
+  int ImageWidth = 0;
+  int ImageHeight = 0;
   std::string ControlImagePath(ControlImage.begin(), ControlImage.end());
 
   if (ControlImagePath.substr(0, 5) == "path:"sv) {
-    ControlImageBuffer = stbi_load(ControlImagePath.substr(5).data(), &Width,
-                                   &Height, &Channel, 3);
+    ControlImageBuffer = stbi_load(ControlImagePath.substr(5).data(),
+                                   &ImageWidth, &ImageHeight, &Channel, 3);
   } else {
-    ControlImageBuffer = stbi_load_from_memory(
-        ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
+    ControlImageBuffer = loadImageFromMemory(ControlImage, &ImageWidth,
+                                             &ImageHeight, &Channel, 3);
   }
 
   if (ControlImageBuffer == nullptr) {
@@ -142,15 +146,33 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
         "[WasmEdge-StableDiffusion] Load image from control image failed."sv);
     return nullptr;
   }
-  ControlImg =
-      new sd_image_t{static_cast<uint32_t>(Width),
-                     static_cast<uint32_t>(Height), 3, ControlImageBuffer};
-  if (CannyPreprocess) { // apply preprocessor
-    ControlImg->data =
-        preprocess_canny(ControlImg->data, ControlImg->width,
-                         ControlImg->height, 0.08f, 0.08f, 0.8f, 1.0f, false);
+  if (CannyPreprocess) {
+    if (static_cast<uint64_t>(ImageWidth) * static_cast<uint64_t>(ImageHeight) >
+        CannyMaxPixels) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Control image is too large for the canny preprocessor."sv);
+      free(ControlImageBuffer);
+      return nullptr;
+    }
+    uint8_t *CannyBuffer =
+        preprocess_canny(ControlImageBuffer, ImageWidth, ImageHeight, 0.08f,
+                         0.08f, 0.8f, 1.0f, false);
+    if (CannyBuffer == nullptr) {
+      free(ControlImageBuffer);
+    }
+    ControlImageBuffer = CannyBuffer;
   }
-  return ControlImg;
+  if (ControlImageBuffer != nullptr) {
+    ControlImageBuffer = resizeImage(ControlImageBuffer, ImageWidth,
+                                     ImageHeight, Width, Height, 3);
+  }
+  if (ControlImageBuffer == nullptr) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Failed to preprocess the control image."sv);
+    return nullptr;
+  }
+  return new sd_image_t{static_cast<uint32_t>(Width),
+                        static_cast<uint32_t>(Height), 3, ControlImageBuffer};
 }
 
 void freeControlImage(sd_image_t *ControlImage) {
@@ -481,6 +503,9 @@ Expect<uint32_t> SDTextToImage::body(
   if (ControlImageLen != 0) {
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
+    if (ControlImage == nullptr) {
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
   }
   // Generate images
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
@@ -619,6 +644,10 @@ Expect<uint32_t> SDImageToImage::body(
   if (ControlImageLen != 0) {
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
+    if (ControlImage == nullptr) {
+      free(InputImageBuffer);
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
   }
   // Read mask image
   sd_image_t MaskImage = readMaskImage(MaskImageSpan, static_cast<int>(Width),

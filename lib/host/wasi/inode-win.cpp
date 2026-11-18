@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <new>
 #include <numeric>
@@ -2256,6 +2257,10 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
     }
     Timeout -= Now;
   }
+  Timeout = std::min<__wasi_timestamp_t>(
+      Timeout, static_cast<__wasi_timestamp_t>(
+                   std::numeric_limits<decltype(TIMEVAL_::tv_sec)>::max()) *
+                   UINT64_C(1000000000));
   const auto Micros = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::nanoseconds(Timeout));
   const auto Secs = std::chrono::duration_cast<std::chrono::seconds>(Micros);

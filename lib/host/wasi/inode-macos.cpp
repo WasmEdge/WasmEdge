@@ -1504,6 +1504,9 @@ void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
     }
   }
 
+  Timeout = std::min<__wasi_timestamp_t>(
+      Timeout, static_cast<__wasi_timestamp_t>(
+                   std::numeric_limits<decltype(kevent::data)>::max()));
   struct kevent KEvent;
   EV_SET(&KEvent, Ident, EVFILT_TIMER, EV_ADD | EV_ENABLE, FFlags, Timeout,
          &Event);

@@ -179,10 +179,13 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
                  std::string OutputPath, uint32_t OutputPathLen,
                  uint32_t *BytesWritten, uint32_t OutBufferMaxSize,
                  uint8_t *OutputBufferSpanPtr) {
-  int Len;
-  unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
-      Results->height, Results->channel, &Len, nullptr);
+  int Len = 0;
+  unsigned char *Png = nullptr;
+  if (BatchCount > 0 && Results[0].data != nullptr) {
+    Png = stbi_write_png_to_mem(Results[0].data, 0, Results[0].width,
+                                Results[0].height, Results[0].channel, &Len,
+                                nullptr);
+  }
   if (OutputPathLen != 0) {
     size_t Last = OutputPath.find_last_of(".");
     std::string DummyName = OutputPath;
@@ -210,6 +213,12 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
         Results[I].data = nullptr;
       }
     }
+  }
+  if (Png == nullptr) {
+    spdlog::error("[WasmEdge-StableDiffusion] Encode result image failed."sv);
+    *BytesWritten = 0;
+    freeResults(Results, BatchCount);
+    return false;
   }
   *BytesWritten = Len;
   if (OutBufferMaxSize < *BytesWritten) {

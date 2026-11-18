@@ -153,7 +153,7 @@ public:
   // Static function to load all plugins from given path.
   WASMEDGE_EXPORT static bool load(const std::filesystem::path &Path) noexcept;
 
-  // Static function to register plugin with descriptor.
+  // Static function to register plugin with descriptor. Thread-safe.
   static bool registerPlugin(const PluginDescriptor *Desc) noexcept;
 
   // Static function to add plugin options from arguments.
@@ -224,6 +224,10 @@ private:
   // Static function to load plugin from file. Thread-safe. Idempotent: a file
   // that has already been loaded in this process is skipped (not re-dlopen'd).
   static bool loadFile(const std::filesystem::path &Path) noexcept;
+
+  // Static function to register plugin with descriptor. The caller must hold
+  // the exclusive lock of Mutex.
+  static bool unsafeRegisterPlugin(const PluginDescriptor *Desc) noexcept;
 
   // Static function to register built-in plugins. Thread-safe.
   static void registerBuiltInPlugins() noexcept;

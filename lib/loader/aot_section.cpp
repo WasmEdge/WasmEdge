@@ -36,7 +36,7 @@ inline constexpr uint64_t roundUpPageBoundary(const uint64_t Value) {
 namespace WasmEdge::Loader {
 
 Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
-  BinarySize = 0;
+  unload();
   for (const auto &Section : AOTSec.getSections()) {
     const auto Offset = std::get<1>(Section);
     const auto Size = std::get<2>(Section);
@@ -81,6 +81,7 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
     const auto &Content = std::get<3>(Section);
     if (Size > BinarySize || Offset > BinarySize ||
         Offset + Size > BinarySize || Content.size() > Size) {
+      unload();
       return Unexpect(ErrCode::Value::IntegerTooLarge);
     }
     std::copy(Content.begin(), Content.end(), Binary + Offset);
@@ -112,6 +113,7 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
       break;
 #endif
     default:
+      unload();
       return Unexpect(ErrCode::Value::IntegerTooLarge);
     }
   }
@@ -121,6 +123,7 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error("    set_chunk_executable failed:{}"sv,
                     std::strerror(errno));
+      unload();
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
   }
@@ -129,6 +132,7 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   TypesAddress = AOTSec.getTypesAddress();
   CodesAddress = AOTSec.getCodesAddress();
 
+  Registered = true;
 #if WASMEDGE_OS_LINUX
   if (EHFrameAddress) {
     __register_frame(EHFrameAddress);
@@ -160,11 +164,11 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
 void AOTSection::unload() noexcept {
   if (Binary) {
 #if WASMEDGE_OS_LINUX
-    if (EHFrameAddress) {
+    if (Registered && EHFrameAddress) {
       __deregister_frame(EHFrameAddress);
     }
 #elif WASMEDGE_OS_MACOS
-    if (EHFrameAddress) {
+    if (Registered && EHFrameAddress) {
       auto Iter = EHFrameAddress;
       const auto End = EHFrameAddress + EHFrameSize - 4;
 
@@ -177,7 +181,7 @@ void AOTSection::unload() noexcept {
       }
     }
 #elif WASMEDGE_OS_WINDOWS
-    if (PDataSize != 0) {
+    if (Registered && PDataSize != 0) {
       winapi::RtlDeleteFunctionTable(
           static_cast<winapi::PRUNTIME_FUNCTION_>(PDataAddress));
     }
@@ -186,6 +190,17 @@ void AOTSection::unload() noexcept {
     Allocator::release_chunk(Binary, BinarySize);
     Binary = nullptr;
   }
+  BinarySize = 0;
+  Registered = false;
+#if WASMEDGE_OS_LINUX
+  EHFrameAddress = nullptr;
+#elif WASMEDGE_OS_MACOS
+  EHFrameAddress = nullptr;
+  EHFrameSize = 0;
+#elif WASMEDGE_OS_WINDOWS
+  PDataAddress = nullptr;
+  PDataSize = 0;
+#endif
 }
 
 } // namespace WasmEdge::Loader

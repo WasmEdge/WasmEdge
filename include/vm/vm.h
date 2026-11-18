@@ -294,7 +294,9 @@ public:
     return unsafeGetImportModule(Type);
   }
 
-  /// Get current instantiated module instance.
+  /// Get current instantiated module instance. Returns nullptr when the active
+  /// instance is a component instance, because the VM keeps one active
+  /// instance kind and releases the module instance in that case.
   const Runtime::Instance::ModuleInstance *getActiveModule() const {
     std::shared_lock Lock(Mutex);
     return unsafeGetActiveModule();

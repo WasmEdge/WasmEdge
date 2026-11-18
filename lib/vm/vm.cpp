@@ -280,8 +280,8 @@ VM::unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
     unsafeStoreModule(std::move(*M));
     return WasmUnitKind::Module;
   }
-  Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
-  Mod.reset();
+  unsafeStoreComponent(
+      std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit)));
   return WasmUnitKind::Component;
 }
 
@@ -701,6 +701,9 @@ void VM::unsafeCleanup() {
   if (Mod) {
     Mod.reset();
   }
+  if (ActiveCompInst) {
+    ActiveCompInst.reset();
+  }
   if (Comp) {
     Comp.reset();
   }
@@ -709,9 +712,6 @@ void VM::unsafeCleanup() {
     if (RawMod) {
       RawMod->terminate();
     }
-  }
-  if (ActiveCompInst) {
-    ActiveCompInst.reset();
   }
   StoreRef.reset();
   cleanupModInstContainer(RegModInsts);

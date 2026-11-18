@@ -439,6 +439,16 @@ private:
     Comp.reset();
   }
 
+  /// Store a component as the only wasm unit held by the VM. The active
+  /// component instance points into the replaced component AST, so it is
+  /// released before the component.
+  void
+  unsafeStoreComponent(std::unique_ptr<AST::Component::Component> Component) {
+    ActiveCompInst.reset();
+    Comp = std::move(Component);
+    Mod.reset();
+  }
+
   /// Registering a module or running another wasm unit resets the active
   /// instantiation in the store, so the stage falls back to Validated and
   /// the instantiation must restart.

@@ -325,6 +325,25 @@ TEST(VMStageTest, RunWasmFileFromASTModuleKeepsStage) {
   expectConstResult(TestVM, 7U);
 }
 
+TEST(VMStageTest, ReloadComponentReleasesComponentInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  EXPECT_FALSE(TestVM.holdsComponent());
+  auto Res = TestVM.executeComponent("f");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+}
+
 TEST(VMRegistrationTest, RegisterAndExecuteByName) {
   Configure Conf;
   VM::VM TestVM(Conf);

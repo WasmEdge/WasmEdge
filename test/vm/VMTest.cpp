@@ -344,6 +344,31 @@ TEST(VMStageTest, ReloadComponentReleasesComponentInstance) {
   EXPECT_TRUE(TestVM.holdsComponent());
 }
 
+TEST(VMStageTest, FailedRunWasmFileFallsBackToStoredUnitStage) {
+  // Same as ConstFuncWasm, but the function body leaves no result.
+  const std::array<Byte, 32> InvalidWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+      0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01,
+      0x01, 0x66, 0x00, 0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  ASSERT_FALSE(TestVM.runWasmFile(InvalidWasm, "f"));
+  expectConstResult(TestVM, 7U);
+  auto Res = TestVM.instantiate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+  EXPECT_FALSE(TestVM.validate());
+
+  VM::VM CompVM(Conf);
+  auto RunRes = CompVM.runWasmFile(EmptyComponentWasm, "f");
+  ASSERT_FALSE(RunRes);
+  EXPECT_EQ(RunRes.error(), ErrCode::Value::RuntimeError);
+  EXPECT_TRUE(CompVM.instantiate());
+  EXPECT_TRUE(CompVM.holdsComponent());
+}
+
 TEST(VMRegistrationTest, RegisterAndExecuteByName) {
   Configure Conf;
   VM::VM TestVM(Conf);

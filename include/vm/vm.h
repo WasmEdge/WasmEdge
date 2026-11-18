@@ -96,7 +96,8 @@ public:
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
-  /// A path or bytecode is stored in the VM, so the stage becomes
+  /// A path or bytecode is stored in the VM, so the stage follows the stored
+  /// unit: loaded once stored, validated once it passes validation, and
   /// instantiated once the new instance is active, even if the function call
   /// then fails. A caller-owned AST module is not stored, so the stage keeps
   /// describing the previously loaded unit and never advances.
@@ -430,23 +431,25 @@ private:
   unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
                                    std::unique_ptr<AST::Module>> &&Unit);
 
-  /// Store a module as the only wasm unit held by the VM. The active
-  /// component instance points into the component AST, so it is released
-  /// before the component.
+  /// Store a module as the only wasm unit held by the VM, and set the stage
+  /// to Loaded. The active component instance points into the component AST,
+  /// so it is released before the component.
   void unsafeStoreModule(std::shared_ptr<AST::Module> Module) {
     Mod = std::move(Module);
     ActiveCompInst.reset();
     Comp.reset();
+    Stage = VMStage::Loaded;
   }
 
-  /// Store a component as the only wasm unit held by the VM. The active
-  /// component instance points into the replaced component AST, so it is
-  /// released before the component.
+  /// Store a component as the only wasm unit held by the VM, and set the
+  /// stage to Loaded. The active component instance points into the replaced
+  /// component AST, so it is released before the component.
   void
   unsafeStoreComponent(std::unique_ptr<AST::Component::Component> Component) {
     ActiveCompInst.reset();
     Comp = std::move(Component);
     Mod.reset();
+    Stage = VMStage::Loaded;
   }
 
   /// Registering a module or running another wasm unit resets the active

@@ -244,6 +244,9 @@ int32_t wasm_bpf_program::bpf_buffer_poll(
     if (!buffer.get()) {
       // create buffer
       auto map = map_ptr_by_fd(fd);
+      if (!map) {
+        return -EBADF;
+      }
       auto new_buffer = bpf_buffer__new(map);
       if (!new_buffer) {
         return -1;

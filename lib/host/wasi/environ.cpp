@@ -7,6 +7,8 @@
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
 
+#include <optional>
+
 using namespace std::literals;
 
 namespace WasmEdge {
@@ -63,6 +65,45 @@ static inline constexpr const __wasi_rights_t kNoInheritingRights =
     static_cast<__wasi_rights_t>(0);
 static inline constexpr const auto kReadOnly = "readonly"sv;
 
+struct PreopenDir {
+  std::string GuestDir;
+  std::string HostDir;
+  bool ReadOnly;
+};
+
+std::optional<PreopenDir> parsePreopenDir(std::string_view Dir) {
+  const bool HasDoubleColon = Dir.find("::"sv) != std::string_view::npos;
+  const auto Separator = HasDoubleColon ? "::"sv : ":"sv;
+  auto Guest = Dir;
+  auto Host = Dir;
+  bool ReadOnly = false;
+  if (const auto Pos = Dir.find(Separator); Pos != std::string_view::npos) {
+    Guest = Dir.substr(0, Pos);
+    Host = Dir.substr(Pos + Separator.size());
+    if (const auto ModePos = Host.find(Separator);
+        ModePos != std::string_view::npos) {
+      const auto Mode = Host.substr(ModePos + Separator.size());
+      Host = Host.substr(0, ModePos);
+      if (Mode != kReadOnly) {
+        spdlog::error("Invalid preopened directory \"{}\": the mode \"{}\" is "
+                      "not `readonly`."sv,
+                      Dir, Mode);
+        if (!HasDoubleColon) {
+          spdlog::error(
+              "    Use `guest_path::host_path` if a path contains `:`."sv);
+        }
+        return std::nullopt;
+      }
+      ReadOnly = true;
+    }
+  }
+  std::string GuestDir = VINode::canonicalGuest(Guest);
+  if (GuestDir.size() == 0) {
+    GuestDir = '/';
+  }
+  return PreopenDir{std::move(GuestDir), std::string(Host), ReadOnly};
+}
+
 } // namespace
 
 void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
@@ -72,24 +113,11 @@ void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
     PreopenedDirs.reserve(Dirs.size());
     for (const auto &Dir : Dirs) {
-      const auto Pos = Dir.find(':');
-      std::string HostDir =
-          (Pos == std::string::npos) ? Dir : Dir.substr(Pos + 1);
-      // Handle the readonly flag
-      bool ReadOnly = false;
-      if (const auto ROPos = HostDir.find(':'); ROPos != std::string::npos) {
-        const auto Mode = HostDir.substr(ROPos + 1);
-        HostDir = HostDir.substr(0, ROPos);
-        if (kReadOnly == Mode) {
-          ReadOnly = true;
-        }
+      auto Preopen = parsePreopenDir(Dir);
+      if (!Preopen) {
+        continue;
       }
-      std::string GuestDir = VINode::canonicalGuest(
-          (Pos == std::string::npos) ? std::string_view(Dir)
-                                     : std::string_view(Dir).substr(0, Pos));
-      if (GuestDir.size() == 0) {
-        GuestDir = '/';
-      }
+      auto &[GuestDir, HostDir, ReadOnly] = *Preopen;
       const auto BaseRights =
           ReadOnly ? kPreOpenBaseRightsReadOnly : kPreOpenBaseRights;
       const auto InheritingRights = ReadOnly ? kPreOpenInheritingRightsReadOnly
@@ -156,24 +184,11 @@ Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
     PreopenedDirs.reserve(Dirs.size());
     for (const auto &Dir : Dirs) {
-      const auto Pos = Dir.find(':');
-      std::string HostDir =
-          (Pos == std::string::npos) ? Dir : Dir.substr(Pos + 1);
-      // Handle the readonly flag
-      bool ReadOnly = false;
-      if (const auto ROPos = HostDir.find(':'); ROPos != std::string::npos) {
-        const auto Mode = HostDir.substr(ROPos + 1);
-        HostDir = HostDir.substr(0, ROPos);
-        if (kReadOnly == Mode) {
-          ReadOnly = true;
-        }
+      auto Preopen = parsePreopenDir(Dir);
+      if (!Preopen) {
+        continue;
       }
-      std::string GuestDir = VINode::canonicalGuest(
-          (Pos == std::string::npos) ? std::string_view(Dir)
-                                     : std::string_view(Dir).substr(0, Pos));
-      if (GuestDir.size() == 0) {
-        GuestDir = '/';
-      }
+      auto &[GuestDir, HostDir, ReadOnly] = *Preopen;
       const auto BaseRights =
           ReadOnly ? kPreOpenBaseRightsReadOnly : kPreOpenBaseRights;
       const auto InheritingRights = ReadOnly ? kPreOpenInheritingRightsReadOnly

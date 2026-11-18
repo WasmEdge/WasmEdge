@@ -5437,6 +5437,148 @@ TEST(WasiTest, PollOneoffFailedSubscriptionDoesNotBlock) {
   closeFd(PipeFds[0]);
   closeFd(PipeFds[1]);
 }
+
+TEST(WasiTest, PollOneoffReuseAfterFailedModify) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  int OtherPipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_EQ(::pipe(OtherPipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+
+  auto PollReadAndClock = [&](uint32_t Count) {
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+    Subscriptions[0].u.tag =
+        WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subscriptions[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+    Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscriptions[1].u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscriptions[1].u.u.clock.timeout =
+        WasmEdge::EndianValue(
+            std::chrono::nanoseconds(std::chrono::milliseconds(100)).count())
+            .le();
+    Subscriptions[1].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+    Subscriptions[1].u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, 1);
+  };
+  auto PollClock = [&]() {
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+    Subscriptions[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscriptions[0].u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscriptions[0].u.u.clock.timeout =
+        WasmEdge::EndianValue(
+            std::chrono::nanoseconds(std::chrono::milliseconds(10)).count())
+            .le();
+    Subscriptions[0].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+    Subscriptions[0].u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, UINT32_C(1), NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, 1);
+  };
+  auto ExpectTimeout = [&]() {
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  };
+
+  // poll read and 100 milliseconds, expect timeout
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  // replace the open file behind the fd, and keep the replaced open file
+  // readable through another fd
+  const int KeptFd = ::dup(PipeFds[0]);
+  ASSERT_GE(KeptFd, 0);
+  ASSERT_EQ(::dup2(OtherPipeFds[0], PipeFds[0]), PipeFds[0]);
+  ASSERT_EQ(::write(PipeFds[1], "x", 1), 1);
+
+  // poll read and 100 milliseconds, expect timeout without an event from the
+  // replaced open file
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  // poll read and 100 milliseconds again, expect timeout
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  // poll read on the new open file, expect readable
+  ASSERT_EQ(::write(OtherPipeFds[1], "x", 1), 1);
+  PollReadAndClock(1);
+  {
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  }
+  char Buffer;
+  ASSERT_EQ(::read(OtherPipeFds[0], &Buffer, 1), 1);
+
+  // put the readable replaced open file back behind the fd, and register it
+  ASSERT_EQ(::dup2(KeptFd, PipeFds[0]), PipeFds[0]);
+  PollReadAndClock(1);
+  {
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  }
+
+  // replace the open file behind the fd again, and poll only a clock in the
+  // next round, so the fd is not subscribed when its registration is removed
+  ASSERT_EQ(::dup2(OtherPipeFds[0], PipeFds[0]), PipeFds[0]);
+  PollClock();
+  ExpectTimeout();
+
+  // poll read and 100 milliseconds, expect timeout without an event from the
+  // replaced open file, which is still readable
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  Env.fini();
+  closeFd(KeptFd);
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+  closeFd(OtherPipeFds[0]);
+  closeFd(OtherPipeFds[1]);
+}
 #endif
 
 #if WASMEDGE_OS_LINUX

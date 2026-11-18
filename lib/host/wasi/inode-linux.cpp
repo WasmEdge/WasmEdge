@@ -1739,7 +1739,56 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
 
 void Poller::close(const INode &Node) noexcept {
   FdDatas.erase(Node.Fd);
-  OldFdDatas.erase(Node.Fd);
+  if (OldFdDatas.erase(Node.Fd) != 0) {
+    // In kernel before 2.6.9, EPOLL_CTL_DEL required a non-null pointer. Use
+    // `this` as the dummy parameter.
+    if (::epoll_ctl(Fd, EPOLL_CTL_DEL, Node.Fd,
+                    reinterpret_cast<struct epoll_event *>(this)) < 0) {
+      NeedRebuild = true;
+    }
+  }
+}
+
+WasiExpect<void> Poller::rebuild() noexcept {
+#if __GLIBC_PREREQ(2, 9)
+  FdHolder NewFd(::epoll_create1(EPOLL_CLOEXEC));
+#else
+  FdHolder NewFd(::epoll_create(32));
+  if (NewFd.ok() && ::fcntl(NewFd.Fd, F_SETFD, FD_CLOEXEC) != 0) {
+    const auto Error = fromErrNo(errno);
+    NewFd.reset();
+    return WasiUnexpect(Error);
+  }
+#endif
+  if (!NewFd.ok()) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+  for (const auto &[NodeFd, FdData] : FdDatas) {
+    epoll_event EPollEvent;
+    EPollEvent.events = 0;
+    if (FdData.ReadEvent) {
+      EPollEvent.events |= EPOLLIN;
+    }
+    if (FdData.WriteEvent) {
+      EPollEvent.events |= EPOLLOUT;
+    }
+    if (RoundTrigger == TriggerType::Edge &&
+        !(FdData.ReadEvent &&
+          FdData.ReadEvent->type == __WASI_EVENTTYPE_CLOCK)) {
+      EPollEvent.events |= EPOLLET;
+    }
+#if defined(EPOLLRDHUP)
+    EPollEvent.events |= EPOLLRDHUP;
+#endif
+    EPollEvent.data.fd = NodeFd;
+    if (::epoll_ctl(NewFd.Fd, EPOLL_CTL_ADD, NodeFd, &EPollEvent) < 0) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  }
+  FdHolder::emplace(NewFd.release());
+  OldFdDatas.clear();
+  NeedRebuild = false;
+  return {};
 }
 
 void Poller::read(const INode &Node, TriggerType Trigger,
@@ -1749,6 +1798,7 @@ void Poller::read(const INode &Node, TriggerType Trigger,
   Event.Valid = false;
   Event.userdata = UserData;
   Event.type = __WASI_EVENTTYPE_FD_READ;
+  RoundTrigger = Trigger;
 
   assuming(Node.Fd != Fd);
   try {
@@ -1787,8 +1837,21 @@ void Poller::read(const INode &Node, TriggerType Trigger,
     } else {
       if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
           unlikely(Res < 0)) {
+        __wasi_errno_t Error = fromErrNo(errno);
+        if (Added && Error == __WASI_ERRNO_NOENT) {
+          auto Rebuilt = rebuild();
+          if (Rebuilt) {
+            return;
+          }
+          Error = Rebuilt.error();
+        }
+        if (Added) {
+          FdDatas.erase(Iter);
+        } else {
+          Iter->second.ReadEvent = nullptr;
+        }
         Event.Valid = true;
-        Event.error = fromErrNo(errno);
+        Event.error = Error;
         return;
       }
     }
@@ -1806,6 +1869,7 @@ void Poller::write(const INode &Node, TriggerType Trigger,
   Event.Valid = false;
   Event.userdata = UserData;
   Event.type = __WASI_EVENTTYPE_FD_WRITE;
+  RoundTrigger = Trigger;
 
   assuming(Node.Fd != Fd);
   try {
@@ -1844,8 +1908,21 @@ void Poller::write(const INode &Node, TriggerType Trigger,
     } else {
       if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_MOD, Node.Fd, &EPollEvent);
           unlikely(Res < 0)) {
+        __wasi_errno_t Error = fromErrNo(errno);
+        if (Added && Error == __WASI_ERRNO_NOENT) {
+          auto Rebuilt = rebuild();
+          if (Rebuilt) {
+            return;
+          }
+          Error = Rebuilt.error();
+        }
+        if (Added) {
+          FdDatas.erase(Iter);
+        } else {
+          Iter->second.WriteEvent = nullptr;
+        }
         Event.Valid = true;
-        Event.error = fromErrNo(errno);
+        Event.error = Error;
         return;
       }
     }
@@ -1859,17 +1936,30 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 void Poller::wait() noexcept {
   for (const auto &[NodeFd, FdData] : OldFdDatas) {
     if (auto Iter = FdDatas.find(NodeFd); Iter == FdDatas.end()) {
-      // Remove unused event, ignore failed.
+      // Remove unused event. A failed removal can leave a registration of
+      // another open file under this fd, so rebuild the epoll instance.
       // In kernel before 2.6.9, EPOLL_CTL_DEL required a non-null pointer. Use
       // `this` as the dummy parameter.
-      ::epoll_ctl(Fd, EPOLL_CTL_DEL, NodeFd,
-                  reinterpret_cast<struct epoll_event *>(this));
+      if (::epoll_ctl(Fd, EPOLL_CTL_DEL, NodeFd,
+                      reinterpret_cast<struct epoll_event *>(this)) < 0) {
+        NeedRebuild = true;
+      }
     }
   }
 
   int Count = 0;
+  if (NeedRebuild) {
+    if (auto Res = rebuild(); unlikely(!Res)) {
+      for (auto &Event : Events) {
+        if (!Event.Valid) {
+          Event.Valid = true;
+          Event.error = Res.error();
+        }
+      }
+    }
+  }
   // Nothing is subscribed: epoll_wait rejects an empty event buffer.
-  if (!Events.empty()) {
+  if (!Events.empty() && !NeedRebuild) {
     const bool HasResult =
         std::any_of(Events.begin(), Events.end(),
                     [](const OptionalEvent &Event) { return Event.Valid; });
@@ -1941,7 +2031,9 @@ void Poller::wait() noexcept {
   for (int I = 0; I < Count; ++I) {
     const auto &EPollEvent = EPollEvents[I];
     const auto Iter = FdDatas.find(EPollEvent.data.fd);
-    assuming(Iter != FdDatas.end());
+    if (unlikely(Iter == FdDatas.end())) {
+      continue;
+    }
 
     const bool NoInOut = !(EPollEvent.events & (EPOLLIN | EPOLLOUT));
     if ((EPollEvent.events & EPOLLIN) ||

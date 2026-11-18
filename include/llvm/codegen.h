@@ -31,6 +31,9 @@ public:
   Expect<void> codegen(Span<const Byte> WasmData, Data D,
                        std::filesystem::path OutputPath) noexcept;
 
+  /// Whether codegen links its output with the native linker instead of lld.
+  static bool usesNativeLinker(const Configure &Conf) noexcept;
+
 private:
   const Configure Conf;
 };

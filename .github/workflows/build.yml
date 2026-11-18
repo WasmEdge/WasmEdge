@@ -97,7 +97,8 @@ jobs:
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'MacOS 15 (x86_64)','runner':'macos-15-intel','darwin_version':24,'arch':'x86_64','tests':true},
-                {'name':'MacOS 15 (arm64)','runner':'macos-15','darwin_version':24,'arch':'arm64','tests':true}]"
+                {'name':'MacOS 15 (arm64)','runner':'macos-15','darwin_version':24,'arch':'arm64','tests':true},
+                {'name':'MacOS 15 (arm64, native linker)','runner':'macos-15','darwin_version':24,'arch':'arm64','tests':true,'native_linker':true}]"
 
   build_on_macos_static:
     permissions:
@@ -152,6 +153,7 @@ jobs:
                 {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-24.04-build-clang','tests':true},
                 {'name':'ubuntu-20.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang','tests':true},
                 {'name':'ubuntu-20.04','arch':'aarch64','runner':'ubuntu-24.04-arm','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64','tests':true},
+                {'name':'ubuntu-24.04-native-linker','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-24.04-build-clang','tests':true,'options':'-DWASMEDGE_USE_LLD=OFF'},
                 {'name':'linux-static','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-24.04-build-clang','options':'-DWASMEDGE_BUILD_SHARED_LIB=Off -DWASMEDGE_BUILD_STATIC_LIB=On -DWASMEDGE_LINK_TOOLS_STATIC=On -DWASMEDGE_BUILD_PLUGINS=Off'},
                 {'name':'ubuntu-24.04-fuzzer','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-clang','fuzzing':true},
                 {'name':'ubuntu-24.04-coverage','arch':'x86_64','runner':'ubuntu-latest','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-gcc','coverage':true,'tests':true}]"
@@ -164,6 +166,16 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-windows.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
+
+  build_on_windows_native_linker:
+    permissions:
+      contents: write
+    needs: [get_version, lint]
+    name: Windows (native linker)
+    uses: ./.github/workflows/reusable-build-on-windows.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
+      native_linker: true
 
   build_on_windows_msvc:
     permissions:

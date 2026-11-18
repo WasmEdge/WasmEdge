@@ -318,17 +318,37 @@ endfunction()
 if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.
   find_package(LLVM REQUIRED HINTS "${LLVM_DIR}")
-  find_package(LLD HINTS "${LLVM_DIR}" "${LLD_DIR}")
-  if(LLD_FOUND)
-    get_property(LLD_LIBRARY_DIR TARGET lldELF PROPERTY IMPORTED_LOCATION_RELEASE)
-    get_filename_component(LLD_LIBRARY_DIR "${LLD_LIBRARY_DIR}" DIRECTORY)
+  set(WASMEDGE_LLVM_STATIC_COMPONENTS
+    binaryformat core native nativecodegen object passes support orcjit transformutils all-targets
+  )
+  if(WASMEDGE_USE_LLD)
+    find_package(LLD HINTS "${LLVM_DIR}" "${LLD_DIR}")
+    if(LLD_FOUND)
+      get_property(LLD_LIBRARY_DIR TARGET lldELF PROPERTY IMPORTED_LOCATION_RELEASE)
+      get_filename_component(LLD_LIBRARY_DIR "${LLD_LIBRARY_DIR}" DIRECTORY)
+    endif()
+    if(NOT IS_DIRECTORY "${LLD_LIBRARY_DIR}")
+      set(LLD_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
+    endif()
+    list(APPEND WASMEDGE_LLVM_STATIC_COMPONENTS linker lto option)
+    set(LLD_ARCHIVE_NAMES ELF Common)
+    if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
+      list(APPEND LLD_ARCHIVE_NAMES Core Driver ReaderWriter YAML)
+    else()
+      list(APPEND LLD_ARCHIVE_NAMES MinGW COFF MachO Wasm)
+    endif()
+    foreach(LIB_NAME IN LISTS LLD_ARCHIVE_NAMES)
+      set(LIB_PATH "${LLD_LIBRARY_DIR}/liblld${LIB_NAME}.a")
+      if(NOT EXISTS "${LIB_PATH}")
+        message(FATAL_ERROR "Missing required lld archive: ${LIB_PATH}")
+      endif()
+      list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS ${LIB_PATH})
+    endforeach()
   endif()
-  if(NOT IS_DIRECTORY "${LLD_LIBRARY_DIR}")
-    set(LLD_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
-  endif()
+  # Tests generate cross-target objects, so static links keep all LLVM targets.
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-    core linker lto native nativecodegen option passes support orcjit transformutils all-targets
+    ${WASMEDGE_LLVM_STATIC_COMPONENTS}
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
   string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
@@ -336,41 +356,40 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   string(REPLACE " " ";" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
   set(WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
 
-  list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-    ${LLD_LIBRARY_DIR}/liblldELF.a
-    ${LLD_LIBRARY_DIR}/liblldCommon.a
-  )
+  set(POLLY_LIBS)
+  set(MISSING_POLLY_LIBS)
+  foreach(LIB_NAME Polly PollyISL)
+    if(LIB_NAME IN_LIST WASMEDGE_LLVM_LINK_LIBS_NAME)
+      list(APPEND POLLY_LIBS ${LIB_NAME})
+      if(NOT EXISTS "${LLVM_LIBRARY_DIR}/lib${LIB_NAME}.a")
+        list(APPEND MISSING_POLLY_LIBS ${LIB_NAME})
+      endif()
+    endif()
+  endforeach()
+  # All reported Polly archives missing means Polly is absent; a partial install is an error.
+  if(MISSING_POLLY_LIBS AND MISSING_POLLY_LIBS STREQUAL POLLY_LIBS)
+    list(REMOVE_ITEM WASMEDGE_LLVM_LINK_LIBS_NAME ${MISSING_POLLY_LIBS})
+    message(WARNING "llvm-config reported optional Polly archives that are not installed; omitting them")
+  elseif(MISSING_POLLY_LIBS)
+    message(FATAL_ERROR "Incomplete Polly installation: missing ${MISSING_POLLY_LIBS}")
+  endif()
+
   foreach(LIB_NAME IN LISTS WASMEDGE_LLVM_LINK_LIBS_NAME)
+    set(LIB_PATH "${LLVM_LIBRARY_DIR}/lib${LIB_NAME}.a")
+    if(NOT EXISTS "${LIB_PATH}")
+      message(FATAL_ERROR "llvm-config reported missing required archive: ${LIB_PATH}")
+    endif()
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-      ${LLVM_LIBRARY_DIR}/lib${LIB_NAME}.a
+      ${LIB_PATH}
     )
   endforeach()
-  if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
-    # For LLVM <= 13
+  if(LLVM_ENABLE_ZSTD)
+    find_package(zstd REQUIRED)
+    include(StaticZstd)
+    wasmedge_select_static_zstd_archive(ZSTD_ARCHIVE)
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-      ${LLD_LIBRARY_DIR}/liblldCore.a
-      ${LLD_LIBRARY_DIR}/liblldDriver.a
-      ${LLD_LIBRARY_DIR}/liblldReaderWriter.a
-      ${LLD_LIBRARY_DIR}/liblldYAML.a
+      ${ZSTD_ARCHIVE}
     )
-  else()
-    # For LLVM 14
-    list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-      ${LLD_LIBRARY_DIR}/liblldMinGW.a
-      ${LLD_LIBRARY_DIR}/liblldCOFF.a
-      ${LLD_LIBRARY_DIR}/liblldMachO.a
-      ${LLD_LIBRARY_DIR}/liblldWasm.a
-    )
-  endif()
-  if(LLVM_VERSION_MAJOR GREATER_EQUAL 15)
-    # For LLVM 15 or greater on macOS, or all LLVM 16+
-    if(APPLE OR LLVM_VERSION_MAJOR GREATER_EQUAL 16)
-      find_package(zstd REQUIRED)
-      get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
-      list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-        ${ZSTD_PATH}/libzstd.a
-      )
-    endif()
   endif()
 
   list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS

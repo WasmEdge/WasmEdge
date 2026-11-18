@@ -32,8 +32,9 @@ struct DriverCompilerOptions : public DriverProposalOptions,
       : WasmName(PO::Description("Wasm file"sv), PO::MetaVar("WASM"sv)),
         SoName(PO::Description("Wasm so file"sv), PO::MetaVar("WASM_SO"sv)),
         ConfGenericBinary(PO::Description("Generate a generic binary"sv)),
-        ConfDumpIR(
-            PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv)),
+        ConfDumpIR(PO::Description(
+            "Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`, and the unlinked "
+            "object to `wasm.o`, in the current directory."sv)),
         ConfInterruptible(PO::Description("Generate a interruptible binary"sv)),
         PropOptimizationLevel(
             PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
@@ -42,6 +43,9 @@ struct DriverCompilerOptions : public DriverProposalOptions,
   PO::Option<std::string> WasmName;
   PO::Option<std::string> SoName;
   PO::Option<PO::Toggle> ConfGenericBinary;
+  PO::Option<PO::Toggle> ConfNativeLinker{
+      PO::Description("Link with the native linker instead of lld. Builds "
+                      "without lld always use the native linker."sv)};
   PO::Option<PO::Toggle> ConfDumpIR;
   PO::Option<PO::Toggle> ConfInterruptible;
   PO::Option<std::string> PropOptimizationLevel;
@@ -54,6 +58,7 @@ struct DriverCompilerOptions : public DriverProposalOptions,
         .add_option("interruptible"sv, ConfInterruptible);
     addStatisticsOptions(Parser);
     Parser.add_option("generic-binary"sv, ConfGenericBinary);
+    Parser.add_option("enable-native-linker"sv, ConfNativeLinker);
     addProposalOptions(Parser);
     Parser.add_option("optimize"sv, PropOptimizationLevel);
   }

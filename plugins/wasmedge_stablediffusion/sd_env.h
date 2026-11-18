@@ -36,6 +36,9 @@ public:
       sd_set_log_callback(SBLog, nullptr);
     }
   };
+  ~SDEnviornment() noexcept;
+  SDEnviornment(const SDEnviornment &) = delete;
+  SDEnviornment &operator=(const SDEnviornment &) = delete;
   uint32_t addContext(sd_ctx_t *Ctx, int32_t Nthreads, uint32_t Wtype) noexcept;
   void freeContext(const uint32_t Id) noexcept;
   sd_ctx_t *getContext(const uint32_t Id) noexcept;

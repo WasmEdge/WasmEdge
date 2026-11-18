@@ -39,6 +39,14 @@ EXPORT_GET_DESCRIPTOR(Descriptor)
 
 namespace StableDiffusion {
 
+SDEnviornment::~SDEnviornment() noexcept {
+  for (auto &Info : Contexts) {
+    if (Info.Context != nullptr) {
+      free_sd_ctx(Info.Context);
+    }
+  }
+}
+
 uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx, int32_t Nthreads,
                                    uint32_t Wtype) noexcept {
   Contexts.push_back({Ctx, Nthreads, Wtype});

@@ -44,6 +44,10 @@ static const std::array<WasmEdge::Byte, 34> ConstFuncWasm{
     0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
     0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x07, 0x0b};
 
+// Empty component: preamble only.
+static const std::array<WasmEdge::Byte, 8> EmptyComponentWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00};
+
 /// Helper: drive the VM through load, validate, and instantiate.
 void instantiateFixture(VM::VM &TestVM) {
   ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
@@ -222,6 +226,53 @@ TEST(VMStageTest, RegisterWhileInstantiatedAllowsReinstantiate) {
   VM::VM TestVM(Conf);
   instantiateFixture(TestVM);
   ASSERT_TRUE(TestVM.registerModule("ext", ConstFuncWasm));
+  ASSERT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM);
+}
+
+TEST(VMStageTest, LoadComponentAfterModuleReplacesModule) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
+}
+
+TEST(VMStageTest, LoadModuleAfterComponentReplacesComponent) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  EXPECT_FALSE(TestVM.holdsComponent());
+  auto Res = TestVM.forceValidateForComponent();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM);
+}
+
+TEST(VMStageTest, LoadASTModuleAfterComponentReplacesComponent) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.loadWasm(**Module));
+  auto Res = TestVM.forceValidateForComponent();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+  ASSERT_TRUE(TestVM.validate());
   ASSERT_TRUE(TestVM.instantiate());
   expectConstResult(TestVM);
 }

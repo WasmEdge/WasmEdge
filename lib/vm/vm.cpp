@@ -277,10 +277,11 @@ VM::WasmUnitKind
 VM::unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
                                      std::unique_ptr<AST::Module>> &&Unit) {
   if (auto *M = std::get_if<std::unique_ptr<AST::Module>>(&Unit)) {
-    Mod = std::move(*M);
+    unsafeStoreModule(std::move(*M));
     return WasmUnitKind::Module;
   }
   Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  Mod.reset();
   return WasmUnitKind::Component;
 }
 
@@ -418,7 +419,7 @@ Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
 }
 
 Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
-  Mod = std::make_shared<AST::Module>(Module);
+  unsafeStoreModule(std::make_shared<AST::Module>(Module));
   Stage = VMStage::Loaded;
   return {};
 }

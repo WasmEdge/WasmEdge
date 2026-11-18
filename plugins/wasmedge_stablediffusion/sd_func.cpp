@@ -163,7 +163,16 @@ void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
       Results[I] = CurrentImage;
     }
   }
-  free(UpscalerCtx);
+  if (UpscalerCtx != nullptr) {
+    free_upscaler_ctx(UpscalerCtx);
+  }
+}
+
+void freeResults(sd_image_t *Results, uint32_t BatchCount) {
+  for (uint32_t I = 0; I < BatchCount; I++) {
+    free(Results[I].data);
+  }
+  free(Results);
 }
 
 bool saveResults(sd_image_t *Results, uint32_t BatchCount,
@@ -206,12 +215,12 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
   if (OutBufferMaxSize < *BytesWritten) {
     spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not enough."sv);
     free(Png);
-    free(Results);
+    freeResults(Results, BatchCount);
     return false;
   }
   std::copy_n(Png, *BytesWritten, OutputBufferSpanPtr);
   free(Png);
-  free(Results);
+  freeResults(Results, BatchCount);
   return true;
 }
 
@@ -387,6 +396,12 @@ Expect<uint32_t> SDTextToImage::body(
                  "Failed when accessing the output path memory."sv)
   MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
                  "Failed when accessing the SkipLayers memory."sv)
+  MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
+                 UpscaleModelPathLen,
+                 "Failed when accessing the Upscaler Image memory."sv)
+  MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
+                 ControlImageLen,
+                 "Failed when accessing the control image memory."sv)
   std::string Prompt(PromptSpan.begin(), PromptSpan.end());
   std::string NegativePrompt(NegativePromptSpan.begin(),
                              NegativePromptSpan.end());
@@ -402,9 +417,6 @@ Expect<uint32_t> SDTextToImage::body(
   sd_image_t *ControlImage = nullptr;
   // Read control image
   if (ControlImageLen != 0) {
-    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
-                   ControlImageLen,
-                   "Failed when accessing the control image memory."sv)
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
   }
@@ -424,9 +436,6 @@ Expect<uint32_t> SDTextToImage::body(
   }
   // Upscale image
   if (UpscaleModelPathLen != 0) {
-    MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
-                   UpscaleModelPathLen,
-                   "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,
@@ -479,6 +488,12 @@ Expect<uint32_t> SDImageToImage::body(
                  "Failed when accessing the output path memory."sv)
   MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
                  "Failed when accessing the SkipLayers memory."sv)
+  MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
+                 UpscaleModelPathLen,
+                 "Failed when accessing the Upscaler Image memory."sv)
+  MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
+                 ControlImageLen,
+                 "Failed when accessing the control image memory."sv)
   if (!parameterCheck(Env, Width, Height, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
@@ -552,9 +567,6 @@ Expect<uint32_t> SDImageToImage::body(
   // Read control image
   sd_image_t *ControlImage = nullptr;
   if (ControlImageLen != 0) {
-    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
-                   ControlImageLen,
-                   "Failed when accessing the control image memory."sv)
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
   }
@@ -587,9 +599,6 @@ Expect<uint32_t> SDImageToImage::body(
   }
   // Upscale image
   if (UpscaleModelPathLen != 0) {
-    MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
-                   UpscaleModelPathLen,
-                   "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,

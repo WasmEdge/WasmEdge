@@ -19,6 +19,7 @@
 #include <ctime>
 #include <fcntl.h>
 #include <fstream>
+#include <future>
 #include <gtest/gtest.h>
 #include <iterator>
 #include <mutex>
@@ -5319,6 +5320,119 @@ TEST(WasiTest, PollOneoffReuseAfterEmptyPoll) {
   // poll read and 100 milliseconds again on the reused poller, expect timeout
   PollReadTimeout();
 
+  Env.fini();
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+}
+
+TEST(WasiTest, PollOneoffFailedSubscriptionDoesNotBlock) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+  const __wasi_fd_t BadFd = 100;
+
+  auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+  Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+  Subscriptions[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+  Subscriptions[0].u.u.fd_read.file_descriptor =
+      WasmEdge::EndianValue(BadFd).le();
+  Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+  Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+  Subscriptions[1].u.u.fd_read.file_descriptor =
+      WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+
+  struct sigaction Action = {};
+  struct sigaction OldAction = {};
+  Action.sa_handler = [](int) {};
+  sigemptyset(&Action.sa_mask);
+  ASSERT_EQ(::sigaction(SIGUSR1, &Action, &OldAction), 0);
+
+  // run poll_oneoff on another thread and expect it to return within 2
+  // seconds, interrupt the wait with signals if it blocks, and abort if it
+  // still does not return
+  auto PollWithoutBlocking = [&](uint32_t Count) {
+    std::promise<void> Returned;
+    auto ReturnedFuture = Returned.get_future();
+    std::thread Poll([&]() {
+      sigset_t Set;
+      sigemptyset(&Set);
+      sigaddset(&Set, SIGUSR1);
+      ::pthread_sigmask(SIG_UNBLOCK, &Set, nullptr);
+      EXPECT_TRUE(
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
+      Returned.set_value();
+    });
+    const bool Blocked = ReturnedFuture.wait_for(std::chrono::seconds(2)) !=
+                         std::future_status::ready;
+    EXPECT_FALSE(Blocked);
+    for (int I = 0;
+         I < 200 && ReturnedFuture.wait_for(10ms) != std::future_status::ready;
+         ++I) {
+      ::pthread_kill(Poll.native_handle(), SIGUSR1);
+    }
+    if (ReturnedFuture.wait_for(0ms) != std::future_status::ready) {
+      GTEST_LOG_(FATAL) << "poll_oneoff did not return";
+    }
+    Poll.join();
+    return !Blocked;
+  };
+  auto ExpectBadFdEvent = [&](__wasi_size_t ExpectedCount) {
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, ExpectedCount);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_BADF);
+    EXPECT_EQ(Events[0].userdata,
+              WasmEdge::EndianValue(0x1010101010101010).le());
+  };
+
+  // poll a bad fd and an idle pipe, expect only the error without blocking
+  if (PollWithoutBlocking(2)) {
+    ExpectBadFdEvent(1);
+  }
+
+  // poll a bad fd only, expect the error without blocking
+  if (PollWithoutBlocking(1)) {
+    ExpectBadFdEvent(1);
+  }
+
+  // poll a bad fd and a ready pipe, expect both results
+  ASSERT_EQ(::write(PipeFds[1], "x", 1), 1);
+  if (PollWithoutBlocking(2)) {
+    ExpectBadFdEvent(2);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[1].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[1].error, __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Events[1].userdata,
+              WasmEdge::EndianValue(0x2020202020202020).le());
+  }
+
+  EXPECT_EQ(::sigaction(SIGUSR1, &OldAction, nullptr), 0);
   Env.fini();
   closeFd(PipeFds[0]);
   closeFd(PipeFds[1]);

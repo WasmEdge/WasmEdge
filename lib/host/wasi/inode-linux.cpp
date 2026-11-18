@@ -1870,8 +1870,12 @@ void Poller::wait() noexcept {
   int Count = 0;
   // Nothing is subscribed: epoll_wait rejects an empty event buffer.
   if (!Events.empty()) {
+    const bool HasResult =
+        std::any_of(Events.begin(), Events.end(),
+                    [](const OptionalEvent &Event) { return Event.Valid; });
     EPollEvents.resize(Events.size());
-    Count = ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(), -1);
+    Count = ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(),
+                         HasResult ? 0 : -1);
     if (unlikely(Count < 0)) {
       const auto Error = fromErrNo(errno);
       for (auto &Event : Events) {

@@ -244,14 +244,16 @@ int32_t wasm_bpf_program::bpf_buffer_poll(
     if (!buffer.get()) {
       // create buffer
       auto map = map_ptr_by_fd(fd);
-      buffer = bpf_buffer__new(map);
-      if (!buffer) {
+      auto new_buffer = bpf_buffer__new(map);
+      if (!new_buffer) {
         return -1;
       }
-      res = buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
+      res =
+          new_buffer->bpf_buffer__open(fd, bpf_buffer_sample, new_buffer.get());
       if (res < 0) {
         return res;
       }
+      buffer = std::move(new_buffer);
     }
     buffer->set_callback_params(executor, module_instance,
                                 static_cast<uint32_t>(sample_func), data,

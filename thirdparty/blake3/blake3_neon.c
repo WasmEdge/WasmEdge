@@ -10,14 +10,12 @@
 
 INLINE uint32x4_t loadu_128(const uint8_t src[16]) {
   // vld1q_u32 has alignment requirements. Don't use it.
-  uint32x4_t x;
-  memcpy(&x, src, 16);
-  return x;
+  return vreinterpretq_u32_u8(vld1q_u8(src));
 }
 
 INLINE void storeu_128(uint32x4_t src, uint8_t dest[16]) {
   // vst1q_u32 has alignment requirements. Don't use it.
-  memcpy(dest, &src, 16);
+  vst1q_u8(dest, vreinterpretq_u8_u32(src));
 }
 
 INLINE uint32x4_t add_128(uint32x4_t a, uint32x4_t b) {
@@ -36,8 +34,8 @@ INLINE uint32x4_t set4(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
 }
 
 INLINE uint32x4_t rot16_128(uint32x4_t x) {
-  // The straightfoward implementation would be two shifts and an or, but that's
-  // slower on microarchitectures we've tested. See
+  // The straightforward implementation would be two shifts and an or, but
+  // that's slower on microarchitectures we've tested. See
   // https://github.com/BLAKE3-team/BLAKE3/pull/319.
   // return vorrq_u32(vshrq_n_u32(x, 16), vshlq_n_u32(x, 32 - 16));
   return vreinterpretq_u32_u16(vrev32q_u16(vreinterpretq_u16_u32(x)));
@@ -249,10 +247,11 @@ INLINE void load_counters4(uint64_t counter, bool increment_counter,
       counter_high(counter + (mask & 2)), counter_high(counter + (mask & 3)));
 }
 
-void blake3_hash4_neon(const uint8_t *const *inputs, size_t blocks,
-                       const uint32_t key[8], uint64_t counter,
-                       bool increment_counter, uint8_t flags,
-                       uint8_t flags_start, uint8_t flags_end, uint8_t *out) {
+static void blake3_hash4_neon(const uint8_t *const *inputs, size_t blocks,
+                              const uint32_t key[8], uint64_t counter,
+                              bool increment_counter, uint8_t flags,
+                              uint8_t flags_start, uint8_t flags_end,
+                              uint8_t *out) {
   uint32x4_t h_vecs[8] = {
       set1_128(key[0]), set1_128(key[1]), set1_128(key[2]), set1_128(key[3]),
       set1_128(key[4]), set1_128(key[5]), set1_128(key[6]), set1_128(key[7]),

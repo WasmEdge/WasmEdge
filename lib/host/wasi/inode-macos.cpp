@@ -1641,9 +1641,13 @@ void Poller::wait() noexcept {
     }
   }
 
+  const bool HasResult =
+      std::any_of(Events.begin(), Events.end(),
+                  [](const OptionalEvent &Event) { return Event.Valid; });
+  const struct timespec NoWait = {0, 0};
   KEvents.resize(Events.size());
-  const int Count =
-      ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(), nullptr);
+  const int Count = ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(),
+                             HasResult ? &NoWait : nullptr);
   if (unlikely(Count < 0)) {
     const auto Error = fromErrNo(errno);
     for (auto &Event : Events) {

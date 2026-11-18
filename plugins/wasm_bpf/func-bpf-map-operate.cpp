@@ -28,7 +28,6 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  std::shared_lock guard(this->state->lock);
   bpf_map_info map_info;
   memset(&map_info, 0, sizeof(map_info));
   uint32_t info_len = sizeof(map_info);

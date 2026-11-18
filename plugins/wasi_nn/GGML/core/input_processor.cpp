@@ -71,7 +71,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         // The mtmd context and the samplers refer to the model. Drop the mtmd
         // context here; the samplers of the other contexts are rebuilt on
         // their next use through the model generation.
-        GraphRef.VisionInputChunks.reset();
         GraphRef.VisionContext.reset();
         ++GraphRef.ModelGeneration;
         GraphRef.LlamaModel.reset();
@@ -159,6 +158,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs.clear();
+  CxtRef.VisionInputChunks.reset();
 
   auto Base64ImagePos = findBase64ImagePayload(Prompt);
 
@@ -257,16 +257,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
 
     // Tokenize the prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize the mtmd prompt"sv)
-    GraphRef.VisionInputChunks.reset(mtmd_input_chunks_init());
+    CxtRef.VisionInputChunks.reset(mtmd_input_chunks_init());
     mtmd_input_text MtmdText;
     MtmdText.text = Prompt.c_str();
     MtmdText.add_special = AddSpecial;
     MtmdText.parse_special = ParseSpecial;
     std::vector<const mtmd_bitmap *> BitmapsPtr = Bitmaps.c_ptr();
     int32_t Res = mtmd_tokenize(GraphRef.VisionContext.get(),
-                                GraphRef.VisionInputChunks.get(), &MtmdText,
+                                CxtRef.VisionInputChunks.get(), &MtmdText,
                                 BitmapsPtr.data(), BitmapsPtr.size());
     if (Res != 0) {
+      CxtRef.VisionInputChunks.reset();
       RET_ERROR(ErrNo::InvalidArgument,
                 "setInput: unable to tokenize the mtmd prompt."sv)
     }
@@ -276,11 +277,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
     // Get the number of input tokens for the metadata.
     CxtRef.LlamaNInputs = 0;
     for (size_t ChunkIndex = 0;
-         ChunkIndex < mtmd_input_chunks_size(GraphRef.VisionInputChunks.get());
+         ChunkIndex < mtmd_input_chunks_size(CxtRef.VisionInputChunks.get());
          ++ChunkIndex) {
       size_t NTokens = 0;
       const mtmd_input_chunk *Chunk =
-          mtmd_input_chunks_get(GraphRef.VisionInputChunks.get(), ChunkIndex);
+          mtmd_input_chunks_get(CxtRef.VisionInputChunks.get(), ChunkIndex);
       mtmd_input_chunk_get_tokens_text(Chunk, &NTokens);
       CxtRef.LlamaNInputs += NTokens;
     }

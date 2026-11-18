@@ -64,7 +64,6 @@ struct Graph {
   uint64_t ModelGeneration = 0;
   // Multimodal context:
   mtmd::context_ptr VisionContext = nullptr;
-  mtmd::input_chunks_ptr VisionInputChunks = nullptr;
   // Text-to-speech:
   bool TextToSpeech = false;
   std::string TTSOutputFilePath = "output.wav";
@@ -90,6 +89,8 @@ public:
   uint32_t GraphId;
   // Llama inputs:
   std::vector<llama_token> LlamaInputs;
+  // Set only while the last input of this context is a multimodal prompt.
+  mtmd::input_chunks_ptr VisionInputChunks = nullptr;
   uint64_t LlamaNInputs = 0;
   // Llama outputs:
   std::vector<uint8_t> LlamaOutputs;

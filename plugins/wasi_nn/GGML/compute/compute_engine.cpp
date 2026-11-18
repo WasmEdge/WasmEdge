@@ -33,7 +33,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, WASINN::Graph &G,
 
   // Evaluate the input tokens.
   ErrNo ReturnCode = ErrNo::Success;
-  if (GraphRef.VisionContext == nullptr) {
+  if (CxtRef.VisionInputChunks == nullptr) {
     // Text only prompt.
     ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
     if (ReturnCode != ErrNo::Success) {
@@ -41,10 +41,15 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, WASINN::Graph &G,
     }
   } else {
     // Multimodal prompt.
+    if (GraphRef.VisionContext == nullptr) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "compute: the mtmd context is released. Please set the "sv
+                "input again."sv)
+    }
     llama_pos NewNPos;
     int32_t Res = mtmd_helper_eval_chunks(
         GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
-        GraphRef.VisionInputChunks.get(), CxtRef.NPos,
+        CxtRef.VisionInputChunks.get(), CxtRef.NPos,
         /* seq_id */ 0, static_cast<int32_t>(getBatchSize(GraphRef)),
         /* logits_last */ true, &NewNPos);
     CxtRef.NPos = NewNPos;
@@ -112,7 +117,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
     clearContext(GraphRef, CxtRef);
 
     // Evaluate the input tokens.
-    if (GraphRef.VisionContext == nullptr) {
+    if (CxtRef.VisionInputChunks == nullptr) {
       // Text only prompt.
       ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
       if (ReturnCode != ErrNo::Success) {
@@ -120,10 +125,15 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
       }
     } else {
       // Multimodal prompt.
+      if (GraphRef.VisionContext == nullptr) {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "computeSingle: the mtmd context is released. Please set "sv
+                  "the input again."sv)
+      }
       llama_pos NewNPos;
       int32_t Res = mtmd_helper_eval_chunks(
           GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
-          GraphRef.VisionInputChunks.get(), CxtRef.NPos,
+          CxtRef.VisionInputChunks.get(), CxtRef.NPos,
           /* seq_id */ 0, static_cast<int32_t>(getBatchSize(GraphRef)),
           /* logits_last */ true, &NewNPos);
       CxtRef.NPos = NewNPos;

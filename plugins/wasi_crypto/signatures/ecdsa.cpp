@@ -3,6 +3,7 @@
 
 #include "signatures/ecdsa.h"
 
+#include <algorithm>
 #include <openssl/pem.h>
 
 namespace WasmEdge {
@@ -47,7 +48,13 @@ Ecdsa<CurveNid>::Signature::import(
     return i2dEcdsaSig(Sig.get());
   }
   case __WASI_SIGNATURE_ENCODING_DER: {
-    return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
+    EcdsaSigPtr Sig{d2iEcdsaSig(Encoded)};
+    ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    auto Der = i2dEcdsaSig(Sig.get());
+    ensureOrReturn(Der && std::equal(Der->begin(), Der->end(), Encoded.begin(),
+                                     Encoded.end()),
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    return Der;
   }
   default:
     assumingUnreachable();
@@ -93,6 +100,7 @@ Ecdsa<CurveNid>::SignState::sign() noexcept {
 
   std::vector<uint8_t> Res(Size);
   opensslCheck(EVP_DigestSignFinal(Ctx->RawCtx.get(), Res.data(), &Size));
+  Res.resize(Size);
 
   return Res;
 }
@@ -111,7 +119,7 @@ WasiCryptoExpect<void>
 Ecdsa<CurveNid>::VerificationState::verify(const Signature &Sig) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
   ensureOrReturn(EVP_DigestVerifyFinal(Ctx->RawCtx.get(), Sig.ref().data(),
-                                       Sig.ref().size()),
+                                       Sig.ref().size()) == 1,
                  __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
   return {};
 }

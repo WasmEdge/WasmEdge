@@ -56,11 +56,11 @@ void instantiateFixture(VM::VM &TestVM) {
 }
 
 /// Helper: execute the exported function and expect the constant result.
-void expectConstResult(VM::VM &TestVM) {
+void expectConstResult(VM::VM &TestVM, uint32_t Expected) {
   auto Res = TestVM.execute("f");
   ASSERT_TRUE(Res);
   ASSERT_EQ(Res->size(), 1U);
-  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected);
 }
 
 TEST(VMSnapshotTest, RoundTrip) {
@@ -214,7 +214,7 @@ TEST(VMStageTest, HappyPathLoadValidateInstantiateExecute) {
   EXPECT_FALSE(TestVM.holdsModule());
   instantiateFixture(TestVM);
   EXPECT_TRUE(TestVM.holdsModule());
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 
   auto FnList = TestVM.getFunctionList();
   ASSERT_EQ(FnList.size(), 1U);
@@ -227,7 +227,7 @@ TEST(VMStageTest, RegisterWhileInstantiatedAllowsReinstantiate) {
   instantiateFixture(TestVM);
   ASSERT_TRUE(TestVM.registerModule("ext", ConstFuncWasm));
   ASSERT_TRUE(TestVM.instantiate());
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 }
 
 TEST(VMStageTest, LoadComponentAfterModuleReplacesModule) {
@@ -258,7 +258,7 @@ TEST(VMStageTest, LoadModuleAfterComponentReplacesComponent) {
   EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
   ASSERT_TRUE(TestVM.validate());
   ASSERT_TRUE(TestVM.instantiate());
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 }
 
 TEST(VMStageTest, LoadASTModuleAfterComponentReplacesComponent) {
@@ -274,7 +274,55 @@ TEST(VMStageTest, LoadASTModuleAfterComponentReplacesComponent) {
   EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
   ASSERT_TRUE(TestVM.validate());
   ASSERT_TRUE(TestVM.instantiate());
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
+}
+
+TEST(VMStageTest, RunWasmFileKeepsNewInstanceAfterCallFails) {
+  // Same as ConstFuncWasm, but the function returns 9.
+  auto OtherConstFuncWasm = ConstFuncWasm;
+  OtherConstFuncWasm[32] = 0x09;
+  Configure Conf;
+  VM::VM FreshVM(Conf);
+  ASSERT_TRUE(FreshVM.runWasmFile(OtherConstFuncWasm, "f"));
+  EXPECT_TRUE(FreshVM.instantiate());
+  expectConstResult(FreshVM, 9U);
+
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  auto Res = TestVM.runWasmFile(OtherConstFuncWasm, "f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
+  expectConstResult(TestVM, 9U);
+  EXPECT_TRUE(TestVM.validate());
+  EXPECT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM, 9U);
+
+  VM::VM FailedVM(Conf);
+  instantiateFixture(FailedVM);
+  auto FailedRes = FailedVM.runWasmFile(OtherConstFuncWasm, "no-such-func");
+  ASSERT_FALSE(FailedRes);
+  EXPECT_EQ(FailedRes.error(), ErrCode::Value::FuncNotFound);
+  expectConstResult(FailedVM, 9U);
+  EXPECT_TRUE(FailedVM.instantiate());
+  expectConstResult(FailedVM, 9U);
+}
+
+TEST(VMStageTest, RunWasmFileFromASTModuleKeepsStage) {
+  Configure Conf;
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
+  expectConstResult(TestVM, 7U);
+  auto Res = TestVM.validate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+
+  instantiateFixture(TestVM);
+  ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
+  EXPECT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM, 7U);
 }
 
 TEST(VMRegistrationTest, RegisterAndExecuteByName) {
@@ -337,7 +385,7 @@ TEST(VMCleanupTest, VMIsReusableAfterCleanup) {
   Configure Conf;
   VM::VM TestVM(Conf);
   instantiateFixture(TestVM);
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 
   TestVM.cleanup();
   auto Res = TestVM.execute("f");
@@ -345,7 +393,7 @@ TEST(VMCleanupTest, VMIsReusableAfterCleanup) {
   EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
 
   instantiateFixture(TestVM);
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 }
 
 TEST(VMCleanupTest, CleanupRestoresBuiltinHosts) {

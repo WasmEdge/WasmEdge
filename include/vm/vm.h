@@ -96,6 +96,10 @@ public:
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
+  /// A path or bytecode is stored in the VM, so the stage becomes
+  /// instantiated once the new instance is active, even if the function call
+  /// then fails. A caller-owned AST module is not stored, so the stage keeps
+  /// describing the previously loaded unit and never advances.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},

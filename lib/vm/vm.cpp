@@ -346,6 +346,9 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
 #endif
   ActiveModInst = std::move(NewModInst);
+  if (&Module == Mod.get()) {
+    Stage = VMStage::Instantiated;
+  }
 
   // Get module instance.
   if (ActiveModInst) {

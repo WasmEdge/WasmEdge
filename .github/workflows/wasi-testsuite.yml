@@ -9,7 +9,6 @@ on:
     branches:
       - master
     paths:
-      - ".github/scripts/wasi-testsuite-adapter.py"
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
@@ -18,7 +17,6 @@ on:
     branches:
       - master
     paths:
-      - ".github/scripts/wasi-testsuite-adapter.py"
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
@@ -125,4 +123,4 @@ jobs:
 
       - name: Test Wasi testsuite
         working-directory: wasi-testsuite
-        run: python3 test-runner/wasi_test_runner.py -t ./tests/assemblyscript/testsuite/wasm32-wasip1 ./tests/c/testsuite/wasm32-wasip1 ./tests/rust/testsuite/wasm32-wasip1 -r ../WasmEdge/.github/scripts/wasi-testsuite-adapter.py
+        run: python3 test-runner/wasi_test_runner.py -t ./tests/assemblyscript/testsuite/wasm32-wasip1 ./tests/c/testsuite/wasm32-wasip1 ./tests/rust/testsuite/wasm32-wasip1 -r adapters/wasmedge.py

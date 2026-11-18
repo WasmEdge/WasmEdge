@@ -98,8 +98,6 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
   // New compute single token context.
   auto ReturnCode = ErrNo::Success;
   if (!CxtRef.ComputeSingleStarted) {
-    CxtRef.ComputeSingleStarted = true;
-
     // Clear the context and reset the sampler.
     clearContext(GraphRef, CxtRef);
 
@@ -124,6 +122,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
                   "compute: unable to eval the mtmd prompt."sv)
       }
     }
+
+    CxtRef.ComputeSingleStarted = true;
   }
 
   // Main prediction process.

@@ -25,6 +25,9 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#if !WASMEDGE_OS_WINDOWS
+#include <unistd.h>
+#endif
 
 using namespace std::literals;
 
@@ -5241,6 +5244,83 @@ TEST(WasiTest, CustomFds) {
         << "Should fail to initialize with invalid stderr fd";
   }
 }
+
+#if !WASMEDGE_OS_WINDOWS
+TEST(WasiTest, PollOneoffReuseAfterEmptyPoll) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+
+  auto PollReadTimeout = [&]() {
+    const uint32_t Count = 2;
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+    Subscriptions[0].u.tag =
+        WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subscriptions[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+    Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscriptions[1].u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscriptions[1].u.u.clock.timeout =
+        WasmEdge::EndianValue(
+            std::chrono::nanoseconds(std::chrono::milliseconds(100)).count())
+            .le();
+    Subscriptions[1].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+    Subscriptions[1].u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    EXPECT_EQ(NEvents, 1);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Events[0].userdata,
+              WasmEdge::EndianValue(0x2020202020202020).le());
+  };
+
+  // poll read and 100 milliseconds, expect timeout
+  PollReadTimeout();
+
+  // poll nothing, only the reuse of the poller after it is checked
+  EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     InPtr, OutPtr, UINT32_C(0), NEventsPtr},
+                                 Errno));
+
+  // poll read and 100 milliseconds again on the reused poller, expect timeout
+  PollReadTimeout();
+
+  Env.fini();
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+}
+#endif
 
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

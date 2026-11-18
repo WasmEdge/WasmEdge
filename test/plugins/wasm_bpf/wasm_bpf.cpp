@@ -109,6 +109,8 @@ TEST(WasmBpfTest, InvalidObjectAndUnknownHandle) {
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
   auto *pollFunc = module->findFuncExports("wasm_bpf_buffer_poll");
+  auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
+  ASSERT_NE(mapOptFunc, nullptr);
   ASSERT_NE(loadFunc, nullptr);
   ASSERT_NE(closeFunc, nullptr);
   ASSERT_NE(attachFunc, nullptr);
@@ -152,6 +154,18 @@ TEST(WasmBpfTest, InvalidObjectAndUnknownHandle) {
           WasmEdge::ValVariant(objectOffset), WasmEdge::ValVariant(objectSize),
           WasmEdge::ValVariant(INT32_C(0))},
       result));
+
+  // A map operation on an fd that is not a BPF map returns an error code.
+  ASSERT_TRUE(mapOptFunc->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          WasmEdge::ValVariant(INT32_C(-1)), WasmEdge::ValVariant(INT32_C(1)),
+          WasmEdge::ValVariant(objectOffset),
+          WasmEdge::ValVariant(objectOffset),
+          WasmEdge::ValVariant(objectOffset),
+          WasmEdge::ValVariant(UINT64_C(0))},
+      result));
+  EXPECT_LT(result[0].get<int32_t>(), 0);
 }
 
 static const size_t TASK_COMM_LEN = 16;

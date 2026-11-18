@@ -52,7 +52,7 @@ Rsa<PadMode, KeyBits, ShaNid>::PublicKey::checkValid(EvpPkeyPtr Ctx) noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void>
 Rsa<PadMode, KeyBits, ShaNid>::PublicKey::verify() const noexcept {
-  ensureOrReturn(RSA_check_key(EVP_PKEY_get0_RSA(Ctx.get())),
+  ensureOrReturn(RSA_check_key(EVP_PKEY_get0_RSA(Ctx.get())) == 1,
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {};
 }
@@ -361,7 +361,7 @@ WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::verify(
     const Signature &Sig) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
   ensureOrReturn(EVP_DigestVerifyFinal(Ctx->RawCtx.get(), Sig.ref().data(),
-                                       Sig.ref().size()),
+                                       Sig.ref().size()) == 1,
                  __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
 
   return {};

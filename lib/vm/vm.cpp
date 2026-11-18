@@ -350,6 +350,7 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
 #endif
   ActiveModInst = std::move(NewModInst);
+  ActiveCompInst.reset();
   if (&Module == Mod.get()) {
     Stage = VMStage::Instantiated;
   }
@@ -538,11 +539,24 @@ Expect<void> VM::unsafeInstantiate() {
   if (Comp) {
     EXPECTED_TRY(ActiveCompInst,
                  ExecutorEngine.instantiateComponent(StoreRef, *Comp));
+    unsafeReleaseActiveModule();
     Stage = VMStage::Instantiated;
     return {};
   }
   spdlog::error(ErrCode::Value::WrongVMWorkflow);
   return Unexpect(ErrCode::Value::WrongVMWorkflow);
+}
+
+void VM::unsafeReleaseActiveModule() {
+  if (!ActiveModInst) {
+    return;
+  }
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    LazyEngine->unregisterInstance(*ActiveModInst);
+  }
+#endif
+  ActiveModInst.release()->terminate();
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>

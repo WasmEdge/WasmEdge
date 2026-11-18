@@ -369,6 +369,40 @@ TEST(VMStageTest, FailedRunWasmFileFallsBackToStoredUnitStage) {
   EXPECT_TRUE(CompVM.holdsComponent());
 }
 
+TEST(VMStageTest, InstantiateComponentReleasesModuleInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  expectConstResult(TestVM, 7U);
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
+  auto Res = TestVM.execute("f");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
+}
+
+TEST(VMStageTest, RunWasmFileFromASTModuleReleasesComponentInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
+  EXPECT_TRUE(TestVM.holdsModule());
+  EXPECT_FALSE(TestVM.holdsComponent());
+
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
+}
+
 TEST(VMRegistrationTest, RegisterAndExecuteByName) {
   Configure Conf;
   VM::VM TestVM(Conf);

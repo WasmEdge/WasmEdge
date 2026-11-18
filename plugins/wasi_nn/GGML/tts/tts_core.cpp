@@ -471,6 +471,11 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
     RET_ERROR(ErrNo::RuntimeError,
               "codesToSpeech: no audio codes in the output tokens."sv)
   }
+  if (GraphRef.TTSModel == nullptr || GraphRef.TTSContext == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "codesToSpeech: tts is enabled but the vocoder model is not "sv
+              "loaded. Please enable tts when loading the model."sv)
+  }
   const auto NUBatch = llama_n_ubatch(GraphRef.TTSContext.get());
   if (CxtRef.LlamaOutputTokens.size() > NUBatch) {
     RET_ERROR(ErrNo::RuntimeError,

@@ -5682,6 +5682,76 @@ TEST(WasiTest, PollOneoffInterruptedWait) {
   closeFd(PipeFds[0]);
   closeFd(PipeFds[1]);
 }
+
+TEST(WasiTest, PollOneoffWriteReuseAfterFailedModify) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  int OtherPipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_EQ(::pipe(OtherPipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, 0, PipeFds[1], 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t);
+
+  auto PollWrite = [&](__wasi_errno_t Expected) {
+    const uint32_t Count = 1;
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+    Subscriptions[0].u.tag =
+        WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le();
+    Subscriptions[0].u.u.fd_write.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(1).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, 1);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le());
+    EXPECT_EQ(Events[0].error, Expected);
+  };
+
+  // poll write on an empty pipe, expect writable
+  PollWrite(__WASI_ERRNO_SUCCESS);
+
+  // replace the open file behind the fd, and keep the replaced open file
+  // writable through another fd
+  const int KeptFd = ::dup(PipeFds[1]);
+  ASSERT_GE(KeptFd, 0);
+  ASSERT_EQ(::dup2(OtherPipeFds[1], PipeFds[1]), PipeFds[1]);
+
+  // poll write, expect the new open file to be registered and writable
+  PollWrite(__WASI_ERRNO_SUCCESS);
+
+  // poll write again, expect writable
+  PollWrite(__WASI_ERRNO_SUCCESS);
+
+  Env.fini();
+  closeFd(KeptFd);
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+  closeFd(OtherPipeFds[0]);
+  closeFd(OtherPipeFds[1]);
+}
 #endif
 
 GTEST_API_ int main(int argc, char **argv) {

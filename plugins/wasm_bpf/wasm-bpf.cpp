@@ -257,6 +257,9 @@ int32_t wasm_bpf_program::bpf_buffer_poll(
         return res;
       }
       buffer = std::move(new_buffer);
+      buffer_fd = fd;
+    } else if (buffer_fd != fd) {
+      return -EINVAL;
     }
     buffer->set_callback_params(executor, module_instance,
                                 static_cast<uint32_t>(sample_func), data,

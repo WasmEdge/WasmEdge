@@ -4,8 +4,8 @@ ARG XX_VERSION=1.9.0
 ARG DEBIAN_VERSION=bookworm
 ARG LLVM_VERSION=23
 
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
-FROM --platform=$BUILDPLATFORM debian:${DEBIAN_VERSION} AS base
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION}@sha256:c64defb9ed5a91eacb37f96ccc3d4cd72521c4bd18d5442905b95e2226b0e707 AS xx
+FROM --platform=$BUILDPLATFORM debian:${DEBIAN_VERSION}@sha256:268fb24c39bca92d326dd83ea3abebe4a3f7751c804ffef23bb6d857dd343ff8 AS base
 COPY --from=xx / /
 
 # Install host dependencies

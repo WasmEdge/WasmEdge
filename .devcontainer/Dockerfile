@@ -1,1 +1,1 @@
-FROM wasmedge/wasmedge:latest
+FROM wasmedge/wasmedge:latest@sha256:1f385c1a01accd2eb51ef9d531a37bb2d72451fe4fec42f036340c42cadb589d

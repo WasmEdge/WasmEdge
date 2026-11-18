@@ -22,11 +22,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install required dependencies
-        run: |
-          sudo apt update && sudo apt install -y git curl
-          curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
 
       - name: Print versions
         run: |
@@ -36,9 +35,8 @@ jobs:
 
       - name: Install commitlint
         run: |
-          npm install conventional-changelog-conventionalcommits@9.1.0
-          npm install commitlint@20.2.0 @commitlint/config-conventional@20.2.0
-          npx commitlint --version
+          npm ci
+          npx --no-install commitlint --version
 
       - name: Validate PR commits with commitlint
         if: github.event_name == 'pull_request'
@@ -54,11 +52,10 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install required dependencies
-        run: |
-          sudo apt update && sudo apt install -y git curl
-          curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
 
       - name: Print versions
         run: |
@@ -68,8 +65,7 @@ jobs:
 
       - name: Install commitlint
         run: |
-          npm install conventional-changelog-conventionalcommits@9.1.0
-          npm install commitlint@20.2.0 @commitlint/config-conventional@20.2.0
+          npm ci
 
       - name: Validate PR title
         env:

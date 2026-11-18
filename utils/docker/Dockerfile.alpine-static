@@ -7,13 +7,13 @@ ARG ALPINE_VERSION=3.23
 # ----------------------------------------------------
 # STAGE 1: Import Pre-Built LLD Libraries
 # ----------------------------------------------------
-FROM wasmedge/wasmedge:alpine-base-3.23 AS lld-artifact
+FROM wasmedge/wasmedge:alpine-base-3.23@sha256:215ccd04c9a4484bc2c79f744afc61d8262092ef42f7b1d46fe20bd9620c8e60 AS lld-artifact
 
 # ----------------------------------------------------
 # STAGE 2: Main WasmEdge Build
 # ----------------------------------------------------
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
-FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION}@sha256:8879a398dedf0aadaacfbd332b29ff2f84bc39ae6d4e9c0a1109db27ac5ba012 AS xx
+FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION}@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 AS base
 COPY --from=xx / /
 
 # Install host dependencies

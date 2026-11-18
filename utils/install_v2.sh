@@ -598,7 +598,7 @@ main() {
 
 	# Run the uninstaller to remove any previous installations
 	if [ -f "$IPATH/bin/wasmedge" ]; then
-		bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
+		curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/f780313442219b38fd24a4fa231fafcbf6809758/utils/uninstall.sh | bash -s -- -p "$IPATH" -q
 	fi
 
 	set_ENV "$IPATH"

@@ -65,16 +65,16 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Setup Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-
-      - name: Install Black Formatter
-        run: pip install black==25.1.0
-
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+
+      - name: Install Black Formatter
+        run: pip install --require-hashes -r .github/requirements/black.txt
 
       - name: Check Python Code Formatting
         run: |

@@ -19,6 +19,11 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, WASINN::Graph &G,
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute")
 
+  if (auto Res = ensureSampler(GraphRef, CxtRef, "compute"sv);
+      Res != ErrNo::Success) {
+    return Res;
+  }
+
   // Clear the context and reset the sampler.
   clearContext(GraphRef, CxtRef);
 
@@ -94,6 +99,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle"sv)
+
+  if (auto Res = ensureSampler(GraphRef, CxtRef, "computeSingle"sv);
+      Res != ErrNo::Success) {
+    return Res;
+  }
 
   // New compute single token context.
   auto ReturnCode = ErrNo::Success;

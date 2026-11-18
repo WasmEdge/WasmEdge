@@ -68,13 +68,18 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         llama_model_params ModelParams = llama_model_default_params();
         ModelParams.n_gpu_layers =
             static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
+        // The mtmd context and the samplers refer to the model. Drop the mtmd
+        // context here; the samplers of the other contexts are rebuilt on
+        // their next use through the model generation.
+        GraphRef.VisionInputChunks.reset();
+        GraphRef.VisionContext.reset();
+        ++GraphRef.ModelGeneration;
         GraphRef.LlamaModel.reset();
         // Due to the model change, the context and sampler should also be
         // reloaded. The new context and sampler will be created in the next
         // block.
         GraphRef.LlamaContext.reset();
         if (CxtRef.LlamaSampler) {
-          // TODO: Trigger the sampler in other contexts to reallocate.
           common_sampler_free(CxtRef.LlamaSampler);
           CxtRef.LlamaSampler = nullptr;
         }
@@ -105,7 +110,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
 
     // Some changes to sampling parameters will require the sampler to be
     // reallocated.
-    if (IsSamplerParamsUpdated || CxtRef.LlamaSampler == nullptr) {
+    if (IsSamplerParamsUpdated || CxtRef.LlamaSampler == nullptr ||
+        CxtRef.SamplerGeneration != GraphRef.ModelGeneration) {
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Reallocate llama sampler due to parameters change."sv)
       if (CxtRef.LlamaSampler) {
@@ -124,6 +130,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
       }
+      CxtRef.SamplerGeneration = GraphRef.ModelGeneration;
     }
 
     G.setReady();

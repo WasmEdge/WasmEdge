@@ -59,6 +59,9 @@ struct Graph {
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
+  // Incremented on every model reload; a context whose sampler was built for
+  // an older generation must rebuild it before use.
+  uint64_t ModelGeneration = 0;
   // Multimodal context:
   mtmd::context_ptr VisionContext = nullptr;
   mtmd::input_chunks_ptr VisionInputChunks = nullptr;
@@ -94,6 +97,7 @@ public:
   // Data for computation:
   bool ComputeSingleStarted = false;
   struct common_sampler *LlamaSampler = nullptr;
+  uint64_t SamplerGeneration = 0;
   size_t ImagePosition = 0;
   int32_t NPos = 0;
   // Configs:

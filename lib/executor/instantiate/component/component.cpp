@@ -47,7 +47,12 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   if (Name.has_value()) {
-    StoreMgr.registerComponent(CompInst.get());
+    EXPECTED_TRY(
+        StoreMgr.registerComponent(CompInst.get()).map_error([](auto E) {
+          spdlog::error(E);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+          return E;
+        }));
   }
   return CompInst;
 }

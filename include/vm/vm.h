@@ -421,10 +421,19 @@ private:
   enum class WasmUnitKind : uint8_t { Module, Component };
 
   /// Store a parsed wasm unit into the matching slot and report its kind.
-  /// The slot for the other kind keeps its previous content.
+  /// The slot for the other kind is emptied, so the VM holds one unit.
   WasmUnitKind
   unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
                                    std::unique_ptr<AST::Module>> &&Unit);
+
+  /// Store a module as the only wasm unit held by the VM. The active
+  /// component instance points into the component AST, so it is released
+  /// before the component.
+  void unsafeStoreModule(std::shared_ptr<AST::Module> Module) {
+    Mod = std::move(Module);
+    ActiveCompInst.reset();
+    Comp.reset();
+  }
 
   /// Registering a module or running another wasm unit resets the active
   /// instantiation in the store, so the stage falls back to Validated and

@@ -26,8 +26,10 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -205,6 +207,7 @@ class ComponentInstance {
   // isolation and the module and component type declarations.
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
+  ~ComponentInstance() noexcept { unlinkAllStores(); }
 
   // Getter for the component name.
   std::string_view getComponentName() const noexcept { return CompName; }
@@ -435,6 +438,39 @@ public:
   }
 
 private:
+  friend class Runtime::StoreManager;
+  using LinkedStoreKey = std::pair<StoreManager *, std::string>;
+  using BeforeComponentDestroyCallback = void(const LinkedStoreKey &Key,
+                                              const ComponentInstance *Comp);
+  void linkStore(StoreManager *Store, std::string_view Name,
+                 BeforeComponentDestroyCallback Callback) {
+    std::unique_lock Lock(LinkedStoreMutex);
+    LinkedStore.insert_or_assign(LinkedStoreKey{Store, std::string(Name)},
+                                 Callback);
+  }
+
+  void unlinkStore(StoreManager *Store, std::string_view Name) {
+    std::unique_lock Lock(LinkedStoreMutex);
+    LinkedStore.erase(LinkedStoreKey{Store, std::string(Name)});
+  }
+
+  void unlinkAllStores() noexcept {
+    std::map<LinkedStoreKey, std::function<BeforeComponentDestroyCallback>>
+        Snapshot;
+    {
+      std::unique_lock Lock(LinkedStoreMutex);
+      Snapshot.swap(LinkedStore);
+    }
+    for (auto &&[Key, Callback] : Snapshot) {
+      assuming(Callback);
+      Callback(Key, this);
+    }
+  }
+
+  std::mutex LinkedStoreMutex;
+  std::map<LinkedStoreKey, std::function<BeforeComponentDestroyCallback>>
+      LinkedStore;
+
   std::string CompName;
 
   // value

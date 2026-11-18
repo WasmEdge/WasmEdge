@@ -359,6 +359,24 @@ TEST(VMCleanupTest, CleanupReplacesPluginComponents) {
   }
 }
 
+TEST(VMPluginTest, ExternalStoreForgetsPluginComponents) {
+  Plugin::Plugin::registerPlugin(&TestComponentPluginDescriptor);
+  ASSERT_NE(Plugin::Plugin::find("wasmedge_vmtest_component"), nullptr);
+
+  Configure Conf;
+  Runtime::StoreManager Store;
+  {
+    VM::VM TestVM(Conf, Store);
+    EXPECT_EQ(Store.findComponent(TestComponentName), CreatedComponents.back());
+  }
+  EXPECT_EQ(Store.findComponent(TestComponentName), nullptr);
+
+  auto ShortStore = std::make_unique<Runtime::StoreManager>();
+  VM::VM TestVM(Conf, *ShortStore);
+  EXPECT_NE(ShortStore->findComponent(TestComponentName), nullptr);
+  ShortStore.reset();
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -88,6 +88,10 @@ public:
           ->unlinkStore(this, Name);
     }
     NamedMod.clear();
+    for (auto &&[Name, CompInst] : NamedComp) {
+      (const_cast<Instance::ComponentInstance *>(CompInst))
+          ->unlinkStore(this, Name);
+    }
     NamedComp.clear();
   }
 
@@ -138,7 +142,15 @@ public:
     if (likely(Iter != NamedComp.cend())) {
       return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
-    NamedComp.emplace(CompInst->getComponentName(), CompInst);
+    const std::string Name(CompInst->getComponentName());
+    NamedComp.emplace(Name, CompInst);
+    (const_cast<Instance::ComponentInstance *>(CompInst))
+        ->linkStore(this, Name,
+                    [](const Instance::ComponentInstance::LinkedStoreKey &Key,
+                       const Instance::ComponentInstance *) {
+                      std::unique_lock CallbackLock(Key.first->Mutex);
+                      (Key.first->NamedComp).erase(Key.second);
+                    });
     return {};
   }
 

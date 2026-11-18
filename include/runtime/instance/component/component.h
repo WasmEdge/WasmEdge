@@ -206,6 +206,8 @@ class ComponentInstance {
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
 
+  virtual ~ComponentInstance() noexcept = default;
+
   // Getter for the component name.
   std::string_view getComponentName() const noexcept { return CompName; }
 

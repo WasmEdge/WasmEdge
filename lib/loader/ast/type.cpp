@@ -8,7 +8,7 @@ namespace Loader {
 
 // Load binary and decode HeapType. See "include/loader/loader.h".
 Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
-                                     bool AllowTypeIndex) {
+                                     bool IsAbsHeapType) {
   // Read the heap type code.
   auto Val = FMgr.readS33();
   if (unlikely(!Val)) {
@@ -71,7 +71,7 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
     }
   } else {
     // Type index case. Legal if the function reference proposal is enabled.
-    if (!AllowTypeIndex) {
+    if (IsAbsHeapType) {
       return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
     if (!Conf.hasProposal(Proposal::FunctionReferences)) {
@@ -119,7 +119,7 @@ Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
     return loadHeapType(Code, From);
   }
   default:
-    return loadHeapType(TypeCode::RefNull, From, false);
+    return loadHeapType(TypeCode::RefNull, From, true);
   }
 }
 
@@ -225,7 +225,7 @@ Expect<void> Loader::loadCompositeType(AST::CompositeType &CType) {
 }
 
 // Load binary to construct Limit node. See "include/loader/loader.h".
-Expect<void> Loader::loadLimit(AST::Limit &Lim, bool IsTable) {
+Expect<void> Loader::loadLimit(AST::Limit &Lim, bool IsMemory) {
   // Read the limit type flag.
   EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
@@ -260,7 +260,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim, bool IsTable) {
       }
     }
   }
-  if (Lim.isShared() && (!Conf.hasProposal(Proposal::Threads) || IsTable)) {
+  if (Lim.isShared() && (!Conf.hasProposal(Proposal::Threads) || !IsMemory)) {
     if (Conf.hasProposal(Proposal::Memory64)) {
       return logLoadError(ErrCode::Value::MalformedLimitFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
@@ -363,7 +363,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
 // Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   // Read limit.
-  return loadLimit(MemType.getLimit(), false).map_error([](auto E) {
+  return loadLimit(MemType.getLimit(), true).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
     return E;
   });
@@ -377,7 +377,7 @@ Expect<void> Loader::loadType(AST::TableType &TabType) {
   TabType.setRefType(Type);
 
   // Read limit.
-  return loadLimit(TabType.getLimit(), true).map_error([](auto E) {
+  return loadLimit(TabType.getLimit()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
     return E;
   });

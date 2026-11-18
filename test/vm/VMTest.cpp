@@ -474,6 +474,25 @@ TEST(VMCleanupTest, VMIsReusableAfterCleanup) {
   expectConstResult(TestVM, 7U);
 }
 
+TEST(VMCleanupTest, CleanupReleasesComponentInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+
+  TestVM.cleanup();
+  EXPECT_FALSE(TestVM.holdsComponent());
+  auto Res = TestVM.validate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+
+  instantiateFixture(TestVM);
+  expectConstResult(TestVM, 7U);
+}
+
 TEST(VMCleanupTest, CleanupRestoresBuiltinHosts) {
   Configure Conf;
   Conf.addHostRegistration(HostRegistration::Wasi);

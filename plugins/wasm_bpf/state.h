@@ -14,7 +14,7 @@ namespace Host {
 
 struct WasmBpfState {
   /// Manage BPF programs.
-  std::unordered_map<handle_t, std::unique_ptr<wasm_bpf_program>> handles;
+  std::unordered_map<handle_t, std::shared_ptr<wasm_bpf_program>> handles;
   std::shared_mutex lock;
   ~WasmBpfState() noexcept = default;
 };

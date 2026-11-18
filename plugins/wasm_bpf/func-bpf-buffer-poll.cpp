@@ -3,6 +3,7 @@
 
 #include "func-bpf-buffer-poll.h"
 #include "wasmedge/wasmedge.h"
+#include <memory>
 #include <shared_mutex>
 
 namespace WasmEdge {
@@ -32,18 +33,22 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
   if (unlikely(!module_instance)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  std::shared_lock lock(state->lock);
-  auto program_ptr = state->handles.find(program);
-  if (program_ptr == state->handles.end()) {
-    return Unexpect(ErrCode::Value::HostFuncError);
+  std::shared_ptr<wasm_bpf_program> program_ref;
+  {
+    std::shared_lock lock(state->lock);
+    auto program_ptr = state->handles.find(program);
+    if (program_ptr == state->handles.end()) {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    program_ref = program_ptr->second;
   }
   auto data_buf = memory->getSpan<char>(data, max_size);
   if (data_buf.size() != max_size) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  return program_ptr->second->bpf_buffer_poll(c_executor, c_module, fd,
-                                              sample_func, ctx, data_buf.data(),
-                                              max_size, timeout_ms, data);
+  return program_ref->bpf_buffer_poll(c_executor, c_module, fd, sample_func,
+                                      ctx, data_buf.data(), max_size,
+                                      timeout_ms, data);
 }
 
 } // namespace Host

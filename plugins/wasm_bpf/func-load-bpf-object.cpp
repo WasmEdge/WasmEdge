@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "func-load-bpf-object.h"
+#include <mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -23,7 +24,7 @@ Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
     return 0;
   auto key = reinterpret_cast<uint64_t>(program.get());
 
-  std::shared_lock guard(state->lock);
+  std::unique_lock guard(state->lock);
   state->handles.emplace(key, std::move(program));
   return key;
 }

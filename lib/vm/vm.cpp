@@ -151,10 +151,16 @@ void VM::unsafeRegisterBuiltInHosts() {
 void VM::unsafeRegisterPlugInHosts() {
   // Register all created module instances from plugins.
   for (auto &It : PlugInModInsts) {
-    ExecutorEngine.registerModule(StoreRef, *(It.get()));
+    if (!ExecutorEngine.registerModule(StoreRef, *(It.get()))) {
+      spdlog::error("    Registering plug-in module \"{}\" failed."sv,
+                    It->getModuleName());
+    }
   }
   for (auto &It : PlugInCompInsts) {
-    ExecutorEngine.registerComponent(StoreRef, *(It.get()));
+    if (!ExecutorEngine.registerComponent(StoreRef, *(It.get()))) {
+      spdlog::error("    Registering plug-in component \"{}\" failed."sv,
+                    It->getComponentName());
+    }
   }
 }
 

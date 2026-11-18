@@ -710,6 +710,7 @@ void VM::unsafeCleanup() {
     ActiveCompInst.reset();
   }
   StoreRef.reset();
+  PlugInCompInsts.clear();
   cleanupModInstContainer(RegModInsts);
   Stat.clear();
   unsafeLoadBuiltInHosts();

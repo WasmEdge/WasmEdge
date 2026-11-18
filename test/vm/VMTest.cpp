@@ -20,6 +20,8 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "plugin/plugin.h"
+#include "runtime/instance/component/component.h"
 #ifdef WASMEDGE_USE_LLVM
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
@@ -50,6 +52,37 @@ void instantiateFixture(VM::VM &TestVM) {
   ASSERT_TRUE(TestVM.validate());
   ASSERT_TRUE(TestVM.instantiate());
 }
+
+constexpr const char *TestComponentName = "wasmedge:vmtest/component";
+
+std::vector<const Runtime::Instance::ComponentInstance *> CreatedComponents;
+
+Runtime::Instance::ComponentInstance *createTestComponent(
+    const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  auto *CompInst = new Runtime::Instance::ComponentInstance(TestComponentName);
+  CreatedComponents.push_back(CompInst);
+  return CompInst;
+}
+
+Plugin::PluginComponent::ComponentDescriptor TestComponentDescriptor[]{
+    {
+        /* Name */ TestComponentName,
+        /* Description */ "",
+        /* Create */ createTestComponent,
+    },
+};
+
+Plugin::Plugin::PluginDescriptor TestComponentPluginDescriptor{
+    /* Name */ "wasmedge_vmtest_component",
+    /* Description */ "",
+    /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
+    /* Version */ {0, 1, 0, 0},
+    /* ModuleCount */ 0,
+    /* ModuleDescriptions */ nullptr,
+    /* ComponentCount */ 1,
+    /* ComponentDescriptions */ TestComponentDescriptor,
+    /* AddOptions */ nullptr,
+};
 
 /// Helper: execute the exported function and expect the constant result.
 void expectConstResult(VM::VM &TestVM) {
@@ -305,6 +338,25 @@ TEST(VMCleanupTest, CleanupRestoresBuiltinHosts) {
   TestVM.cleanup();
   EXPECT_NE(TestVM.getImportModule(HostRegistration::Wasi), nullptr);
   EXPECT_NE(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"), nullptr);
+}
+
+TEST(VMCleanupTest, CleanupReplacesPluginComponents) {
+  Plugin::Plugin::registerPlugin(&TestComponentPluginDescriptor);
+  ASSERT_NE(Plugin::Plugin::find("wasmedge_vmtest_component"), nullptr);
+
+  Configure Conf;
+  VM::VM TestVM(Conf);
+  const auto Created = CreatedComponents.size();
+  ASSERT_GE(Created, 1U);
+  EXPECT_EQ(TestVM.getStoreManager().findComponent(TestComponentName),
+            CreatedComponents.back());
+
+  for (size_t I = 1; I <= 3; ++I) {
+    TestVM.cleanup();
+    ASSERT_EQ(CreatedComponents.size(), Created + I);
+    EXPECT_EQ(TestVM.getStoreManager().findComponent(TestComponentName),
+              CreatedComponents.back());
+  }
 }
 
 } // namespace

@@ -1251,4 +1251,29 @@ TEST(Component, ExportAliasIndexSpace) {
   ASSERT_TRUE(VM.instantiate());
 }
 
+TEST(Component, InstantiateUnvalidatedComponentRejected) {
+  Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  VM::VM VM(Conf);
+
+  std::vector<uint8_t> Vec = {0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00};
+
+  auto Unit = VM.getLoader().parseWasmUnit(Vec);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+
+  auto Res = VM.getExecutor().instantiateComponent(VM.getStoreManager(), *Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::NotValidated);
+  auto RegRes =
+      VM.getExecutor().registerComponent(VM.getStoreManager(), *Comp, "comp");
+  ASSERT_FALSE(RegRes);
+  EXPECT_EQ(RegRes.error(), ErrCode::Value::NotValidated);
+  EXPECT_EQ(VM.getStoreManager().findComponent("comp"), nullptr);
+
+  ASSERT_TRUE(VM.getValidator().validate(*Comp));
+  EXPECT_TRUE(
+      VM.getExecutor().instantiateComponent(VM.getStoreManager(), *Comp));
+}
+
 } // namespace

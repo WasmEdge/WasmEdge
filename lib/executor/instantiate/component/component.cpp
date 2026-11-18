@@ -17,6 +17,13 @@ Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       const AST::Component::Component &Comp,
                       std::optional<std::string_view> Name) {
+  // Check that the component is validated.
+  if (unlikely(!Comp.getIsValidated())) {
+    spdlog::error(ErrCode::Value::NotValidated);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return Unexpect(ErrCode::Value::NotValidated);
+  }
+
   auto CompInst =
       std::make_unique<Runtime::Instance::ComponentInstance>(Name.value_or(""));
 

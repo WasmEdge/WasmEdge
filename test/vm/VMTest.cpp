@@ -30,6 +30,10 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <random>
+#include <string>
+#include <system_error>
 #include <vector>
 
 namespace {
@@ -367,6 +371,50 @@ TEST(VMStageTest, FailedRunWasmFileFallsBackToStoredUnitStage) {
   EXPECT_EQ(RunRes.error(), ErrCode::Value::RuntimeError);
   EXPECT_TRUE(CompVM.instantiate());
   EXPECT_TRUE(CompVM.holdsComponent());
+}
+
+TEST(VMStageTest, RunWasmFileFromPathStoresComponent) {
+  std::filesystem::path Dir;
+  {
+    std::random_device Device;
+    for (int I = 0; I < 100 && Dir.empty(); ++I) {
+      auto Candidate = std::filesystem::temp_directory_path() /
+                       ("wasmedge-vm-stage-path-" + std::to_string(Device()));
+      std::error_code EC;
+      if (std::filesystem::create_directory(Candidate, EC)) {
+        Dir = std::move(Candidate);
+      } else {
+        ASSERT_FALSE(EC) << EC.message();
+      }
+    }
+  }
+  ASSERT_FALSE(Dir.empty());
+  struct Cleanup {
+    std::filesystem::path Path;
+    ~Cleanup() {
+      std::error_code EC;
+      std::filesystem::remove_all(Path, EC);
+    }
+  } Guard{Dir};
+  const auto Path = Dir / "component.wasm";
+  {
+    std::ofstream File(Path, std::ios::binary);
+    File.write(reinterpret_cast<const char *>(EmptyComponentWasm.data()),
+               static_cast<std::streamsize>(EmptyComponentWasm.size()));
+    File.close();
+    ASSERT_TRUE(File);
+  }
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  auto Res = TestVM.runWasmFile(Path, "f");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::RuntimeError);
+  expectConstResult(TestVM, 7U);
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
 }
 
 TEST(VMStageTest, InstantiateComponentReleasesModuleInstance) {

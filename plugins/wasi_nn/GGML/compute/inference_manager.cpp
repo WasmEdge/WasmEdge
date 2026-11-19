@@ -146,6 +146,34 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   return ErrNo::Success;
 }
 
+// Rebuild the sampler when it is missing or was built before a model reload.
+// The stream state of the context is lost together with the old sampler.
+ErrNo ensureSampler(Graph &GraphRef, Context &CxtRef,
+                    std::string_view LogPrefix) noexcept {
+  if (CxtRef.LlamaSampler != nullptr &&
+      CxtRef.SamplerGeneration == GraphRef.ModelGeneration) {
+    return ErrNo::Success;
+  }
+  if (CxtRef.LlamaSampler != nullptr) {
+    common_sampler_free(CxtRef.LlamaSampler);
+    CxtRef.LlamaSampler = nullptr;
+  }
+  CxtRef.ComputeSingleStarted = false;
+  try {
+    CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
+                                              GraphRef.Params.sampling);
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::InvalidArgument, "{}: unable to init sampler: {}"sv,
+              LogPrefix, E.what())
+  }
+  if (CxtRef.LlamaSampler == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "{}: unable to init sampler."sv,
+              LogPrefix)
+  }
+  CxtRef.SamplerGeneration = GraphRef.ModelGeneration;
+  return ErrNo::Success;
+}
+
 // Clear the context and reset the sampler.
 void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext"sv)

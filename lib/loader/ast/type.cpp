@@ -21,8 +21,8 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
                                 : ErrCode::Value::MalformedElemType;
 
   if (*Val < 0) {
-    if (*Val < -64) {
-      // Check for an invalid s33 value larger than 1 byte.
+    if (FMgr.getOffset() - FMgr.getLastOffset() > 1) {
+      // The abstract heap type codes are encoded in a single byte.
       return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
     TypeCode HTCode =

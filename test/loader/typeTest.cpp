@@ -554,6 +554,10 @@ TEST(TypeTest, LoadHeapType) {
   //   2.  Load invalid heap type with unknown heap type code.
   //   3.  Load invalid heap type with type index with/without typed function
   //       references proposal.
+  //   4.  Load invalid abstract heap type encoded in multi-byte SLEB128.
+  //   5.  Load invalid abbreviated reference type encoded in multi-byte
+  //       SLEB128.
+  //   6.  Load heap type with type index encoded in multi-byte SLEB128.
 
   Vec = {
       0x06U,        // Global section
@@ -586,6 +590,38 @@ TEST(TypeTest, LoadHeapType) {
       0x0BU         // Expression End
   };
   EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x06U,        // Global section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x7FU, 0x00U, // Global type
+      0xD0U,        // OpCode Ref__null
+      0xEFU, 0x7FU, // ExternRef heap type code in 2 bytes
+      0x0BU         // Expression End
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x06U,               // Global section
+      0x07U,               // Content size = 7
+      0x01U,               // Vector length = 1
+      0xF0U, 0x7FU, 0x00U, // Global type with FuncRef code in 2 bytes
+      0xD0U, 0x70U,        // OpCode Ref__null with FuncRef
+      0x0BU                // Expression End
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x06U,        // Global section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x7FU, 0x00U, // Global type
+      0xD0U,        // OpCode Ref__null
+      0xA8U, 0x00U, // Type index 40 in 2 bytes
+      0x0BU         // Expression End
+  };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 }
 } // namespace

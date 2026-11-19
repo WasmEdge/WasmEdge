@@ -303,8 +303,6 @@ LLVM::Value
 toLLVMConstantZero(LLVM::Context LLContext, const WasmEdge::ValType &ValType,
                    WasmEdge::Span<const WasmEdge::AST::CompositeType *const>
                        CompositeTypes) noexcept;
-std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
-                                      LLVM::Value Struct) noexcept;
 LLVM::Type toLLVMType(LLVM::Context LLContext,
                       const WasmEdge::AddressType AddrType) noexcept;
 std::vector<LLVM::Type>

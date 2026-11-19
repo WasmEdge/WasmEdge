@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "po/option.h"
+#include "po/argument_parser.h"
+#include "po/list.h"
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <gtest/gtest.h>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+using namespace WasmEdge::PO;
+
+struct Param {
+  bool R;
+  bool A;
+  int B;
+  std::vector<int> C;
+  std::vector<const char *> F;
+  std::vector<const char *> Args;
+  Param(bool R, bool A, int B, std::vector<int> C, std::vector<const char *> F,
+        std::vector<const char *> Args)
+      : R(R), A(A), B(B), C(std::move(C)), F(std::move(F)),
+        Args(std::move(Args)) {}
+  Param(bool R, std::vector<const char *> Args) : R(R), Args(std::move(Args)) {}
+};
+
+class OptionTest : public ::testing::TestWithParam<Param> {
+public:
+  OptionTest()
+      : A(Description("a option"sv)),
+        B(Description("b option"sv), DefaultValue<int>(-1)),
+        C(Description("c option"sv), DefaultValue<int>(0), ZeroOrMore()),
+        F(Description("f option"sv), ZeroOrMore()) {
+    Parser.add_option("a"sv, A)
+        .add_option("a-option"sv, A)
+        .add_option("b"sv, B)
+        .add_option("b_option"sv, B)
+        .add_option("c"sv, C)
+        .add_option("coption"sv, C)
+        .add_option(F);
+  }
+  Option<Toggle> A;
+  Option<int> B;
+  List<int> C;
+  List<std::string> F;
+  ArgumentParser Parser;
+};
+
+TEST(OptionTest, RejectNegative) {
+  Option<uint64_t> N(Description("n option"sv), DefaultValue<uint64_t>(0));
+  ArgumentParser Parser;
+  Parser.add_option("n"sv, N);
+
+  std::vector<const char *> Max = {"test", "--n=18446744073709551615"};
+  EXPECT_TRUE(Parser.parse(stdout, static_cast<int>(Max.size()), Max.data()));
+  EXPECT_EQ(N.value(), UINT64_MAX);
+  std::vector<const char *> Negative = {"test", "--n=-1"};
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Negative.size()), Negative.data()));
+}
+
+TEST(OptionTest, RejectMissingValue) {
+  Option<std::string> N(Description("n option"sv));
+  Option<Toggle> A(Description("a option"sv));
+  ArgumentParser Parser;
+  Parser.add_option("n"sv, N).add_option("name"sv, N).add_option("a"sv, A);
+
+  std::vector<const char *> AtEnd = {"test", "--name"};
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(AtEnd.size()), AtEnd.data()));
+  std::vector<const char *> BeforeLong = {"test", "--name", "--a"};
+  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeLong.size()),
+                            BeforeLong.data()));
+  std::vector<const char *> BeforeShort = {"test", "-n", "-a"};
+  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeShort.size()),
+                            BeforeShort.data()));
+  std::vector<const char *> Combined = {"test", "-na"};
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Combined.size()), Combined.data()));
+  std::vector<const char *> Given = {"test", "--name", "x", "-a"};
+  EXPECT_TRUE(
+      Parser.parse(stdout, static_cast<int>(Given.size()), Given.data()));
+  EXPECT_EQ(N.value(), "x");
+  EXPECT_TRUE(A.value());
+}
+
+TEST_P(OptionTest, GeneralOptions) {
+  auto P = GetParam();
+  EXPECT_EQ(P.R, Parser.parse(stdout, static_cast<int>(P.Args.size()),
+                              P.Args.data()));
+  if (P.R) {
+    EXPECT_EQ(P.A, A.value());
+    EXPECT_EQ(P.B, B.value());
+    EXPECT_EQ(P.C.size(), C.value().size());
+    for (size_t I = 0; I < P.C.size(); ++I) {
+      SCOPED_TRACE(I);
+      EXPECT_EQ(P.C[I], C.value()[I]);
+    }
+
+    EXPECT_EQ(P.F.size(), F.value().size());
+    for (size_t I = 0; I < P.F.size(); ++I) {
+      SCOPED_TRACE(I);
+      EXPECT_EQ(P.F[I], F.value()[I]);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    InstantiationName, OptionTest,
+    testing::Values(
+        Param(true, false, 0, {}, {}, {"test", "--"}),
+        Param(true, false, 0, {}, {"-a"}, {"test", "--", "-a"}),
+        Param(true, true, 0, {}, {}, {"test", "-a"}),
+        Param(true, false, -1, {}, {}, {"test", "-b"}),
+        Param(false, {"test", "-b", "-2"}),
+        Param(true, false, -2, {}, {}, {"test", "--b=-2"}),
+        Param(true, false, -2, {}, {}, {"test", "--b_option=-2"}),
+        Param(true, false, -1, {}, {}, {"test", "-b", "--"}),
+        Param(true, false, -1, {}, {}, {"test", "--b", "--"}),
+        Param(true, false, -1, {}, {}, {"test", "--b", "--b"}),
+        Param(true, true, -1, {}, {}, {"test", "-ba"}),
+        Param(true, true, -1, {}, {}, {"test", "-b", "-a"}),
+        Param(true, true, -1, {}, {}, {"test", "-b", "--a"}),
+        Param(true, true, -1, {}, {}, {"test", "-b", "--a-option"}),
+        Param(true, true, -1, {}, {}, {"test", "--b", "-a"}),
+        Param(true, true, -1, {}, {}, {"test", "--b_option", "-a"}),
+        Param(true, true, -1, {}, {}, {"test", "--b", "--a"}),
+        Param(true, true, 0, {0}, {}, {"test", "-c", "-a"}),
+        Param(true, true, 0, {0}, {}, {"test", "-c", "-c", "-a"}),
+        Param(true, true, 0, {1}, {}, {"test", "-c", "1", "-a"}),
+        Param(true, false, 0, {2}, {"1", "-a"}, {"test", "-c", "2", "1", "-a"}),
+        Param(true, true, 0, {2, 1}, {}, {"test", "-c", "2", "-c", "1", "-a"}),
+        Param(false, {"test", "--b=1abc"}),
+        Param(false, {"test", "--b_option=1abc"}),
+        Param(false, {"test", "-b", "1abc"}), Param(false, {"test", "--b=1.5"}),
+        Param(false, {"test", "-c", "42xyz"}),
+        Param(false, {"test", "--b=99999999999999999999"}),
+        Param(false, {"test", "--b="})),
+    [](const testing::TestParamInfo<OptionTest::ParamType> &Info) {
+      std::string Name;
+      for (const auto &Arg : Info.param.Args) {
+        Name += Arg;
+        Name += ' ';
+      }
+      Name.pop_back();
+      for (auto &C : Name) {
+        if (!std::isalnum(C))
+          C = '_';
+      }
+      return Name;
+    });

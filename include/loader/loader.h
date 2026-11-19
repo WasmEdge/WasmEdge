@@ -399,13 +399,13 @@ private:
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
   Expect<ValType> loadHeapType(TypeCode TC, ASTNodeAttr From,
-                               bool AllowTypeIndex = true);
+                               bool IsAbsHeapType = false);
   Expect<ValType> loadRefType(ASTNodeAttr From);
   Expect<ValType> loadValType(ASTNodeAttr From, bool IsStorageType = false);
   Expect<ValMut> loadMutability(ASTNodeAttr From);
   Expect<void> loadFieldType(AST::FieldType &FType);
   Expect<void> loadCompositeType(AST::CompositeType &CType);
-  Expect<void> loadLimit(AST::Limit &Lim, bool IsTable);
+  Expect<void> loadLimit(AST::Limit &Lim, bool IsMemory = false);
   Expect<void> loadType(AST::SubType &SType);
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);

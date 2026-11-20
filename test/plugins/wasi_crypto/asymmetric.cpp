@@ -28,6 +28,21 @@ TEST_F(WasiCryptoTest, Asymmetric) {
               KpHandle, keypairGenerate(AlgType, Alg, std::nullopt));
           WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
           WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+          WASI_CRYPTO_EXPECT_SUCCESS(ReconstructedKpHandle,
+                                     keypairFromPkAndSk(PkHandle, SkHandle));
+          WASI_CRYPTO_EXPECT_TRUE(keypairClose(ReconstructedKpHandle));
+
+          WASI_CRYPTO_EXPECT_SUCCESS(
+              OtherKpHandle, keypairGenerate(AlgType, Alg, std::nullopt));
+          WASI_CRYPTO_EXPECT_SUCCESS(OtherPkHandle,
+                                     keypairPublickey(OtherKpHandle));
+          WASI_CRYPTO_EXPECT_FAILURE(
+              keypairFromPkAndSk(OtherPkHandle, SkHandle),
+              __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+          WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
+          WASI_CRYPTO_EXPECT_TRUE(keypairClose(OtherKpHandle));
+
           WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
           WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
           WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));

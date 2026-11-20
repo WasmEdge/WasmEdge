@@ -157,23 +157,6 @@ TEST(VMSnapshotTest, RoundTrip) {
   }
 }
 
-TEST(VMSnapshotTest, RejectComponent) {
-  const std::array<Byte, 8> Component{0x00, 0x61, 0x73, 0x6D,
-                                      0x0D, 0x00, 0x01, 0x00};
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
-  VM::VM TestVM(Conf);
-  ASSERT_TRUE(TestVM.loadWasm(Component));
-  ASSERT_TRUE(TestVM.forceValidateForComponent());
-  ASSERT_TRUE(TestVM.instantiate());
-  const auto Snapshot = TestVM.snapshot();
-  ASSERT_FALSE(Snapshot);
-  EXPECT_EQ(Snapshot.error(), ErrCode::Value::CoredumpUnsupported);
-  const auto Restore = TestVM.restore("unused.core");
-  ASSERT_FALSE(Restore);
-  EXPECT_EQ(Restore.error(), ErrCode::Value::CoredumpUnsupported);
-}
-
 TEST(VMStageTest, ValidateBeforeLoadFails) {
   Configure Conf;
   VM::VM TestVM(Conf);

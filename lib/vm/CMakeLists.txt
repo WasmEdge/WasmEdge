@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_library(wasmedgeVM
+  component_vm.cpp
   plugin_modules.cpp
   vm.cpp
 )

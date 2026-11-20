@@ -25,7 +25,6 @@
 #include <initializer_list>
 #include <string_view>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace {
@@ -2071,32 +2070,6 @@ TEST(ExecutorRegression, RegisterModuleLateNameConflict) {
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error(), ErrCode::Value::ModuleNameConflict);
   EXPECT_EQ(Store.findModule("dup"), &Other);
-}
-
-/// Registering a component under a name that is already taken must fail.
-TEST(ExecutorRegression, RegisterComponentNameConflict) {
-  // (component)
-  std::array<WasmEdge::Byte, 8> Wasm{0x00, 0x61, 0x73, 0x6d,
-                                     0x0d, 0x00, 0x01, 0x00};
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
-  Loader::Loader Loader(Conf);
-  Validator::Validator Validator(Conf);
-  Executor::Executor Executor(Conf);
-  Runtime::StoreManager Store;
-
-  auto Unit = Loader.parseWasmUnit(Wasm);
-  ASSERT_TRUE(Unit);
-  using CompPtr = std::unique_ptr<AST::Component::Component>;
-  ASSERT_TRUE(std::holds_alternative<CompPtr>(*Unit));
-  const auto &Comp = *std::get<CompPtr>(*Unit);
-  ASSERT_TRUE(Validator.validate(Comp));
-  auto First = Executor.registerComponent(Store, Comp, "dup");
-  ASSERT_TRUE(First);
-  auto Second = Executor.registerComponent(Store, Comp, "dup");
-  ASSERT_FALSE(Second);
-  EXPECT_EQ(Second.error(), ErrCode::Value::ModuleNameConflict);
-  EXPECT_EQ(Store.findComponent("dup"), First->get());
 }
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -146,7 +146,9 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
       0x0BU,        // OpCode End.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  auto Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
 
   Vec = {
       0x0AU,        // Code section
@@ -159,7 +161,9 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
       0x0BU,        // OpCode End.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
 }
 
 TEST(InstructionTest, LoadIfElseControlInstruction) {

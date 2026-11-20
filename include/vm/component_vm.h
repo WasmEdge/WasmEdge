@@ -36,6 +36,8 @@
 #include <shared_mutex>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -181,14 +183,28 @@ public:
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
+  /// Get the state instance of a built-in host by configuration.
+  Runtime::Instance::ComponentInstance *
+  getImportComponent(const HostRegistration Type) const noexcept {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetImportComponent(Type);
+  }
+
 private:
   /// Release and terminate the component instances of a container, then clear
   /// it.
-  void cleanupCompInstContainer(
-      std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-          &Container) {
+  template <typename ContainerT>
+  void cleanupCompInstContainer(ContainerT &Container) {
     for (auto &Item : Container) {
-      if (auto *CompInst = Item.release()) {
+      Runtime::Instance::ComponentInstance *CompInst;
+      if constexpr (std::is_same_v<typename ContainerT::value_type,
+                                   std::unique_ptr<
+                                       Runtime::Instance::ComponentInstance>>) {
+        CompInst = Item.release();
+      } else {
+        CompInst = Item.second.release();
+      }
+      if (CompInst) {
         CompInst->terminate();
       }
     }
@@ -235,8 +251,13 @@ private:
 
   const Runtime::Instance::ComponentInstance *unsafeGetActiveComponent() const;
 
+  Runtime::Instance::ComponentInstance *
+  unsafeGetImportComponent(const HostRegistration Type) const noexcept;
+
   void unsafeInitVM();
+  void unsafeLoadBuiltInHosts();
   void unsafeLoadPlugInHosts();
+  void unsafeRegisterBuiltInHosts();
   void unsafeRegisterPlugInHosts();
 
   /// Helper function for execution.
@@ -277,6 +298,13 @@ private:
   /// Registered component instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
       RegCompInsts;
+  /// State instances of the built-in hosts mapped to the configurations.
+  std::unordered_map<HostRegistration,
+                     std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      BuiltInHostInsts;
+  /// Component instances of the built-in hosts.
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      BuiltInCompInsts;
   /// Loaded component instances from plug-ins.
   std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
       PlugInCompInsts;

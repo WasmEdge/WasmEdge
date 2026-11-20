@@ -9,6 +9,8 @@
 #include "common/types.h"
 #include "common/version.h"
 #include "driver/tool.h"
+#include "host/wasi/component/env.h"
+#include "host/wasi/component/hosts.h"
 #include "host/wasi/wasimodule.h"
 #include "vm/component_vm.h"
 #include "vm/vm.h"
@@ -189,6 +191,13 @@ auto getAsyncResult(
     }
   }
   return AsyncResult.get();
+}
+
+// The WASI host state of a component VM; null when the configuration does not
+// register WASI.
+Host::WasiComponent::WasiHosts *getWasiHosts(VM::ComponentVM &VM) noexcept {
+  return dynamic_cast<Host::WasiComponent::WasiHosts *>(
+      VM.getImportComponent(HostRegistration::Wasi));
 }
 
 // The wasm preamble carries a 2-byte layer after the version: it is zero
@@ -423,13 +432,18 @@ ToolOnComponent(WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
     }
 
     return EXIT_SUCCESS;
+  } else if (auto *Hosts = getWasiHosts(VM);
+             Result.error() == ErrCode::Value::Terminated && Hosts != nullptr) {
+    // `exit` recorded the code.
+    return static_cast<int>(Hosts->getEnv().getExitCode());
   } else {
     // It indicates that the execution of wasm has been aborted.
     return 128 + SIGABRT;
   }
 }
 
-// Run a component on its own VM: the named exported function.
+// Run a component on its own VM: a command exports `run` of its
+// `wasi:cli/run` world, a reactor the named function.
 static int runComponent(
     const Configure &Conf, const std::filesystem::path &InputPath,
     struct DriverToolOptions &Opt,
@@ -461,6 +475,50 @@ static int runComponent(
   }
   if (auto Result = CompVM.instantiate(); !Result) {
     return EXIT_FAILURE;
+  }
+
+  // A command component exports `run` of its `wasi:cli/run` world.
+  std::string RunName;
+  const std::string_view RunPrefix = "wasi:cli/run@"sv;
+  const std::string_view RunSuffix = "#run"sv;
+  for (const auto &Func : CompVM.getFunctionList()) {
+    const std::string_view Name = Func.first;
+    if (Name.substr(0, RunPrefix.size()) == RunPrefix &&
+        Name.size() > RunSuffix.size() &&
+        Name.substr(Name.size() - RunSuffix.size()) == RunSuffix) {
+      RunName = Func.first;
+    }
+  }
+  const bool EnterCommandMode = !Opt.Reactor.value() && !RunName.empty();
+
+  // Initialize the WASI environment.
+  const std::string ProgramName =
+      u8string(InputPath.filename().replace_extension(u8path("wasm"sv)));
+  auto *WasiHosts = getWasiHosts(CompVM);
+  if (WasiHosts != nullptr) {
+    WasiHosts->getEnv().init(Opt.Dir.value(), ProgramName, Opt.Args.value(),
+                             Opt.Env.value());
+  }
+
+  if (EnterCommandMode) {
+    // `run` returns `result`, whose error is exit status 1; `exit`
+    // terminates with the recorded code.
+    auto Result = getAsyncResult(CompVM.asyncExecute(RunName), Timeout);
+    if (Result) {
+      if (!Result->empty()) {
+        const auto &Val = (*Result)[0].first;
+        if (isComponentVal<ResultVal>(Val) &&
+            !getComponentVal<ResultVal>(Val).IsOk) {
+          return EXIT_FAILURE;
+        }
+      }
+      return EXIT_SUCCESS;
+    }
+    if (Result.error() == ErrCode::Value::Terminated && WasiHosts != nullptr) {
+      return static_cast<int>(WasiHosts->getEnv().getExitCode());
+    }
+    // It indicates that the execution of wasm has been aborted.
+    return 128 + SIGABRT;
   }
 
   // reactor mode

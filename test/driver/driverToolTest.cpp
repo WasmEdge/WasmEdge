@@ -247,6 +247,13 @@ static const std::array<uint8_t, 20> TagSectionTestWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
     0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00};
 
+// tag_export_test.wasm: compiled from tag_export_test.wat.
+// Defines and exports a tag whose signature is type[0] (func (param i32)).
+static const std::array<uint8_t, 29> TagExportTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00,
+    0x07, 0x07, 0x01, 0x03, 0x74, 0x61, 0x67, 0x04, 0x00};
+
 // provider.wasm: exports function "add" (i32, i32) -> i32.
 static const std::array<uint8_t, 41> ProviderWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
@@ -396,6 +403,15 @@ std::string tagSectionTestPath() {
   return Path;
 }
 
+std::string tagExportTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagExportTestWasm.data(), TagExportTestWasm.size(),
+                           "tag_export_test.wasm");
+  }
+  return Path;
+}
+
 std::string add128Path() {
   static std::string Path;
   if (Path.empty()) {
@@ -528,6 +544,7 @@ TEST(ParseSubcommand, ExtraSectionModules) {
   EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagImportTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({tagExportTestPath().c_str()}), EXIT_SUCCESS);
 }
 
 TEST(ParseSubcommand, MalformedNameSection) {
@@ -650,6 +667,12 @@ TEST(ParseSubcommand, OutputTagSection) {
   EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
   EXPECT_TRUE(containsNone(R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
                                       "DataCount section", "Data["}));
+}
+
+TEST(ParseSubcommand, OutputExportedTagType) {
+  auto R = callParseCaptureStdout({tagExportTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Export[1]:", " - tag[0] -> \"tag\""}));
 }
 #endif
 

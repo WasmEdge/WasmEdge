@@ -376,6 +376,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"async/during-sync-call-no-sibling-resume",                 {true, true, false, false}},
     {"async/during-sync-scheduling-candidates",                  {true, true, false, false}},
     {"async/empty-wait",                                         {true, true, false, false}},
+    {"async/exit-without-resolving",                             {true, true, false, false}},
     {"async/forward",                                            {true, true, false, false}},
     {"async/future-completion-order",                            {true, true, false, false}},
     {"async/futures-must-write",                                 {true, true, false, false}},

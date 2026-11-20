@@ -4217,6 +4217,144 @@ TEST(WasiTest, ReadWritePreopenKeepsChildRights) {
   EXPECT_FALSE(fs::exists(Root / "sub" / "created-dir"));
 }
 
+TEST(WasiTest, PreopenDoubleColonSeparator) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::absolute(fs::path(
+      "wasmedge-wasi-separator-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count())));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root, Error));
+  ASSERT_FALSE(Error);
+  {
+    std::ofstream Data(Root / "data.txt", std::ios::binary);
+    ASSERT_TRUE(Data);
+    Data << "data";
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+
+  {
+    Env.init({"/::" + Root.string()}, "test"s, {}, {});
+    auto CanWrite = Env.pathCanWrite("data.txt");
+    ASSERT_TRUE(CanWrite);
+    EXPECT_TRUE(*CanWrite);
+    Env.fini();
+  }
+
+  {
+    Env.init({"/::" + Root.string() + "::readonly"}, "test"s, {}, {});
+    auto CanRead = Env.pathCanRead("data.txt");
+    ASSERT_TRUE(CanRead);
+    EXPECT_TRUE(*CanRead);
+    auto CanWrite = Env.pathCanWrite("data.txt");
+    ASSERT_TRUE(CanWrite);
+    EXPECT_FALSE(*CanWrite);
+    Env.fini();
+  }
+
+  {
+    ASSERT_TRUE(Env.initWithFds({"/::" + Root.string() + "::readonly"}, "test"s,
+                                {}, {}, 1, 1, 2));
+    auto CanRead = Env.pathCanRead("data.txt");
+    ASSERT_TRUE(CanRead);
+    EXPECT_TRUE(*CanRead);
+    auto CanWrite = Env.pathCanWrite("data.txt");
+    ASSERT_TRUE(CanWrite);
+    EXPECT_FALSE(*CanWrite);
+    Env.fini();
+  }
+
+#if !WASMEDGE_OS_WINDOWS
+  {
+    ASSERT_TRUE(fs::create_directory(Root / "c:d", Error));
+    ASSERT_FALSE(Error);
+    {
+      std::ofstream Data(Root / "c:d" / "inner.txt", std::ios::binary);
+      ASSERT_TRUE(Data);
+      Data << "data";
+    }
+    Env.init({"a:b::" + (Root / "c:d").string()}, "test"s, {}, {});
+    auto CanRead = Env.pathCanRead("inner.txt");
+    ASSERT_TRUE(CanRead);
+    EXPECT_TRUE(*CanRead);
+    __wasi_prestat_t PreStat{};
+    ASSERT_TRUE(Env.fdPrestatGet(3, PreStat));
+    std::array<uint8_t, 3> GuestName{};
+    ASSERT_EQ(WasmEdge::EndianValue(PreStat.u.dir.pr_name_len).le(),
+              GuestName.size());
+    ASSERT_TRUE(Env.fdPrestatDirName(3, GuestName));
+    EXPECT_EQ(std::string_view(reinterpret_cast<const char *>(GuestName.data()),
+                               GuestName.size()),
+              "a:b"sv);
+    Env.fini();
+  }
+#endif
+}
+
+TEST(WasiTest, PreopenRejectsUnknownMode) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::path(
+      "wasmedge-wasi-mode-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "a", Error));
+  ASSERT_FALSE(Error);
+
+  WasmEdge::Host::WASI::Environ Env;
+  __wasi_fdstat_t Stat{};
+
+  {
+    Env.init({"/:" + Root.string() + ":ro"}, "test"s, {}, {});
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+
+  {
+    Env.init({"/:" + (Root / "a").string() + ":b"}, "test"s, {}, {});
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+
+  {
+    Env.init({"/::" + Root.string() + "::ro"}, "test"s, {}, {});
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+
+  {
+    ASSERT_TRUE(Env.initWithFds({"/:" + Root.string() + ":ro"}, "test"s, {}, {},
+                                1, 1, 2));
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+}
+
 TEST(WasiTest, Directory) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

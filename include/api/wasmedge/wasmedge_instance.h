@@ -91,7 +91,8 @@ WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
 /// \param EnvLen the length of the environment variables.
 /// \param Preopens the directory paths to preopen. String format in
 /// `GUEST_PATH:HOST_PATH` means the path mapping, or the same path will be
-/// mapped. NULL if the length is 0.
+/// mapped. Use `GUEST_PATH::HOST_PATH` if a path contains `:`. NULL if the
+/// length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 ///
 /// \returns pointer to context, NULL if failed.
@@ -127,7 +128,8 @@ WasmEdge_ModuleInstanceCreateWASIWithFds(
 /// \param EnvLen the length of the environment variables.
 /// \param Preopens the directory paths to preopen. String format in
 /// `GUEST_PATH:HOST_PATH` means the path mapping, or the same path will be
-/// mapped. NULL if the length is 0.
+/// mapped. Use `GUEST_PATH::HOST_PATH` if a path contains `:`. NULL if the
+/// length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,

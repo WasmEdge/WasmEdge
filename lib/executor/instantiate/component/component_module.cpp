@@ -100,6 +100,10 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   EXPECTED_TRY(instantiate(StackMgr, *ModInst, DataSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Data)));
 
+  // Build the context before the active segments: they may write functions of
+  // this module into imported tables, callable even if instantiation fails.
+  ModInst->buildContext();
+
   // Initialize table instances
   EXPECTED_TRY(initTable(StackMgr, ElemSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Element)));
@@ -107,8 +111,6 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   // Initialize memory instances
   EXPECTED_TRY(initMemory(StackMgr, DataSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Data)));
-
-  ModInst->buildContext();
 
   // Instantiate StartSection (StartSec)
   const AST::StartSection &StartSec = Mod.getStartSection();

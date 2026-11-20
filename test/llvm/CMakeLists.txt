@@ -7,6 +7,10 @@ wasmedge_add_executable(wasmedgeLLVMCoreTests
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
 
+target_include_directories(wasmedgeLLVMCoreTests SYSTEM PRIVATE
+  $<TARGET_PROPERTY:wasmedgeLLVM,INCLUDE_DIRECTORIES>
+)
+
 target_link_libraries(wasmedgeLLVMCoreTests
   PRIVATE
   wasmedgeTestSpec

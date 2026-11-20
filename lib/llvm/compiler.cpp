@@ -364,11 +364,12 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
 
           auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
                                 Context->ExecCtxPtrTy, CompType.getFuncType());
-          auto RTy = FTy.getReturnType();
+          auto RTy = toLLVMRetsType(Context->LLContext,
+                                    CompType.getFuncType().getReturnTypes());
           std::vector<LLVM::Type> FPTy(FTy.getNumParams());
           FTy.getParamTypes(FPTy);
 
-          const size_t ArgCount = FPTy.size() - 2;
+          const size_t ArgCount = CompType.getFuncType().getParamTypes().size();
           auto ModCtxPtr = F.getFirstParam();
           auto ExecCtxPtr = ModCtxPtr.getNextParam();
           auto RawFunc = LLVM::FunctionCallee{
@@ -386,14 +387,11 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
                 FPTy[J + 2], RawArgs, Context->Int8Ty, J * LLVM::kValSize));
           }
 
+          if (RTy.isStructTy()) {
+            Args.push_back(RawRets);
+          }
           auto Ret = Builder.createCall(RawFunc, Args);
-          if (RTy.isVoidTy()) {
-            // nothing to do
-          } else if (RTy.isStructTy()) {
-            auto Rets = unpackStruct(Builder, Ret);
-            Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty,
-                                        LLVM::kValSize);
-          } else {
+          if (!RTy.isVoidTy() && !RTy.isStructTy()) {
             Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
           }
           Builder.createRetVoid();
@@ -439,7 +437,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
       auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
                             Context->ExecCtxPtrTy, FuncType);
-      auto RTy = FTy.getReturnType();
+      auto RTy = toLLVMRetsType(Context->LLContext, FuncType.getReturnTypes());
       auto F =
           LLVM::FunctionCallee{FTy, Context->LLModule.get().addFunction(
                                         FTy, LLVMInternalLinkage,
@@ -456,11 +454,11 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
           LLVM::BasicBlock::create(Context->LLContext, F.Fn, "entry"));
 
       const auto ArgSize = FuncType.getParamTypes().size();
-      const auto RetSize =
-          RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+      const auto RetSize = FuncType.getReturnTypes().size();
 
       LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+      LLVM::Value Rets =
+          Builder.createArray(RetSize > 1 ? 0 : RetSize, LLVM::kValSize);
 
       auto ModCtx = Builder.createLoad(Context->ModCtxTy, F.Fn.getFirstParam());
       auto Arg = F.Fn.getFirstParam().getNextParam();
@@ -468,6 +466,10 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
         Arg = Arg.getNextParam();
         Builder.createValuePtrStore(Arg, Args, Context->Int8Ty,
                                     I * LLVM::kValSize);
+      }
+
+      if (RetSize > 1) {
+        Rets = Arg.getNextParam();
       }
 
       Builder.createCall(
@@ -486,8 +488,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
         Builder.createRet(
             Builder.createValuePtrLoad(RTy, Rets, Context->Int8Ty));
       } else {
-        Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context->Int8Ty, LLVM::kValSize));
+        Builder.createRetVoid();
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);
@@ -674,12 +675,13 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
                                             return false;
                                           }
                                         });
-  FunctionCompiler FC(
-      *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
-      Conf.getStatisticsConfigure().isInstructionCounting(),
-      Conf.getStatisticsConfigure().isCostMeasuring(),
-      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT,
-      !IsSmallLeaf);
+  FunctionCompiler FC(*Context, F, Locals, Type.second,
+                      Conf.getCompilerConfigure().isInterruptible(),
+                      Conf.getStatisticsConfigure().isInstructionCounting(),
+                      Conf.getStatisticsConfigure().isCostMeasuring(),
+                      Conf.getRuntimeConfigure().getRunMode() ==
+                          RunMode::LazyJIT,
+                      !IsSmallLeaf);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 

@@ -16,10 +16,12 @@ namespace WasmEdge {
 FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                                    LLVM::FunctionCallee F,
                                    Span<const ValType> Locals,
+                                   Span<const ValType> ReturnTypes,
                                    bool Interruptible, bool InstructionCounting,
                                    bool GasMeasuring, bool IsLazyJIT,
                                    bool StackCheck) noexcept
     : Context(Context), LLContext(Context.LLContext),
+      ReturnTy(toLLVMRetsType(Context.LLContext, ReturnTypes)),
       Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
       Builder(LLContext) {
   if (F.Fn) {
@@ -27,6 +29,13 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     ModCtx = Builder.createLoad(Context.ModCtxTy, F.Fn.getFirstParam());
     ExecCtx = Builder.createLoad(Context.ExecCtxTy,
                                  F.Fn.getFirstParam().getNextParam());
+
+    if (ReturnTy.isStructTy()) {
+      ReturnBuffer = F.Fn.getFirstParam().getNextParam().getNextParam();
+      for (size_t I = 3; I < F.Ty.getNumParams(); ++I) {
+        ReturnBuffer = ReturnBuffer.getNextParam();
+      }
+    }
 
     // Create every frame slot first so nothing writes the frame before the
     // stack check.
@@ -40,7 +49,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     TmpValues = Builder.createArray(1, LLVM::kValSize);
     TmpValuesSize = 1;
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
-         Arg; Arg = Arg.getNextParam()) {
+         Arg && Arg.unwrap() != ReturnBuffer.unwrap();
+         Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
       Local.emplace_back(Ty, Builder.createAlloca(Ty));
     }
@@ -61,7 +71,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     }
     auto LocalIt = Local.begin();
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
-         Arg; Arg = Arg.getNextParam()) {
+         Arg && Arg.unwrap() != ReturnBuffer.unwrap();
+         Arg = Arg.getNextParam()) {
       Builder.createStore(Arg, (LocalIt++)->second);
     }
     for (const auto &Type : Locals) {
@@ -1135,7 +1146,7 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
 void FunctionCompiler::compileReturn() noexcept {
   updateInstrCount();
   updateGas();
-  auto Ty = F.Ty.getReturnType();
+  auto Ty = ReturnTy;
   if (Ty.isVoidTy()) {
     Builder.createRetVoid();
   } else if (Ty.isStructTy()) {
@@ -1145,7 +1156,9 @@ void FunctionCompiler::compileReturn() noexcept {
       const unsigned J = Count - 1 - I;
       Ret[J] = stackPop();
     }
-    Builder.createAggregateRet(Ret);
+    Builder.createArrayPtrStore(Ret, ReturnBuffer, Context.Int8Ty,
+                                LLVM::kValSize);
+    Builder.createRetVoid();
   } else {
     Builder.createRet(stackPop());
   }
@@ -1423,6 +1436,13 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
     Args[J + 2] = stackPop();
   }
 
+  auto RTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
+  LLVM::Value Rets = nullptr;
+  if (RTy.isStructTy()) {
+    Rets = getTmpValues(FuncType.getReturnTypes().size());
+    Args.push_back(Rets);
+  }
+
   LLVM::Value Ret;
   if (IsLazyJIT) {
     bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
@@ -1483,19 +1503,24 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   // A wasm call keeps its frame, so LLVM cannot turn recursion into a loop that
   // never exhausts the stack.
   Ret.setNoTailCall();
+  checkPendingException();
 
-  auto Ty = Ret.getType();
+  auto Ty = RTy;
   if (Ty.isVoidTy()) {
     // nothing to do
   } else if (Ty.isStructTy()) {
-    for (auto Val : unpackStruct(Builder, Ret)) {
+    for (auto Val :
+         Builder.createArrayPtrLoad(FuncType.getReturnTypes().size(), RTy, Rets,
+                                    Context.Int8Ty, LLVM::kValSize)) {
       stackPush(Val);
     }
   } else {
     stackPush(Ret);
   }
 
-  checkPendingException();
+  if (Rets) {
+    endTmpValues();
+  }
 }
 
 void FunctionCompiler::compileIndirectCallOp(
@@ -1512,13 +1537,13 @@ void FunctionCompiler::compileIndirectCallOp(
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
   auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
                         Context.ExecCtxPtrTy, FuncType);
-  auto RTy = FTy.getReturnType();
+  auto RTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
   auto FPtrTy = FTy.getPointerTo();
   auto TableIdx = LLContext.getInt32(TableIndex);
   auto TypeIdx = LLContext.getInt32(FuncTypeIndex);
 
   const size_t ArgSize = FuncType.getParamTypes().size();
-  const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+  const size_t RetSize = FuncType.getReturnTypes().size();
   std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
   ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
@@ -1526,13 +1551,22 @@ void FunctionCompiler::compileIndirectCallOp(
     const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
+  LLVM::Value CallRets = nullptr;
+  if (RetSize > 1) {
+    CallRets = getTmpValues(ArgSize + RetSize);
+    CallRets = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, CallRets,
+                                                  ArgSize * LLVM::kValSize);
+    ArgsVec.push_back(CallRets);
+  }
+
   auto UnpackRets = [&](LLVM::Value Ret) -> std::vector<LLVM::Value> {
     if (RetSize == 0) {
       return {};
     } else if (RetSize == 1) {
       return {Ret};
     } else {
-      return unpackStruct(Builder, Ret);
+      return Builder.createArrayPtrLoad(RetSize, RTy, CallRets, Context.Int8Ty,
+                                        LLVM::kValSize);
     }
   };
 
@@ -1588,6 +1622,9 @@ void FunctionCompiler::compileIndirectCallOp(
         ArgsVec);
     FastRet.setNoTailCall();
     FastRetsVec = UnpackRets(FastRet);
+    if (CallRets) {
+      endTmpValues();
+    }
     Builder.createBr(EndBB);
   }
 
@@ -1619,6 +1656,9 @@ void FunctionCompiler::compileIndirectCallOp(
         Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     FPtrRet.setNoTailCall();
     FPtrRetsVec = UnpackRets(FPtrRet);
+    if (CallRets) {
+      endTmpValues();
+    }
   }
 
   Builder.createBr(EndBB);
@@ -1681,6 +1721,10 @@ void FunctionCompiler::compileReturnCallOp(
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
     Args[J + 2] = stackPop();
+  }
+
+  if (FuncType.getReturnTypes().size() > 1) {
+    Args.push_back(ReturnBuffer);
   }
 
   const bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
@@ -1803,16 +1847,20 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
   auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
                         Context.ExecCtxPtrTy, FuncType);
-  auto RTy = FTy.getReturnType();
+  auto RTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
 
   const size_t ArgSize = FuncType.getParamTypes().size();
-  const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+  const size_t RetSize = FuncType.getReturnTypes().size();
   std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
   ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
     const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
+  }
+
+  if (RetSize > 1) {
+    ArgsVec.push_back(ReturnBuffer);
   }
 
   {
@@ -1844,7 +1892,7 @@ void FunctionCompiler::compileReturnIndirectCallOp(
     } else {
       FPtrRet.setTailCall();
     }
-    if (RetSize == 0) {
+    if (RetSize != 1) {
       Builder.createRetVoid();
     } else {
       Builder.createRet(FPtrRet);
@@ -1854,9 +1902,12 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Args = getTmpValues(ArgSize + (RetSize == 1 ? 1 : 0));
     LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
         Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
+    if (RetSize > 1) {
+      Rets = ReturnBuffer;
+    }
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1879,10 +1930,8 @@ void FunctionCompiler::compileReturnIndirectCallOp(
       endTmpValues();
       Builder.createRet(Ret);
     } else {
-      auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
-                                            LLVM::kValSize);
       endTmpValues();
-      Builder.createAggregateRet(Ret);
+      Builder.createRetVoid();
     }
   }
 }
@@ -1904,16 +1953,24 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
   auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
                         Context.ExecCtxPtrTy, FuncType);
-  auto RTy = FTy.getReturnType();
+  auto RTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
 
   const size_t ArgSize = FuncType.getParamTypes().size();
-  const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+  const size_t RetSize = FuncType.getReturnTypes().size();
   std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
   ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
     const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
+  }
+
+  LLVM::Value CallRets = nullptr;
+  if (RetSize > 1) {
+    CallRets = getTmpValues(ArgSize + RetSize);
+    CallRets = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, CallRets,
+                                                  ArgSize * LLVM::kValSize);
+    ArgsVec.push_back(CallRets);
   }
 
   std::vector<LLVM::Value> FPtrRetsVec;
@@ -1944,9 +2001,13 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     } else if (RetSize == 1) {
       FPtrRetsVec.push_back(FPtrRet);
     } else {
-      for (auto Val : unpackStruct(Builder, FPtrRet)) {
+      for (auto Val : Builder.createArrayPtrLoad(
+               RetSize, RTy, CallRets, Context.Int8Ty, LLVM::kValSize)) {
         FPtrRetsVec.push_back(Val);
       }
+    }
+    if (CallRets) {
+      endTmpValues();
     }
   }
 
@@ -2010,16 +2071,20 @@ void FunctionCompiler::compileReturnCallRefOp(
   const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
   auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
                         Context.ExecCtxPtrTy, FuncType);
-  auto RTy = FTy.getReturnType();
+  auto RTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
 
   const size_t ArgSize = FuncType.getParamTypes().size();
-  const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+  const size_t RetSize = FuncType.getReturnTypes().size();
   std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
   ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
     const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
+  }
+
+  if (RetSize > 1) {
+    ArgsVec.push_back(ReturnBuffer);
   }
 
   {
@@ -2049,7 +2114,7 @@ void FunctionCompiler::compileReturnCallRefOp(
     } else {
       FPtrRet.setTailCall();
     }
-    if (RetSize == 0) {
+    if (RetSize != 1) {
       Builder.createRetVoid();
     } else {
       Builder.createRet(FPtrRet);
@@ -2059,9 +2124,12 @@ void FunctionCompiler::compileReturnCallRefOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Args = getTmpValues(ArgSize + (RetSize == 1 ? 1 : 0));
     LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
         Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
+    if (RetSize > 1) {
+      Rets = ReturnBuffer;
+    }
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -2082,10 +2150,8 @@ void FunctionCompiler::compileReturnCallRefOp(
       endTmpValues();
       Builder.createRet(Ret);
     } else {
-      auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
-                                            LLVM::kValSize);
       endTmpValues();
-      Builder.createAggregateRet(Ret);
+      Builder.createRetVoid();
     }
   }
 }

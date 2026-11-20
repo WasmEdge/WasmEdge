@@ -216,6 +216,10 @@ LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ModCtxPtrTy,
   auto ArgsTy = toLLVMArgsType(LLContext, ModCtxPtrTy, ExecCtxPtrTy,
                                FuncType.getParamTypes());
   auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
+  if (RetTy.isStructTy()) {
+    ArgsTy.push_back(LLContext.getInt8Ty().getPointerTo());
+    RetTy = LLContext.getVoidTy();
+  }
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }
 
@@ -255,17 +259,6 @@ LLVM::Value toLLVMConstantZero(
   default:
     assumingUnreachable();
   }
-}
-
-std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
-                                      LLVM::Value Struct) noexcept {
-  const auto N = Struct.getType().getStructNumElements();
-  std::vector<LLVM::Value> Ret;
-  Ret.reserve(N);
-  for (unsigned I = 0; I < N; ++I) {
-    Ret.push_back(Builder.createExtractValue(Struct, I));
-  }
-  return Ret;
 }
 
 } // namespace WasmEdge::LLVM

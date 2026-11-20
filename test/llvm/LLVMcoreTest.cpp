@@ -1993,6 +1993,60 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
+TEST(AOTUniversalWasm, ExternalLibmSymbol) {
+  // (module
+  //   (func (export "w0") (param f32 f32) (result i32) (local f32 f32)
+  //     (local.set 2 (f32.max (local.get 0) (local.get 1)))
+  //     (local.set 3 (f32.min (local.get 1) (local.get 2)))
+  //     (i32.const 1))
+  //   (func (param f32 f32) (result i32)
+  //     (call 0 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 63> LibmWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+      0x60, 0x02, 0x7d, 0x7d, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00,
+      0x07, 0x06, 0x01, 0x02, 0x77, 0x30, 0x00, 0x00, 0x0a, 0x1f, 0x02,
+      0x14, 0x01, 0x02, 0x7d, 0x20, 0x00, 0x20, 0x01, 0x97, 0x21, 0x02,
+      0x20, 0x01, 0x20, 0x02, 0x96, 0x21, 0x03, 0x41, 0x01, 0x0b, 0x08,
+      0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Wasm);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Path = std::filesystem::temp_directory_path() /
+              u8path("ExternalLibmSymbol.aot.wasm");
+
+  auto Module = *Loader.parseModule(LibmWasm);
+  ASSERT_TRUE(ValidatorEngine.validate(*Module));
+  auto Data = Compiler.compile(*Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(LibmWasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::array<WasmEdge::ValVariant, 2> Args{WasmEdge::ValVariant(1.5F),
+                                                 WasmEdge::ValVariant(2.5F)};
+  const std::array<WasmEdge::ValType, 2> ArgTypes{
+      WasmEdge::ValType(WasmEdge::TypeCode::F32),
+      WasmEdge::ValType(WasmEdge::TypeCode::F32)};
+  auto Result = VM.execute("w0", Args, ArgTypes);
+  ASSERT_TRUE(Result);
+  ASSERT_EQ((*Result).size(), 1U);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1U);
+
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
 TEST(AOTMemory64, BoundsCheck) {
   // A full 64-bit index escapes the guard page that memory32 relies on, so
   // check that a far out-of-bounds memory64 access traps rather than reaching

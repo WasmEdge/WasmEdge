@@ -99,9 +99,8 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
 
   // Read the checking byte.
   uint32_t Check = 0;
-  if (unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
-               !Conf.hasProposal(Proposal::ReferenceTypes))) {
-    // Legacy for BulkMemoryOperations and ReferenceTypes proposals turned off.
+  if (unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
+    // Legacy for BulkMemoryOperations proposal turned off.
     // Element segment binary format: TableIdx + OffExpr + vec(FuncIdx)
     EXPECTED_TRY(FMgr.readU32().map_error(ReportError).map([&](auto Idx) {
       ElemSeg.setIdx(Idx);
@@ -302,9 +301,8 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
 
   // Read the checking byte.
   EXPECTED_TRY(uint32_t Check, FMgr.readU32().map_error(ReportError));
-  // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
-  if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
-      !Conf.hasProposal(Proposal::ReferenceTypes)) {
+  // Check > 0 cases are for BulkMemoryOperations proposal.
+  if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
     return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                            Proposal::BulkMemoryOperations, FMgr.getLastOffset(),
                            ASTNodeAttr::Seg_Data);

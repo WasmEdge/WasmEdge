@@ -754,6 +754,37 @@ TEST(APICoreTest, Configure) {
   EXPECT_FALSE(
       WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_Memory64));
   EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_Memory64));
+  // Tests for proposal dependencies.
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_RelaxSIMD));
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_RelaxSIMD);
+  EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_SIMD));
+  WasmEdge_ConfigureRemoveProposal(Conf,
+                                   WasmEdge_Proposal_BulkMemoryOperations);
+  for (auto Prop :
+       {WasmEdge_Proposal_ReferenceTypes, WasmEdge_Proposal_FunctionReferences,
+        WasmEdge_Proposal_GC, WasmEdge_Proposal_ExceptionHandling}) {
+    EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, Prop));
+  }
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+  for (auto Prop : {WasmEdge_Proposal_BulkMemoryOperations,
+                    WasmEdge_Proposal_ReferenceTypes,
+                    WasmEdge_Proposal_FunctionReferences}) {
+    EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, Prop));
+  }
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ExceptionHandling));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_FunctionReferences);
+  EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_GC));
+  EXPECT_TRUE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ReferenceTypes));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  EXPECT_TRUE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ReferenceTypes));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ExceptionHandling));
   // Tests for host registrations.
   WasmEdge_ConfigureAddHostRegistration(ConfNull,
                                         WasmEdge_HostRegistration_Wasi);

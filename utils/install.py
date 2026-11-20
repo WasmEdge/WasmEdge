@@ -276,22 +276,21 @@ class VersionString:
         # return -1 if self.version < version2
         # return False if not comparable
         """
-        if "rc" in self.version and not "rc" in version2:
-            a = self._preprocess(
-                self.version.split("rc")[0].strip("-"), separator, ignorecase
-            )
-            b = b = self._preprocess(version2, separator, ignorecase)
-            if ((a > b) - (a < b)) == 0:
-                return -1
+        version1 = self.version
+        rc1, rc2 = "rc" in version1, "rc" in version2
+        if rc1 != rc2:
+            if rc1:
+                version1 = version1.split("rc")[0].rstrip("-")
             else:
-                return (a > b) - (a < b)
-        else:
-            a = self._preprocess(self.version, separator, ignorecase)
-            b = self._preprocess(version2, separator, ignorecase)
-            try:
-                return (a > b) - (a < b)
-            except:
-                return False
+                version2 = version2.split("rc")[0].rstrip("-")
+        a = self._preprocess(version1, separator, ignorecase)
+        b = self._preprocess(version2, separator, ignorecase)
+        if a == b:
+            return rc2 - rc1
+        try:
+            return (a > b) - (a < b)
+        except:
+            return False
 
 
 SUPPORTED_PLATFORM_MACHINE = {

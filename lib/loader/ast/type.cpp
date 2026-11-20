@@ -23,7 +23,8 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
   if (*Val < 0) {
     if (FMgr.getOffset() - FMgr.getLastOffset() > 1) {
       // The abstract heap type codes are encoded in a single byte.
-      return logLoadError(FailCode, FMgr.getLastOffset(), From);
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          From);
     }
     TypeCode HTCode =
         static_cast<TypeCode>(static_cast<uint8_t>((*Val) & INT64_C(0x7F)));

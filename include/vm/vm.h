@@ -369,9 +369,19 @@ private:
                     Span<const ValVariant> Params = {},
                     Span<const ValType> ParamTypes = {});
   Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(std::shared_ptr<AST::Module> Module, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const AST::Component::Component &Component,
                     std::string_view Func, Span<const ValVariant> Params = {},
                     Span<const ValType> ParamTypes = {});
+
+  /// Instantiate the validated module as the active one and execute.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeInstantiateAndExecute(const AST::Module &Module, std::string_view Func,
+                              Span<const ValVariant> Params,
+                              Span<const ValType> ParamTypes);
 
   Expect<void> unsafeLoadWasm(const std::filesystem::path &Path);
   Expect<void> unsafeLoadWasm(Span<const Byte> Code);
@@ -381,10 +391,11 @@ private:
 
   Expect<void> unsafeInstantiate();
 
-  /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
-  /// module if it does not carry one yet. Eager JIT compilation failures fall
-  /// back to the interpreter; without LLVM support this only logs a warning.
-  Expect<void> unsafeLoadJITExecutable();
+  /// In JIT or lazy JIT mode, compile and attach an executable to the module
+  /// if it does not carry one yet. Eager JIT compilation failures fall back
+  /// to the interpreter; without LLVM support this only logs a warning.
+  Expect<void>
+  unsafeLoadJITExecutable(const std::shared_ptr<AST::Module> &Module);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},

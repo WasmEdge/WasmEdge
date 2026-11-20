@@ -177,10 +177,10 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
 #ifdef WASMEDGE_USE_LLVM
-  if (LazyEngine) {
-    // The lazy JIT engine needs to own the AST module and hook the compiled
-    // executable into it, so register an owned copy instead of mutating the
-    // caller's module.
+  if (LazyEngine || Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+    // JIT hooks the compiled executable into the AST module, and lazy JIT
+    // also shares its ownership, so register an owned copy instead of
+    // mutating the caller's module.
     return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
   }
 #endif
@@ -199,13 +199,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(*Module));
-
-#ifdef WASMEDGE_USE_LLVM
-  if (LazyEngine && !Module->getSymbol()) {
-    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Module));
-    EXPECTED_TRY(LoaderEngine.loadExecutable(*Module, std::move(Exec)));
-  }
-#endif
+  EXPECTED_TRY(unsafeLoadJITExecutable(Module));
 
   // Instantiate and register module.
   EXPECTED_TRY(auto ModInst,
@@ -295,7 +289,7 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
       WasmUnitKind::Component) {
     return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
   }
-  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
+  return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -309,7 +303,7 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
       WasmUnitKind::Component) {
     return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
   }
-  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
+  return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -326,8 +320,36 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
+#ifdef WASMEDGE_USE_LLVM
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+    // JIT hooks the compiled executable into the AST module, so run an owned
+    // copy instead of mutating the caller's module.
+    return unsafeRunWasmFile(std::make_shared<AST::Module>(Module), Func,
+                             Params, ParamTypes);
+  }
+#endif
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
+  return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(std::shared_ptr<AST::Module> Module,
+                      std::string_view Func, Span<const ValVariant> Params,
+                      Span<const ValType> ParamTypes) {
+  unsafeRevertStageToValidated();
+  EXPECTED_TRY(ValidatorEngine.validate(*Module));
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+    EXPECTED_TRY(unsafeLoadJITExecutable(Module));
+  }
+  return unsafeInstantiateAndExecute(*Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeInstantiateAndExecute(const AST::Module &Module,
+                                std::string_view Func,
+                                Span<const ValVariant> Params,
+                                Span<const ValType> ParamTypes) {
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // This one-shot path takes no shared ownership of the module, so it is
@@ -442,16 +464,17 @@ Expect<void> VM::unsafeValidate() {
   return {};
 }
 
-Expect<void> VM::unsafeLoadJITExecutable() {
+Expect<void>
+VM::unsafeLoadJITExecutable(const std::shared_ptr<AST::Module> &Module) {
   if ((Conf.getRuntimeConfigure().getRunMode() != RunMode::JIT &&
        Conf.getRuntimeConfigure().getRunMode() != RunMode::LazyJIT) ||
-      Mod->getSymbol()) {
+      Module->getSymbol()) {
     return {};
   }
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
-    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
-    EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
+    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Module));
+    EXPECTED_TRY(LoaderEngine.loadExecutable(*Module, std::move(Exec)));
     return {};
   }
   LLVM::Compiler Compiler(Conf);
@@ -464,7 +487,7 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&]() { return Compiler.compile(*Mod); })
+      .and_then([&]() { return Compiler.compile(*Module); })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {
           spdlog::error("Compilation failed. Error code: {}, use "
@@ -485,8 +508,8 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&](auto Module) {
-        return LoaderEngine.loadExecutable(*Mod, std::move(Module));
+      .and_then([&](auto Exec) {
+        return LoaderEngine.loadExecutable(*Module, std::move(Exec));
       })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {
@@ -511,7 +534,7 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (Mod) {
-    EXPECTED_TRY(unsafeLoadJITExecutable());
+    EXPECTED_TRY(unsafeLoadJITExecutable(Mod));
     EXPECTED_TRY(auto NewModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
 

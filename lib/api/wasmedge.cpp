@@ -1499,7 +1499,7 @@ WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
                          const WasmEdge_LimitContext *Limit) noexcept {
   try {
     WasmEdge::ValType RT = genValType(RefType);
-    if (Limit && RT.isRefType()) {
+    if (Limit && RT.isRefType() && !fromLimitCxt(Limit)->isShared()) {
       return toTabTypeCxt(
           new WasmEdge::AST::TableType(RT, *fromLimitCxt(Limit)));
     }

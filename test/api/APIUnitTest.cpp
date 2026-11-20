@@ -924,6 +924,19 @@ TEST(APICoreTest, TableType) {
   WasmEdge_LimitDelete(Lim2);
   WasmEdge_TableTypeDelete(TType);
   WasmEdge_TableTypeDelete(nullptr);
+
+  // Table type should not allow shared limits.
+  WasmEdge_LimitContext *SharedLim =
+      WasmEdge_LimitCreateWithMax(10, 20, false, true);
+  EXPECT_EQ(WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), SharedLim),
+            nullptr);
+  WasmEdge_LimitDelete(SharedLim);
+
+  WasmEdge_LimitContext *Lim3 = WasmEdge_LimitCreate(10, false);
+  EXPECT_EQ(WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenI32(), Lim3), nullptr);
+  EXPECT_EQ(WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), nullptr),
+            nullptr);
+  WasmEdge_LimitDelete(Lim3);
 }
 
 TEST(APICoreTest, MemoryType) {

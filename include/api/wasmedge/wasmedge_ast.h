@@ -275,7 +275,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_FunctionTypeDelete(
 ///
 /// \param RefType the value type of the table type. This value type should be a
 /// reference type, or this function will fail.
-/// \param Limit the limit struct of the table type.
+/// \param Limit the limit struct of the table type. This limit cannot be
+/// shared, or this function will fail.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *WasmEdge_TableTypeCreate(

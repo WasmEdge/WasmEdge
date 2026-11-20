@@ -1078,6 +1078,40 @@ TEST_F(ValidatorRegressionTest, ZeroCountLocalRejectsUnknownType) {
             WasmEdge::ErrCode::Value::InvalidFuncTypeIdx);
 }
 
+TEST_F(ValidatorRegressionTest, DisabledProposals) {
+  // (module (global (export "g") (mut i32) (i32.const 0)))
+  std::array<WasmEdge::Byte, 23> MutGlobalWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x06, 0x06, 0x01, 0x7f,
+      0x01, 0x41, 0x00, 0x0b, 0x07, 0x05, 0x01, 0x01, 0x67, 0x03, 0x00};
+  // (module (global i32 (i32.const 1)) (global i32 (global.get 0)))
+  std::array<WasmEdge::Byte, 21> GlobalGetWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x06, 0x0b, 0x02,
+      0x7f, 0x00, 0x41, 0x01, 0x0b, 0x7f, 0x00, 0x23, 0x00, 0x0b};
+
+  auto Validate = [](WasmEdge::Span<const WasmEdge::Byte> Wasm,
+                     WasmEdge::Proposal Disabled) -> WasmEdge::Expect<void> {
+    WasmEdge::Configure DisabledConf;
+    DisabledConf.removeProposal(Disabled);
+    WasmEdge::Loader::Loader Ldr(DisabledConf);
+    WasmEdge::Validator::Validator Valid(DisabledConf);
+    EXPECTED_TRY(auto Mod, Ldr.parseModule(Wasm));
+    return Valid.validate(*Mod);
+  };
+
+  // A mutable global export needs the ImportExportMutGlobals proposal.
+  EXPECT_TRUE(Validate(MutGlobalWasm, WasmEdge::Proposal::TailCall));
+  auto Res =
+      Validate(MutGlobalWasm, WasmEdge::Proposal::ImportExportMutGlobals);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::InvalidMut);
+
+  // A global.get of a defined global needs the ExtendedConst proposal.
+  EXPECT_TRUE(Validate(GlobalGetWasm, WasmEdge::Proposal::FunctionReferences));
+  Res = Validate(GlobalGetWasm, WasmEdge::Proposal::ExtendedConst);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::InvalidGlobalIdx);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -712,7 +712,7 @@ TEST(ValidateSubcommand, DisableProposalFlags) {
   EXPECT_EQ(callValidate({"--disable-function-reference", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({"--disable-exception-handling", Path}), EXIT_SUCCESS);
 
-  EXPECT_EQ(callValidate({"--disable-import-export-mut-globals", Path}),
+  EXPECT_NE(callValidate({"--disable-import-export-mut-globals", Path}),
             EXIT_SUCCESS);
   EXPECT_NE(callValidate({"--disable-import-export-mut-globals",
                           parseTestPath().c_str()}),

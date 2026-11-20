@@ -1431,10 +1431,12 @@ bool INode::canBrowse() const noexcept {
 }
 
 WasiExpect<void> INode::updateStat() const noexcept {
-  Stat.emplace();
-  if (unlikely(::fstat(Fd, &*Stat) != 0)) {
+  struct stat Buf;
+  if (unlikely(::fstat(Fd, &Buf) != 0)) {
+    Stat.reset();
     return WasiUnexpect(fromErrNo(errno));
   }
+  Stat = Buf;
   return {};
 }
 

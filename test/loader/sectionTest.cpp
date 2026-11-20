@@ -652,4 +652,40 @@ TEST(SectionTest, LoadAOTSectionSymbolAddress) {
     EXPECT_FALSE(Exec.load(Sec));
   }
 }
+
+TEST(SectionTest, LoadAOTSectionFailureAfterEHFrame) {
+  // A load that fails after it has seen the unwind section must not leave the
+  // section marked as registered, and the object must stay reusable.
+  WasmEdge::AST::AOTSection Bad;
+  Bad.setIntrinsicsAddress(0);
+  Bad.getSections().emplace_back(UINT8_C(4), UINT64_C(0), UINT64_C(16),
+                                 std::vector<WasmEdge::Byte>(16, 0xFFU));
+  Bad.getSections().emplace_back(UINT8_C(9), UINT64_C(16), UINT64_C(16),
+                                 std::vector<WasmEdge::Byte>(16, 0x00U));
+  WasmEdge::AST::AOTSection Good;
+  Good.setIntrinsicsAddress(0);
+#if WASMEDGE_OS_WINDOWS
+  Good.getSections().emplace_back(UINT8_C(2), UINT64_C(0), UINT64_C(20),
+                                  std::vector<WasmEdge::Byte>(20, 0x00U));
+#else
+  // An unwind section with one CIE, no FDE, and the terminator.
+  Good.getSections().emplace_back(
+      UINT8_C(4), UINT64_C(0), UINT64_C(20),
+      std::vector<WasmEdge::Byte>{0x0CU, 0x00U, 0x00U, 0x00U, 0x00U,
+                                  0x00U, 0x00U, 0x00U, 0x01U, 0x00U,
+                                  0x01U, 0x78U, 0x10U, 0x00U, 0x00U,
+                                  0x00U, 0x00U, 0x00U, 0x00U, 0x00U});
+#endif
+
+  {
+    WasmEdge::Loader::AOTSection Exec;
+    EXPECT_FALSE(Exec.load(Bad));
+  }
+  {
+    WasmEdge::Loader::AOTSection Exec;
+    EXPECT_FALSE(Exec.load(Bad));
+    EXPECT_TRUE(Exec.load(Good));
+    EXPECT_TRUE(Exec.load(Good));
+  }
+}
 } // namespace

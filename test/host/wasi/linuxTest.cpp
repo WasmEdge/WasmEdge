@@ -3,6 +3,7 @@
 #if WASMEDGE_OS_LINUX
 
 #include "../../../lib/host/wasi/linux.h"
+#include "host/wasi/inode.h"
 
 using namespace WasmEdge::Host::WASI::detail;
 
@@ -281,5 +282,39 @@ TEST(LinuxTest, toAddressFamily) {
   EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_UNSPEC), PF_UNSPEC);
   EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_INET4), PF_INET);
   EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_INET6), PF_INET6);
+}
+
+TEST(LinuxTest, INodeStatFailureIsNotCached) {
+  using WasmEdge::Host::WASI::INode;
+
+  INode Invalid(-1);
+  for (int I = 0; I < 2; ++I) {
+    auto Size = Invalid.filesize();
+    ASSERT_FALSE(Size);
+    EXPECT_EQ(Size.error(), __WASI_ERRNO_BADF);
+    auto Type = Invalid.filetype();
+    ASSERT_FALSE(Type);
+    EXPECT_EQ(Type.error(), __WASI_ERRNO_BADF);
+    EXPECT_FALSE(Invalid.isDirectory());
+    EXPECT_FALSE(Invalid.isSymlink());
+  }
+
+  const int DirFd = ::open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  ASSERT_GE(DirFd, 0);
+  INode Node(DirFd);
+  EXPECT_TRUE(Node.isDirectory());
+
+  Node.Fd = -1;
+  __wasi_filestat_t Filestat;
+  EXPECT_FALSE(Node.fdFilestatGet(Filestat));
+  EXPECT_FALSE(Node.isDirectory());
+  EXPECT_FALSE(Node.filetype());
+  EXPECT_FALSE(Node.filesize());
+
+  Node.Fd = DirFd;
+  EXPECT_TRUE(Node.isDirectory());
+  auto Type = Node.filetype();
+  ASSERT_TRUE(Type);
+  EXPECT_EQ(*Type, __WASI_FILETYPE_DIRECTORY);
 }
 #endif

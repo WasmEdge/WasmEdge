@@ -25,6 +25,7 @@
 #include <initializer_list>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace {
@@ -2027,6 +2028,75 @@ TEST(ExecutorRegression, TableGrowAllocationFailure) {
   ASSERT_TRUE(Result);
   ASSERT_EQ(Result->size(), 1U);
   EXPECT_EQ((*Result)[0].first.get<uint64_t>(), UINT64_MAX);
+}
+
+/// A name registered by another party while a named module is being
+/// instantiated must fail the instantiation instead of being ignored.
+TEST(ExecutorRegression, RegisterModuleLateNameConflict) {
+  class RegisterOther : public Runtime::HostFunction<RegisterOther> {
+  public:
+    RegisterOther(Runtime::StoreManager &S,
+                  const Runtime::Instance::ModuleInstance &M)
+        : Store(S), Other(M) {}
+    Expect<void> body(const Runtime::CallingFrame &) {
+      return Store.registerModule(&Other, "dup");
+    }
+
+  private:
+    Runtime::StoreManager &Store;
+    const Runtime::Instance::ModuleInstance &Other;
+  };
+
+  // (module
+  //   (import "host" "f" (func))
+  //   (start 0))
+  std::array<WasmEdge::Byte, 29> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x02, 0x0a, 0x01, 0x04, 0x68, 0x6f,
+      0x73, 0x74, 0x01, 0x66, 0x00, 0x00, 0x08, 0x01, 0x00};
+  Configure Conf;
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  Executor::Executor Executor(Conf);
+  Runtime::Instance::ModuleInstance Other("other");
+  Runtime::Instance::ModuleInstance HostMod("host");
+  Runtime::StoreManager Store;
+  HostMod.addHostFunc("f", std::make_unique<RegisterOther>(Store, Other));
+  ASSERT_TRUE(Executor.registerModule(Store, HostMod));
+
+  auto Mod = Loader.parseModule(Wasm);
+  ASSERT_TRUE(Mod);
+  ASSERT_TRUE(Validator.validate(**Mod));
+  auto Res = Executor.registerModule(Store, **Mod, "dup");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ModuleNameConflict);
+  EXPECT_EQ(Store.findModule("dup"), &Other);
+}
+
+/// Registering a component under a name that is already taken must fail.
+TEST(ExecutorRegression, RegisterComponentNameConflict) {
+  // (component)
+  std::array<WasmEdge::Byte, 8> Wasm{0x00, 0x61, 0x73, 0x6d,
+                                     0x0d, 0x00, 0x01, 0x00};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  Executor::Executor Executor(Conf);
+  Runtime::StoreManager Store;
+
+  auto Unit = Loader.parseWasmUnit(Wasm);
+  ASSERT_TRUE(Unit);
+  using CompPtr = std::unique_ptr<AST::Component::Component>;
+  ASSERT_TRUE(std::holds_alternative<CompPtr>(*Unit));
+  const auto &Comp = *std::get<CompPtr>(*Unit);
+  ASSERT_TRUE(Validator.validate(Comp));
+  auto First = Executor.registerComponent(Store, Comp, "dup");
+  ASSERT_TRUE(First);
+  auto Second = Executor.registerComponent(Store, Comp, "dup");
+  ASSERT_FALSE(Second);
+  EXPECT_EQ(Second.error(), ErrCode::Value::ModuleNameConflict);
+  EXPECT_EQ(Store.findComponent("dup"), First->get());
 }
 
 GTEST_API_ int main(int argc, char **argv) {

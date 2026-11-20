@@ -12,4 +12,4 @@ For developers, it is recommended that the APIs in `wasmedge-sys` are used to co
 
 * [WasmEdge Runtime Official Website](https://wasmedge.org/)
 * [WasmEdge Docs](https://wasmedge.org/book/en/)
-* [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
+* [WasmEdge C API Documentation](https://wasmedge.org/docs/embed/c/reference/latest/)

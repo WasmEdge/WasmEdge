@@ -261,26 +261,24 @@ public:
         ForbiddenPlugins(RHS.ForbiddenPlugins), CompilerConf(RHS.CompilerConf),
         RuntimeConf(RHS.RuntimeConf), StatisticsConf(RHS.StatisticsConf) {}
 
-  void addProposal(const Proposal Type) noexcept {
+  /// Add a proposal and the proposals it depends on. Returns the proposals
+  /// added implicitly.
+  std::bitset<static_cast<uint8_t>(Proposal::Max)>
+  addProposal(const Proposal Type) noexcept {
     std::unique_lock Lock(Mutex);
+    const auto Prev = Proposals;
     unsafeAddProposal(Type);
+    return (Prev ^ Proposals).reset(static_cast<uint8_t>(Type));
   }
 
-  void removeProposal(const Proposal Type) noexcept {
+  /// Remove a proposal and the proposals depending on it. Returns the
+  /// proposals removed implicitly.
+  std::bitset<static_cast<uint8_t>(Proposal::Max)>
+  removeProposal(const Proposal Type) noexcept {
     std::unique_lock Lock(Mutex);
-    if (Type == Proposal::FunctionReferences &&
-        Proposals.test(static_cast<uint8_t>(Proposal::GC))) {
-      // Proposal dependency: GC depends FunctionReferences.
-      return;
-    }
-    if (Type == Proposal::ReferenceTypes &&
-        (Proposals.test(static_cast<uint8_t>(Proposal::GC)) ||
-         Proposals.test(static_cast<uint8_t>(Proposal::FunctionReferences)))) {
-      // Proposal dependency: GC and FunctionReferences depend on
-      // ReferenceTypes.
-      return;
-    }
-    Proposals.reset(static_cast<uint8_t>(Type));
+    const auto Prev = Proposals;
+    unsafeRemoveProposal(Type);
+    return (Prev ^ Proposals).reset(static_cast<uint8_t>(Type));
   }
 
   void setWASMStandard(const Standard Std) noexcept {
@@ -463,12 +461,44 @@ private:
 
   void unsafeAddProposal(const Proposal Type) noexcept {
     Proposals.set(static_cast<uint8_t>(Type));
-    // Proposal dependency: FunctionReferences depends on ReferenceTypes.
-    if (Type == Proposal::FunctionReferences) {
-      Proposals.set(static_cast<uint8_t>(Proposal::ReferenceTypes));
+    // Proposal dependency: adding a proposal adds the proposals it depends on.
+    switch (Type) {
+      [[fallthrough]];
+    case Proposal::FunctionReferences:
+    case Proposal::ExceptionHandling:
+    case Proposal::GC:
+      [[fallthrough]];
+    case Proposal::ReferenceTypes:
+      Proposals.set(static_cast<uint8_t>(Proposal::BulkMemoryOperations));
+      break;
+    case Proposal::RelaxSIMD:
+      Proposals.set(static_cast<uint8_t>(Proposal::SIMD));
+      break;
+    default:
+      break;
     }
-    // Proposal dependency: GC depends on FunctionReferences and ReferenceTypes.
-    if (Type == Proposal::GC) {
+  }
+
+  void unsafeRemoveProposal(const Proposal Type) noexcept {
+    Proposals.reset(static_cast<uint8_t>(Type));
+    // Proposal dependency: removing a proposal removes the proposals depending
+    // on it.
+    switch (Type) {
+    case Proposal::BulkMemoryOperations:
+      Proposals.reset(static_cast<uint8_t>(Proposal::ReferenceTypes));
+      [[fallthrough]];
+    case Proposal::ReferenceTypes:
+      Proposals.reset(static_cast<uint8_t>(Proposal::ExceptionHandling));
+      Proposals.reset(static_cast<uint8_t>(Proposal::FunctionReferences));
+      [[fallthrough]];
+    case Proposal::FunctionReferences:
+      Proposals.reset(static_cast<uint8_t>(Proposal::GC));
+      break;
+    case Proposal::SIMD:
+      Proposals.reset(static_cast<uint8_t>(Proposal::RelaxSIMD));
+      break;
+    default:
+      break;
       Proposals.set(static_cast<uint8_t>(Proposal::FunctionReferences));
       Proposals.set(static_cast<uint8_t>(Proposal::ReferenceTypes));
     }

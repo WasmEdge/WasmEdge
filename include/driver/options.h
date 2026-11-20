@@ -37,14 +37,21 @@ struct DriverProposalOptions {
         PropSignExtendOps(
             PO::Description("Disable Sign-extension operators proposal"sv)),
         PropMultiValue(PO::Description("Disable Multi-value proposal"sv)),
-        PropBulkMemOps(
-            PO::Description("Disable Bulk memory operations proposal"sv)),
-        PropRefTypes(PO::Description("Disable Reference types proposal"sv)),
-        PropSIMD(PO::Description("Disable SIMD proposal"sv)),
+        PropBulkMemOps(PO::Description(
+            "Disable Bulk memory operations proposal, and the Reference "
+            "types, Function Reference, GC, and Exception handling proposals "
+            "depending on it"sv)),
+        PropRefTypes(PO::Description(
+            "Disable Reference types proposal, and the Function Reference, "
+            "GC, and Exception handling proposals depending on it"sv)),
+        PropSIMD(PO::Description(
+            "Disable SIMD proposal, and the Relaxed SIMD proposal depending "
+            "on it"sv)),
         PropTailCall(PO::Description("Disable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Disable Extended-const proposal"sv)),
-        PropFunctionReference(
-            PO::Description("Disable Function Reference proposal"sv)),
+        PropFunctionReference(PO::Description(
+            "Disable Function Reference proposal, and the GC proposal "
+            "depending on it"sv)),
         PropGC(PO::Description("Disable GC proposal"sv)),
         PropMultiMem(PO::Description("Disable Multiple memories proposal"sv)),
         PropRelaxedSIMD(PO::Description("Disable Relaxed SIMD proposal"sv)),
@@ -54,7 +61,8 @@ struct DriverProposalOptions {
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropWideArithmetic(
             PO::Description("Enable Wide Arithmetic proposal"sv)),
-        PropAll(PO::Description("Enable all features"sv)) {}
+        PropAll(PO::Description(
+            "Enable all features. The disable options still apply."sv)) {}
 
   PO::Option<PO::Toggle> PropWASM1;
   PO::Option<PO::Toggle> PropWASM2;

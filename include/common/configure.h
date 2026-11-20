@@ -387,16 +387,14 @@ public:
       if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
         return Proposal::SignExtensionOperators;
       }
-    } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
-               (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
+    } else if ((Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
                (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
-      // These instructions are for ReferenceTypes or BulkMemoryOperations
-      // proposal.
-      if (unlikely(!hasProposal(Proposal::ReferenceTypes)) &&
-          unlikely(!hasProposal(Proposal::BulkMemoryOperations))) {
-        return Proposal::ReferenceTypes;
+      // These instructions are for BulkMemoryOperations proposal.
+      if (unlikely(!hasProposal(Proposal::BulkMemoryOperations))) {
+        return Proposal::BulkMemoryOperations;
       }
     } else if (Code == OpCode::Select_t ||
+               (Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
                (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
                (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
       // These instructions are for ReferenceTypes proposal.
@@ -421,7 +419,7 @@ public:
       if (unlikely(!hasProposal(Proposal::TailCall))) {
         return Proposal::TailCall;
       }
-    } else if (Code >= OpCode::I32__atomic__load &&
+    } else if (Code >= OpCode::Memory__atomic__notify &&
                Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
       // These instructions are for Thread proposal.
       if (!hasProposal(Proposal::Threads)) {
@@ -463,10 +461,12 @@ private:
     Proposals.set(static_cast<uint8_t>(Type));
     // Proposal dependency: adding a proposal adds the proposals it depends on.
     switch (Type) {
+    case Proposal::GC:
+      Proposals.set(static_cast<uint8_t>(Proposal::FunctionReferences));
       [[fallthrough]];
     case Proposal::FunctionReferences:
     case Proposal::ExceptionHandling:
-    case Proposal::GC:
+      Proposals.set(static_cast<uint8_t>(Proposal::ReferenceTypes));
       [[fallthrough]];
     case Proposal::ReferenceTypes:
       Proposals.set(static_cast<uint8_t>(Proposal::BulkMemoryOperations));
@@ -499,8 +499,6 @@ private:
       break;
     default:
       break;
-      Proposals.set(static_cast<uint8_t>(Proposal::FunctionReferences));
-      Proposals.set(static_cast<uint8_t>(Proposal::ReferenceTypes));
     }
   }
 

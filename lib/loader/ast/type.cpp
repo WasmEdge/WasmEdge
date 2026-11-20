@@ -29,18 +29,12 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
         static_cast<TypeCode>(static_cast<uint8_t>((*Val) & INT64_C(0x7F)));
     switch (HTCode) {
     case TypeCode::ExternRef:
+    case TypeCode::FuncRef:
       // For the ref.func instruction, the immediate changed to store the heap
       // type directly instead of the reference type after applying the
       // typed function reference proposal. Therefore the reference-types
       // proposal should be checked here.
       if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(FailCode, Proposal::ReferenceTypes,
-                               FMgr.getLastOffset(), From);
-      }
-      [[fallthrough]];
-    case TypeCode::FuncRef:
-      if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
-          !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         return logNeedProposal(FailCode, Proposal::ReferenceTypes,
                                FMgr.getLastOffset(), From);
       }
@@ -157,6 +151,12 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From, bool IsStorageType) {
     FMgr.readByte();
     return ValType(Code);
   default:
+    // The reference types are value types with the reference-types proposal.
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::Value::MalformedValType,
+                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                             From);
+    }
     return loadRefType(From);
   }
 }

@@ -59,7 +59,7 @@ Time zones permitting, Maintainers are expected to participate in the public dev
 Maintainers will also have closed meetings in order to discuss security reports or Code of Conduct violations. Such meetings should be scheduled by any Maintainer on receipt of a security issue or CoC report. All current Maintainers must be invited to such closed meetings, except for any Maintainer who is accused of a CoC violation.
 
 ## CNCF Resources
-Any Maintainer may suggest a request for CNCF resources, either in the [mailing list](cncf-wasmedge-runtime-maintainers@lists.cncf.io), or during a meeting. A simple majority of Maintainers approve the request. The Maintainers may also choose to delegate working with the CNCF to non-Maintainer community members, who will then be added to the CNCF's Maintainer List for that purpose.
+Any Maintainer may suggest a request for CNCF resources, either in the [mailing list](mailto:cncf-wasmedge-runtime-maintainers@lists.cncf.io), or during a meeting. A simple majority of Maintainers approve the request. The Maintainers may also choose to delegate working with the CNCF to non-Maintainer community members, who will then be added to the CNCF's Maintainer List for that purpose.
 
 ## Code of Conduct
 
@@ -122,4 +122,4 @@ We will provide quarterly updates on our progress toward vendor neutrality and w
 Changes to this Governance and its supporting documents may be approved by a two-thirds majority (≥2/3) vote of the Maintainers.
 
 ## Credits
-WasmEdge adopts [CNCF governance template](https://contribute.cncf.io/maintainers/templates/governance-maintainer/) as the governance model.
+WasmEdge adopts [CNCF governance template](https://contribute.cncf.io/projects/best-practices/governance/templates/governance-maintainer/) as the governance model.

@@ -8,17 +8,18 @@
 namespace WasmEdge {
 namespace Executor {
 
-Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
-                                   const AST::Instruction &Instr,
-                                   AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runIfElseOp(Runtime::StackManager &StackMgr,
+                      const AST::Instruction Instr,
+                      AST::InstrView::iterator PC) noexcept {
   // Get condition.
   uint32_t Cond = StackMgr.pop().get<uint32_t>();
 
   // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
     if (Instr.getJumpElse() == Instr.getJumpEnd()) {
-      // No else-statement case. Jump to right before the End instruction.
-      PC += (Instr.getJumpEnd() - 1);
+      // No else-statement case. Jump to the End instruction.
+      PC = Instr.getIterator() + Instr.getJumpEnd();
     } else {
       if (Stat) {
         Stat->incInstrCount();
@@ -26,24 +27,27 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
           return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
-      // Else-statement case. Jump to the Else instruction to continue.
-      PC += Instr.getJumpElse();
+      // Else-statement case. Skip the Else instruction to continue.
+      PC = Instr.getIterator() + Instr.getJumpElse();
+      ++PC;
     }
   }
-  return {};
+  return PC;
 }
 
-Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
-                                  const AST::Instruction &Instr,
-                                  AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runThrowOp(Runtime::StackManager &StackMgr,
+                     const AST::Instruction Instr,
+                     AST::InstrView::iterator PC) noexcept {
   auto *TagInst = getTagInstByIdx(StackMgr.getModule(), Instr.getTargetIndex());
   // The arguments will be popped from the stack in the throw function.
   return throwException(StackMgr, *TagInst, PC);
 }
 
-Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
-                                     const AST::Instruction &Instr,
-                                     AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
+                        const AST::Instruction Instr,
+                        AST::InstrView::iterator PC) noexcept {
   const auto Ref = StackMgr.pop().get<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::AccessNullException);
@@ -58,44 +62,47 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
   return throwException(StackMgr, *TagInst, PC, ExnInst);
 }
 
-Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
-                               const AST::Instruction &Instr,
-                               AST::InstrView::iterator &PC) noexcept {
-  return branchToLabel(StackMgr, Instr.getJump(), PC);
+Expect<AST::InstrView::iterator>
+Executor::runBrOp(Runtime::StackManager &StackMgr,
+                  const AST::Instruction Instr) noexcept {
+  return branchToLabel(StackMgr, Instr.getJump(), Instr.getIterator());
 }
 
-Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
-                                 const AST::Instruction &Instr,
-                                 AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runBrIfOp(Runtime::StackManager &StackMgr,
+                    const AST::Instruction Instr,
+                    AST::InstrView::iterator PC) noexcept {
   if (StackMgr.pop().get<uint32_t>() != 0) {
-    return runBrOp(StackMgr, Instr, PC);
+    return runBrOp(StackMgr, Instr);
   }
-  return {};
+  return PC;
 }
 
-Expect<void> Executor::runBrOnNullOp(Runtime::StackManager &StackMgr,
-                                     const AST::Instruction &Instr,
-                                     AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runBrOnNullOp(Runtime::StackManager &StackMgr,
+                        const AST::Instruction Instr,
+                        AST::InstrView::iterator PC) noexcept {
   if (StackMgr.getTop().get<RefVariant>().isNull()) {
     StackMgr.pop();
-    return runBrOp(StackMgr, Instr, PC);
+    return runBrOp(StackMgr, Instr);
   }
-  return {};
+  return PC;
 }
 
-Expect<void> Executor::runBrOnNonNullOp(Runtime::StackManager &StackMgr,
-                                        const AST::Instruction &Instr,
-                                        AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runBrOnNonNullOp(Runtime::StackManager &StackMgr,
+                           const AST::Instruction Instr,
+                           AST::InstrView::iterator PC) noexcept {
   if (!StackMgr.getTop().get<RefVariant>().isNull()) {
-    return runBrOp(StackMgr, Instr, PC);
+    return runBrOp(StackMgr, Instr);
   }
   StackMgr.pop();
-  return {};
+  return PC;
 }
 
-Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
-                                    const AST::Instruction &Instr,
-                                    AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runBrTableOp(Runtime::StackManager &StackMgr,
+                       const AST::Instruction Instr) noexcept {
   // Get the value on top of the stack.
   uint32_t Value = StackMgr.pop().get<uint32_t>();
 
@@ -103,52 +110,49 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
   auto LabelTable = Instr.getLabelList();
   const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
   if (Value < LabelTableSize) {
-    return branchToLabel(StackMgr, LabelTable[Value], PC);
+    return branchToLabel(StackMgr, LabelTable[Value], Instr.getIterator());
   }
-  return branchToLabel(StackMgr, LabelTable[LabelTableSize], PC);
+  return branchToLabel(StackMgr, LabelTable[LabelTableSize],
+                       Instr.getIterator());
 }
 
-Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
-                                     const AST::Instruction &Instr,
-                                     AST::InstrView::iterator &PC,
-                                     bool IsReverse) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
+                        const AST::Instruction Instr,
+                        AST::InstrView::iterator PC, bool IsReverse) noexcept {
   // Get the value on top of the stack.
   const auto &Val = StackMgr.getTop().get<RefVariant>();
   if (matchRef(StackMgr.getModule(), Instr.getBrCast().RType2, Val) !=
       IsReverse) {
-    return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
+    return branchToLabel(StackMgr, Instr.getBrCast().Jump, Instr.getIterator());
   }
-  return {};
+  return PC;
 }
 
-Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
-                                   AST::InstrView::iterator &PC) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runReturnOp(Runtime::StackManager &StackMgr) noexcept {
   // Check stop token
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
   }
-  PC = StackMgr.popFrame();
-  return {};
+  return StackMgr.popFrame();
 }
 
-Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
-                                 const AST::Instruction &Instr,
-                                 AST::InstrView::iterator &PC,
-                                 bool IsTailCall) noexcept {
-  // Get Function address.
+Expect<AST::InstrView::iterator>
+Executor::runCallOp(Runtime::StackManager &StackMgr,
+                    const AST::Instruction Instr, AST::InstrView::iterator PC,
+                    bool IsTailCall) noexcept {
+  // Get Function address. The PC has been advanced to the return position.
   const auto *FuncInst =
       getFuncInstByIdx(StackMgr.getModule(), Instr.getTargetIndex());
-  EXPECTED_TRY(auto NextPC,
-               enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
-  PC = NextPC - 1;
-  return {};
+  return enterFunction(StackMgr, *FuncInst, PC, IsTailCall);
 }
 
-Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
-                                    const AST::Instruction &Instr,
-                                    AST::InstrView::iterator &PC,
-                                    bool IsTailCall) noexcept {
+Expect<AST::InstrView::iterator>
+Executor::runCallRefOp(Runtime::StackManager &StackMgr,
+                       const AST::Instruction Instr,
+                       AST::InstrView::iterator PC, bool IsTailCall) noexcept {
   const auto Ref = StackMgr.pop().get<RefVariant>();
   const auto *FuncInst = retrieveFuncRef(Ref);
   if (FuncInst == nullptr) {
@@ -158,17 +162,13 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::AccessNullFunc);
   }
 
-  // Get Function address.
-  EXPECTED_TRY(auto NextPC,
-               enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
-  PC = NextPC - 1;
-  return {};
+  // Get Function address. The PC has been advanced to the return position.
+  return enterFunction(StackMgr, *FuncInst, PC, IsTailCall);
 }
 
-Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
-                                         const AST::Instruction &Instr,
-                                         AST::InstrView::iterator &PC,
-                                         bool IsTailCall) noexcept {
+Expect<AST::InstrView::iterator> Executor::runCallIndirectOp(
+    Runtime::StackManager &StackMgr, const AST::Instruction Instr,
+    AST::InstrView::iterator PC, bool IsTailCall) noexcept {
   // Get Table Instance.
   const auto *TabInst =
       getTabInstByIdx(StackMgr.getModule(), Instr.getSourceIndex());
@@ -215,18 +215,15 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
-  // Enter the function.
-  EXPECTED_TRY(auto NextPC,
-               enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
-  PC = NextPC - 1;
-  return {};
+  // Enter the function. The PC has been advanced to the return position.
+  return enterFunction(StackMgr, *FuncInst, PC, IsTailCall);
 }
 
 Expect<void> Executor::runTryTableOp(Runtime::StackManager &StackMgr,
-                                     const AST::Instruction &Instr,
-                                     AST::InstrView::iterator &PC) noexcept {
+                                     const AST::Instruction Instr) noexcept {
   const auto &TryDesc = Instr.getTryCatch();
-  StackMgr.pushHandler(PC, TryDesc.BlockParamNum, TryDesc.Catch);
+  StackMgr.pushHandler(Instr.getIterator(), TryDesc.BlockParamNum,
+                       TryDesc.getCatchList());
   return {};
 }
 

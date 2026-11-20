@@ -140,9 +140,9 @@ ValType FormChecker::VTypeToAST(const VType &V) {
 }
 
 Expect<void> FormChecker::checkExpr(AST::InstrView Instrs) {
-  if (Instrs.size() > 0) {
+  if (!Instrs.empty()) {
     // Push ctrl frame ([] -> [Returns])
-    pushCtrl({}, Returns, &*Instrs.rbegin());
+    pushCtrl({}, Returns, Instrs.back().getIterator());
     return checkInstrs(Instrs);
   }
   return {};
@@ -340,14 +340,16 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
-  // Helper lambda for recording jump data.
+  // Helper lambda for recording jump data. The jump distance is the byte
+  // offset from this instruction record to the target record.
   auto recordJump = [this, &Instr](AST::Instruction::JumpDescriptor &Jump,
                                    uint32_t Arity, uint32_t D) -> void {
     const uint32_t Remain =
         static_cast<uint32_t>(ValStack.size() - CtrlStack[D].Height);
     Jump.StackEraseBegin = Remain + Arity;
     Jump.StackEraseEnd = Arity;
-    Jump.PCOffset = static_cast<int32_t>(CtrlStack[D].Jump - &Instr);
+    Jump.PCOffset =
+        static_cast<int32_t>(CtrlStack[D].Jump - Instr.getIterator());
   };
 
   // Helper lambda for unpacking a value type.
@@ -397,15 +399,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       const_cast<AST::Instruction::TryDescriptor &>(TryDesc).BlockParamNum =
           static_cast<uint32_t>(T1.size());
       // Validate catch clause.
-      for (const auto &C : TryDesc.Catch) {
+      for (const auto &C : TryDesc.getCatchList()) {
         if (!C.IsAll) {
           // Check tag index.
           EXPECTED_TRY(checkTagIdx(C.TagIndex));
           // Result types of tag indices are checked in the tag section.
         }
         EXPECTED_TRY(auto D, checkCtrlStackDepth(C.LabelIndex));
-        pushCtrl({}, getLabelTypes(CtrlStack[D]), &Instr + TryDesc.JumpEnd,
-                 Instr.getOpCode());
+        pushCtrl({}, getLabelTypes(CtrlStack[D]),
+                 Instr.getIterator() + TryDesc.JumpEnd, Instr.getOpCode());
         std::vector<ValType> NTypes;
         if (!C.IsAll) {
           // The type is checked as a function type.
@@ -424,13 +426,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       }
     }
     // Push ctrl frame ([t1*], [t2*])
-    const AST::Instruction *From = nullptr;
+    AST::InstrView::iterator From;
     if (Instr.getOpCode() == OpCode::Loop) {
-      From = &Instr;
+      From = Instr.getIterator();
     } else if (Instr.getOpCode() == OpCode::Try_table) {
-      From = &Instr + Instr.getTryCatch().JumpEnd;
+      From = Instr.getIterator() + Instr.getTryCatch().JumpEnd;
     } else {
-      From = &Instr + Instr.getJumpEnd();
+      From = Instr.getIterator() + Instr.getJumpEnd();
     }
     pushCtrl(T1, T2, From, Instr.getOpCode());
     if (Instr.getOpCode() == OpCode::If &&
@@ -2060,7 +2062,7 @@ Expect<void> FormChecker::popTypes(Span<const ValType> Input) {
 }
 
 void FormChecker::pushCtrl(Span<const ValType> In, Span<const ValType> Out,
-                           const AST::Instruction *Jump, OpCode Code) {
+                           AST::InstrView::iterator Jump, OpCode Code) {
   CtrlStack.emplace_back(In, Out, Jump, ValStack.size(), LocalInits.size(),
                          Code);
   pushTypes(In);

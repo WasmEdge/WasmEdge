@@ -46,8 +46,7 @@ createGlobalSec(WasmEdge::AST::GlobalType GlobalType) {
   WasmEdge::AST::GlobalSection GlobalSec;
   WasmEdge::AST::GlobalSegment GlobalSeg;
   GlobalSeg.getGlobalType() = GlobalType;
-  GlobalSeg.getExpr().getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  GlobalSeg.getExpr().getInstrs().appendEnd();
   GlobalSec.getContent() = {GlobalSeg};
   return GlobalSec;
 }

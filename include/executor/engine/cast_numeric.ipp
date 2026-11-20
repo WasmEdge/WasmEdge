@@ -37,7 +37,7 @@ TypeUU<TIn, TOut> Executor::runWrapOp(ValVariant &Val) const {
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut> Executor::runTruncateOp(const AST::Instruction &Instr,
+TypeFI<TIn, TOut> Executor::runTruncateOp(const AST::Instruction Instr,
                                           ValVariant &Val) const {
   TIn Z = Val.get<TIn>();
   // If z is a NaN or an infinity, then the result is undefined.

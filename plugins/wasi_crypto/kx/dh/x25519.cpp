@@ -124,7 +124,7 @@ X25519::SecretKey::dh(const PublicKey &Pk) const noexcept {
   // Generate shared secret.
   SecretVec Res(SharedSecretSize);
   size_t Size = SharedSecretSize;
-  ensureOrReturn(EVP_PKEY_derive(SkCtx.get(), Res.data(), &Size),
+  ensureOrReturn(opensslOk(EVP_PKEY_derive(SkCtx.get(), Res.data(), &Size)),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(Size == SharedSecretSize,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);

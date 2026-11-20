@@ -3,6 +3,7 @@
 
 #include "common/func.h"
 #include "helper.h"
+#include "utils/evp_wrapper.h"
 
 namespace {
 template <typename T, typename M>
@@ -21,6 +22,15 @@ namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
+
+TEST(WasiCryptoOpensslOkTest, Status) {
+  EXPECT_FALSE(opensslOk(-2));
+  EXPECT_FALSE(opensslOk(-1));
+  EXPECT_FALSE(opensslOk(0));
+  EXPECT_TRUE(opensslOk(1));
+  EXPECT_TRUE(opensslOk(2));
+  EXPECT_FALSE(opensslOk(static_cast<const EVP_PKEY *>(nullptr)));
+}
 
 TEST_F(WasiCryptoTest, Options) {
   // Symmetric options.

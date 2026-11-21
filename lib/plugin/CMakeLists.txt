@@ -10,7 +10,6 @@ wasmedge_add_library(wasmedgePlugin
 target_include_directories(wasmedgePlugin
   PRIVATE
   ${PROJECT_BINARY_DIR}/include/api
-  ${PROJECT_SOURCE_DIR}/include/api
 )
 
 target_link_libraries(wasmedgePlugin

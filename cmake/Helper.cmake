@@ -161,11 +161,6 @@ if(WIN32)
       -Wno-error=cast-function-type-strict
       -Wno-error=c++-keyword
     )
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 22.0.0)
-      list(APPEND WASMEDGE_CFLAGS
-        -Wno-shadow-header
-      )
-    endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23.0.0)
       list(APPEND WASMEDGE_CFLAGS
         -Wno-lifetime-safety-all

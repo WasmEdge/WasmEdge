@@ -411,16 +411,24 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
         IntrinsicsAddress = Address;
       } else if (startsWith(Name, SYMBOL("t"sv))) {
         uint64_t Index = 0;
-        std::from_chars(Name.data() + SYMBOL("t"sv).size(),
-                        Name.data() + Name.size(), Index);
+        if (auto [Ptr, Ec] = std::from_chars(Name.data() + SYMBOL("t"sv).size(),
+                                             Name.data() + Name.size(), Index);
+            Ec != std::errc() || Ptr != Name.data() + Name.size()) {
+          // Not a type symbol t<N> (for example the external symbol truncf).
+          continue;
+        }
         if (Types.size() < Index + 1) {
           Types.resize(Index + 1);
         }
         Types[Index] = Address;
       } else if (startsWith(Name, SYMBOL("f"sv))) {
         uint64_t Index = 0;
-        std::from_chars(Name.data() + SYMBOL("f"sv).size(),
-                        Name.data() + Name.size(), Index);
+        if (auto [Ptr, Ec] = std::from_chars(Name.data() + SYMBOL("f"sv).size(),
+                                             Name.data() + Name.size(), Index);
+            Ec != std::errc() || Ptr != Name.data() + Name.size()) {
+          // Not a function symbol f<N> (for example the external symbol fmaxf).
+          continue;
+        }
         if (Codes.size() < Index + 1) {
           Codes.resize(Index + 1);
         }

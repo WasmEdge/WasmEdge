@@ -19,6 +19,8 @@
 #define STB_IMAGE_RESIZE_STATIC
 #include "stb_image_resize.h"
 
+#include <limits>
+
 namespace WasmEdge {
 namespace Host {
 namespace StableDiffusion {
@@ -59,37 +61,84 @@ namespace StableDiffusion {
   }
 
 bool parameterCheck(SDEnviornment &Env, uint32_t Width, uint32_t Height,
-                    uint32_t SessionId) {
+                    uint32_t BatchCount, uint32_t SessionId) {
   if (SessionId >= Env.getContextSize()) {
     spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid."sv);
     return false;
   }
-  if (Width % 64 != 0) {
+  if (Width == 0 || Width % 64 != 0) {
     spdlog::error(
         "[WasmEdge-StableDiffusion] Width must be a multiple of 64 and greater than 0."sv);
     return false;
   }
-  if (Height % 64 != 0) {
+  if (Height == 0 || Height % 64 != 0) {
     spdlog::error(
         "[WasmEdge-StableDiffusion] Height must be a multiple of 64 and greater than 0."sv);
+    return false;
+  }
+  if (static_cast<uint64_t>(Width) * Height * 3U >
+      static_cast<uint64_t>(std::numeric_limits<int>::max())) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Width and height are too large."sv);
+    return false;
+  }
+  if (BatchCount == 0 ||
+      BatchCount > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Batch count must be greater than 0 and fit in an int."sv);
     return false;
   }
   return true;
 }
 
+uint8_t *loadImageFromMemory(Span<const uint8_t> Data, int *Width, int *Height,
+                             int *Channel, int RequiredChannel) {
+  if (Data.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return nullptr;
+  }
+  return stbi_load_from_memory(Data.data(), static_cast<int>(Data.size()),
+                               Width, Height, Channel, RequiredChannel);
+}
+
+uint8_t *resizeImage(uint8_t *Buffer, int Width, int Height, int NewWidth,
+                     int NewHeight, int Channels) {
+  if (Width == NewWidth && Height == NewHeight) {
+    return Buffer;
+  }
+  uint8_t *Resized = nullptr;
+  if (NewWidth > 0 && NewHeight > 0) {
+    Resized = static_cast<uint8_t *>(
+        malloc(static_cast<size_t>(NewWidth) * NewHeight * Channels));
+  }
+  if (Resized != nullptr &&
+      stbir_resize(Buffer, Width, Height, 0, Resized, NewWidth, NewHeight, 0,
+                   STBIR_TYPE_UINT8, Channels, STBIR_ALPHA_CHANNEL_NONE, 0,
+                   STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_FILTER_BOX,
+                   STBIR_FILTER_BOX, STBIR_COLORSPACE_SRGB, nullptr) == 0) {
+    free(Resized);
+    Resized = nullptr;
+  }
+  free(Buffer);
+  return Resized;
+}
+
+// preprocess_canny works in a fixed 10 MiB buffer and needs 32 bytes per pixel.
+constexpr uint64_t CannyMaxPixels = (10U * 1024U * 1024U - 64U * 1024U) / 32U;
+
 sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
                              bool CannyPreprocess) {
   uint8_t *ControlImageBuffer = nullptr;
-  sd_image_t *ControlImg = nullptr;
   int Channel = 0;
+  int ImageWidth = 0;
+  int ImageHeight = 0;
   std::string ControlImagePath(ControlImage.begin(), ControlImage.end());
 
   if (ControlImagePath.substr(0, 5) == "path:"sv) {
-    ControlImageBuffer = stbi_load(ControlImagePath.substr(5).data(), &Width,
-                                   &Height, &Channel, 3);
+    ControlImageBuffer = stbi_load(ControlImagePath.substr(5).data(),
+                                   &ImageWidth, &ImageHeight, &Channel, 3);
   } else {
-    ControlImageBuffer = stbi_load_from_memory(
-        ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
+    ControlImageBuffer = loadImageFromMemory(ControlImage, &ImageWidth,
+                                             &ImageHeight, &Channel, 3);
   }
 
   if (ControlImageBuffer == nullptr) {
@@ -97,31 +146,66 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
         "[WasmEdge-StableDiffusion] Load image from control image failed."sv);
     return nullptr;
   }
-  ControlImg =
-      new sd_image_t{static_cast<uint32_t>(Width),
-                     static_cast<uint32_t>(Height), 3, ControlImageBuffer};
-  if (CannyPreprocess) { // apply preprocessor
-    ControlImg->data =
-        preprocess_canny(ControlImg->data, ControlImg->width,
-                         ControlImg->height, 0.08f, 0.08f, 0.8f, 1.0f, false);
+  if (CannyPreprocess) {
+    if (static_cast<uint64_t>(ImageWidth) * static_cast<uint64_t>(ImageHeight) >
+        CannyMaxPixels) {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Control image is too large for the canny preprocessor."sv);
+      free(ControlImageBuffer);
+      return nullptr;
+    }
+    uint8_t *CannyBuffer =
+        preprocess_canny(ControlImageBuffer, ImageWidth, ImageHeight, 0.08f,
+                         0.08f, 0.8f, 1.0f, false);
+    if (CannyBuffer == nullptr) {
+      free(ControlImageBuffer);
+    }
+    ControlImageBuffer = CannyBuffer;
   }
-  free(ControlImageBuffer);
-  return ControlImg;
+  if (ControlImageBuffer != nullptr) {
+    ControlImageBuffer = resizeImage(ControlImageBuffer, ImageWidth,
+                                     ImageHeight, Width, Height, 3);
+  }
+  if (ControlImageBuffer == nullptr) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Failed to preprocess the control image."sv);
+    return nullptr;
+  }
+  return new sd_image_t{static_cast<uint32_t>(Width),
+                        static_cast<uint32_t>(Height), 3, ControlImageBuffer};
+}
+
+void freeControlImage(sd_image_t *ControlImage) {
+  if (ControlImage != nullptr) {
+    free(ControlImage->data);
+    delete ControlImage;
+  }
 }
 
 sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
-  uint8_t *MaskImageBuffer = NULL;
+  uint8_t *MaskImageBuffer = nullptr;
   std::string MaskImagePath(MaskImage.begin(), MaskImage.end());
   int Channel = 0;
+  int MaskWidth = 0;
+  int MaskHeight = 0;
   if (MaskImagePath.substr(0, 5) == "path:"sv) {
-    MaskImageBuffer =
-        stbi_load(MaskImagePath.substr(5).data(), &Width, &Height, &Channel, 3);
+    MaskImageBuffer = stbi_load(MaskImagePath.substr(5).data(), &MaskWidth,
+                                &MaskHeight, &Channel, 1);
   } else if (MaskImage.size() != 0) {
-    MaskImageBuffer = stbi_load_from_memory(MaskImage.data(), MaskImage.size(),
-                                            &Width, &Height, &Channel, 3);
-  } else {
-    std::vector<uint8_t> Arr(Width * Height, 255);
-    MaskImageBuffer = Arr.data();
+    MaskImageBuffer =
+        loadImageFromMemory(MaskImage, &MaskWidth, &MaskHeight, &Channel, 1);
+  } else if (Width > 0 && Height > 0) {
+    const size_t Size = static_cast<size_t>(Width) * Height;
+    MaskImageBuffer = static_cast<uint8_t *>(malloc(Size));
+    if (MaskImageBuffer != nullptr) {
+      std::fill_n(MaskImageBuffer, Size, static_cast<uint8_t>(255));
+    }
+    MaskWidth = Width;
+    MaskHeight = Height;
+  }
+  if (MaskImageBuffer != nullptr) {
+    MaskImageBuffer =
+        resizeImage(MaskImageBuffer, MaskWidth, MaskHeight, Width, Height, 1);
   }
   return {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height), 1,
           MaskImageBuffer};
@@ -154,17 +238,29 @@ void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
       Results[I] = CurrentImage;
     }
   }
-  free(UpscalerCtx);
+  if (UpscalerCtx != nullptr) {
+    free_upscaler_ctx(UpscalerCtx);
+  }
+}
+
+void freeResults(sd_image_t *Results, uint32_t BatchCount) {
+  for (uint32_t I = 0; I < BatchCount; I++) {
+    free(Results[I].data);
+  }
+  free(Results);
 }
 
 bool saveResults(sd_image_t *Results, uint32_t BatchCount,
                  std::string OutputPath, uint32_t OutputPathLen,
                  uint32_t *BytesWritten, uint32_t OutBufferMaxSize,
                  uint8_t *OutputBufferSpanPtr) {
-  int Len;
-  unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
-      Results->height, Results->channel, &Len, nullptr);
+  int Len = 0;
+  unsigned char *Png = nullptr;
+  if (BatchCount > 0 && Results[0].data != nullptr) {
+    Png = stbi_write_png_to_mem(Results[0].data, 0, Results[0].width,
+                                Results[0].height, Results[0].channel, &Len,
+                                nullptr);
+  }
   if (OutputPathLen != 0) {
     size_t Last = OutputPath.find_last_of(".");
     std::string DummyName = OutputPath;
@@ -182,7 +278,7 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
         if (I <= 0)
           FinalImagePath = DummyName + Extension;
         else
-          FinalImagePath += "_" + std::to_string(I + 1) + Extension;
+          FinalImagePath = DummyName + "_" + std::to_string(I + 1) + Extension;
         stbi_write_png(FinalImagePath.c_str(), Results[I].width,
                        Results[I].height, Results[I].channel, Results[I].data,
                        0, nullptr);
@@ -193,16 +289,22 @@ bool saveResults(sd_image_t *Results, uint32_t BatchCount,
       }
     }
   }
+  if (Png == nullptr) {
+    spdlog::error("[WasmEdge-StableDiffusion] Encode result image failed."sv);
+    *BytesWritten = 0;
+    freeResults(Results, BatchCount);
+    return false;
+  }
   *BytesWritten = Len;
   if (OutBufferMaxSize < *BytesWritten) {
     spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not enough."sv);
     free(Png);
-    free(Results);
+    freeResults(Results, BatchCount);
     return false;
   }
   std::copy_n(Png, *BytesWritten, OutputBufferSpanPtr);
   free(Png);
-  free(Results);
+  freeResults(Results, BatchCount);
   return true;
 }
 
@@ -340,7 +442,7 @@ Expect<uint32_t> SDCreateContext::body(
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  *SessionId = Env.addContext(Ctx, NThreads, static_cast<sd_type_t>(Wtype));
+  *SessionId = Env.addContext(Ctx, NThreads);
   return static_cast<uint32_t>(ErrNo::Success);
 }
 
@@ -378,13 +480,19 @@ Expect<uint32_t> SDTextToImage::body(
                  "Failed when accessing the output path memory."sv)
   MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
                  "Failed when accessing the SkipLayers memory."sv)
+  MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
+                 UpscaleModelPathLen,
+                 "Failed when accessing the Upscaler Image memory."sv)
+  MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
+                 ControlImageLen,
+                 "Failed when accessing the control image memory."sv)
   std::string Prompt(PromptSpan.begin(), PromptSpan.end());
   std::string NegativePrompt(NegativePromptSpan.begin(),
                              NegativePromptSpan.end());
   std::string InputIdImagesDir(InputIdImagesDirSpan.begin(),
                                InputIdImagesDirSpan.end());
   std::string OutputPath(OutputPathSpan.begin(), OutputPathSpan.end());
-  if (!parameterCheck(Env, Width, Height, SessionId)) {
+  if (!parameterCheck(Env, Width, Height, BatchCount, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
@@ -393,11 +501,11 @@ Expect<uint32_t> SDTextToImage::body(
   sd_image_t *ControlImage = nullptr;
   // Read control image
   if (ControlImageLen != 0) {
-    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
-                   ControlImageLen,
-                   "Failed when accessing the control image memory."sv)
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
+    if (ControlImage == nullptr) {
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
   }
   // Generate images
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
@@ -407,7 +515,7 @@ Expect<uint32_t> SDTextToImage::body(
       BatchCount, ControlImage, ControlStrength, StyleRatio, NormalizeInput,
       InputIdImagesDir.data(), SkipLayersSpan.data(), SkipLayersSpan.size(),
       SlgScale, SkipLayerStart, SkipLayerEnd);
-  free(ControlImage);
+  freeControlImage(ControlImage);
   if (Results == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);
     Env.freeContext(SessionId);
@@ -415,9 +523,6 @@ Expect<uint32_t> SDTextToImage::body(
   }
   // Upscale image
   if (UpscaleModelPathLen != 0) {
-    MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
-                   UpscaleModelPathLen,
-                   "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,
@@ -470,7 +575,13 @@ Expect<uint32_t> SDImageToImage::body(
                  "Failed when accessing the output path memory."sv)
   MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
                  "Failed when accessing the SkipLayers memory."sv)
-  if (!parameterCheck(Env, Width, Height, SessionId)) {
+  MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
+                 UpscaleModelPathLen,
+                 "Failed when accessing the Upscaler Image memory."sv)
+  MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
+                 ControlImageLen,
+                 "Failed when accessing the control image memory."sv)
+  if (!parameterCheck(Env, Width, Height, BatchCount, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
@@ -487,70 +598,67 @@ Expect<uint32_t> SDImageToImage::body(
   int ImageWidth = 0;
   int ImageHeight = 0;
   std::string ImagePath(ImageSpan.begin(), ImageSpan.end());
-  if (ImagePath.substr(0, 5) == "path:"sv) {
+  const bool IsImagePath = ImagePath.substr(0, 5) == "path:"sv;
+  if (IsImagePath) {
     InputImageBuffer = stbi_load(ImagePath.substr(5).data(), &ImageWidth,
                                  &ImageHeight, &Channel, 3);
-    if (InputImageBuffer == nullptr) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] Load image from input image failed."sv);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    if (Channel < 3) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The number of channels for the input image must be >= 3."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    if (ImageWidth <= 0) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The width of image must be greater than 0."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    if (ImageHeight <= 0) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The height of image must be greater than 0."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    // Resize image when its size does not match the width and height.
-    if (Height != static_cast<uint32_t>(ImageHeight) ||
-        Width != static_cast<uint32_t>(ImageWidth)) {
-      int ResizedHeight = Height;
-      int ResizedWidth = Width;
-      uint8_t *ResizedImageBuffer =
-          (uint8_t *)malloc(ResizedHeight * ResizedWidth * 3);
-      if (ResizedImageBuffer == nullptr) {
-        spdlog::error(
-            "[WasmEdge-StableDiffusion] Failed to allocate memory for resize input image."sv);
-        free(InputImageBuffer);
-        return static_cast<uint32_t>(ErrNo::InvalidArgument);
-      }
-      stbir_resize(InputImageBuffer, ImageWidth, ImageHeight, 0,
-                   ResizedImageBuffer, ResizedWidth, ResizedHeight, 0,
-                   STBIR_TYPE_UINT8, 3, STBIR_ALPHA_CHANNEL_NONE, 0,
-                   STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_FILTER_BOX,
-                   STBIR_FILTER_BOX, STBIR_COLORSPACE_SRGB, nullptr);
-      free(InputImageBuffer);
-      InputImageBuffer = ResizedImageBuffer;
-    }
   } else {
     InputImageBuffer =
-        stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
-                              &ImageHeight, &Channel, 3);
+        loadImageFromMemory(ImageSpan, &ImageWidth, &ImageHeight, &Channel, 3);
+  }
+  if (InputImageBuffer == nullptr) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Load image from input image failed."sv);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  if (IsImagePath && Channel < 3) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The number of channels for the input image must be >= 3."sv);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  if (ImageWidth <= 0) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The width of image must be greater than 0."sv);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  if (ImageHeight <= 0) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The height of image must be greater than 0."sv);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
+  // Resize image when its size does not match the width and height.
+  InputImageBuffer =
+      resizeImage(InputImageBuffer, ImageWidth, ImageHeight,
+                  static_cast<int>(Width), static_cast<int>(Height), 3);
+  if (InputImageBuffer == nullptr) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Failed to resize the input image."sv);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   sd_image_t InputImage = {Width, Height, 3, InputImageBuffer};
   // Read control image
   sd_image_t *ControlImage = nullptr;
   if (ControlImageLen != 0) {
-    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
-                   ControlImageLen,
-                   "Failed when accessing the control image memory."sv)
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
+    if (ControlImage == nullptr) {
+      free(InputImageBuffer);
+      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    }
   }
   // Read mask image
-  sd_image_t MaskImage = readMaskImage(MaskImageSpan, Width, Height);
+  sd_image_t MaskImage = readMaskImage(MaskImageSpan, static_cast<int>(Width),
+                                       static_cast<int>(Height));
+  if (MaskImage.data == nullptr) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Load image from mask image failed."sv);
+    freeControlImage(ControlImage);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
   // Generate images
   sd_image_t *Results = nullptr;
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
@@ -561,7 +669,8 @@ Expect<uint32_t> SDImageToImage::body(
               Seed, BatchCount, ControlImage, ControlStrength, StyleRatio,
               NormalizeInput, InputIdImagesDir.data(), SkipLayersSpan.data(),
               SkipLayersSpan.size(), SlgScale, SkipLayerStart, SkipLayerEnd);
-  free(ControlImage);
+  freeControlImage(ControlImage);
+  free(MaskImage.data);
   free(InputImageBuffer);
   if (Results == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);
@@ -570,9 +679,6 @@ Expect<uint32_t> SDImageToImage::body(
   }
   // Upscale image
   if (UpscaleModelPathLen != 0) {
-    MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
-                   UpscaleModelPathLen,
-                   "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,

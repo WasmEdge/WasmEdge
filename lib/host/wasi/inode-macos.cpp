@@ -1650,7 +1650,6 @@ void Poller::wait() noexcept {
       Event.Valid = true;
       Event.error = Error;
     }
-    return;
   }
 
   for (int I = 0; I < Count; ++I) {

@@ -97,8 +97,10 @@ TEST_F(WasiCryptoTest, Aeads) {
 
     bool IsSymmetricStateCloneImplemented = true;
     // XXX: These cipher didn't implement context duplication from OpenSSL 3.0.0
-    // https://github.com/openssl/openssl/issues/20978
+    // to 3.1.x (fixed in OpenSSL 3.2.0:
+    // https://github.com/openssl/openssl/issues/20978).
     if (0x30000000 <= OPENSSL_VERSION_NUMBER &&
+        OPENSSL_VERSION_NUMBER < 0x30200000L &&
         (Name == "AES-128-GCM"sv || Name == "AES-256-GCM"sv ||
          Name == "CHACHA20-POLY1305"sv)) {
       IsSymmetricStateCloneImplemented = false;
@@ -110,6 +112,28 @@ TEST_F(WasiCryptoTest, Aeads) {
                                  symmetricStateClone(State4Handle));
       EXPECT_NE(State4Handle, NewStateHandle);
       WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(NewStateHandle));
+
+      // Test clone on an active state before encryption
+      WASI_CRYPTO_EXPECT_SUCCESS(OptClone,
+                                 optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC));
+      WASI_CRYPTO_EXPECT_TRUE(optionsSet(OptClone, "nonce"sv, Nonce));
+      WASI_CRYPTO_EXPECT_SUCCESS(PreState,
+                                 symmetricStateOpen(Name, KeyHandle, OptClone));
+      WASI_CRYPTO_EXPECT_SUCCESS(ClonedPreState, symmetricStateClone(PreState));
+      EXPECT_NE(PreState, ClonedPreState);
+      std::vector<uint8_t> Cipher1(Msg.size() + MaxTagSize);
+      std::vector<uint8_t> Cipher2(Msg.size() + MaxTagSize);
+      WASI_CRYPTO_EXPECT_SUCCESS(S1,
+                                 symmetricStateEncrypt(PreState, Cipher1, Msg));
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          S2, symmetricStateEncrypt(ClonedPreState, Cipher2, Msg));
+      EXPECT_EQ(S1, CiphertextWithTag.size());
+      EXPECT_EQ(S2, CiphertextWithTag.size());
+      EXPECT_EQ(Cipher1, Cipher2);
+      EXPECT_EQ(Cipher1, CiphertextWithTag);
+      WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(PreState));
+      WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(ClonedPreState));
+      WASI_CRYPTO_EXPECT_TRUE(optionsClose(OptClone));
     } else {
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateClone(State4Handle),
                                  __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);

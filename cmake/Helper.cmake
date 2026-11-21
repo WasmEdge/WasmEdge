@@ -163,7 +163,9 @@ if(WIN32)
     )
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23.0.0)
       list(APPEND WASMEDGE_CFLAGS
-        -Wno-lifetime-safety-all
+        -Wno-error=lifetime-safety-dangling-field-moved
+        -Wno-error=lifetime-safety-invalidation
+        -Wno-error=lifetime-safety-suggestions
       )
     endif()
   endif()

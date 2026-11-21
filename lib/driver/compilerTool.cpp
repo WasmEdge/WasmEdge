@@ -82,25 +82,30 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   Configure Conf = createProposalConfigure(Opt);
 
   using OptimizationLevel = CompilerConfigure::OptimizationLevel;
-  static const std::array<std::pair<std::string_view, OptimizationLevel>, 6>
-      OptimizationLevels{{{"0"sv, OptimizationLevel::O0},
-                          {"1"sv, OptimizationLevel::O1},
-                          {"2"sv, OptimizationLevel::O2},
-                          {"3"sv, OptimizationLevel::O3},
-                          {"s"sv, OptimizationLevel::Os},
-                          {"z"sv, OptimizationLevel::Oz}}};
-  const auto Level =
-      std::find_if(OptimizationLevels.begin(), OptimizationLevels.end(),
-                   [&Opt](const auto &L) {
-                     return L.first == Opt.PropOptimizationLevel.value();
-                   });
-  if (Level != OptimizationLevels.end()) {
-    Conf.getCompilerConfigure().setOptimizationLevel(Level->second);
-  } else {
-    spdlog::warn("Unknown --optimize value: \"{}\"; using 2. Valid values: 0, "
-                 "1, 2, 3, s, z."sv,
-                 Opt.PropOptimizationLevel.value());
+  if (Opt.PropOptimizationLevel.value().empty()) {
     Conf.getCompilerConfigure().setOptimizationLevel(OptimizationLevel::O2);
+  } else {
+    static const std::array<std::pair<std::string_view, OptimizationLevel>, 6>
+        OptimizationLevels{{{"0"sv, OptimizationLevel::O0},
+                            {"1"sv, OptimizationLevel::O1},
+                            {"2"sv, OptimizationLevel::O2},
+                            {"3"sv, OptimizationLevel::O3},
+                            {"s"sv, OptimizationLevel::Os},
+                            {"z"sv, OptimizationLevel::Oz}}};
+    const auto Level =
+        std::find_if(OptimizationLevels.begin(), OptimizationLevels.end(),
+                     [&Opt](const auto &L) {
+                       return L.first == Opt.PropOptimizationLevel.value();
+                     });
+    if (Level != OptimizationLevels.end()) {
+      Conf.getCompilerConfigure().setOptimizationLevel(Level->second);
+    } else {
+      spdlog::warn(
+          "Unknown --optimize value: \"{}\"; using 2. Valid values: 0, "
+          "1, 2, 3, s, z."sv,
+          Opt.PropOptimizationLevel.value());
+      Conf.getCompilerConfigure().setOptimizationLevel(OptimizationLevel::O2);
+    }
   }
 
   // Set interpreter run mode here so the loader reads function bodies fully

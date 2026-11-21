@@ -933,6 +933,56 @@ TEST(CompileSubcommand, OutputFormat) {
   EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(NativeOutput.c_str());
 }
+
+TEST(CompileSubcommand, OptimizeFlagWarning) {
+  std::string Output = TestDataPath + "/opt_warn_out.wasm";
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  std::vector<std::string> WarnMsgs;
+  WasmEdge::Log::setLoggingCallback(
+      [&WarnMsgs](const spdlog::details::log_msg &Msg) {
+        if (Msg.level == spdlog::level::warn) {
+          WarnMsgs.emplace_back(Msg.payload.data(), Msg.payload.size());
+        }
+      });
+  struct ResetLogCallback {
+    ~ResetLogCallback() { WasmEdge::Log::setLoggingCallback(nullptr); }
+  } ResetGuard;
+
+  // 1. When --optimize is omitted, no warning about unknown --optimize should
+  // be emitted.
+  WarnMsgs.clear();
+  EXPECT_EQ(callCompile({Path, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  for (const auto &Msg : WarnMsgs) {
+    EXPECT_EQ(Msg.find("Unknown --optimize value"), std::string::npos);
+  }
+
+  // 2. When valid --optimize is provided (e.g. "2"), no warning should be
+  // emitted.
+  WarnMsgs.clear();
+  EXPECT_EQ(callCompile({"--optimize", "2", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  for (const auto &Msg : WarnMsgs) {
+    EXPECT_EQ(Msg.find("Unknown --optimize value"), std::string::npos);
+  }
+
+  // 3. When an unknown --optimize value is provided, warning should be emitted.
+  WarnMsgs.clear();
+  EXPECT_EQ(callCompile({"--optimize", "9", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  bool FoundWarn = false;
+  for (const auto &Msg : WarnMsgs) {
+    if (Msg.find("Unknown --optimize value: \"9\"") != std::string::npos) {
+      FoundWarn = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(FoundWarn);
+}
 #endif // WASMEDGE_USE_LLVM
 
 TEST(RunSubcommand, RunModeFlagParses) {

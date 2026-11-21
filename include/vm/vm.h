@@ -96,6 +96,16 @@ public:
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
+  /// A path or bytecode is stored in the VM, so the stage follows the stored
+  /// unit: loaded once stored, validated once it passes validation, and
+  /// instantiated once the new instance is active, even if the function call
+  /// then fails. A caller-owned AST module is not stored, so the stage keeps
+  /// describing the previously loaded unit and never advances.
+  /// An active module instance stays callable until a new instance replaces
+  /// it, so it survives a failed load, validation, or instantiation.
+  /// Storing a path or bytecode unit releases an active component instance
+  /// right away, because that instance refers to the replaced component. A
+  /// caller-owned AST module releases it only when the module instantiates.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},
@@ -132,17 +142,13 @@ public:
                    Span<const ValType> ParamTypes = {});
 
   /// Let runtimeTool check which arguments should be prepared.
-  bool holdsModule() {
-    if (ActiveModInst) {
-      return true;
-    }
-    return false;
+  bool holdsModule() const {
+    std::shared_lock Lock(Mutex);
+    return static_cast<bool>(ActiveModInst);
   }
-  bool holdsComponent() {
-    if (ActiveCompInst) {
-      return true;
-    }
-    return false;
+  bool holdsComponent() const {
+    std::shared_lock Lock(Mutex);
+    return static_cast<bool>(ActiveCompInst);
   }
 
   /// Load given wasm file, wasm bytecode, or wasm module.
@@ -288,7 +294,9 @@ public:
     return unsafeGetImportModule(Type);
   }
 
-  /// Get current instantiated module instance.
+  /// Get current instantiated module instance. Returns nullptr when the active
+  /// instance is a component instance, because the VM keeps one active
+  /// instance kind and releases the module instance in that case.
   const Runtime::Instance::ModuleInstance *getActiveModule() const {
     std::shared_lock Lock(Mutex);
     return unsafeGetActiveModule();
@@ -381,6 +389,11 @@ private:
 
   Expect<void> unsafeInstantiate();
 
+  /// The VM keeps one active instance kind at a time. Release the active
+  /// module instance, with its lazy JIT binding, when a component instance
+  /// becomes active.
+  void unsafeReleaseActiveModule();
+
   /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
   /// module if it does not carry one yet. Eager JIT compilation failures fall
   /// back to the interpreter; without LLVM support this only logs a warning.
@@ -421,10 +434,31 @@ private:
   enum class WasmUnitKind : uint8_t { Module, Component };
 
   /// Store a parsed wasm unit into the matching slot and report its kind.
-  /// The slot for the other kind keeps its previous content.
+  /// The slot for the other kind is emptied, so the VM holds one unit.
   WasmUnitKind
   unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
                                    std::unique_ptr<AST::Module>> &&Unit);
+
+  /// Store a module as the only wasm unit held by the VM, and set the stage
+  /// to Loaded. The active component instance points into the component AST,
+  /// so it is released before the component.
+  void unsafeStoreModule(std::shared_ptr<AST::Module> Module) {
+    Mod = std::move(Module);
+    ActiveCompInst.reset();
+    Comp.reset();
+    Stage = VMStage::Loaded;
+  }
+
+  /// Store a component as the only wasm unit held by the VM, and set the
+  /// stage to Loaded. The active component instance points into the replaced
+  /// component AST, so it is released before the component.
+  void
+  unsafeStoreComponent(std::unique_ptr<AST::Component::Component> Component) {
+    ActiveCompInst.reset();
+    Comp = std::move(Component);
+    Mod.reset();
+    Stage = VMStage::Loaded;
+  }
 
   /// Registering a module or running another wasm unit resets the active
   /// instantiation in the store, so the stage falls back to Validated and

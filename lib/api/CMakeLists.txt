@@ -116,7 +116,6 @@ endif()
 target_include_directories(wasmedgeCAPI
   PUBLIC
   ${PROJECT_BINARY_DIR}/include/api
-  ${PROJECT_SOURCE_DIR}/include/api
   ${PROJECT_SOURCE_DIR}/thirdparty/wasm
 )
 
@@ -162,7 +161,6 @@ if(WASMEDGE_BUILD_SHARED_LIB)
   target_include_directories(wasmedge_shared
     PUBLIC
     ${PROJECT_BINARY_DIR}/include/api
-    ${PROJECT_SOURCE_DIR}/include/api
   )
 
   install(TARGETS wasmedge_shared

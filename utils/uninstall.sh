@@ -93,6 +93,10 @@ parse_env() {
         _COUNT_=$((_COUNT_ + 1))
         echo "$IPATH/env"
     fi
+    if [ -f "$IPATH/env.fish" ]; then
+        _COUNT_=$((_COUNT_ + 1))
+        echo "$IPATH/env.fish"
+    fi
     if [ $_COUNT_ -lt 2 ]; then
         echo "_ERROR_ : Found $_COUNT_ file(s) only"
     fi
@@ -251,17 +255,19 @@ main() {
       fi
     }
 
-    for file in "${__HOME__}/${_shell_rc}" "${__HOME__}/.profile" "${__HOME__}/.bash_profile"; do
+    for file in "${__HOME__}/${_shell_rc}" "${__HOME__}/.profile" "${__HOME__}/.bash_profile" "${__HOME__}/.config/fish/config.fish"; do
       [[ -f "$file" ]] || continue
       if grep -qFx \
         -e ". \"${IPATH}/env\"" \
         -e "source \"${IPATH}/env\"" \
+        -e "source \"${IPATH}/env.fish\"" \
         "$file"; then
         real_file="$(resolve_path "$file")"
         cp "$real_file" "$real_file.bak"
         grep -Fxv \
           -e ". \"${IPATH}/env\"" \
           -e "source \"${IPATH}/env\"" \
+          -e "source \"${IPATH}/env.fish\"" \
           "$real_file.bak" > "$real_file" || [ $? -eq 1 ]
         rm -f "$real_file.bak"
       fi

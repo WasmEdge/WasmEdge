@@ -552,13 +552,75 @@ fi
         else:
             logging.error("Not able to write to env file")
 
+    if "fish" in SHELL:
+        fish_env = """#!/usr/bin/env fish
+# wasmedge shell setup for fish
+fish_add_path -p "{0}/bin"
+if not contains "{0}/{2}" ${1}
+    set -gx {1} "{0}/{2}" ${1}
+end
+if not contains "{0}/{2}" $LIBRARY_PATH
+    set -gx LIBRARY_PATH "{0}/{2}" $LIBRARY_PATH
+end
+if not contains "{0}/include" $C_INCLUDE_PATH
+    set -gx C_INCLUDE_PATH "{0}/include" $C_INCLUDE_PATH
+end
+if not contains "{0}/include" $CPLUS_INCLUDE_PATH
+    set -gx CPLUS_INCLUDE_PATH "{0}/include" $CPLUS_INCLUDE_PATH
+end
+if not set -q WASMEDGE_LIB_DIR
+    set -gx WASMEDGE_LIB_DIR "{0}/{2}"
+end
+# Please do not edit comments below this for uninstallation purpose
+""".format(
+            args.path,
+            compat.ld_library_path,
+            CONST_lib_dir,
+        )
+        fish_env_path = join(args.path, "env.fish")
+        fish_mode = "w+" if not exists(fish_env_path) else "w"
+        with opened_w_error(fish_env_path, fish_mode) as f_env:
+            if f_env is not None:
+                f_env.write(fish_env)
+            else:
+                logging.error("Not able to write to fish env file")
+
 
 def shell_configure(args, compat):
     global CONST_shell_profile, CONST_shell_config
 
     source_string = '\n. "{0}"\n'.format(join(args.path, "env"))
 
-    if ("bash" in SHELL) or ("zsh" in SHELL):
+    if "fish" in SHELL:
+        fish_config_dir = join(HOME, ".config", "fish")
+        fish_config_path = join(fish_config_dir, "config.fish")
+        CONST_shell_config = fish_config_path
+        fish_source_string = '\nsource "{0}"\n'.format(join(args.path, "env.fish"))
+
+        if not exists(fish_config_dir):
+            try:
+                makedirs(fish_config_dir)
+            except OSError:
+                pass
+
+        if not exists(fish_config_path):
+            open(fish_config_path, "a").close()
+
+        write_shell = False
+        expected_line = fish_source_string.strip()
+        with opened_w_error(fish_config_path, "r") as fish_config:
+            if fish_config is not None:
+                if not any(line.strip() == expected_line for line in fish_config):
+                    write_shell = True
+            else:
+                write_shell = True
+
+        if write_shell:
+            with opened_w_error(fish_config_path, "a") as fish_config:
+                if fish_config is not None:
+                    fish_config.write(fish_source_string)
+
+    elif ("bash" in SHELL) or ("zsh" in SHELL):
         CONST_shell_config = join(HOME, "." + SHELL + "rc")
 
         if "zsh" in SHELL:
@@ -1483,7 +1545,9 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        to_source = join(args.path, "env")
+        to_source = (
+            join(args.path, "env.fish") if "fish" in SHELL else join(args.path, "env")
+        )
 
         if args.modify_shell_profile:
             if CONST_shell_config is None:
@@ -1492,7 +1556,9 @@ def main(args):
             if CONST_shell_profile is None:
                 CONST_shell_profile = CONST_PATH_NOT_EXIST_STR
 
-            if exists(CONST_shell_config) and compat.platform != "Darwin":
+            if "fish" in SHELL and exists(CONST_shell_config):
+                to_source = CONST_shell_config
+            elif exists(CONST_shell_config) and compat.platform != "Darwin":
                 to_source = CONST_shell_config
             elif exists(CONST_shell_profile):
                 to_source = CONST_shell_profile

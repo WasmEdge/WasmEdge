@@ -31,7 +31,7 @@ verify_shell_config() {
   local want_change="$2"
   local config=""
 
-  for f in .profile .bashrc .bash_profile .zshrc .zsh_profile .zshenv; do
+  for f in .profile .bashrc .bash_profile .zshrc .zsh_profile .zshenv .config/fish/config.fish; do
     if ! [ -f "$HOME/$f" ]; then
       continue
     elif grep -Fq "$project/env" "$HOME/$f"; then

@@ -155,17 +155,23 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       PO::Description("Disable Sign-extension operators proposal"sv));
   PO::Option<PO::Toggle> PropMultiValue(
       PO::Description("Disable Multi-value proposal"sv));
-  PO::Option<PO::Toggle> PropBulkMemOps(
-      PO::Description("Disable Bulk memory operations proposal"sv));
-  PO::Option<PO::Toggle> PropRefTypes(
-      PO::Description("Disable Reference types proposal"sv));
-  PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
+  PO::Option<PO::Toggle> PropBulkMemOps(PO::Description(
+      "Disable Bulk memory operations proposal, and the Reference types, "
+      "Function Reference, GC, and Exception handling proposals depending on "
+      "it"sv));
+  PO::Option<PO::Toggle> PropRefTypes(PO::Description(
+      "Disable Reference types proposal, and the Function Reference, GC, and "
+      "Exception handling proposals depending on it"sv));
+  PO::Option<PO::Toggle> PropSIMD(PO::Description(
+      "Disable SIMD proposal, and the Relaxed SIMD proposal depending on "
+      "it"sv));
   PO::Option<PO::Toggle> PropTailCall(
       PO::Description("Disable Tail-call proposal"sv));
   PO::Option<PO::Toggle> PropExtendConst(
       PO::Description("Disable Extended-const proposal"sv));
-  PO::Option<PO::Toggle> PropFunctionReference(
-      PO::Description("Disable Function Reference proposal"sv));
+  PO::Option<PO::Toggle> PropFunctionReference(PO::Description(
+      "Disable Function Reference proposal, and the GC proposal depending on "
+      "it"sv));
   PO::Option<PO::Toggle> PropGC(PO::Description("Disable GC proposal"sv));
   PO::Option<PO::Toggle> PropMultiMem(
       PO::Description("Disable Multiple memories proposal"sv));
@@ -182,7 +188,8 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       PO::Description("Enable Wide Arithmetic proposal"sv));
   PO::Option<PO::Toggle> PropComponent(PO::Description(
       "Enable Component Model proposal, this is experimental"sv));
-  PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
+  PO::Option<PO::Toggle> PropAll(PO::Description(
+      "Enable all features. The disable options still apply."sv));
 
   PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(
       "Enable generating code for counting Wasm instructions executed."sv));

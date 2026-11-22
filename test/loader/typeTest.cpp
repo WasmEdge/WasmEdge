@@ -253,6 +253,19 @@ TEST(TypeTest, LoadFunctionType) {
       0x00U  // Bare type index (not a legal value type)
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  // Load invalid parameters with FuncRef without Ref-Types proposal.
+  Vec = {
+      0x01U, // Type section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x60U, // Function type header
+      0x01U, // Parameter length = 1
+      0x70U, // Parameter: FuncRef
+      0x00U  // Result length = 0
+  };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadTableType) {

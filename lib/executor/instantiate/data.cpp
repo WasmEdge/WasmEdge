@@ -37,10 +37,8 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       Offset = extractAddr(StackMgr.pop(),
                            MemInst->getMemoryType().getLimit().getAddrType());
 
-      // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
-      // enabled.
-      if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes) &&
-                   !Conf.hasProposal(Proposal::BulkMemoryOperations))) {
+      // Check boundary unless BulkMemoryOperations proposal enabled.
+      if (unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
         // Check data fits.
         if (!MemInst->checkAccessBound(Offset, DataSeg.getData().size())) {
           spdlog::error(ErrCode::Value::DataSegDoesNotFit);

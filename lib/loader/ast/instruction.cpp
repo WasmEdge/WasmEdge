@@ -294,7 +294,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       // The empty and valtype cases are encoded in a single byte. A negative
       // value in a multi-byte SLEB128 encoding is not a valid blocktype.
       if (FMgr.getOffset() - StartOffset > 1) {
-        return logLoadError(ErrCode::Value::MalformedValType,
+        return logLoadError(ErrCode::Value::IntegerTooLong,
                             FMgr.getLastOffset(), ASTNodeAttr::Instruction);
       }
       TypeCode TypeByte = static_cast<TypeCode>(Code & INT64_C(0x7F));

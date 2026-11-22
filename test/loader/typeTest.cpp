@@ -253,6 +253,19 @@ TEST(TypeTest, LoadFunctionType) {
       0x00U  // Bare type index (not a legal value type)
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  // Load invalid parameters with FuncRef without Ref-Types proposal.
+  Vec = {
+      0x01U, // Type section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x60U, // Function type header
+      0x01U, // Parameter length = 1
+      0x70U, // Parameter: FuncRef
+      0x00U  // Result length = 0
+  };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadTableType) {
@@ -601,7 +614,9 @@ TEST(TypeTest, LoadHeapType) {
       0xEFU, 0x7FU, // ExternRef heap type code in 2 bytes
       0x0BU         // Expression End
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  auto Res = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, Res.error());
 
   Vec = {
       0x06U,               // Global section
@@ -611,7 +626,9 @@ TEST(TypeTest, LoadHeapType) {
       0xD0U, 0x70U,        // OpCode Ref__null with FuncRef
       0x0BU                // Expression End
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  Res = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, Res.error());
 
   Vec = {
       0x06U,        // Global section

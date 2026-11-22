@@ -918,7 +918,15 @@ WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
                               const enum WasmEdge_Proposal Prop) noexcept {
   if (Cxt) {
-    Cxt->Conf.addProposal(static_cast<WasmEdge::Proposal>(Prop));
+    const auto Type = static_cast<WasmEdge::Proposal>(Prop);
+    const auto Implied = Cxt->Conf.addProposal(Type);
+    for (size_t I = 0; I < Implied.size(); I++) {
+      if (Implied.test(I)) {
+        spdlog::warn("Adding the {} proposal also adds the {} proposal."sv,
+                     WasmEdge::ProposalStr[Type],
+                     WasmEdge::ProposalStr[static_cast<WasmEdge::Proposal>(I)]);
+      }
+    }
   }
 }
 
@@ -926,7 +934,15 @@ WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
                                  const enum WasmEdge_Proposal Prop) noexcept {
   if (Cxt) {
-    Cxt->Conf.removeProposal(static_cast<WasmEdge::Proposal>(Prop));
+    const auto Type = static_cast<WasmEdge::Proposal>(Prop);
+    const auto Implied = Cxt->Conf.removeProposal(Type);
+    for (size_t I = 0; I < Implied.size(); I++) {
+      if (Implied.test(I)) {
+        spdlog::warn("Removing the {} proposal also removes the {} proposal."sv,
+                     WasmEdge::ProposalStr[Type],
+                     WasmEdge::ProposalStr[static_cast<WasmEdge::Proposal>(I)]);
+      }
+    }
   }
 }
 

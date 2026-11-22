@@ -146,7 +146,9 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
       0x0BU,        // OpCode End.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  auto Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
 
   Vec = {
       0x0AU,        // Code section
@@ -159,7 +161,9 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
       0x0BU,        // OpCode End.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
 }
 
 TEST(InstructionTest, LoadIfElseControlInstruction) {
@@ -1457,6 +1461,10 @@ TEST(InstructionTest, Proposals) {
   WasmEdge::Loader::Loader LdrThreads(Conf);
   Conf.removeProposal(WasmEdge::Proposal::Threads);
 
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  WasmEdge::Loader::Loader LdrBulkMem(Conf);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
+
   WasmEdge::Configure WideConf;
   WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
   WasmEdge::Loader::Loader LdrWideArithmetic(WideConf);
@@ -1492,6 +1500,10 @@ TEST(InstructionTest, Proposals) {
   //   11. Load Return_call_ref instruction with/without tail-call proposal.
   //   12. Load wide arithmetic instructions with/without the proposal and
   //       after resetting the WebAssembly standard.
+  //   13. Load atomic notify, wait, and fence instructions with/without
+  //       threads proposal.
+  //   14. Load reference instructions with only the Bulk-Mem proposal.
+  //   15. Load bulk memory instructions with only the Bulk-Mem proposal.
 
   Vec = {
       0x0AU,                      // Code section
@@ -1689,6 +1701,49 @@ TEST(InstructionTest, Proposals) {
   EXPECT_FALSE(LdrWideWASM2.parseModule(prefixedVec(Vec)));
   EXPECT_FALSE(LdrWideWASM3.parseModule(prefixedVec(Vec)));
   EXPECT_FALSE(LdrWithoutWideArithmetic.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,                      // Code section
+      0x13U,                      // Content size = 19
+      0x01U,                      // Vector length = 1
+      0x11U,                      // Code segment size = 17
+      0x00U,                      // Local vec(0)
+      0xFEU, 0x00U, 0x00U, 0x00U, // OpCode Memory__atomic__notify.
+      0xFEU, 0x01U, 0x00U, 0x00U, // OpCode Memory__atomic__wait32.
+      0xFEU, 0x02U, 0x00U, 0x00U, // OpCode Memory__atomic__wait64.
+      0xFEU, 0x03U, 0x00U,        // OpCode Atomic__fence.
+      0x0BU                       // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrThreads.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0BU,        // Content size = 11
+      0x01U,        // Vector length = 1
+      0x09U,        // Code segment size = 9
+      0x00U,        // Local vec(0)
+      0xD0U, 0x70U, // OpCode Ref__null func.
+      0xD1U,        // OpCode Ref__is_null.
+      0x1AU,        // OpCode Drop.
+      0xD2U, 0x00U, // OpCode Ref__func.
+      0x1AU,        // OpCode Drop.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(LdrBulkMem.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,               // Code section
+      0x07U,               // Content size = 7
+      0x01U,               // Vector length = 1
+      0x05U,               // Code segment size = 5
+      0x00U,               // Local vec(0)
+      0xFCU, 0x0BU, 0x00U, // OpCode Memory__fill.
+      0x0BU                // Expression End.
+  };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrBulkMem.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadSIMDInstruction) {

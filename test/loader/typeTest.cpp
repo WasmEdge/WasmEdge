@@ -614,7 +614,9 @@ TEST(TypeTest, LoadHeapType) {
       0xEFU, 0x7FU, // ExternRef heap type code in 2 bytes
       0x0BU         // Expression End
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  auto Res = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, Res.error());
 
   Vec = {
       0x06U,               // Global section
@@ -624,7 +626,9 @@ TEST(TypeTest, LoadHeapType) {
       0xD0U, 0x70U,        // OpCode Ref__null with FuncRef
       0x0BU                // Expression End
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  Res = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, Res.error());
 
   Vec = {
       0x06U,        // Global section

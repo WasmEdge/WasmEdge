@@ -161,6 +161,13 @@ if(WIN32)
       -Wno-error=cast-function-type-strict
       -Wno-error=c++-keyword
     )
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23.0.0)
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-error=lifetime-safety-dangling-field-moved
+        -Wno-error=lifetime-safety-invalidation
+        -Wno-error=lifetime-safety-suggestions
+      )
+    endif()
   endif()
 endif()
 

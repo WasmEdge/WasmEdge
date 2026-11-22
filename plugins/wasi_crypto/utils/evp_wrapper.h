@@ -31,6 +31,7 @@
 #include <openssl/x509.h>
 
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 namespace WasmEdge {
@@ -56,12 +57,22 @@ using RsaPtr = OpenSSLUniquePtr<RSA, RSA_free>;
 using Asn1OctetStringPtr =
     OpenSSLUniquePtr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free>;
 
-/// OpenSSL functions always return 1 for success and 0/NULL for failure. This
-/// is used to reduce repeated checks.
+/// Checks an OpenSSL result that follows the common convention: a positive
+/// status or a non-NULL pointer is success. Functions with another convention,
+/// such as CRYPTO_memcmp, need an explicit comparison.
+template <typename T> constexpr bool opensslOk(const T &Res) noexcept {
+  if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+    return Res > 0;
+  } else {
+    return static_cast<bool>(Res);
+  }
+}
+
+/// This is used to reduce repeated checks.
 #ifdef NDEBUG
 #define opensslCheck(Cond)                                                     \
   do {                                                                         \
-    if (!(Cond)) {                                                             \
+    if (!::WasmEdge::Host::WasiCrypto::opensslOk(Cond)) {                      \
       using namespace std::literals;                                           \
       ERR_print_errors_cb(                                                     \
           [](const char *ErrStr, size_t ErrLen, void *) {                      \
@@ -75,7 +86,7 @@ using Asn1OctetStringPtr =
 #else
 #define opensslCheck(Cond)                                                     \
   do {                                                                         \
-    if (!(Cond)) {                                                             \
+    if (!::WasmEdge::Host::WasiCrypto::opensslOk(Cond)) {                      \
       using namespace std::literals;                                           \
       ERR_print_errors_cb(                                                     \
           [](const char *ErrStr, size_t ErrLen, void *) {                      \

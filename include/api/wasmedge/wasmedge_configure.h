@@ -48,6 +48,17 @@ WasmEdge_ConfigureCreate(void) WASMEDGE_CAPI_NOEXCEPT;
 /// WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
 /// ```
 ///
+/// Some proposals depend on other proposals:
+///
+///   1. ReferenceTypes depends on BulkMemoryOperations.
+///   2. FunctionReferences depends on ReferenceTypes.
+///   3. GC depends on FunctionReferences.
+///   4. ExceptionHandling depends on ReferenceTypes.
+///   5. RelaxSIMD depends on SIMD.
+///
+/// Adding a proposal also adds the proposals it depends on, directly or
+/// indirectly, with a warning logged for each of them.
+///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to add the proposal value.
@@ -57,6 +68,10 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddProposal(
     const enum WasmEdge_Proposal Prop) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Remove a proposal setting in the WasmEdge_ConfigureContext.
+///
+/// Removing a proposal also removes the proposals depending on it, directly or
+/// indirectly, with a warning logged for each of them. The dependencies are
+/// listed in `WasmEdge_ConfigureAddProposal`.
 ///
 /// This function is thread-safe.
 ///

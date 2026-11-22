@@ -248,7 +248,7 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
     return {};
   }
   case ComponentTypeCode::Own: {
-    AST::Component::OwnTy OTy{};
+    AST::Component::OwnTy OTy;
     EXPECTED_TRY(loadType(OTy).map_error(ReportError));
     Ty.setOwn(std::move(OTy));
     return {};

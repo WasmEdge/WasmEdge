@@ -3909,18 +3909,19 @@ WasmEdge_PluginLoadFromPath(const char *Path) noexcept {
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) noexcept {
-  return static_cast<uint32_t>(WasmEdge::Plugin::Plugin::plugins().size());
+  return static_cast<uint32_t>(WasmEdge::Plugin::Plugin::count());
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(
     WasmEdge_String *Names, const uint32_t Len) noexcept {
-  const auto &PList = WasmEdge::Plugin::Plugin::plugins();
-  if (Names) {
-    for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
-      Names[I] = WasmEdge_String{
-          /* Length */ static_cast<uint32_t>(std::strlen(PList[I].name())),
-          /* Buf */ PList[I].name()};
-    }
+  if (!Names) {
+    return static_cast<uint32_t>(WasmEdge::Plugin::Plugin::count());
+  }
+  const auto PList = WasmEdge::Plugin::Plugin::plugins();
+  for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
+    Names[I] = WasmEdge_String{
+        /* Length */ static_cast<uint32_t>(std::strlen(PList[I]->name())),
+        /* Buf */ PList[I]->name()};
   }
   return static_cast<uint32_t>(PList.size());
 }

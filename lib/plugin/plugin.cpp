@@ -452,7 +452,20 @@ WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
   return nullptr;
 }
 
-const std::deque<Plugin> &Plugin::plugins() noexcept { return PluginRegistry; }
+std::vector<const Plugin *> Plugin::plugins() noexcept {
+  std::shared_lock Lock(Mutex);
+  std::vector<const Plugin *> Result;
+  Result.reserve(PluginRegistry.size());
+  for (const auto &Plugin : PluginRegistry) {
+    Result.push_back(std::addressof(Plugin));
+  }
+  return Result;
+}
+
+std::size_t Plugin::count() noexcept {
+  std::shared_lock Lock(Mutex);
+  return PluginRegistry.size();
+}
 
 bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   std::unique_lock Lock(Mutex);

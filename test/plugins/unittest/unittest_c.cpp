@@ -10,6 +10,7 @@
 #include <cstring>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace {
 WasmEdge_ModuleInstanceContext *createModuleC() {
@@ -204,6 +205,25 @@ TEST(wasmedgePluginTests, C_Module) {
   EXPECT_TRUE(
       WasmEdge_StringIsEqual(NameBuf[4], WasmEdge_StringWrap("sub", 3U)));
   WasmEdge_ModuleInstanceDelete(ModInstCPP);
+}
+
+TEST(wasmedgePluginTests, C_ListPlugins) {
+  auto *ModInstC = createModuleC();
+  ASSERT_NE(ModInstC, nullptr);
+  WasmEdge_ModuleInstanceDelete(ModInstC);
+
+  const uint32_t Count = WasmEdge_PluginListPluginsLength();
+  EXPECT_GE(Count, 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(nullptr, 0), Count);
+  std::vector<WasmEdge_String> Names(Count);
+  ASSERT_EQ(WasmEdge_PluginListPlugins(Names.data(), Count), Count);
+  bool FoundC = false;
+  for (const auto &Name : Names) {
+    EXPECT_NE(WasmEdge_PluginFind(Name), nullptr);
+    FoundC |= WasmEdge_StringIsEqual(
+        Name, WasmEdge_StringWrap("wasmedge_plugintest_c", 21U));
+  }
+  EXPECT_TRUE(FoundC);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -162,8 +162,12 @@ public:
   // Static function to find loaded plugin by name.
   WASMEDGE_EXPORT static const Plugin *find(std::string_view Name) noexcept;
 
-  // Static function to list loaded plugins.
-  static const std::deque<Plugin> &plugins() noexcept;
+  // Static function to list loaded plugins. Thread-safe. The returned
+  // pointers stay valid after more plugins are loaded.
+  static std::vector<const Plugin *> plugins() noexcept;
+
+  // Static function to get the number of loaded plugins. Thread-safe.
+  static std::size_t count() noexcept;
 
   Plugin(const Plugin &) = delete;
   Plugin &operator=(const Plugin &) = delete;

@@ -125,17 +125,17 @@ void VM::unsafeLoadPlugInHosts() {
   PlugInModInsts = loadOfficialPluginModules();
 
   // Load the other non-official plugins.
-  for (const auto &Plugin : Plugin::Plugin::plugins()) {
-    if (Conf.isForbiddenPlugins(Plugin.name())) {
+  for (const auto *Plugin : Plugin::Plugin::plugins()) {
+    if (Conf.isForbiddenPlugins(Plugin->name())) {
       continue;
     }
-    if (isOfficialPlugin(Plugin.name())) {
+    if (isOfficialPlugin(Plugin->name())) {
       continue;
     }
-    for (const auto &Module : Plugin.modules()) {
+    for (const auto &Module : Plugin->modules()) {
       PlugInModInsts.push_back(Module.create());
     }
-    for (const auto &Component : Plugin.components()) {
+    for (const auto &Component : Plugin->components()) {
       PlugInCompInsts.push_back(Component.create());
     }
   }

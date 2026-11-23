@@ -85,10 +85,10 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   }
   if (Parser.isVersion()) {
     fmt::print("{} version {}\n"sv, Argv[0], kVersionString);
-    for (const auto &Plugin : Plugin::Plugin::plugins()) {
-      auto PluginVersion = Plugin.version();
+    for (const auto *Plugin : Plugin::Plugin::plugins()) {
+      auto PluginVersion = Plugin->version();
       fmt::print("{} (plugin \"{}\") version {}.{}.{}.{}\n"sv,
-                 Plugin.path().string(), Plugin.name(), PluginVersion.Major,
+                 Plugin->path().string(), Plugin->name(), PluginVersion.Major,
                  PluginVersion.Minor, PluginVersion.Patch, PluginVersion.Build);
     }
     return EXIT_SUCCESS;

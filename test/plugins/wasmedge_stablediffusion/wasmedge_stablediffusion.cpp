@@ -7,8 +7,12 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <vector>
 
@@ -576,6 +580,264 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
+}
+
+using WasmEdge::Span;
+using namespace std::literals::string_view_literals;
+
+namespace {
+
+// Calls text_to_image and image_to_image with one sampling step, and reads
+// the results back from guest memory.
+class SDGenerator {
+public:
+  void setUp() {
+    SBMod = createModule();
+    ASSERT_TRUE(SBMod);
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(256)));
+    MemInst = Mod.findMemoryExports("memory");
+    ASSERT_NE(MemInst, nullptr);
+
+    const std::string ModelPath = "./stableDiffusion/sd-v1-5-fp16.safetensors";
+    writeString(ModelPath, ImagePtr);
+    ASSERT_EQ(call("create_context", {ImagePtr,
+                                      static_cast<uint32_t>(ModelPath.size()),
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      UINT32_C(0),  // VaeDecodeOnly
+                                      UINT32_C(0),  // VaeTiling
+                                      INT32_C(-1),  // NThreads
+                                      UINT32_C(36), // Wtype
+                                      UINT32_C(1),  // RngType
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      BytesWrittenPtr}),
+              ErrNo::Success);
+    SessionId = *MemInst->getPointer<uint32_t *>(BytesWrittenPtr);
+  }
+
+  ErrNo textToImage(uint32_t Width, uint32_t Height, uint32_t BatchCount,
+                    std::string_view OutputPath, uint32_t OutCap) {
+    writeString(Prompt, PromptPtr);
+    writeString(OutputPath, OutputPathPtr);
+    return call("text_to_image", {PromptPtr,
+                                  static_cast<uint32_t>(Prompt.size()),
+                                  SessionId,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  3.5f,
+                                  Width,
+                                  Height,
+                                  INT32_C(-1),
+                                  7.0f,
+                                  0,
+                                  UINT32_C(1),
+                                  UINT32_C(42),
+                                  BatchCount,
+                                  0.9f,
+                                  20.0f,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  UINT32_C(1),
+                                  0,
+                                  0,
+                                  0.0f,
+                                  0.01f,
+                                  0.2f,
+                                  OutputPathPtr,
+                                  static_cast<uint32_t>(OutputPath.size()),
+                                  OutBufferPtr,
+                                  OutCap,
+                                  BytesWrittenPtr});
+  }
+
+  ErrNo imageToImage(Span<const uint8_t> Image, uint32_t Width,
+                     uint32_t Height) {
+    writeString(Prompt, PromptPtr);
+    std::copy(Image.begin(), Image.end(),
+              MemInst->getPointer<uint8_t *>(ImagePtr));
+    return call("image_to_image", {ImagePtr,
+                                   static_cast<uint32_t>(Image.size()),
+                                   0,
+                                   0,
+                                   SessionId,
+                                   3.5f,
+                                   Width,
+                                   Height,
+                                   0,
+                                   0,
+                                   PromptPtr,
+                                   static_cast<uint32_t>(Prompt.size()),
+                                   0,
+                                   0,
+                                   INT32_C(-1),
+                                   7.0f,
+                                   0,
+                                   UINT32_C(1),
+                                   0.75f,
+                                   UINT32_C(42),
+                                   UINT32_C(1),
+                                   0.9f,
+                                   20.0f,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   UINT32_C(1),
+                                   0,
+                                   0,
+                                   0.0f,
+                                   0.01f,
+                                   0.2f,
+                                   0,
+                                   0,
+                                   OutBufferPtr,
+                                   OutBufferCap,
+                                   BytesWrittenPtr});
+  }
+
+  uint32_t bytesWritten() {
+    return *MemInst->getPointer<uint32_t *>(BytesWrittenPtr);
+  }
+
+  std::vector<uint8_t> output() {
+    const auto *Begin = MemInst->getPointer<const uint8_t *>(OutBufferPtr);
+    return std::vector<uint8_t>(Begin, Begin + bytesWritten());
+  }
+
+  static constexpr uint32_t OutBufferCap = UINT32_C(4) << 20;
+
+private:
+  ErrNo call(std::string_view Name,
+             std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *FuncInst = SBMod->findFuncExports(Name);
+    if (FuncInst == nullptr) {
+      ADD_FAILURE() << "missing host function " << Name;
+      return static_cast<ErrNo>(UINT32_MAX);
+    }
+    std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+    if (!FuncInst->getHostFunc().run(CallFrame, Args, Errno)) {
+      ADD_FAILURE() << "host function " << Name << " failed";
+      return static_cast<ErrNo>(UINT32_MAX);
+    }
+    return static_cast<ErrNo>(Errno[0].get<uint32_t>());
+  }
+
+  void writeString(std::string_view Str, uint32_t Ptr) {
+    std::copy(Str.begin(), Str.end(), MemInst->getPointer<char *>(Ptr));
+  }
+
+  static constexpr uint32_t PromptPtr = UINT32_C(0);
+  static constexpr uint32_t OutputPathPtr = UINT32_C(256);
+  static constexpr uint32_t BytesWrittenPtr = UINT32_C(1024);
+  static constexpr uint32_t ImagePtr = UINT32_C(4096);
+  static constexpr uint32_t OutBufferPtr = UINT32_C(8) << 20;
+  static constexpr std::string_view Prompt = "a lovely cat";
+
+  std::unique_ptr<WasmEdge::Host::SDModule> SBMod;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod{""};
+  WasmEdge::Runtime::Instance::MemoryInstance *MemInst = nullptr;
+  WasmEdge::Runtime::CallingFrame CallFrame{nullptr, &Mod};
+  uint32_t SessionId = 0;
+};
+
+// Reads the width and height from the IHDR chunk of a PNG stream.
+bool readPngSize(Span<const uint8_t> Png, uint32_t &Width, uint32_t &Height) {
+  constexpr std::array<uint8_t, 8> Magic = {0x89U, 0x50U, 0x4EU, 0x47U,
+                                            0x0DU, 0x0AU, 0x1AU, 0x0AU};
+  if (Png.size() < 24 || !std::equal(Magic.begin(), Magic.end(), Png.begin())) {
+    return false;
+  }
+  auto ReadBE = [&Png](size_t Offset) {
+    return (static_cast<uint32_t>(Png[Offset]) << 24) |
+           (static_cast<uint32_t>(Png[Offset + 1]) << 16) |
+           (static_cast<uint32_t>(Png[Offset + 2]) << 8) |
+           static_cast<uint32_t>(Png[Offset + 3]);
+  };
+  Width = ReadBE(16);
+  Height = ReadBE(20);
+  return true;
+}
+
+std::vector<uint8_t> readFile(const std::filesystem::path &Path) {
+  std::ifstream File(Path, std::ios::binary);
+  return std::vector<uint8_t>(std::istreambuf_iterator<char>(File),
+                              std::istreambuf_iterator<char>());
+}
+
+void expectPngSize(Span<const uint8_t> Png, uint32_t Width, uint32_t Height) {
+  uint32_t PngWidth = 0;
+  uint32_t PngHeight = 0;
+  ASSERT_TRUE(readPngSize(Png, PngWidth, PngHeight));
+  EXPECT_EQ(PngWidth, Width);
+  EXPECT_EQ(PngHeight, Height);
+}
+
+} // namespace
+
+TEST(WasmEdgeStableDiffusionTest, ResultsAndInputs) {
+  SDGenerator Gen;
+  ASSERT_NO_FATAL_FAILURE(Gen.setUp());
+  const std::filesystem::path Dir = "./stableDiffusion/results";
+  std::filesystem::remove_all(Dir);
+  std::filesystem::create_directories(Dir);
+
+  // Every image of a batch is written next to the first one, and the guest
+  // buffer holds the PNG of the first image.
+  const std::string BatchPath = (Dir / "batch.png").string();
+  ASSERT_EQ(Gen.textToImage(256, 256, 3, BatchPath, Gen.OutBufferCap),
+            ErrNo::Success);
+  const std::vector<uint8_t> First = Gen.output();
+  expectPngSize(First, 256, 256);
+  for (const char *Name : {"batch_2.png", "batch_3.png"}) {
+    SCOPED_TRACE(Name);
+    expectPngSize(readFile(Dir / Name), 256, 256);
+  }
+
+  // An input image of another size is resized, whether it is given as bytes
+  // or as a path.
+  const std::vector<uint8_t> Input = readFile(Dir / "batch_2.png");
+  ASSERT_EQ(Gen.imageToImage(Input, 128, 128), ErrNo::Success);
+  expectPngSize(Gen.output(), 128, 128);
+  const std::string InputPath = "path:" + (Dir / "batch_2.png").string();
+  ASSERT_EQ(
+      Gen.imageToImage(Span<const uint8_t>(
+                           reinterpret_cast<const uint8_t *>(InputPath.data()),
+                           InputPath.size()),
+                       128, 128),
+      ErrNo::Success);
+  expectPngSize(Gen.output(), 128, 128);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

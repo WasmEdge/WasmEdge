@@ -190,6 +190,15 @@ TEST(WasmEdgeOpenCVMiniTest, MatrixHandles) {
   EXPECT_TRUE(Encode(Second));
   EXPECT_TRUE(Encode(Blurred));
 
+  // Unknown source and kernel handles are rejected.
+  const uint32_t Unknown = UINT32_C(0xFFFFFFFF);
+  EXPECT_FALSE(Run("wasmedge_opencvmini_blur",
+                   {Unknown, UINT32_C(3), UINT32_C(3)}, Rets));
+  EXPECT_FALSE(Run("wasmedge_opencvmin_dilate", {Unknown, First}, Rets));
+  EXPECT_FALSE(Run("wasmedge_opencvmin_dilate", {First, Unknown}, Rets));
+  EXPECT_FALSE(Run("wasmedge_opencvmini_erode", {Unknown, First}, Rets));
+  EXPECT_FALSE(Run("wasmedge_opencvmini_erode", {First, Unknown}, Rets));
+
   // A released handle is rejected, and the other handles stay usable.
   EXPECT_TRUE(Run("wasmedge_opencvmini_release_mat", {First}, {}));
   EXPECT_FALSE(Encode(First));

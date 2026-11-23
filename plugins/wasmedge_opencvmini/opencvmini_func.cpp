@@ -42,10 +42,9 @@ Expect<uint32_t> WasmEdgeOpenCVMiniBlur::body(const Runtime::CallingFrame &,
                                               uint32_t SrcMatKey,
                                               uint32_t KernelWidth,
                                               uint32_t KernelHeight) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::blur(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
-  }
+  cv::blur(Src, Dst, cv::Size(KernelWidth, KernelHeight));
   return Env.insertMat(Dst);
 }
 
@@ -53,10 +52,9 @@ Expect<uint32_t>
 WasmEdgeOpenCVMiniBilateralFilter::body(const Runtime::CallingFrame &,
                                         uint32_t SrcMatKey, uint32_t D,
                                         double SigmaColor, double SigmaSpace) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::bilateralFilter(*Src, Dst, D, SigmaColor, SigmaSpace);
-  }
+  cv::bilateralFilter(Src, Dst, D, SigmaColor, SigmaSpace);
   return Env.insertMat(Dst);
 }
 
@@ -64,10 +62,9 @@ Expect<uint32_t>
 WasmEdgeOpenCVMiniBoxFilter::body(const Runtime::CallingFrame &,
                                   uint32_t SrcMatKey, uint32_t Ddepth,
                                   uint32_t KernelWidth, uint32_t KernelHeight) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::boxFilter(*Src, Dst, Ddepth, cv::Size(KernelWidth, KernelHeight));
-  }
+  cv::boxFilter(Src, Dst, Ddepth, cv::Size(KernelWidth, KernelHeight));
   return Env.insertMat(Dst);
 }
 
@@ -80,22 +77,20 @@ WasmEdgeOpenCVMiniEmptyMat::body(const Runtime::CallingFrame &) {
 Expect<uint32_t> WasmEdgeOpenCVMiniDilate::body(const Runtime::CallingFrame &,
                                                 uint32_t SrcMatKey,
                                                 uint32_t KernelMatKey) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
+  EXPECTED_TRY(auto Kernel, Env.getMat(KernelMatKey));
   cv::Mat Dst;
-  auto Kernel = Env.getMat(KernelMatKey);
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::dilate(*Src, Dst, *Kernel);
-  }
+  cv::dilate(Src, Dst, Kernel);
   return Env.insertMat(Dst);
 }
 
 Expect<uint32_t> WasmEdgeOpenCVMiniErode::body(const Runtime::CallingFrame &,
                                                uint32_t SrcMatKey,
                                                uint32_t KernelMatKey) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
+  EXPECTED_TRY(auto Kernel, Env.getMat(KernelMatKey));
   cv::Mat Dst;
-  auto Kernel = Env.getMat(KernelMatKey);
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::erode(*Src, Dst, *Kernel);
-  }
+  cv::erode(Src, Dst, Kernel);
   return Env.insertMat(Dst);
 }
 
@@ -103,30 +98,27 @@ Expect<uint32_t>
 WasmEdgeOpenCVMiniGaussianBlur::body(const Runtime::CallingFrame &,
                                      uint32_t SrcMatKey, uint32_t KernelWidth,
                                      uint32_t KernelHeight, double SigmaX) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::GaussianBlur(*Src, Dst, cv::Size(KernelWidth, KernelHeight), SigmaX);
-  }
+  cv::GaussianBlur(Src, Dst, cv::Size(KernelWidth, KernelHeight), SigmaX);
   return Env.insertMat(Dst);
 }
 
 Expect<uint32_t>
 WasmEdgeOpenCVMiniLaplacian::body(const Runtime::CallingFrame &,
                                   uint32_t SrcMatKey, uint32_t Ddepth) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::Laplacian(*Src, Dst, Ddepth);
-  }
+  cv::Laplacian(Src, Dst, Ddepth);
   return Env.insertMat(Dst);
 }
 
 Expect<uint32_t>
 WasmEdgeOpenCVMiniMedianBlur::body(const Runtime::CallingFrame &,
                                    uint32_t SrcMatKey, uint32_t Ksize) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::medianBlur(*Src, Dst, Ksize);
-  }
+  cv::medianBlur(Src, Dst, Ksize);
   return Env.insertMat(Dst);
 }
 
@@ -134,10 +126,9 @@ Expect<uint32_t> WasmEdgeOpenCVMiniPyrDown::body(const Runtime::CallingFrame &,
                                                  uint32_t SrcMatKey,
                                                  uint32_t KernelWidth,
                                                  uint32_t KernelHeight) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::pyrDown(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
-  }
+  cv::pyrDown(Src, Dst, cv::Size(KernelWidth, KernelHeight));
   return Env.insertMat(Dst);
 }
 
@@ -145,10 +136,9 @@ Expect<uint32_t> WasmEdgeOpenCVMiniPyrUp::body(const Runtime::CallingFrame &,
                                                uint32_t SrcMatKey,
                                                uint32_t KernelWidth,
                                                uint32_t KernelHeight) {
+  EXPECTED_TRY(auto Src, Env.getMat(SrcMatKey));
   cv::Mat Dst;
-  if (auto Src = Env.getMat(SrcMatKey); Src) {
-    cv::pyrUp(*Src, Dst, cv::Size(KernelWidth, KernelHeight));
-  }
+  cv::pyrUp(Src, Dst, cv::Size(KernelWidth, KernelHeight));
   return Env.insertMat(Dst);
 }
 

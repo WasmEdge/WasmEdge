@@ -482,6 +482,9 @@ void FunctionCompiler::compileAtomicRMWOp(
   auto VPtr = Builder.createInBoundsGEP1(
       Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
+#if LLVM_VERSION_MAJOR < 17
+  Builder.createLoad(TargetType, Ptr, true).setAlignment(1 << Alignment);
+#endif
 
   LLVM::Value Ret;
   if constexpr (Endian::native == Endian::big) {
@@ -517,10 +520,12 @@ void FunctionCompiler::compileAtomicRMWOp(
     } else {
       Ret = Builder.createAtomicRMW(BinOp, Ptr, switchEndian(Value),
                                     LLVMAtomicOrderingSequentiallyConsistent);
+      Ret.setVolatile(true);
     }
   } else {
     Ret = Builder.createAtomicRMW(BinOp, Ptr, switchEndian(Value),
                                   LLVMAtomicOrderingSequentiallyConsistent);
+    Ret.setVolatile(true);
   }
   Ret = switchEndian(Ret);
 #if LLVM_VERSION_MAJOR < 13

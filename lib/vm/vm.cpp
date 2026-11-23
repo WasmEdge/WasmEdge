@@ -277,10 +277,11 @@ VM::WasmUnitKind
 VM::unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
                                      std::unique_ptr<AST::Module>> &&Unit) {
   if (auto *M = std::get_if<std::unique_ptr<AST::Module>>(&Unit)) {
-    Mod = std::move(*M);
+    unsafeStoreModule(std::move(*M));
     return WasmUnitKind::Module;
   }
-  Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  unsafeStoreComponent(
+      std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit)));
   return WasmUnitKind::Component;
 }
 
@@ -288,11 +289,10 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
-      WasmUnitKind::Component) {
+  const auto Kind = unsafeStoreWasmUnit(std::move(ComponentOrModule));
+  if (Kind == WasmUnitKind::Component) {
     return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
   }
   return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
@@ -302,11 +302,10 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
-      WasmUnitKind::Component) {
+  const auto Kind = unsafeStoreWasmUnit(std::move(ComponentOrModule));
+  if (Kind == WasmUnitKind::Component) {
     return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
   }
   return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
@@ -318,6 +317,9 @@ VM::unsafeRunWasmFile(const AST::Component::Component &Component,
                       Span<const ValType>) {
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Component));
+  if (&Component == Comp.get()) {
+    Stage = VMStage::Validated;
+  }
   spdlog::error("component execution is not done yet."sv);
   return Unexpect(ErrCode::Value::RuntimeError);
 }
@@ -328,6 +330,9 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValType> ParamTypes) {
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
+  if (&Module == Mod.get()) {
+    Stage = VMStage::Validated;
+  }
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // This one-shot path takes no shared ownership of the module, so it is
@@ -345,6 +350,10 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
 #endif
   ActiveModInst = std::move(NewModInst);
+  ActiveCompInst.reset();
+  if (&Module == Mod.get()) {
+    Stage = VMStage::Instantiated;
+  }
 
   // Get module instance.
   if (ActiveModInst) {
@@ -405,7 +414,6 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
   unsafeStoreWasmUnit(std::move(ComponentOrModule));
-  Stage = VMStage::Loaded;
   return {};
 }
 
@@ -413,13 +421,11 @@ Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
   unsafeStoreWasmUnit(std::move(ComponentOrModule));
-  Stage = VMStage::Loaded;
   return {};
 }
 
 Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
-  Mod = std::make_shared<AST::Module>(Module);
-  Stage = VMStage::Loaded;
+  unsafeStoreModule(std::make_shared<AST::Module>(Module));
   return {};
 }
 
@@ -533,11 +539,24 @@ Expect<void> VM::unsafeInstantiate() {
   if (Comp) {
     EXPECTED_TRY(ActiveCompInst,
                  ExecutorEngine.instantiateComponent(StoreRef, *Comp));
+    unsafeReleaseActiveModule();
     Stage = VMStage::Instantiated;
     return {};
   }
   spdlog::error(ErrCode::Value::WrongVMWorkflow);
   return Unexpect(ErrCode::Value::WrongVMWorkflow);
+}
+
+void VM::unsafeReleaseActiveModule() {
+  if (!ActiveModInst) {
+    return;
+  }
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    LazyEngine->unregisterInstance(*ActiveModInst);
+  }
+#endif
+  ActiveModInst.release()->terminate();
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -697,6 +716,9 @@ void VM::unsafeCleanup() {
   if (Mod) {
     Mod.reset();
   }
+  if (ActiveCompInst) {
+    ActiveCompInst.reset();
+  }
   if (Comp) {
     Comp.reset();
   }
@@ -705,9 +727,6 @@ void VM::unsafeCleanup() {
     if (RawMod) {
       RawMod->terminate();
     }
-  }
-  if (ActiveCompInst) {
-    ActiveCompInst.reset();
   }
   StoreRef.reset();
   cleanupModInstContainer(RegModInsts);

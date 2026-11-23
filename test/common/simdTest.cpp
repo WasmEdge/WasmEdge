@@ -202,38 +202,41 @@ template <class F, class To, class From> void checkConversion() {
   });
 }
 
+template <class T> WasmEdge::FloatBits<T> signalingNaNBits() {
+  return static_cast<WasmEdge::FloatBits<T>>(
+      bitsOf(std::numeric_limits<T>::infinity()) | 1U);
+}
+
+// The values end with a signaling NaN.
 template <class T> std::vector<T> roundingValues() {
   using L = std::numeric_limits<T>;
   const T Magic = static_cast<T>(1ULL << (L::digits - 1));
   const T BelowHalf = std::nextafter(T(0.5), T(0));
-  std::vector<T> V{T(0),
-                   T(-0.0),
-                   T(0.5),
-                   T(-0.5),
-                   T(1.5),
-                   T(-1.5),
-                   T(2.5),
-                   T(-2.5),
-                   T(0.75),
-                   T(-0.25),
-                   BelowHalf,
-                   -BelowHalf,
-                   T(6.25),
-                   L::denorm_min(),
-                   -L::denorm_min(),
-                   L::min(),
-                   L::max(),
-                   L::lowest(),
-                   L::infinity(),
-                   -L::infinity(),
-                   L::quiet_NaN(),
-                   -L::quiet_NaN(),
-                   L::signaling_NaN()};
+  std::vector<T> V{
+      T(0),           T(-0.0),         T(0.5),           T(-0.5),
+      T(1.5),         T(-1.5),         T(2.5),           T(-2.5),
+      T(0.75),        T(-0.25),        BelowHalf,        -BelowHalf,
+      T(6.25),        L::denorm_min(), -L::denorm_min(), L::min(),
+      L::max(),       L::lowest(),     L::infinity(),    -L::infinity(),
+      L::quiet_NaN(), -L::quiet_NaN(), T(0.001),         T(-0.001),
+      T(1e-30),       T(1e30)};
   for (const T B : {Magic, -Magic, Magic / 2, -Magic / 2}) {
     V.insert(V.end(), {B - T(1), B - T(0.5), B, B + T(0.5), B + T(1),
                        std::nextafter(B, T(0))});
   }
+  // A copy through an x87 register quiets a signaling NaN, so the last value
+  // is written from its bits after the vector stops growing.
+  const auto Signaling = signalingNaNBits<T>();
+  V.emplace_back();
+  std::memcpy(&V.back(), &Signaling, sizeof(T));
   return V;
+}
+
+// Tells whether the last value still holds the signaling NaN, read as bytes.
+template <class T> bool endsWithSignalingNaN(const std::vector<T> &Values) {
+  WasmEdge::FloatBits<T> Bits;
+  std::memcpy(&Bits, &Values.back(), sizeof(T));
+  return Bits == signalingNaNBits<T>();
 }
 
 template <class T> bool sameFloat(T Got, T Want) {
@@ -351,6 +354,7 @@ void checkBatches(const LaneOp<F, T> &Op, WasmEdge::Span<const T> Values,
 template <class F, class T> void checkRounding() {
   using V = V16<F, T>;
   const auto Values = roundingValues<T>();
+  ASSERT_TRUE(endsWithSignalingNaN(Values));
   const auto Apply = [](const LaneOp<F, T> &Op, const V &X, V &Y) {
     applyVector<F, T>(Op.Vector, X, Y);
   };
@@ -367,10 +371,10 @@ template <template <simd_size_type> class Abi> struct BackendOf<Family<Abi>> {
 };
 
 // The x86 rounding without SSE4.1 must not depend on the MXCSR rounding mode
-// or on denormals-are-zero. The m128i backend reports that it uses it, and the
-// vector_ext backend reports it through its SSE2 intrinsics. The members are
-// read by name, so a backend that loses one fails to compile instead of
-// skipping the checks.
+// or on denormals-are-zero, and must not raise a floating-point exception. The
+// m128i backend reports that it uses it, and the vector_ext backend reports it
+// through its SSE2 intrinsics. The members are read by name, so a backend that
+// loses one fails to compile instead of skipping the checks.
 template <class F> struct IntegerRounding : std::false_type {};
 template <>
 struct IntegerRounding<M128iFamily>
@@ -394,6 +398,8 @@ constexpr bool StrictFloatingPoint = true;
 constexpr bool StrictFloatingPoint = false;
 #endif
 
+constexpr unsigned int MxcsrExceptionFlags = 0x003FU;
+constexpr unsigned int MxcsrInexact = 0x0020U;
 constexpr unsigned int MxcsrDenormalsAreZero = 0x0040U;
 constexpr unsigned int MxcsrFlushToZero = 0x8000U;
 // Round to nearest, all exceptions masked, no flag set, DAZ and FTZ off.
@@ -498,6 +504,7 @@ template <class F, class T> void checkRoundingIgnoresRoundingMode() {
   const FloatEnvGuard Guard;
   ASSERT_TRUE(Guard.ready());
   const auto Values = roundingValues<T>();
+  ASSERT_TRUE(endsWithSignalingNaN(Values));
   const auto In = loadLanes<F, T>(std::array<T, 2>{T(1), T(-1)});
   for (const int Mode : {FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO}) {
     SCOPED_TRACE(Mode);
@@ -556,6 +563,43 @@ template <class F, class T> void checkRoundingIgnoresDenormalsAreZero() {
                          applyOpaque<F, T>(O.Vector, X, Y);
                          setDenormalsAreZero(false);
                        });
+  }
+}
+
+// Clears the standard exception flags and the MXCSR flags. MXCSR also has a
+// denormal-operand flag, which FE_ALL_EXCEPT does not include.
+void clearExceptionFlags() noexcept {
+  std::feclearexcept(FE_ALL_EXCEPT);
+  _mm_setcsr(_mm_getcsr() & ~MxcsrExceptionFlags);
+}
+
+// Clears the flags after the input vector is ready and reads them right after
+// the rounding, so only the rounding can set them. RoundingMatchesScalar
+// checks the results.
+template <class F, class T> void checkRoundingRaisesNoException() {
+  using V = V16<F, T>;
+  const FloatEnvGuard Guard;
+  ASSERT_TRUE(Guard.ready());
+  const auto One = toVector<F, T>(loadLanes<F, T>(std::array<T, 1>{T(1)}));
+  V Sum{};
+  clearExceptionFlags();
+  applyOpaque<F, T>(modeControl<F, T>(FE_UPWARD), One, Sum);
+  ASSERT_NE(std::fetestexcept(FE_INEXACT), 0) << "no flag was detected";
+  ASSERT_NE(_mm_getcsr() & MxcsrInexact, 0U) << "no MXCSR flag was detected";
+  const auto Values = roundingValues<T>();
+  ASSERT_TRUE(endsWithSignalingNaN(Values));
+  for (const auto &Op : roundOps<F, T>()) {
+    forEachBatch<F, T>(Values, [&Op](const Lanes<F, T> &In, const V &X) {
+      V Y{};
+      clearExceptionFlags();
+      applyOpaque<F, T>(Op.Vector, X, Y);
+      const int Raised = std::fetestexcept(FE_ALL_EXCEPT);
+      const unsigned int Flags = _mm_getcsr() & MxcsrExceptionFlags;
+      EXPECT_EQ(Raised, 0) << Op.Name << " of " << ::testing::PrintToString(In)
+                           << " raised the exceptions 0x" << std::hex << Raised;
+      EXPECT_EQ(Flags, 0U) << Op.Name << " of " << ::testing::PrintToString(In)
+                           << " set the MXCSR flags 0x" << std::hex << Flags;
+    });
   }
 }
 #endif
@@ -798,6 +842,17 @@ TYPED_TEST(SimdTest, RoundingIgnoresDenormalsAreZero) {
     }
     checkRoundingIgnoresDenormalsAreZero<TypeParam, float>();
     checkRoundingIgnoresDenormalsAreZero<TypeParam, double>();
+  }
+}
+
+TYPED_TEST(SimdTest, RoundingRaisesNoException) {
+  if (!usesIntegerRounding<TypeParam>()) {
+    GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else if (!StrictFloatingPoint) {
+    GTEST_SKIP() << "the test is built without a strict floating-point option";
+  } else {
+    checkRoundingRaisesNoException<TypeParam, float>();
+    checkRoundingRaisesNoException<TypeParam, double>();
   }
 }
 #endif

@@ -264,7 +264,9 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
 #else
   // x86 has no rounding instruction before SSE4.1. The rounding works on the
   // bit pattern with integer instructions, so it does not depend on the MXCSR
-  // rounding mode or on denormals-are-zero.
+  // rounding mode or on denormals-are-zero. Its only floating-point
+  // instruction is the exact conversion in integer_unit, so it raises no
+  // floating-point exception.
   static constexpr bool integer_rounding = true;
   using int_type = integer_from_t<sizeof(T)>;
   static constexpr int mantissa_bits = std::numeric_limits<T>::digits - 1;
@@ -276,10 +278,20 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
   // the lowest integer bit of the significand. Other lanes are unspecified.
   static storage_type integer_unit(const storage_type &Exponent) noexcept {
     if constexpr (is_float) {
-      // The float 2^K converts exactly to the integer 2^K.
+      // Without the clamp, some lanes whose result is discarded convert a
+      // fraction or a value that the integer cannot hold, and raise an
+      // exception. The clamp moves each exponent into [bias, bias +
+      // mantissa_bits], so Pow is a normal float power of two from 1 to
+      // 2^mantissa_bits. Each of them converts exactly to a 32-bit integer, so
+      // the conversion raises no exception in any lane. The exponent is at
+      // most 255, so the high 16 bits of its lane are zero and the 16-bit min
+      // and max keep them zero.
+      const __m128i InRange =
+          _mm_min_epi16(_mm_max_epi16(Exponent, _mm_set1_epi32(exponent_bias)),
+                        _mm_set1_epi32(exponent_bias + mantissa_bits));
       const __m128i Pow = _mm_slli_epi32(
           _mm_sub_epi32(_mm_set1_epi32(2 * exponent_bias + mantissa_bits),
-                        Exponent),
+                        InRange),
           mantissa_bits);
       return _mm_cvttps_epi32(_mm_castsi128_ps(Pow));
     } else {

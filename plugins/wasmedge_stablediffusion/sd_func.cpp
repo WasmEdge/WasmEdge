@@ -105,8 +105,14 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
         preprocess_canny(ControlImg->data, ControlImg->width,
                          ControlImg->height, 0.08f, 0.08f, 0.8f, 1.0f, false);
   }
-  free(ControlImageBuffer);
   return ControlImg;
+}
+
+void freeControlImage(sd_image_t *ControlImage) {
+  if (ControlImage != nullptr) {
+    free(ControlImage->data);
+    delete ControlImage;
+  }
 }
 
 sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
@@ -120,8 +126,11 @@ sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
     MaskImageBuffer = stbi_load_from_memory(MaskImage.data(), MaskImage.size(),
                                             &Width, &Height, &Channel, 3);
   } else {
-    std::vector<uint8_t> Arr(Width * Height, 255);
-    MaskImageBuffer = Arr.data();
+    const size_t Size = static_cast<size_t>(Width) * Height;
+    MaskImageBuffer = static_cast<uint8_t *>(malloc(Size));
+    if (MaskImageBuffer != nullptr) {
+      std::fill_n(MaskImageBuffer, Size, static_cast<uint8_t>(255));
+    }
   }
   return {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height), 1,
           MaskImageBuffer};
@@ -407,7 +416,7 @@ Expect<uint32_t> SDTextToImage::body(
       BatchCount, ControlImage, ControlStrength, StyleRatio, NormalizeInput,
       InputIdImagesDir.data(), SkipLayersSpan.data(), SkipLayersSpan.size(),
       SlgScale, SkipLayerStart, SkipLayerEnd);
-  free(ControlImage);
+  freeControlImage(ControlImage);
   if (Results == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);
     Env.freeContext(SessionId);
@@ -551,6 +560,13 @@ Expect<uint32_t> SDImageToImage::body(
   }
   // Read mask image
   sd_image_t MaskImage = readMaskImage(MaskImageSpan, Width, Height);
+  if (MaskImage.data == nullptr) {
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Load image from mask image failed."sv);
+    freeControlImage(ControlImage);
+    free(InputImageBuffer);
+    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  }
   // Generate images
   sd_image_t *Results = nullptr;
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
@@ -561,7 +577,8 @@ Expect<uint32_t> SDImageToImage::body(
               Seed, BatchCount, ControlImage, ControlStrength, StyleRatio,
               NormalizeInput, InputIdImagesDir.data(), SkipLayersSpan.data(),
               SkipLayersSpan.size(), SlgScale, SkipLayerStart, SkipLayerEnd);
-  free(ControlImage);
+  freeControlImage(ControlImage);
+  free(MaskImage.data);
   free(InputImageBuffer);
   if (Results == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);

@@ -160,14 +160,14 @@ struct ResultTy {
 
 /// AST Component::OwnTy node. (One type of DefValType)
 struct OwnTy {
-  uint32_t Idx;
+  uint32_t Idx = 0;
 };
 
 // borrow ::= i:<typeidx> => (borrow i)
 
 /// AST Component::BorrowTy node. (One type of DefValType)
 struct BorrowTy {
-  uint32_t Idx;
+  uint32_t Idx = 0;
 };
 
 // stream ::= t?:<valtype>? => (stream t?) 🔀

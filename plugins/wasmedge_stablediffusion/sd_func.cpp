@@ -161,21 +161,29 @@ void freeControlImage(sd_image_t *ControlImage) {
 }
 
 sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
-  uint8_t *MaskImageBuffer = NULL;
+  uint8_t *MaskImageBuffer = nullptr;
   std::string MaskImagePath(MaskImage.begin(), MaskImage.end());
   int Channel = 0;
+  int MaskWidth = 0;
+  int MaskHeight = 0;
   if (MaskImagePath.substr(0, 5) == "path:"sv) {
-    MaskImageBuffer =
-        stbi_load(MaskImagePath.substr(5).data(), &Width, &Height, &Channel, 3);
+    MaskImageBuffer = stbi_load(MaskImagePath.substr(5).data(), &MaskWidth,
+                                &MaskHeight, &Channel, 1);
   } else if (MaskImage.size() != 0) {
-    MaskImageBuffer = stbi_load_from_memory(MaskImage.data(), MaskImage.size(),
-                                            &Width, &Height, &Channel, 3);
-  } else {
+    MaskImageBuffer =
+        loadImageFromMemory(MaskImage, &MaskWidth, &MaskHeight, &Channel, 1);
+  } else if (Width > 0 && Height > 0) {
     const size_t Size = static_cast<size_t>(Width) * Height;
     MaskImageBuffer = static_cast<uint8_t *>(malloc(Size));
     if (MaskImageBuffer != nullptr) {
       std::fill_n(MaskImageBuffer, Size, static_cast<uint8_t>(255));
     }
+    MaskWidth = Width;
+    MaskHeight = Height;
+  }
+  if (MaskImageBuffer != nullptr) {
+    MaskImageBuffer =
+        resizeImage(MaskImageBuffer, MaskWidth, MaskHeight, Width, Height, 1);
   }
   return {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height), 1,
           MaskImageBuffer};
@@ -613,7 +621,8 @@ Expect<uint32_t> SDImageToImage::body(
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
   }
   // Read mask image
-  sd_image_t MaskImage = readMaskImage(MaskImageSpan, Width, Height);
+  sd_image_t MaskImage = readMaskImage(MaskImageSpan, static_cast<int>(Width),
+                                       static_cast<int>(Height));
   if (MaskImage.data == nullptr) {
     spdlog::error(
         "[WasmEdge-StableDiffusion] Load image from mask image failed."sv);

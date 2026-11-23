@@ -2255,6 +2255,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
     if (IsContextUpdated || GraphRef.LlamaContext == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Reloading llama context due to parameter change."sv)
+      ++GraphRef.LlamaContextGeneration;
       GraphRef.LlamaContext.reset();
       llama_context_params CtxParams =
           common_context_params_to_llama(GraphRef.Params);
@@ -2507,7 +2508,10 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
   }
 
   auto ReturnCode = ErrNo::Success;
-  if (!CxtRef.ComputeSingleStarted) {
+  // A replaced llama context lost the prompt of a started stream, so evaluate
+  // the prompt again.
+  if (!CxtRef.ComputeSingleStarted ||
+      CxtRef.StreamContextGeneration != GraphRef.LlamaContextGeneration) {
     // Clear the context and reset the sampler.
     clearContext(GraphRef, CxtRef);
     ReturnCode = evaluateInput(GraphRef, CxtRef, "computeSingle"sv);
@@ -2516,6 +2520,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
     }
 
     CxtRef.ComputeSingleStarted = true;
+    CxtRef.StreamContextGeneration = GraphRef.LlamaContextGeneration;
   }
 
   // Main prediction process.

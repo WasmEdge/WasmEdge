@@ -5991,4 +5991,21 @@ TEST(WasiNNTest, BitNetBackendReloadThenFinishOtherContextStream) {
   EXPECT_EQ(T.run("fini_single"sv, T.CtxIds[1]), ErrNo::Success);
   EXPECT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
 }
+
+TEST(WasiNNTest, BitNetBackendContextReloadRestartsOtherContextStream) {
+  BitNetTwoContexts T;
+  ASSERT_NO_FATAL_FAILURE(T.setUp());
+
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 1, R"({"n-predict":4})"sv), ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 0, "Once upon a time, "sv), ErrNo::Success);
+  ASSERT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+
+  // The first context replaces only the llama context, which drops the KV
+  // cache and the logits of the stream of the second context.
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 1, R"({"ctx-size":1024})"sv),
+            ErrNo::Success);
+  EXPECT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+  EXPECT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+  EXPECT_EQ(T.run("fini_single"sv, T.CtxIds[1]), ErrNo::Success);
+}
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET

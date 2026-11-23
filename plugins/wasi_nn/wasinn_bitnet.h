@@ -79,6 +79,9 @@ struct Graph {
   // Incremented on every model reload; a context whose sampler was built for
   // an older generation must rebuild it before use.
   uint64_t ModelGeneration = 0;
+  // Incremented on every llama context replacement; a stream started on an
+  // older llama context must evaluate its prompt again.
+  uint64_t LlamaContextGeneration = 0;
   LocalConfig Conf;
 };
 
@@ -102,6 +105,7 @@ public:
   std::vector<uint8_t> LlamaOutputs;
   CommonSamplerPtr LlamaSampler = nullptr;
   uint64_t SamplerGeneration = 0;
+  uint64_t StreamContextGeneration = 0;
   int64_t PromptBatchCapacity = 0;
   struct llama_batch LlamaBatch{};
   struct llama_batch OutputBatch{};

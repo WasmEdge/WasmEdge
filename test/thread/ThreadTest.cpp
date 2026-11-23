@@ -538,13 +538,9 @@ TEST(AtomicWaitNotify, Memory64) {
   ASSERT_NE(MemInst, nullptr);
   {
     std::unique_lock<std::mutex> Locker(MemInst->getWaiterMapMutex());
-    auto &WaiterMap = MemInst->getWaiterMap();
-    WaiterMap.emplace(std::piecewise_construct,
-                      std::forward_as_tuple(UINT64_C(8)),
-                      std::forward_as_tuple());
-    WaiterMap.emplace(std::piecewise_construct,
-                      std::forward_as_tuple(UINT64_C(8)),
-                      std::forward_as_tuple());
+    auto &Queue = MemInst->getWaiterMap()[UINT64_C(8)];
+    Queue.emplace_back();
+    Queue.emplace_back();
   }
   {
     auto Result =
@@ -555,6 +551,65 @@ TEST(AtomicWaitNotify, Memory64) {
     ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
     EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
   }
+}
+
+/// A waiter leaves the waiter map when it returns, also after the map moved
+/// it to a new bucket array.
+TEST(AtomicWaitNotify, RehashWhileWaiting) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicThreads32));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto &MemInst = *VM.getActiveModule()->findMemoryExports("memory"sv);
+  auto &Mutex = MemInst.getWaiterMapMutex();
+  auto &WaiterMap = MemInst.getWaiterMap();
+  constexpr auto Bound = 20s;
+  const auto Timeout = static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(Bound).count());
+
+  auto Waiter = VM.asyncExecute("wait32"sv,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    UINT32_C(0), UINT32_C(0), Timeout},
+                                {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                                 WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                                 WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+  struct Join {
+    WasmEdge::VM::VM &VM;
+    decltype(Waiter) &Worker;
+    ~Join() {
+      VM.stop();
+      Worker.wait();
+    }
+  } Joined{VM, Waiter};
+  bool Registered = false;
+  const auto Deadline = std::chrono::steady_clock::now() + Bound;
+  while (!Registered && std::chrono::steady_clock::now() < Deadline) {
+    {
+      std::unique_lock<std::mutex> Locker(Mutex);
+      if (!WaiterMap.empty()) {
+        WaiterMap.rehash(WaiterMap.bucket_count() * 64);
+        Registered = true;
+      }
+    }
+    std::this_thread::sleep_for(1ms);
+  }
+  EXPECT_TRUE(Registered);
+
+  auto Notified = VM.execute(
+      "notify"sv,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1)},
+      {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+       WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+  ASSERT_TRUE(Notified);
+  EXPECT_EQ((*Notified)[0].first.get<uint32_t>(), UINT32_C(1));
+  ASSERT_TRUE(Waiter.waitFor(Bound));
+  auto Result = Waiter.get();
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  std::unique_lock<std::mutex> Locker(Mutex);
+  EXPECT_TRUE(WaiterMap.empty());
 }
 
 TEST(AsyncExecute, ThreadTest) {
@@ -1006,13 +1061,9 @@ TEST(AtomicWaitNotifyJIT, Memory64) {
   ASSERT_NE(MemInst, nullptr);
   {
     std::unique_lock<std::mutex> Locker(MemInst->getWaiterMapMutex());
-    auto &WaiterMap = MemInst->getWaiterMap();
-    WaiterMap.emplace(std::piecewise_construct,
-                      std::forward_as_tuple(UINT64_C(8)),
-                      std::forward_as_tuple());
-    WaiterMap.emplace(std::piecewise_construct,
-                      std::forward_as_tuple(UINT64_C(8)),
-                      std::forward_as_tuple());
+    auto &Queue = MemInst->getWaiterMap()[UINT64_C(8)];
+    Queue.emplace_back();
+    Queue.emplace_back();
   }
   {
     auto Result =

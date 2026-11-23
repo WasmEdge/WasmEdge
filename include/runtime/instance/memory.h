@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -413,21 +414,23 @@ public:
 
   std::mutex &getWaiterMapMutex() noexcept { return WaiterMapMutex; }
 
-  std::unordered_multimap<uint64_t, Waiter> &getWaiterMap() noexcept {
+  std::unordered_map<uint64_t, std::list<Waiter>> &getWaiterMap() noexcept {
     return WaiterMap;
   }
 
   /// Wake all waiters on this memory instance (used by Executor::stop()).
   void notifyAllWaiters() noexcept {
     std::unique_lock<std::mutex> Locker(WaiterMapMutex);
-    for (auto &[Addr, W] : WaiterMap) {
-      // Lock the Waiter mutex and notify while holding it. This pairs with
-      // the wait loop which checks StopToken under this same mutex before
-      // entering Cond.wait(). The lock ensures we either:
-      // (a) block until the waiter enters Cond.wait() — then wake it, or
-      // (b) run before the waiter checks StopToken — it will see it set.
-      std::unique_lock<std::mutex> WaiterLocker(W.Mutex);
-      W.Cond.notify_all();
+    for (auto &[Addr, Queue] : WaiterMap) {
+      for (auto &W : Queue) {
+        // Lock the Waiter mutex and notify while holding it. This pairs with
+        // the wait loop which checks StopToken under this same mutex before
+        // entering Cond.wait(). The lock ensures we either:
+        // (a) block until the waiter enters Cond.wait() — then wake it, or
+        // (b) run before the waiter checks StopToken — it will see it set.
+        std::unique_lock<std::mutex> WaiterLocker(W.Mutex);
+        W.Cond.notify_all();
+      }
     }
   }
 
@@ -445,7 +448,7 @@ private:
   uint64_t PageLimit;
   uint64_t LivePageCount;
   std::mutex WaiterMapMutex;
-  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
+  std::unordered_map<uint64_t, std::list<Waiter>> WaiterMap;
   /// @}
 };
 

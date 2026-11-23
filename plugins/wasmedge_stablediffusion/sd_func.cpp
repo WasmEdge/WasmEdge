@@ -80,11 +80,30 @@ struct UpscalerDeleter {
   }
 };
 
-// Unused by the ESRGAN graph of the pinned library.
+// The library and stb compute the byte size of an image as an int.
+constexpr uint64_t MaxImageBytes =
+    static_cast<uint64_t>(std::numeric_limits<int>::max());
+
+// Generation allocates one workspace for the whole batch and aborts the
+// process when the allocation fails. The workspace holds a fixed part of at
+// most 50 MiB (10 MiB, times 4 for Flux, plus 10 MiB for a stacked id) and at
+// most three float copies of each RGB image (image to image).
+constexpr uint64_t BaseWorkspaceBytes = UINT64_C(50) * 1024 * 1024;
+constexpr uint64_t MaxWorkspaceBytes = std::min<uint64_t>(
+    UINT64_C(32) * 1024 * 1024 * 1024, std::numeric_limits<size_t>::max());
+
+// The ESRGAN graph of the pinned library always upscales by 4, whatever
+// factor is passed to upscale.
 constexpr uint32_t UpscaleFactor = 4;
 
 // preprocess_canny works in a fixed 10 MiB buffer and needs 32 bytes per pixel.
 constexpr uint64_t CannyMaxPixels = (10U * 1024U * 1024U - 64U * 1024U) / 32U;
+
+bool fitsImageBytes(uint64_t Width, uint64_t Height,
+                    uint64_t Channels) noexcept {
+  return Width > 0 && Height > 0 && Channels > 0 &&
+         Width <= MaxImageBytes / Height / Channels;
+}
 
 bool parameterCheck(uint32_t Width, uint32_t Height, uint32_t BatchCount) {
   if (Width == 0 || Width % 64 != 0) {
@@ -97,16 +116,18 @@ bool parameterCheck(uint32_t Width, uint32_t Height, uint32_t BatchCount) {
         "[WasmEdge-StableDiffusion] Height must be a multiple of 64 and greater than 0."sv);
     return false;
   }
-  if (static_cast<uint64_t>(Width) * Height * 3U >
-      static_cast<uint64_t>(std::numeric_limits<int>::max())) {
+  if (!fitsImageBytes(Width, Height, 3)) {
     spdlog::error(
         "[WasmEdge-StableDiffusion] Width and height are too large."sv);
     return false;
   }
-  if (BatchCount == 0 ||
-      BatchCount > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
+  const uint64_t ImageWorkspace =
+      BaseWorkspaceBytes +
+      static_cast<uint64_t>(Width) * Height * 3U * sizeof(float) * 3U;
+  if (BatchCount == 0 || BatchCount > MaxWorkspaceBytes / ImageWorkspace) {
     spdlog::error(
-        "[WasmEdge-StableDiffusion] Batch count must be greater than 0 and fit in an int."sv);
+        "[WasmEdge-StableDiffusion] Batch count must be greater than 0, and the batch must fit in the workspace budget of {} bytes."sv,
+        MaxWorkspaceBytes);
     return false;
   }
   return true;
@@ -148,7 +169,9 @@ PixelPtr resizeImage(DecodedImage Image, int Width, int Height, int Channels) {
   if (Image.Width == Width && Image.Height == Height) {
     return std::move(Image.Pixels);
   }
-  if (Width <= 0 || Height <= 0) {
+  if (!fitsImageBytes(static_cast<uint64_t>(std::max(Width, 0)),
+                      static_cast<uint64_t>(std::max(Height, 0)),
+                      static_cast<uint64_t>(Channels))) {
     return {};
   }
   PixelPtr Resized(static_cast<uint8_t *>(
@@ -269,9 +292,24 @@ void upscaleResults(ResultImages &Results, const std::string &ModelPath,
   for (uint32_t I = 0; I < Results.size(); I++) {
     sd_image_t &Image = Results[I];
     for (uint32_t U = 0; U < UpscaleRepeats && Image.data != nullptr; ++U) {
+      const uint64_t NewWidth =
+          static_cast<uint64_t>(Image.width) * UpscaleFactor;
+      const uint64_t NewHeight =
+          static_cast<uint64_t>(Image.height) * UpscaleFactor;
+      if (!fitsImageBytes(NewWidth, NewHeight, 3)) {
+        spdlog::error(
+            "[WasmEdge-StableDiffusion] The image is too large to upscale."sv);
+        break;
+      }
       sd_image_t Upscaled = upscale(UpscalerCtx.get(), Image, UpscaleFactor);
       if (Upscaled.data == nullptr) {
         spdlog::error("[WasmEdge-StableDiffusion] Upscale failed."sv);
+        break;
+      }
+      if (Upscaled.width != NewWidth || Upscaled.height != NewHeight) {
+        spdlog::error(
+            "[WasmEdge-StableDiffusion] The upscaler returned an unexpected size."sv);
+        free(Upscaled.data);
         break;
       }
       free(Image.data);
@@ -293,7 +331,8 @@ void writeResultFiles(ResultImages &Results, std::string_view OutputPath) {
   }
   for (uint32_t I = 0; I < Results.size(); I++) {
     const sd_image_t &Image = Results[I];
-    if (Image.data == nullptr) {
+    if (Image.data == nullptr ||
+        !fitsImageBytes(Image.width, Image.height, Image.channel)) {
       continue;
     }
     std::string FileName(BaseName);
@@ -314,7 +353,8 @@ ErrNo saveResults(ResultImages &Results, std::string_view OutputPath,
   BytesWritten = 0;
   int Len = 0;
   std::unique_ptr<uint8_t, FreeDeleter> Png;
-  if (Results.size() > 0 && Results[0].data != nullptr) {
+  if (Results.size() > 0 && Results[0].data != nullptr &&
+      fitsImageBytes(Results[0].width, Results[0].height, Results[0].channel)) {
     Png.reset(stbi_write_png_to_mem(
         Results[0].data, 0, static_cast<int>(Results[0].width),
         static_cast<int>(Results[0].height),

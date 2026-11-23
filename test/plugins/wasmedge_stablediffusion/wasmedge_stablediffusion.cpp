@@ -813,6 +813,14 @@ TEST(WasmEdgeStableDiffusionTest, ResultsAndInputs) {
   std::filesystem::remove_all(Dir);
   std::filesystem::create_directories(Dir);
 
+  // Sizes and batches that do not fit the limits are rejected before any
+  // generation.
+  EXPECT_EQ(Gen.textToImage(65536, 65536, 1, ""sv, Gen.OutBufferCap),
+            ErrNo::InvalidArgument);
+  EXPECT_EQ(
+      Gen.textToImage(256, 256, UINT32_C(0x7FFFFFFF), ""sv, Gen.OutBufferCap),
+      ErrNo::InvalidArgument);
+
   // Every image of a batch is written next to the first one, and the guest
   // buffer holds the PNG of the first image.
   const std::string BatchPath = (Dir / "batch.png").string();

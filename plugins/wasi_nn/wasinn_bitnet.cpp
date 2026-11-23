@@ -1814,6 +1814,40 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
   return ErrNo::Success;
 }
 
+// Replace the sampler with one built for the current model. The new sampler
+// has no history, so the stream of the context restarts.
+ErrNo replaceSampler(Graph &GraphRef, Context &CxtRef,
+                     std::string_view LogPrefix) noexcept {
+  CxtRef.LlamaSampler.reset();
+  CxtRef.ComputeSingleStarted = false;
+  if (GraphRef.LlamaModel == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "{}: the llama model is not loaded."sv,
+              LogPrefix)
+  }
+  CxtRef.LlamaSampler.reset(
+      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sparams));
+  if (CxtRef.LlamaSampler == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "{}: unable to init sampler."sv,
+              LogPrefix)
+  }
+  CxtRef.SamplerGeneration = GraphRef.ModelGeneration;
+  return ErrNo::Success;
+}
+
+// A sampler built before a model reload refers to the freed model.
+bool isSamplerFresh(const Graph &GraphRef, const Context &CxtRef) noexcept {
+  return CxtRef.LlamaSampler != nullptr &&
+         CxtRef.SamplerGeneration == GraphRef.ModelGeneration;
+}
+
+ErrNo ensureSampler(Graph &GraphRef, Context &CxtRef,
+                    std::string_view LogPrefix) noexcept {
+  if (isSamplerFresh(GraphRef, CxtRef)) {
+    return ErrNo::Success;
+  }
+  return replaceSampler(GraphRef, CxtRef, LogPrefix);
+}
+
 // Clear the context and reset the sampler.
 void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext"sv)
@@ -2148,8 +2182,10 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
   }
 
   // Allocate the sampler
-  CxtRef.LlamaSampler.reset(
-      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sparams));
+  if (auto Res = replaceSampler(GraphRef, CxtRef, "initExecCtx"sv);
+      Res != ErrNo::Success) {
+    return Res;
+  }
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
@@ -2193,17 +2229,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
           static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
       ModelParams.main_gpu = static_cast<int32_t>(GraphRef.Params.main_gpu);
 
-      // Free all resources that depend on the old model.
+      // Free all resources that depend on the old model. The samplers of the
+      // other contexts are rebuilt on their next use through the model
+      // generation.
+      ++GraphRef.ModelGeneration;
       GraphRef.LlamaModel.reset();
 
       // Due to the model change, the context and sampler should also be
       // reloaded. The new context and sampler will be created in the next
       // block.
       GraphRef.LlamaContext.reset();
-      if (CxtRef.LlamaSampler) {
-        CxtRef.LlamaSampler.reset();
-        CxtRef.LlamaSampler = nullptr;
-      }
+      CxtRef.LlamaSampler.reset();
 
       // Attempt to load the model from file with new parameters.
       GraphRef.LlamaModel.reset(llama_load_model_from_file(
@@ -2231,14 +2267,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
     }
 
     // Re-initialize sampler if its parameters changed OR if it was cleared.
-    if (IsSamplerUpdated || CxtRef.LlamaSampler == nullptr) {
+    if (IsSamplerUpdated || !isSamplerFresh(GraphRef, CxtRef)) {
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Re-initializing sampler due to parameter change."sv);
-      CxtRef.LlamaSampler.reset(common_sampler_init(GraphRef.LlamaModel.get(),
-                                                    GraphRef.Params.sparams));
-      if (CxtRef.LlamaSampler == nullptr) {
+      if (auto SamplerRes = replaceSampler(GraphRef, CxtRef, "setInput"sv);
+          SamplerRes != ErrNo::Success) {
         G.setInvalid();
-        RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
+        return SamplerRes;
       }
     }
 
@@ -2356,6 +2391,11 @@ Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute");
 
+  if (auto Res = ensureSampler(GraphRef, CxtRef, "compute"sv);
+      Res != ErrNo::Success) {
+    return Res;
+  }
+
   // Clear the context and reset the sampler.
   clearContext(GraphRef, CxtRef);
 
@@ -2461,6 +2501,11 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle"sv)
 
+  if (auto Res = ensureSampler(GraphRef, CxtRef, "computeSingle"sv);
+      Res != ErrNo::Success) {
+    return Res;
+  }
+
   auto ReturnCode = ErrNo::Success;
   if (!CxtRef.ComputeSingleStarted) {
     // Clear the context and reset the sampler.
@@ -2493,6 +2538,10 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle");
+
+  if (!isSamplerFresh(GraphRef, CxtRef)) {
+    CxtRef.LlamaSampler.reset();
+  }
 
   // A failed set_input reload can leave a null llama context or sampler and
   // fini_single still admits the graph, so guard both.

@@ -5950,4 +5950,45 @@ TEST(WasiNNTest, BitNetBackendBatchSizeChange) {
             ErrNo::Success);
   EXPECT_EQ(T.run("compute"sv, T.CtxIds[0]), ErrNo::Success);
 }
+
+TEST(WasiNNTest, BitNetBackendReloadRebuildsOtherContextSampler) {
+  BitNetTwoContexts T;
+  ASSERT_NO_FATAL_FAILURE(T.setUp());
+
+  // The second context gets a grammar sampler and starts a stream.
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 1,
+                       R"({"grammar":"root ::= [a-z ]+","n-predict":4})"sv),
+            ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 0, "Once upon a time, "sv), ErrNo::Success);
+  ASSERT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+
+  // The first context reloads the model, which frees the vocabulary that the
+  // grammar sampler of the second context refers to.
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 1, R"({"n-gpu-layers":1})"sv),
+            ErrNo::Success);
+
+  // The second context keeps working on the reloaded model.
+  EXPECT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+  EXPECT_EQ(T.run("fini_single"sv, T.CtxIds[1]), ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 0, "Once upon a time, "sv), ErrNo::Success);
+  EXPECT_EQ(T.run("compute"sv, T.CtxIds[1]), ErrNo::Success);
+}
+
+TEST(WasiNNTest, BitNetBackendReloadThenFinishOtherContextStream) {
+  BitNetTwoContexts T;
+  ASSERT_NO_FATAL_FAILURE(T.setUp());
+
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 1,
+                       R"({"grammar":"root ::= [a-z ]+","n-predict":4})"sv),
+            ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 0, "Once upon a time, "sv), ErrNo::Success);
+  ASSERT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+
+  // The second context finishes its stream while its sampler still refers to
+  // the model that the first context freed.
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 1, R"({"n-gpu-layers":1})"sv),
+            ErrNo::Success);
+  EXPECT_EQ(T.run("fini_single"sv, T.CtxIds[1]), ErrNo::Success);
+  EXPECT_EQ(T.run("compute_single"sv, T.CtxIds[1]), ErrNo::Success);
+}
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET

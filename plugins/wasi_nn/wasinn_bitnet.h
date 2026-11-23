@@ -76,6 +76,9 @@ struct Graph {
   TempModelFile TempModel;
   LlamaModelPtr LlamaModel = nullptr;
   LlamaContextPtr LlamaContext = nullptr;
+  // Incremented on every model reload; a context whose sampler was built for
+  // an older generation must rebuild it before use.
+  uint64_t ModelGeneration = 0;
   LocalConfig Conf;
 };
 
@@ -98,6 +101,7 @@ public:
   std::vector<llama_token> LlamaOutputTokens;
   std::vector<uint8_t> LlamaOutputs;
   CommonSamplerPtr LlamaSampler = nullptr;
+  uint64_t SamplerGeneration = 0;
   int64_t PromptBatchCapacity = 0;
   struct llama_batch LlamaBatch{};
   struct llama_batch OutputBatch{};

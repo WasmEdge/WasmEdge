@@ -28,6 +28,8 @@
 #else
 #include <llvm/IR/DebugProgramInstruction.h>
 #endif
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/LLVMContext.h>

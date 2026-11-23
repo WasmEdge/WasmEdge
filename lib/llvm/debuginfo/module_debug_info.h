@@ -42,8 +42,8 @@ public:
   }
 
   std::unique_ptr<FunctionDebugInfo>
-  beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex,
-                LLVMValueRef Fn) noexcept override;
+  beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex, LLVMValueRef Fn,
+                bool ExtendLiveness) noexcept override;
 
   void finalize() noexcept override;
 

@@ -51,8 +51,8 @@ public:
   virtual LLVMMetadataRef translateType(uint64_t DieOffset) noexcept = 0;
   virtual LLVMValueRef getMemoryBaseGlobal() const noexcept = 0;
   virtual std::unique_ptr<FunctionDebugInfo>
-  beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex,
-                LLVMValueRef Fn) noexcept = 0;
+  beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex, LLVMValueRef Fn,
+                bool ExtendLiveness) noexcept = 0;
   virtual void finalize() noexcept = 0;
   virtual std::optional<std::string> verify() noexcept = 0;
 };

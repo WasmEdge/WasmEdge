@@ -701,6 +701,7 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
                                         });
   const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
   FunctionCompiler::DebugPolicy Debug;
+  Debug.ExtendLiveness = Level == CompilerConfigure::OptimizationLevel::Og;
   Debug.LocalsInMemory = Level == CompilerConfigure::OptimizationLevel::O0;
   FunctionCompiler FC(
       *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),

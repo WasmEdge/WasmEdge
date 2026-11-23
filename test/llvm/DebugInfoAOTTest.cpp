@@ -1024,6 +1024,252 @@ llvm::DWARFDie findVariable(llvm::DWARFContext &Ctx, std::string_view Fn,
   return {};
 }
 
+const llvm::Value *fakeUseOperand(const llvm::Instruction &I) {
+  const auto *Call = llvm::dyn_cast<llvm::CallInst>(&I);
+  if (!Call || Call->arg_size() == 0) {
+    return nullptr;
+  }
+#if LLVM_VERSION_MAJOR < 20
+#else
+  if (Call->getIntrinsicID() == llvm::Intrinsic::fake_use) {
+    return Call->getArgOperand(0);
+  }
+#endif
+  if (const auto *IA =
+          llvm::dyn_cast<llvm::InlineAsm>(Call->getCalledOperand());
+      IA && IA->getAsmString().empty()) {
+    return Call->getArgOperand(0);
+  }
+  return nullptr;
+}
+
+TEST(DebugInfoAOT, OgKeepsVariableLocations) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::Og);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  for (auto [Fn, Var] :
+       {std::pair{"sumList"sv, "Head"sv}, std::pair{"sumList"sv, "Total"sv},
+        std::pair{"sumList"sv, "N"sv},
+        std::pair{"sumList"sv, "__wasm_memory"sv},
+        std::pair{""sv, "Counter"sv}}) {
+    auto V = findVariable(*D.Ctx, Fn, Var);
+    ASSERT_TRUE(V) << Fn << "::" << Var;
+    EXPECT_TRUE(V.find(llvm::dwarf::DW_AT_location)) << Fn << "::" << Var;
+  }
+
+  const auto Line = markerLine("BREAK_SUMLIST"sv);
+  std::vector<uint64_t> Addresses;
+  for (const auto &CU : D.Ctx->compile_units()) {
+    if (auto *LT = D.Ctx->getLineTableForUnit(CU.get())) {
+      for (const auto &Row : LT->Rows) {
+        if (Row.Line == Line && !Row.EndSequence) {
+          Addresses.push_back(Row.Address.Address);
+        }
+      }
+    }
+  }
+  ASSERT_FALSE(Addresses.empty());
+  auto Total = findVariable(*D.Ctx, "sumList"sv, "Total"sv);
+  ASSERT_TRUE(Total);
+  bool Covered = false;
+#if LLVM_VERSION_MAJOR < 10
+  auto Attr = Total.find(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(Attr);
+  if (Attr->getAsBlock()) {
+    Covered = true;
+  } else if (auto Offset = Attr->getAsSectionOffset()) {
+    const auto *List = D.Ctx->getDebugLoc()->getLocationListAtOffset(*Offset);
+    ASSERT_NE(List, nullptr);
+    const auto Base = Total.getDwarfUnit()->getBaseAddress();
+    const uint64_t BaseAddress = Base ? Base->Address : 0;
+    for (const auto &E : List->Entries) {
+      for (const auto Address : Addresses) {
+        Covered |=
+            BaseAddress + E.Begin <= Address && Address < BaseAddress + E.End;
+      }
+    }
+  }
+#else
+  auto Locations = Total.getLocations(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(static_cast<bool>(Locations));
+  for (const auto &Loc : *Locations) {
+    for (const auto Address : Addresses) {
+      Covered |= !Loc.Range ||
+                 (Loc.Range->LowPC <= Address && Address < Loc.Range->HighPC);
+    }
+  }
+#endif
+  EXPECT_TRUE(Covered);
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, OgKeepsBlockVariablesUntilScopeEnd) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+#if LLVM_VERSION_MAJOR < 19
+  GTEST_SKIP() << "debug records need LLVM 19 or newer";
+#else
+  Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::Og);
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_scope_Og.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  LLVM::Compiler Compiler(Conf);
+  auto Data = Compiler.compile(*Mod);
+  ASSERT_TRUE(Data);
+  auto &M = *llvm::unwrap(Data->extract().LLModule.unwrap());
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+  auto It = std::find_if(M.begin(), M.end(), [](const llvm::Function &F) {
+    return F.getSubprogram() && F.getSubprogram()->getName() == "scoped";
+  });
+  ASSERT_NE(It, M.end());
+  std::vector<const llvm::Value *> Steps;
+  for (const auto &I : llvm::instructions(*It)) {
+    for (const llvm::DbgVariableRecord &DVR :
+         llvm::filterDbgVars(I.getDbgRecordRange())) {
+      if (DVR.getVariable()->getName() == "Step") {
+        for (const auto *V : DVR.location_ops()) {
+          Steps.push_back(V);
+        }
+      }
+    }
+  }
+  auto Returns = [](const llvm::BasicBlock &BB) {
+    const auto *Term = BB.getTerminator();
+    if (llvm::isa<llvm::ReturnInst>(Term)) {
+      return true;
+    }
+#if LLVM_VERSION_MAJOR < 23
+    const auto *Br = llvm::dyn_cast<llvm::BranchInst>(Term);
+    return Br && Br->isUnconditional() &&
+           llvm::isa<llvm::ReturnInst>(Br->getSuccessor(0)->getTerminator());
+#else
+    const auto *Br = llvm::dyn_cast<llvm::UncondBrInst>(Term);
+    return Br &&
+           llvm::isa<llvm::ReturnInst>(Br->getSuccessor()->getTerminator());
+#endif
+  };
+  bool StepInScope = false;
+  bool ArgAtRet = false;
+  uint32_t MaxUsesAtRet = 0;
+  for (const auto &BB : *It) {
+    const bool AtRet = Returns(BB);
+    uint32_t UsesAtRet = 0;
+    for (const auto &I : BB) {
+      const auto *V = fakeUseOperand(I);
+      if (!V) {
+        continue;
+      }
+      const bool IsStep =
+          std::find(Steps.begin(), Steps.end(), V) != Steps.end();
+      StepInScope |= IsStep && !AtRet;
+      if (AtRet) {
+        ++UsesAtRet;
+        ArgAtRet |= llvm::isa<llvm::Argument>(V);
+      }
+    }
+    MaxUsesAtRet = std::max(MaxUsesAtRet, UsesAtRet);
+  }
+  EXPECT_TRUE(StepInScope);
+  EXPECT_TRUE(ArgAtRet);
+  EXPECT_EQ(MaxUsesAtRet, 1U);
+#endif
+}
+
+TEST(DebugInfoAOT, OgPlacesFakeUsesAtScopeExits) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_scope_Og.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+  ASSERT_NE(R, nullptr);
+  auto Step = findVariable(R->getContext(), "scoped"sv, "Step"sv);
+  ASSERT_TRUE(Step);
+  auto Ranges = Step.getParent().getAddressRanges();
+  ASSERT_TRUE(static_cast<bool>(Ranges));
+  ASSERT_EQ(Ranges->size(), 1U);
+  const auto Low = Ranges->front().LowPC;
+  const auto High = Ranges->front().HighPC;
+  const auto &Seg = Mod->getCodeSection().getContent()[1];
+
+  llvm::LLVMContext Ctx;
+  llvm::Module M("t", Ctx);
+  auto DI = LLVM::DebugInfo::ModuleDebugInfo::create(
+      *Mod, llvm::wrap(&M), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
+  ASSERT_NE(DI, nullptr);
+  auto *I32 = llvm::Type::getInt32Ty(Ctx);
+  auto *Fn = llvm::Function::Create(llvm::FunctionType::get(I32, {}, false),
+                                    llvm::Function::ExternalLinkage, "f", M);
+  auto FI = DI->beginFunction(1, 1, llvm::wrap(Fn), true);
+  ASSERT_NE(FI, nullptr);
+  auto *Entry = llvm::BasicBlock::Create(Ctx, "entry", Fn);
+  llvm::IRBuilder<> B(Entry);
+  std::vector<LLVMValueRef> Locals;
+  for (uint32_t I = 0; I < 5; ++I) {
+    Locals.push_back(llvm::wrap(B.CreateAlloca(I32)));
+  }
+  auto *Mark = B.CreateAlloca(I32);
+  FI->bindFrame(Locals, nullptr, {}, false);
+  auto *Body = llvm::BasicBlock::Create(Ctx, "body", Fn);
+  B.CreateBr(Body);
+  B.SetInsertPoint(Body);
+  llvm::Instruction *EarlyRet = nullptr;
+  llvm::Instruction *EndMark = nullptr;
+  for (const auto &Instr : Seg.getExpr().getInstrs()) {
+    FI->setLocation(llvm::wrap(&B), Instr.getOffset());
+    const auto Addr = R->toAddress(Instr.getOffset());
+    auto *Store = B.CreateStore(B.getInt32(Instr.getOffset()), Mark, true);
+    if (!EndMark && Addr >= High) {
+      EndMark = Store;
+    }
+    if (!EarlyRet && Low <= Addr && Addr < High) {
+      auto *Early = llvm::BasicBlock::Create(Ctx, "early", Fn);
+      auto *Next = llvm::BasicBlock::Create(Ctx, "next", Fn);
+      B.CreateCondBr(B.CreateLoad(B.getInt1Ty(), Mark), Early, Next);
+      B.SetInsertPoint(Early);
+      EarlyRet = B.CreateRet(B.getInt32(0));
+      B.SetInsertPoint(Next);
+    }
+  }
+  auto *FinalRet = B.CreateRet(B.getInt32(0));
+  ASSERT_NE(EarlyRet, nullptr);
+  ASSERT_NE(EndMark, nullptr);
+  FI->finish(llvm::wrap(Entry));
+  DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+
+  std::vector<std::pair<const llvm::Instruction *, LLVMValueRef>> Uses;
+  for (const auto &I : llvm::instructions(*Fn)) {
+    const auto *Op = fakeUseOperand(I);
+    if (!Op) {
+      continue;
+    }
+    EXPECT_FALSE(I.getDebugLoc());
+    const auto *Next = I.getNextNode();
+    while (llvm::isa<llvm::LoadInst>(Next) ||
+           llvm::isa<llvm::IntrinsicInst>(Next) || fakeUseOperand(*Next)) {
+      Next = Next->getNextNode();
+    }
+    const auto *Load = llvm::cast<llvm::LoadInst>(Op);
+    Uses.emplace_back(Next, llvm::wrap(Load->getPointerOperand()));
+  }
+  auto Has = [&](const llvm::Instruction *At, uint32_t Local) {
+    return std::count(Uses.begin(), Uses.end(), std::pair{At, Locals[Local]});
+  };
+  EXPECT_EQ(Has(EndMark, 2), 1);
+  EXPECT_EQ(Has(EndMark, 0), 0);
+  EXPECT_EQ(Has(EarlyRet, 2), 1);
+  EXPECT_EQ(Has(EarlyRet, 0), 1);
+  EXPECT_EQ(Has(FinalRet, 0), 1);
+  EXPECT_EQ(Has(FinalRet, 2), 0);
+  EXPECT_EQ(Uses.size(), 4U);
+}
+
 /// Sets the DW_OP_addr operand of a global variable.
 bool setGlobalAddress(AST::Module &Mod, std::string_view Var,
                       uint32_t Address) {

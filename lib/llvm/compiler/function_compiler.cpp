@@ -23,7 +23,8 @@ FunctionCompiler::FunctionCompiler(
       Builder(LLContext) {
   if (F.Fn) {
     if (Context.DI) {
-      DI = Context.DI->beginFunction(FuncIndex, DefinedIndex, F.Fn.unwrap());
+      DI = Context.DI->beginFunction(FuncIndex, DefinedIndex, F.Fn.unwrap(),
+                                     Debug.ExtendLiveness);
     }
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
     if (DI) {

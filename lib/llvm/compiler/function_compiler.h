@@ -18,6 +18,7 @@ class FunctionCompiler {
 
 public:
   struct DebugPolicy {
+    bool ExtendLiveness = false;
     bool LocalsInMemory = false;
   };
 

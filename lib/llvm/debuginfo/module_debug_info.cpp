@@ -83,7 +83,8 @@ ModuleDebugInfoImpl::translateType(uint64_t DieOffset) noexcept {
 
 std::unique_ptr<FunctionDebugInfo>
 ModuleDebugInfoImpl::beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex,
-                                   LLVMValueRef Fn) noexcept {
+                                   LLVMValueRef Fn,
+                                   bool ExtendLiveness) noexcept {
   if (P == Part::GlobalsOnly) {
     return nullptr;
   }
@@ -94,7 +95,8 @@ ModuleDebugInfoImpl::beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex,
     if (!Attached.insert(SP).second) {
       SP = createSubprogram(S, Die);
     }
-    return std::make_unique<FunctionDebugInfoImpl>(*this, S, F, SP, Die);
+    return std::make_unique<FunctionDebugInfoImpl>(*this, S, F, SP, Die,
+                                                   ExtendLiveness);
   }
   auto &S = artificialUnit();
   auto *SP = S.DB->createFunction(
@@ -102,7 +104,8 @@ ModuleDebugInfoImpl::beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex,
       S.CU->getFile(), 0,
       S.DB->createSubroutineType(S.DB->getOrCreateTypeArray({})), 0,
       llvm::DINode::FlagArtificial, llvm::DISubprogram::SPFlagDefinition);
-  return std::make_unique<FunctionDebugInfoImpl>(*this, S, F, SP, DWARFDie());
+  return std::make_unique<FunctionDebugInfoImpl>(*this, S, F, SP, DWARFDie(),
+                                                 ExtendLiveness);
 }
 
 void ModuleDebugInfoImpl::finalize() noexcept {

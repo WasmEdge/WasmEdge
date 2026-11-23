@@ -15,10 +15,12 @@
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/ValueHandle.h>
 
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -28,9 +30,11 @@ class ModuleDebugInfoImpl;
 
 class FunctionDebugInfoImpl final : public FunctionDebugInfo {
 public:
+  /// With ExtendLiveness, the function keeps source variables available
+  /// until the end of their scope, so it records where each scope exits.
   FunctionDebugInfoImpl(ModuleDebugInfoImpl &Parent, UnitState &S,
                         llvm::Function &Fn, llvm::DISubprogram *SP,
-                        DWARFDie Die) noexcept;
+                        DWARFDie Die, bool ExtendLiveness) noexcept;
 
   void setArtificialLocation(LLVMBuilderRef B) noexcept override {
     llvm::unwrap(B)->SetCurrentDebugLocation(
@@ -91,15 +95,28 @@ private:
     return (static_cast<uint64_t>(K) << 32) | Index;
   }
 
+  struct LocalVariable {
+    uint64_t ScopeOffset;
+    const llvm::DIScope *Scope;
+    size_t Index;
+  };
+
   struct Variable {
     llvm::DILocalVariable *Var = nullptr;
     llvm::DILocation *Loc = nullptr;
+    uint64_t ScopeOffset = 0;
+    const llvm::DIScope *Scope = nullptr;
     WasmLocation L;
     size_t Slot = NoIndex;
     std::vector<LocationEntry> Ranges;
     size_t Active = NoIndex;
     size_t Constant = NoIndex;
     unsigned ConstantBits = 0;
+  };
+
+  struct ScopeEnd {
+    uint64_t End;
+    uint64_t Offset;
   };
 
   /// A place in a native block that the compiler passed. Later passes can
@@ -122,11 +139,18 @@ private:
     uint64_t End = 0;
   };
 
+  struct ScopeExit {
+    RecordedPoint Point;
+    std::vector<uint64_t> Offsets;
+  };
+
   size_t addressSlot(AddressSlot::Kind K, uint64_t Index) noexcept;
   bool placeVariable(Variable &V, const WasmLocation &L) noexcept;
   void collectVariables(DWARFDie Node, llvm::DIScope *Scope, unsigned &ArgNo,
                         uint32_t Depth) noexcept;
-  void collectScopes(DWARFDie Node, DWARFDie Frame, uint32_t Depth) noexcept;
+  void collectScopes(DWARFDie Node, DWARFDie Frame, uint32_t Depth,
+                     bool Inlined) noexcept;
+  void recordScopeExits(llvm::IRBuilderBase &B, uint64_t Addr) noexcept;
   void updateRanges(llvm::IRBuilderBase &B, uint64_t Addr) noexcept;
   void emitState(llvm::IRBuilderBase &B, const Variable &V,
                  size_t Active) noexcept;
@@ -138,12 +162,15 @@ private:
   void insertValue(llvm::IRBuilderBase &B, llvm::Value *V, const Variable &Var,
                    bool Deref = false) noexcept;
   llvm::DIFile *lineFile(uint64_t FileIndex) noexcept;
+  static void keepInMemory(llvm::Value *Slot) noexcept;
+  void addFakeUses(const std::vector<LocalVariable> &Declared) noexcept;
 
   ModuleDebugInfoImpl &Parent;
   UnitState &S;
   llvm::Function &Fn;
   llvm::DISubprogram *SP;
   DWARFDie Die;
+  bool ExtendLiveness;
   const llvm::DWARFDebugLine::LineTable *LineTable = nullptr;
   size_t FrameBaseSlot = NoIndex;
   std::vector<AddressSlot> AddressSlots;
@@ -166,6 +193,10 @@ private:
   llvm::DIScope *CachedScope = nullptr;
   llvm::DILocation *CachedInlinedAt = nullptr;
   std::unordered_map<uint64_t, llvm::DIFile *> LineFiles;
+  std::vector<ScopeEnd> ScopeEnds;
+  std::unordered_set<uint64_t> RangedScopes;
+  size_t NextScopeEnd = 0;
+  std::vector<ScopeExit> ScopeExits;
 };
 
 } // namespace WasmEdge::LLVM::DebugInfo

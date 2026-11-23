@@ -19,11 +19,21 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/Intrinsics.h>
+#if LLVM_VERSION_MAJOR < 16
+#include <llvm/ADT/Triple.h>
+#else
+#include <llvm/Support/ModRef.h>
+#include <llvm/TargetParser/Triple.h>
+#endif
 
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -40,8 +50,10 @@ bool isLocalValue(const WasmLocation &L) noexcept {
 FunctionDebugInfoImpl::FunctionDebugInfoImpl(ModuleDebugInfoImpl &Parent,
                                              UnitState &S, llvm::Function &Fn,
                                              llvm::DISubprogram *SP,
-                                             DWARFDie Die) noexcept
-    : Parent(Parent), S(S), Fn(Fn), SP(SP), Die(Die) {
+                                             DWARFDie Die,
+                                             bool ExtendLiveness) noexcept
+    : Parent(Parent), S(S), Fn(Fn), SP(SP), Die(Die),
+      ExtendLiveness(ExtendLiveness) {
   Fn.setSubprogram(SP);
   if (!Die) {
     return;
@@ -59,8 +71,11 @@ FunctionDebugInfoImpl::FunctionDebugInfoImpl(ModuleDebugInfoImpl &Parent,
       }
     }
   }
-  collectScopes(Die, Die, 0);
+  collectScopes(Die, Die, 0, false);
   Scopes.build();
+  std::stable_sort(
+      ScopeEnds.begin(), ScopeEnds.end(),
+      [](const ScopeEnd &L, const ScopeEnd &R) { return L.End < R.End; });
   std::sort(ScopeBounds.begin(), ScopeBounds.end());
   ScopeBounds.erase(std::unique(ScopeBounds.begin(), ScopeBounds.end()),
                     ScopeBounds.end());
@@ -150,6 +165,8 @@ void FunctionDebugInfoImpl::collectVariables(DWARFDie Node,
       continue;
     }
     Variable V;
+    V.ScopeOffset = Node.getOffset();
+    V.Scope = Scope;
     if (Int) {
       V.ConstantBits = Int->first;
     }
@@ -234,6 +251,7 @@ void FunctionDebugInfoImpl::setLocation(LLVMBuilderRef B,
   }
   auto &Builder = *llvm::unwrap(B);
   const auto Addr = Parent.toAddress(FileOffset);
+  recordScopeExits(Builder, Addr);
   updateRanges(Builder, Addr);
   if (Addr < CachedLow || Addr >= CachedHigh) {
     std::tie(CachedScope, CachedInlinedAt) =
@@ -486,6 +504,12 @@ void FunctionDebugInfoImpl::finish(LLVMBasicBlockRef EntryRef) noexcept {
     return;
   }
   addEntryStates();
+  if (ExtendLiveness) {
+    keepInMemory(MemorySlot);
+    for (auto *Slot : Slots) {
+      keepInMemory(Slot);
+    }
+  }
 #if LLVM_VERSION_MAJOR < 20
   const InsertPoint Where = Terminator;
 #else
@@ -502,6 +526,7 @@ void FunctionDebugInfoImpl::finish(LLVMBasicBlockRef EntryRef) noexcept {
         MemorySlot, Var, DB.createExpression(),
         llvm::DILocation::get(Fn.getContext(), SP->getLine(), 0, SP), Where);
   }
+  std::vector<LocalVariable> Declared;
   llvm::IRBuilder<> AtEntry(&Entry, Entry.begin());
   for (const auto &V : Variables) {
     if (V.Constant != NoIndex) {
@@ -509,6 +534,22 @@ void FunctionDebugInfoImpl::finish(LLVMBasicBlockRef EntryRef) noexcept {
       continue;
     }
     if (!V.Ranges.empty()) {
+      const auto Local = std::find_if(
+          V.Ranges.begin(), V.Ranges.end(),
+          [](const LocationEntry &E) { return isLocalValue(E.L); });
+      if (Local == V.Ranges.end()) {
+        continue;
+      }
+      const auto Index = Local->L.Index;
+      if (Index < Locals.size() && std::all_of(
+                                       V.Ranges.begin(), V.Ranges.end(),
+                                       [Index](const LocationEntry &E) {
+                                         return !isLocalValue(E.L) ||
+                                                E.L.Index == Index;
+                                       })) {
+        Declared.push_back(
+            {V.ScopeOffset, V.Scope, static_cast<size_t>(Index)});
+      }
       continue;
     }
     if (V.Slot != NoIndex) {
@@ -533,12 +574,18 @@ void FunctionDebugInfoImpl::finish(LLVMBasicBlockRef EntryRef) noexcept {
     if (V.L.K == WasmLocation::Kind::Local && V.L.Index < Locals.size()) {
       DB.insertDeclare(Locals[V.L.Index], V.Var, DB.createExpression(), V.Loc,
                        Where);
+      Declared.push_back(
+          {V.ScopeOffset, V.Scope, static_cast<size_t>(V.L.Index)});
     }
+  }
+  if (ExtendLiveness) {
+    addFakeUses(Declared);
   }
 }
 
 void FunctionDebugInfoImpl::collectScopes(DWARFDie Node, DWARFDie Frame,
-                                          uint32_t Depth) noexcept {
+                                          uint32_t Depth,
+                                          bool Inlined) noexcept {
   if (Depth >= MaxDepth) {
     return;
   }
@@ -558,12 +605,199 @@ void FunctionDebugInfoImpl::collectScopes(DWARFDie Node, DWARFDie Frame,
         if (Tag == dwarf::DW_TAG_lexical_block) {
           Scopes.add(Frame, C, Depth, R.LowPC, R.HighPC);
         }
+        if (ExtendLiveness && Tag == dwarf::DW_TAG_lexical_block && !Inlined) {
+          ScopeEnds.push_back({R.HighPC, C.getOffset()});
+          RangedScopes.insert(C.getOffset());
+        }
       }
     } else {
       llvm::consumeError(Ranges.takeError());
     }
-    collectScopes(C, Tag == dwarf::DW_TAG_inlined_subroutine ? C : Frame,
-                  Depth + 1);
+    const bool IsInlined = Tag == dwarf::DW_TAG_inlined_subroutine;
+    collectScopes(C, IsInlined ? C : Frame, Depth + 1, Inlined || IsInlined);
+  }
+}
+
+void FunctionDebugInfoImpl::recordScopeExits(llvm::IRBuilderBase &B,
+                                             uint64_t Addr) noexcept {
+  if (NextScopeEnd >= ScopeEnds.size() || ScopeEnds[NextScopeEnd].End > Addr) {
+    return;
+  }
+  if (!B.GetInsertBlock()) {
+    return;
+  }
+  ScopeExit Exit;
+  Exit.Point = RecordedPoint::at(B);
+  for (; NextScopeEnd < ScopeEnds.size() && ScopeEnds[NextScopeEnd].End <= Addr;
+       ++NextScopeEnd) {
+    Exit.Offsets.push_back(ScopeEnds[NextScopeEnd].Offset);
+  }
+  ScopeExits.push_back(std::move(Exit));
+}
+
+void FunctionDebugInfoImpl::keepInMemory(llvm::Value *Slot) noexcept {
+  if (!Slot) {
+    return;
+  }
+  for (auto *U : Slot->users()) {
+    if (auto *Load = llvm::dyn_cast<llvm::LoadInst>(U)) {
+      Load->setVolatile(true);
+    } else if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(U);
+               Store && Store->getPointerOperand() == Slot) {
+      Store->setVolatile(true);
+    }
+  }
+}
+
+namespace {
+
+#if LLVM_VERSION_MAJOR < 20
+void emitAsmFakeUse(llvm::IRBuilder<> &B, const llvm::Triple &TT,
+                    llvm::Value *V) noexcept {
+  std::vector<llvm::Value *> Ops;
+  std::string Constraints;
+  auto Add = [&](llvm::Value *Op, const char *C) {
+    if (!Constraints.empty()) {
+      Constraints += ',';
+    }
+    Constraints += C;
+    Ops.push_back(Op);
+  };
+  auto *Ty = V->getType();
+  if (!Ty->isFloatingPointTy() && !Ty->isVectorTy()) {
+    Add(V, "r");
+  } else if (TT.getArch() == llvm::Triple::x86 ||
+             TT.getArch() == llvm::Triple::x86_64) {
+    Add(V, "x");
+  } else if (TT.isAArch64()) {
+    Add(V, "w");
+  } else if (Ty->isVectorTy()) {
+#if LLVM_VERSION_MAJOR < 11
+    auto *VecTy = llvm::VectorType::get(B.getInt64Ty(), 2);
+#else
+    auto *VecTy = llvm::FixedVectorType::get(B.getInt64Ty(), 2);
+#endif
+    auto *Vec = B.CreateBitCast(V, VecTy);
+    Add(B.CreateExtractElement(Vec, uint64_t(0)), "r");
+    Add(B.CreateExtractElement(Vec, uint64_t(1)), "r");
+  } else {
+    Add(B.CreateBitCast(V, B.getIntNTy(Ty->getPrimitiveSizeInBits())), "r");
+  }
+  std::vector<llvm::Type *> Types;
+  for (auto *Op : Ops) {
+    Types.push_back(Op->getType());
+  }
+  auto *FTy = llvm::FunctionType::get(B.getVoidTy(), Types, false);
+  auto *Call =
+      B.CreateCall(FTy, llvm::InlineAsm::get(FTy, "", Constraints, true), Ops);
+  Call->setDoesNotThrow();
+#if LLVM_VERSION_MAJOR < 14
+  Call->addAttribute(llvm::AttributeList::FunctionIndex,
+                     llvm::Attribute::InaccessibleMemOnly);
+#elif LLVM_VERSION_MAJOR < 16
+  Call->addFnAttr(llvm::Attribute::InaccessibleMemOnly);
+#else
+  Call->setMemoryEffects(llvm::MemoryEffects::inaccessibleMemOnly());
+#endif
+  Call->setTailCallKind(llvm::CallInst::TCK_NoTail);
+}
+#endif
+
+} // namespace
+
+void FunctionDebugInfoImpl::addFakeUses(
+    const std::vector<LocalVariable> &Declared) noexcept {
+  if (Declared.empty()) {
+    return;
+  }
+  std::vector<size_t> FunctionScope;
+  std::unordered_map<uint64_t, std::vector<size_t>> ScopeLocals;
+  std::unordered_map<const llvm::DIScope *, uint64_t> ScopeOffsets;
+  for (const auto &V : Declared) {
+    if (RangedScopes.count(V.ScopeOffset)) {
+      ScopeLocals[V.ScopeOffset].push_back(V.Index);
+      ScopeOffsets.emplace(V.Scope, V.ScopeOffset);
+    } else {
+      FunctionScope.push_back(V.Index);
+    }
+  }
+
+  std::vector<std::pair<llvm::Instruction *, std::vector<size_t>>> Points;
+  std::unordered_map<llvm::Instruction *, size_t> PointIndex;
+  auto Want = [&](llvm::Instruction *At) -> std::vector<size_t> & {
+    if (auto *Ret = llvm::dyn_cast<llvm::ReturnInst>(At)) {
+      if (auto *Call =
+              llvm::dyn_cast_or_null<llvm::CallInst>(Ret->getPrevNode());
+          Call && Call->isTailCall()) {
+        At = Call;
+      }
+    }
+    auto [It, Inserted] = PointIndex.emplace(At, Points.size());
+    if (Inserted) {
+      Points.emplace_back(At, std::vector<size_t>());
+    }
+    return Points[It->second].second;
+  };
+  auto AddScope = [&](std::vector<size_t> &Set, uint64_t Offset) {
+    if (auto It = ScopeLocals.find(Offset); It != ScopeLocals.end()) {
+      Set.insert(Set.end(), It->second.begin(), It->second.end());
+    }
+  };
+
+  for (const auto &Exit : ScopeExits) {
+    auto *At = Exit.Point.resolve();
+    if (!At || llvm::isa<llvm::PHINode>(At) || At->isEHPad()) {
+      continue;
+    }
+    auto &Set = Want(At);
+    for (auto Offset : Exit.Offsets) {
+      AddScope(Set, Offset);
+    }
+  }
+  for (auto &BB : Fn) {
+    auto *Ret = llvm::dyn_cast_or_null<llvm::ReturnInst>(BB.getTerminator());
+    if (!Ret) {
+      continue;
+    }
+    auto &Set = Want(Ret);
+    Set.insert(Set.end(), FunctionScope.begin(), FunctionScope.end());
+    const auto *Loc = Ret->getDebugLoc().get();
+    for (const llvm::DIScope *Scope = Loc ? Loc->getInlinedAtScope() : nullptr;
+         Scope && Scope != SP; Scope = Scope->getScope()) {
+      if (auto It = ScopeOffsets.find(Scope); It != ScopeOffsets.end()) {
+        AddScope(Set, It->second);
+      }
+    }
+  }
+
+#if LLVM_VERSION_MAJOR < 20
+  const llvm::Triple TT(Fn.getParent()->getTargetTriple());
+#else
+  llvm::Function *FakeUse = nullptr;
+#endif
+  for (auto &[At, Set] : Points) {
+    std::sort(Set.begin(), Set.end());
+    Set.erase(std::unique(Set.begin(), Set.end()), Set.end());
+    llvm::IRBuilder<> B(At);
+    B.SetCurrentDebugLocation(llvm::DebugLoc());
+    for (const auto I : Set) {
+      auto *Slot = llvm::dyn_cast<llvm::AllocaInst>(Locals[I]);
+      if (!Slot) {
+        continue;
+      }
+      auto *Value = B.CreateLoad(Slot->getAllocatedType(), Slot, "fake.use");
+#if LLVM_VERSION_MAJOR < 20
+      emitAsmFakeUse(B, TT, Value);
+#else
+      if (!FakeUse) {
+        FakeUse = llvm::Intrinsic::getOrInsertDeclaration(
+            Fn.getParent(), llvm::Intrinsic::fake_use);
+      }
+      auto *Call = B.CreateCall(FakeUse, {Value});
+      Call->setDoesNotThrow();
+      Call->setTailCallKind(llvm::CallInst::TCK_NoTail);
+#endif
+    }
   }
 }
 

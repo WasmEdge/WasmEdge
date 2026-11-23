@@ -532,6 +532,11 @@ public:
                      Got.getTypeIndex(), Equal);
   }
 
+  /// Matcher: Match the bottom reference type to a value type.
+  static bool matchBottomRef(const ValType &Exp, bool IsNullable) noexcept {
+    return IsNullable ? Exp.isNullableRefType() : Exp.isRefType();
+  }
+
   /// Matcher: Match two table types.
   static bool matchType(Span<const SubType *const> ExpTypeList,
                         const TableType &Exp,

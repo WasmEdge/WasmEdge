@@ -36,6 +36,7 @@
 #include <fstream>
 #include <random>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -503,6 +504,71 @@ TEST(VMRegistrationTest, UnregisterUnknownNameSucceeds) {
   Configure Conf;
   VM::VM TestVM(Conf);
   EXPECT_TRUE(TestVM.unregisterModule("no-such-module"));
+}
+
+// Wasm module that exports a funcref table and calls its first slot:
+//   (type $t (func (result i32)))
+//   (table (export "t") 1 funcref)
+//   (func (export "call") (result i32)
+//     (call_indirect (type $t) (i32.const 0)))
+static const std::array<WasmEdge::Byte, 50> TableCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x04,
+    0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x0c, 0x02, 0x01, 0x74,
+    0x01, 0x00, 0x04, 0x63, 0x61, 0x6c, 0x6c, 0x00, 0x00, 0x0a,
+    0x09, 0x01, 0x07, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b};
+
+// Wasm module that writes its own function into the imported table, then
+// fails on an out-of-bounds data segment:
+//   (import "a" "t" (table 1 funcref))
+//   (memory 0)
+//   (func $f (result i32) i32.const 42)
+//   (elem (i32.const 0) $f)
+//   (data (i32.const 0) "x")
+static const std::array<WasmEdge::Byte, 61> FailAfterElemWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x00, 0x01, 0x7f, 0x02, 0x09, 0x01, 0x01, 0x61, 0x01, 0x74,
+    0x01, 0x70, 0x00, 0x01, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01,
+    0x00, 0x00, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00,
+    0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x2a, 0x0b, 0x0b, 0x07, 0x01,
+    0x00, 0x41, 0x00, 0x0b, 0x01, 0x78};
+
+// Wasm module that fails on an out-of-bounds data segment:
+//   (memory 0)
+//   (data (i32.const 0) "x")
+static const std::array<WasmEdge::Byte, 22> FailDataWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03, 0x01,
+    0x00, 0x00, 0x0b, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x78};
+
+/// Helper: execute a function of a registered module and expect a constant.
+void expectModuleResult(VM::VM &TestVM, std::string_view ModName,
+                        std::string_view Func, uint32_t Expected) {
+  auto Res = TestVM.execute(ModName, Func);
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected);
+}
+
+/// Helper: expect that an instantiation failed in its data segment.
+void expectDataSegmentFailure(const Expect<void> &Res) {
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds);
+}
+
+TEST(VMLifetimeTest, FailedModuleStaysReferenceableAfterLaterFailure) {
+  Configure Conf;
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.registerModule("a", TableCallerWasm));
+  ASSERT_TRUE(TestVM.loadWasm(FailAfterElemWasm));
+  ASSERT_TRUE(TestVM.validate());
+  expectDataSegmentFailure(TestVM.instantiate());
+  // Fail again through both paths: a named registration and an unnamed
+  // instantiation. Neither failure may free the first failed module.
+  expectDataSegmentFailure(TestVM.registerModule("c", FailDataWasm));
+  ASSERT_TRUE(TestVM.loadWasm(FailDataWasm));
+  ASSERT_TRUE(TestVM.validate());
+  expectDataSegmentFailure(TestVM.instantiate());
+  expectModuleResult(TestVM, "a", "call", 42U);
 }
 
 TEST(VMPluginTest, MockPluginModulesRegistered) {

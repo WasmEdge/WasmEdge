@@ -148,15 +148,11 @@ private:
   /// \name Mutex for thread-safe.
   mutable std::shared_mutex Mutex;
 
-  /// Collect the instantiation failed module.
-  void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
-    if (FailedMod) {
-      auto *OldMod = FailedMod.release();
-      if (OldMod) {
-        OldMod->terminate();
-      }
-    }
-    FailedMod = std::move(Mod);
+  /// Keep a module whose instantiation failed after it could publish
+  /// references to itself.
+  void retainFailedModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
+    std::unique_lock Lock(Mutex);
+    FailedMods.push_back(std::move(Mod));
   }
 
   /// \name Module name mapping.
@@ -165,12 +161,11 @@ private:
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>
       NamedComp;
 
-  /// \name Last instantiation failed module.
+  /// \name Instantiation failed modules.
   /// According to the current spec, instances should remain referenceable even
-  /// if instantiation failed. Therefore, store the failed module instance here
-  /// to keep the instances alive.
-  /// FIXME: Is this necessary to be a vector?
-  std::unique_ptr<Instance::ModuleInstance> FailedMod;
+  /// if instantiation failed. Therefore, store the failed module instances that
+  /// can be referenced here, to keep them alive for the lifetime of this store.
+  std::vector<std::unique_ptr<Instance::ModuleInstance>> FailedMods;
 };
 
 } // namespace Runtime

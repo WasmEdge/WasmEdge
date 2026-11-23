@@ -50,17 +50,29 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     ModInst->addDefinedType(SubType);
   }
 
-  auto ReportModuleError = [&StoreMgr, &ModInst](auto E) {
+  // The active segments and the start function can publish references to this
+  // module, for example into an imported table. A failure before them frees
+  // the module, and a failure after them keeps it alive in the store.
+  bool MayBeReferenced = false;
+  auto ReleaseFailedModule = [&StoreMgr, &ModInst, &MayBeReferenced]() {
+    if (MayBeReferenced) {
+      StoreMgr.retainFailedModule(std::move(ModInst));
+    } else {
+      ModInst.release()->terminate();
+    }
+  };
+
+  auto ReportModuleError = [&ReleaseFailedModule](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    StoreMgr.recycleModule(std::move(ModInst));
+    ReleaseFailedModule();
     return E;
   };
 
-  auto ReportError = [&StoreMgr, &ModInst](ASTNodeAttr Attr) {
-    return [Attr, &StoreMgr, &ModInst](auto E) {
+  auto ReportError = [&ReleaseFailedModule](ASTNodeAttr Attr) {
+    return [Attr, &ReleaseFailedModule](auto E) {
       spdlog::error(ErrInfo::InfoAST(Attr));
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      StoreMgr.recycleModule(std::move(ModInst));
+      ReleaseFailedModule();
       return E;
     };
   };
@@ -132,6 +144,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Build the context before the active segments: they may write functions of
   // this module into imported tables, callable even if instantiation fails.
   ModInst->buildContext();
+  MayBeReferenced = true;
 
   // Initialize table instances
   EXPECTED_TRY(initTable(StackMgr, ElemSec)

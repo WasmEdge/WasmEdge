@@ -4654,6 +4654,36 @@ TEST(WasiTest, FdSyncDirectory) {
   }
 }
 
+namespace {
+// A uniquely named directory used as the preopen root, removed on scope exit.
+struct TestRoot {
+  std::filesystem::path Path;
+  explicit TestRoot(std::string_view Name)
+      : Path(std::string(Name) + "-" +
+             std::to_string(
+                 std::chrono::steady_clock::now().time_since_epoch().count())) {
+    std::error_code Error;
+    std::filesystem::remove_all(Path, Error);
+    std::filesystem::create_directories(Path, Error);
+  }
+  ~TestRoot() {
+    std::error_code Error;
+    std::filesystem::remove_all(Path, Error);
+  }
+};
+
+void writeFile(const std::filesystem::path &Path, std::string_view Content) {
+  std::ofstream File(Path, std::ios::binary);
+  File << Content;
+}
+
+std::string readFile(const std::filesystem::path &Path) {
+  std::ifstream File(Path, std::ios::binary);
+  return std::string(std::istreambuf_iterator<char>(File), {});
+}
+
+} // namespace
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;
@@ -4923,39 +4953,10 @@ TEST(WasiTest, SymbolicLink) {
 }
 #endif
 
-namespace {
-// A uniquely named directory used as the preopen root, removed on scope exit.
-struct SymlinkTestRoot {
-  std::filesystem::path Path;
-  explicit SymlinkTestRoot(std::string_view Name)
-      : Path(std::string(Name) + "-" +
-             std::to_string(
-                 std::chrono::steady_clock::now().time_since_epoch().count())) {
-    std::error_code Error;
-    std::filesystem::remove_all(Path, Error);
-    std::filesystem::create_directories(Path, Error);
-  }
-  ~SymlinkTestRoot() {
-    std::error_code Error;
-    std::filesystem::remove_all(Path, Error);
-  }
-};
-
-void writeFile(const std::filesystem::path &Path, std::string_view Content) {
-  std::ofstream File(Path, std::ios::binary);
-  File << Content;
-}
-
-std::string readFile(const std::filesystem::path &Path) {
-  std::ifstream File(Path, std::ios::binary);
-  return std::string(std::istreambuf_iterator<char>(File), {});
-}
-} // namespace
-
 // path_remove_directory acts on a symlink itself and never removes its target.
 TEST(WasiTest, PathRemoveDirectoryDoesNotFollowSymlink) {
   namespace fs = std::filesystem;
-  SymlinkTestRoot Root("wasmedge-wasi-rmdir-symlink");
+  TestRoot Root("wasmedge-wasi-rmdir-symlink");
   std::error_code Error;
   ASSERT_TRUE(fs::create_directory(Root.Path / "realdir", Error));
   fs::create_directory_symlink("realdir", Root.Path / "dirlink", Error);
@@ -4989,7 +4990,7 @@ TEST(WasiTest, PathRemoveDirectoryDoesNotFollowSymlink) {
 // path_rename moves or replaces a symlink itself and never touches its target.
 TEST(WasiTest, PathRenameDoesNotFollowSymlink) {
   namespace fs = std::filesystem;
-  SymlinkTestRoot Root("wasmedge-wasi-rename-symlink");
+  TestRoot Root("wasmedge-wasi-rename-symlink");
   std::error_code Error;
   ASSERT_TRUE(fs::create_directory(Root.Path / "sub", Error));
   writeFile(Root.Path / "target", "target_content");
@@ -5025,7 +5026,7 @@ TEST(WasiTest, PathRenameDoesNotFollowSymlink) {
 // existing symlink at the new path is not replaced or followed.
 TEST(WasiTest, PathLinkDoesNotFollowSymlink) {
   namespace fs = std::filesystem;
-  SymlinkTestRoot Root("wasmedge-wasi-link-symlink");
+  TestRoot Root("wasmedge-wasi-link-symlink");
   std::error_code Error;
   writeFile(Root.Path / "file", "f");
   fs::create_symlink("elsewhere", Root.Path / "dlink", Error);
@@ -5057,7 +5058,7 @@ TEST(WasiTest, PathLinkDoesNotFollowSymlink) {
 // path_create_directory on an existing symlink fails, even when it dangles.
 TEST(WasiTest, PathCreateDirectoryDoesNotFollowSymlink) {
   namespace fs = std::filesystem;
-  SymlinkTestRoot Root("wasmedge-wasi-mkdir-symlink");
+  TestRoot Root("wasmedge-wasi-mkdir-symlink");
   std::error_code Error;
   fs::create_symlink("newdir", Root.Path / "dangle", Error);
   if (Error) {
@@ -5079,7 +5080,7 @@ TEST(WasiTest, PathCreateDirectoryDoesNotFollowSymlink) {
 
 TEST(WasiTest, SymbolicLinkResolution) {
   namespace fs = std::filesystem;
-  SymlinkTestRoot Root("wasmedge-wasi-symlink-resolution");
+  TestRoot Root("wasmedge-wasi-symlink-resolution");
   std::error_code Error;
   ASSERT_TRUE(fs::create_directories(Root.Path / "sub", Error));
   writeFile(Root.Path / "target", "t");

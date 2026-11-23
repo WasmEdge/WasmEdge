@@ -6,6 +6,7 @@ wasmedge_add_executable(wasmedgeLLVMCoreTests
   DebugInfoReaderTest.cpp
   DebugInfoTypesTest.cpp
   DebugInfoAOTTest.cpp
+  DebugInfoRunTest.cpp
 )
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
@@ -32,6 +33,7 @@ if(NOT LLVM_ENABLE_RTTI AND NOT MSVC)
     DebugInfoReaderTest.cpp
     DebugInfoTypesTest.cpp
     DebugInfoAOTTest.cpp
+    DebugInfoRunTest.cpp
     PROPERTIES COMPILE_OPTIONS -fno-rtti)
 endif()
 target_include_directories(wasmedgeLLVMCoreTests

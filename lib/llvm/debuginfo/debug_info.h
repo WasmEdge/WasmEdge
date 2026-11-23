@@ -16,9 +16,9 @@
 
 namespace WasmEdge::LLVM::DebugInfo {
 
-struct FrameBase {
-  enum class Kind : uint8_t { None, Local, Global };
-  Kind K = Kind::None;
+struct AddressSlot {
+  enum class Kind : uint8_t { Local, Global, GlobalStorage };
+  Kind K = Kind::Local;
   uint32_t Index = 0;
 };
 
@@ -27,10 +27,19 @@ public:
   virtual ~FunctionDebugInfo() noexcept = default;
   virtual void setLocation(LLVMBuilderRef B, uint64_t FileOffset) noexcept = 0;
   virtual void setArtificialLocation(LLVMBuilderRef B) noexcept = 0;
-  virtual FrameBase getFrameBase() const noexcept = 0;
-  virtual void finish(LLVMBasicBlockRef Entry, Span<const LLVMValueRef> Locals,
-                      LLVMValueRef MemorySlot, LLVMValueRef FrameBaseSlot,
-                      LLVMValueRef ModCtxArg) noexcept = 0;
+  virtual Span<const AddressSlot> getAddressSlots() const noexcept = 0;
+  /// The index in getAddressSlots of the slot for a source, if one exists.
+  virtual std::optional<size_t>
+  findAddressSlot(AddressSlot::Kind K, uint32_t Index) const noexcept = 0;
+  /// False when the function gets only lines, so it needs no frame slots.
+  virtual bool hasVariables() const noexcept = 0;
+  virtual void bindFrame(Span<const LLVMValueRef> Locals,
+                         LLVMValueRef MemorySlot,
+                         Span<const LLVMValueRef> Slots,
+                         bool LocalsInMemory) noexcept = 0;
+  virtual void localWritten(LLVMBuilderRef B, uint32_t Index,
+                            LLVMValueRef Value) noexcept = 0;
+  virtual void finish(LLVMBasicBlockRef Entry) noexcept = 0;
 };
 
 class ModuleDebugInfo {

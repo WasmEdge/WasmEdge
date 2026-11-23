@@ -198,6 +198,64 @@ uint32_t markerLine(std::string_view Marker,
   return 0;
 }
 
+#if LLVM_VERSION_MAJOR < 12
+#else
+/// The native addresses of the rows for Line, in address order.
+std::vector<uint64_t> lineAddresses(NativeDwarf &D, uint32_t Line) {
+  std::vector<uint64_t> Result;
+  for (const auto &CU : D.Ctx->compile_units()) {
+    if (auto *LT = D.Ctx->getLineTableForUnit(CU.get())) {
+      for (const auto &Row : LT->Rows) {
+        if (Row.Line == Line && !Row.EndSequence) {
+          Result.push_back(Row.Address.Address);
+        }
+      }
+    }
+  }
+  std::sort(Result.begin(), Result.end());
+  return Result;
+}
+
+/// True when a bounded entry with a location expression covers Address.
+bool coversAddress(const llvm::DWARFLocationExpressionsVector &Locations,
+                   uint64_t Address) {
+  return std::any_of(Locations.begin(), Locations.end(),
+                     [Address](const llvm::DWARFLocationExpression &L) {
+                       return L.Range && L.Range->LowPC <= Address &&
+                              Address < L.Range->HighPC && !L.Expr.empty();
+                     });
+}
+
+/// The value of a constant location expression: DW_OP_lit, DW_OP_constu, or
+/// DW_OP_consts, then DW_OP_stack_value.
+std::optional<uint64_t> constantOf(llvm::ArrayRef<uint8_t> Expr) {
+  namespace dwarf = llvm::dwarf;
+  if (Expr.size() < 2 || Expr.back() != dwarf::DW_OP_stack_value) {
+    return std::nullopt;
+  }
+  const auto Op = Expr.front();
+  if (Op >= dwarf::DW_OP_lit0 && Op <= dwarf::DW_OP_lit31) {
+    return Expr.size() == 2 ? std::optional<uint64_t>(Op - dwarf::DW_OP_lit0)
+                            : std::nullopt;
+  }
+  if (Op != dwarf::DW_OP_constu && Op != dwarf::DW_OP_consts) {
+    return std::nullopt;
+  }
+  unsigned Size = 0;
+  const char *Error = nullptr;
+  const auto *Begin = Expr.data() + 1;
+  const auto *End = Expr.data() + Expr.size() - 1;
+  const uint64_t Value = Op == dwarf::DW_OP_constu
+                             ? llvm::decodeULEB128(Begin, &Size, End, &Error)
+                             : static_cast<uint64_t>(llvm::decodeSLEB128(
+                                   Begin, &Size, End, &Error));
+  if (Error || Begin + Size != End) {
+    return std::nullopt;
+  }
+  return Value;
+}
+#endif
+
 TEST(DebugInfoAOT, LinesAndSubprograms) {
   for (auto Level : {CompilerConfigure::OptimizationLevel::O0,
                      CompilerConfigure::OptimizationLevel::O2}) {
@@ -214,6 +272,33 @@ TEST(DebugInfoAOT, LinesAndSubprograms) {
       EXPECT_TRUE(D.hasLine("dwarf_basic.c"sv, markerLine("BREAK_FACT"sv)));
     }
     removeOutput(SO);
+  }
+}
+
+TEST(DebugInfoAOT, FunctionWithoutDwarfGetsArtificialSubprogram) {
+  for (auto Level : {CompilerConfigure::OptimizationLevel::O0,
+                     CompilerConfigure::OptimizationLevel::O2}) {
+    for (auto Name : {"dwarf_basic_O0.wasm"sv, "dwarf_basic_O2.wasm"sv}) {
+      auto SO = compileToSO(Configure{}, Name, true, Level);
+      ASSERT_FALSE(SO.empty());
+      NativeDwarf D;
+      ASSERT_TRUE(D.open(SO));
+      EXPECT_TRUE(D.hasSubprogram("run"sv)) << Name;
+      bool Artificial = false;
+      for (const auto &CU : D.Ctx->compile_units()) {
+        for (const auto &Entry : CU->dies()) {
+          llvm::DWARFDie Die(CU.get(), &Entry);
+          if (Die.getTag() == llvm::dwarf::DW_TAG_subprogram &&
+              Die.getName(llvm::DINameKind::ShortName) &&
+              "plain"sv == Die.getName(llvm::DINameKind::ShortName)) {
+            Artificial =
+                static_cast<bool>(Die.find(llvm::dwarf::DW_AT_artificial));
+          }
+        }
+      }
+      EXPECT_TRUE(Artificial) << Name;
+      removeOutput(SO);
+    }
   }
 }
 
@@ -252,6 +337,56 @@ TEST(DebugInfoAOT, LineRowsKeepTheirDiscriminators) {
   removeOutput(SO);
 }
 
+TEST(DebugInfoAOT, CxxFunctionsKeepTheirScopes) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  namespace dwarf = llvm::dwarf;
+  auto SO = compileToSO(Configure{}, "dwarf_scopes_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  auto NameOf = [](llvm::DWARFDie Die) {
+    const char *N = Die ? Die.getName(llvm::DINameKind::ShortName) : nullptr;
+    return std::string(N ? N : "");
+  };
+  std::set<std::string> RunScopes;
+  bool MethodInClass = false;
+  bool ScopedEnum = false;
+  bool ThisIsArtificial = false;
+  for (const auto &CU : D.Ctx->compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie Die(CU.get(), &Entry);
+      const auto Name = NameOf(Die);
+      const auto Parent = Die.getParent();
+      if (Die.getTag() == dwarf::DW_TAG_subprogram && Name == "run" &&
+          Parent.getTag() == dwarf::DW_TAG_namespace) {
+        RunScopes.insert(NameOf(Parent));
+      }
+      if (Die.getTag() == dwarf::DW_TAG_subprogram && Name == "add" &&
+          Parent.getTag() == dwarf::DW_TAG_structure_type &&
+          NameOf(Parent) == "Counter") {
+        MethodInClass = true;
+      }
+      if (Die.getTag() == dwarf::DW_TAG_enumeration_type && Name == "Color") {
+        ScopedEnum = dwarf::toUnsigned(Die.find(dwarf::DW_AT_enum_class), 0);
+      }
+      if (Die.getTag() == dwarf::DW_TAG_subprogram && Name == "add" &&
+          Die.find(dwarf::DW_AT_low_pc)) {
+        const auto This =
+            Die.getAttributeValueAsReferencedDie(dwarf::DW_AT_object_pointer);
+        ThisIsArtificial =
+            This && NameOf(This) == "this" &&
+            dwarf::toUnsigned(This.find(dwarf::DW_AT_artificial), 0);
+      }
+    }
+  }
+  EXPECT_EQ(RunScopes, (std::set<std::string>{"a", "b"}));
+  EXPECT_TRUE(MethodInClass);
+  EXPECT_TRUE(ScopedEnum);
+  EXPECT_TRUE(ThisIsArtificial);
+  removeOutput(SO);
+}
+
 TEST(DebugInfoAOT, InlinedTwiceAppearsAsInlinedSubroutine) {
   auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
                         CompilerConfigure::OptimizationLevel::O0);
@@ -271,6 +406,48 @@ TEST(DebugInfoAOT, InlinedTwiceAppearsAsInlinedSubroutine) {
     }
   }
   EXPECT_TRUE(Found);
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, OutOfLineCopyOfInlinedFunctionKeepsTypes) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  auto SO = compileToSO(Configure{}, "dwarf_inline_O2.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  auto TypeName = [](llvm::DWARFDie Die) -> std::string_view {
+    while (Die) {
+      if (auto T =
+              Die.getAttributeValueAsReferencedDie(llvm::dwarf::DW_AT_type)) {
+        const char *Name = T.getName(llvm::DINameKind::ShortName);
+        return Name ? Name : ""sv;
+      }
+      Die = Die.getAttributeValueAsReferencedDie(
+          llvm::dwarf::DW_AT_abstract_origin);
+    }
+    return {};
+  };
+  uint32_t Checked = 0;
+  for (const auto &CU : D.Ctx->compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie Die(CU.get(), &Entry);
+      if (Die.getTag() != llvm::dwarf::DW_TAG_subprogram ||
+          !Die.find(llvm::dwarf::DW_AT_low_pc) ||
+          !Die.getName(llvm::DINameKind::ShortName) ||
+          "half"sv != Die.getName(llvm::DINameKind::ShortName)) {
+        continue;
+      }
+      EXPECT_EQ(TypeName(Die), "int"sv);
+      for (auto C : Die.children()) {
+        if (C.getTag() == llvm::dwarf::DW_TAG_formal_parameter) {
+          EXPECT_EQ(TypeName(C), "int"sv);
+          ++Checked;
+        }
+      }
+    }
+  }
+  EXPECT_EQ(Checked, 1U);
   removeOutput(SO);
 }
 
@@ -715,6 +892,601 @@ TEST(DebugInfoAOT, CorruptDwarfStillCompilesAndRuns) {
     ASSERT_TRUE(R);
     EXPECT_EQ((*R)[0].first.get<uint32_t>(), 43U);
   }
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, SelfReferentialTypeStillCompiles) {
+  Configure Conf;
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  uint64_t ArrayOffset = 0;
+  uint64_t AttrOffset = 0;
+  uint32_t SelfRef = 0;
+  {
+    auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    ASSERT_NE(R, nullptr);
+    for (const auto &CU : R->getContext().compile_units()) {
+      for (const auto &Entry : CU->dies()) {
+        llvm::DWARFDie D(CU.get(), &Entry);
+        if (AttrOffset != 0 || D.getTag() != llvm::dwarf::DW_TAG_array_type) {
+          continue;
+        }
+        for (const auto &A : D.attributes()) {
+          if (A.Attr == llvm::dwarf::DW_AT_type &&
+              A.Value.getForm() == llvm::dwarf::DW_FORM_ref4) {
+            ArrayOffset = D.getOffset();
+            AttrOffset = A.Offset;
+            SelfRef = static_cast<uint32_t>(D.getOffset() - CU->getOffset());
+          }
+        }
+      }
+    }
+  }
+  ASSERT_NE(AttrOffset, 0U);
+  for (auto &Custom : Mod->getCustomSections()) {
+    if (Custom.getName() == ".debug_info"sv) {
+      auto &Bytes = Custom.getContent();
+      ASSERT_LE(AttrOffset + 4, Bytes.size());
+      for (uint32_t I = 0; I < 4; ++I) {
+        Bytes[AttrOffset + I] = static_cast<Byte>(SelfRef >> (I * 8));
+      }
+    }
+  }
+  llvm::LLVMContext Ctx;
+  llvm::Module M("t", Ctx);
+  auto DI = LLVM::DebugInfo::ModuleDebugInfo::create(
+      *Mod, llvm::wrap(&M), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
+  ASSERT_NE(DI, nullptr);
+  EXPECT_NE(DI->translateType(ArrayOffset), nullptr);
+  DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+  const auto SO = compileModuleToSO(Conf, *Mod, true,
+                                    CompilerConfigure::OptimizationLevel::O0,
+                                    tempOutput("self-referential"sv));
+  EXPECT_FALSE(SO.empty());
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, UnrepresentableVariantsAreOmitted) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  namespace dwarf = llvm::dwarf;
+  for (const bool DiscrList : {false, true}) {
+    Configure Conf;
+    auto Mod = loadFixture(Conf, "dwarf_enum_O0.wasm"sv);
+    ASSERT_NE(Mod, nullptr);
+    uint64_t Code = 0;
+    {
+      auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+      ASSERT_NE(R, nullptr);
+      auto Tagged =
+          findType(R->getContext(), dwarf::DW_TAG_structure_type, "Tagged"sv);
+      ASSERT_TRUE(Tagged);
+      for (auto Part : Tagged.children()) {
+        if (Part.getTag() != dwarf::DW_TAG_variant_part) {
+          continue;
+        }
+        auto Target =
+            DiscrList
+                ? Part.getFirstChild().getSibling()
+                : Part.getAttributeValueAsReferencedDie(dwarf::DW_AT_discr);
+        ASSERT_TRUE(Target);
+        Code = Target.getAbbreviationDeclarationPtr()->getCode();
+      }
+    }
+    ASSERT_NE(Code, 0U);
+    ASSERT_GT(
+        renameAbbrevAttribute(
+            *Mod, [Code](uint64_t C, uint64_t) { return C == Code; },
+            DiscrList ? dwarf::DW_AT_discr_value : dwarf::DW_AT_type,
+            DiscrList ? dwarf::DW_AT_discr_list : dwarf::DW_AT_description),
+        0U);
+    const auto SO = compileModuleToSO(
+        Conf, *Mod, true, CompilerConfigure::OptimizationLevel::O0,
+        tempOutput(DiscrList ? "discr-list"sv : "no-discr"sv));
+    ASSERT_FALSE(SO.empty()) << DiscrList;
+    NativeDwarf D;
+    ASSERT_TRUE(D.open(SO));
+    auto Native = findType(*D.Ctx, dwarf::DW_TAG_structure_type, "Tagged"sv);
+    ASSERT_TRUE(Native) << DiscrList;
+    for (auto Part : Native.children()) {
+      EXPECT_NE(Part.getTag(), dwarf::DW_TAG_variant_part) << DiscrList;
+    }
+    removeOutput(SO);
+  }
+}
+
+llvm::DWARFDie findVariable(llvm::DWARFContext &Ctx, std::string_view Fn,
+                            std::string_view Var) {
+  for (const auto &CU : Ctx.compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie D(CU.get(), &Entry);
+      const auto Tag = D.getTag();
+      if ((Tag != llvm::dwarf::DW_TAG_variable &&
+           Tag != llvm::dwarf::DW_TAG_formal_parameter) ||
+          !D.getName(llvm::DINameKind::ShortName) ||
+          Var != D.getName(llvm::DINameKind::ShortName)) {
+        continue;
+      }
+      auto P = D.getParent();
+      while (P && P.getTag() == llvm::dwarf::DW_TAG_lexical_block) {
+        P = P.getParent();
+      }
+      const bool InFn = P && P.getName(llvm::DINameKind::ShortName) &&
+                        Fn == P.getName(llvm::DINameKind::ShortName);
+      const bool Global =
+          Fn.empty() && P && P.getTag() == llvm::dwarf::DW_TAG_compile_unit;
+      if (InFn || Global) {
+        return D;
+      }
+    }
+  }
+  return {};
+}
+
+/// Sets the DW_OP_addr operand of a global variable.
+bool setGlobalAddress(AST::Module &Mod, std::string_view Var,
+                      uint32_t Address) {
+  uint64_t At = 0;
+  {
+    auto R = LLVM::DebugInfo::DwarfReader::create(Mod);
+    if (!R) {
+      return false;
+    }
+    auto Die = findVariable(R->getContext(), ""sv, Var);
+    if (!Die) {
+      return false;
+    }
+    for (const auto &A : Die.attributes()) {
+      if (A.Attr == llvm::dwarf::DW_AT_location &&
+          A.Value.getForm() == llvm::dwarf::DW_FORM_exprloc &&
+          A.ByteSize == 6) {
+        At = A.Offset + 2;
+      }
+    }
+  }
+  for (auto &Custom : Mod.getCustomSections()) {
+    if (Custom.getName() != ".debug_info"sv || At == 0) {
+      continue;
+    }
+    auto &Bytes = Custom.getContent();
+    if (Bytes[At - 1] != llvm::dwarf::DW_OP_addr) {
+      return false;
+    }
+    for (uint32_t I = 0; I < 4; ++I) {
+      Bytes[At + I] = static_cast<uint8_t>(Address >> (I * 8));
+    }
+    return true;
+  }
+  return false;
+}
+
+TEST(DebugInfoAOT, GlobalAtAddressZeroKeepsItsLocation) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  for (const auto [Address, Live] :
+       {std::pair{UINT32_C(0), true}, std::pair{UINT32_C(0xFFFFFFFF), false}}) {
+    Configure Conf;
+    auto Mod = loadFixture(Conf, "dwarf_data_O0.wasm"sv);
+    ASSERT_NE(Mod, nullptr);
+    ASSERT_TRUE(setGlobalAddress(*Mod, "Only"sv, Address));
+    auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    ASSERT_NE(R, nullptr);
+    EXPECT_EQ(R->hasGlobalVariables(), Live) << Address;
+    const auto SO = compileModuleToSO(
+        Conf, *Mod, true, CompilerConfigure::OptimizationLevel::O0,
+        tempOutput(fmt::format("global-{}", Address)));
+    ASSERT_FALSE(SO.empty());
+    NativeDwarf D;
+    ASSERT_TRUE(D.open(SO));
+    auto Only = findVariable(*D.Ctx, ""sv, "Only"sv);
+    EXPECT_EQ(Only && Only.find(llvm::dwarf::DW_AT_location), Live) << Address;
+    removeOutput(SO);
+  }
+}
+
+TEST(DebugInfoAOT, VariableWithoutALocationKeepsItsName) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  namespace dwarf = llvm::dwarf;
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  uint64_t Code = 0;
+  {
+    auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    ASSERT_NE(R, nullptr);
+    for (const auto &CU : R->getContext().compile_units()) {
+      for (const auto &Entry : CU->dies()) {
+        llvm::DWARFDie Die(CU.get(), &Entry);
+        const char *Name = Die.getName(llvm::DINameKind::ShortName);
+        if (Die.getTag() == dwarf::DW_TAG_variable && Name &&
+            "Total"sv == Name) {
+          Code = Die.getAbbreviationDeclarationPtr()->getCode();
+        }
+      }
+    }
+  }
+  ASSERT_NE(Code, 0U);
+  ASSERT_GT(renameAbbrevAttribute(
+                *Mod, [Code](uint64_t C, uint64_t) { return C == Code; },
+                dwarf::DW_AT_location, dwarf::DW_AT_description),
+            0U);
+  const auto SO = compileModuleToSO(Conf, *Mod, true,
+                                    CompilerConfigure::OptimizationLevel::O0,
+                                    tempOutput("no-location"sv));
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  auto Total = findVariable(*D.Ctx, "sumList"sv, "Total"sv);
+  ASSERT_TRUE(Total);
+  EXPECT_FALSE(Total.find(dwarf::DW_AT_location));
+  EXPECT_TRUE(Total.find(dwarf::DW_AT_type));
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, VariablesHaveLocations) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  for (auto [Fn, Var] :
+       {std::pair{"sumList"sv, "Head"sv}, std::pair{"sumList"sv, "Total"sv},
+        std::pair{"sumList"sv, "N"sv},
+        std::pair{"sumList"sv, "__wasm_memory"sv}, std::pair{"fact"sv, "N"sv},
+        std::pair{""sv, "Counter"sv}, std::pair{""sv, "Nodes"sv}}) {
+    auto V = findVariable(*D.Ctx, Fn, Var);
+    ASSERT_TRUE(V) << Fn << "::" << Var;
+    EXPECT_TRUE(V.find(llvm::dwarf::DW_AT_location)) << Fn << "::" << Var;
+  }
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, LocationListKeepsRanges) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O2.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  auto Head = findVariable(*D.Ctx, "sumList"sv, "Head"sv);
+  ASSERT_TRUE(Head);
+  auto Attr = Head.find(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(Attr);
+  EXPECT_FALSE(Attr->getAsBlock());
+#if LLVM_VERSION_MAJOR < 12
+#else
+  auto Locations = Head.getLocations(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(static_cast<bool>(Locations));
+  const auto Live = lineAddresses(D, markerLine("struct Node *N = Head"sv));
+  const auto Dead = lineAddresses(D, markerLine("return Total;"sv));
+  ASSERT_FALSE(Live.empty());
+  ASSERT_FALSE(Dead.empty());
+  EXPECT_TRUE(coversAddress(*Locations, Live.front()))
+      << std::hex << Live.front();
+  for (const auto Address : Dead) {
+    EXPECT_FALSE(coversAddress(*Locations, Address)) << std::hex << Address;
+  }
+  auto Total = findVariable(*D.Ctx, "sumList"sv, "Total"sv);
+  ASSERT_TRUE(Total);
+  auto TotalLocations = Total.getLocations(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(static_cast<bool>(TotalLocations));
+  bool TotalIsZero = false;
+  bool TotalInLocal = false;
+  for (const auto &L : *TotalLocations) {
+    if (const auto Value = constantOf(L.Expr)) {
+      TotalIsZero |= *Value == 0;
+    } else if (!L.Expr.empty()) {
+      TotalInLocal = true;
+    }
+  }
+  EXPECT_TRUE(TotalIsZero);
+  EXPECT_TRUE(TotalInLocal);
+  auto I = findVariable(*D.Ctx, "run"sv, "I"sv);
+  ASSERT_TRUE(I);
+  auto ILocations = I.getLocations(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(static_cast<bool>(ILocations));
+  std::set<uint64_t> IValues;
+  for (const auto &L : *ILocations) {
+    if (const auto Value = constantOf(L.Expr)) {
+      IValues.insert(*Value);
+    }
+  }
+  EXPECT_EQ(IValues, (std::set<uint64_t>{1, 2, 3}));
+#endif
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, DebugSlotsKeepTheStackCheckOfASmallLeaf) {
+  auto HasStackCheck = [](bool Debug) -> std::optional<bool> {
+    Configure Conf;
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        CompilerConfigure::OptimizationLevel::O0);
+    Conf.getCompilerConfigure().setDebugInfo(Debug);
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+    if (!Mod) {
+      return std::nullopt;
+    }
+    LLVM::Compiler Compiler(Conf);
+    auto Data = Compiler.compile(*Mod);
+    if (!Data) {
+      return std::nullopt;
+    }
+    auto *M = llvm::unwrap(Data->extract().LLModule.unwrap());
+    auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    if (!R) {
+      return std::nullopt;
+    }
+    const auto &Imports = Mod->getImportSection().getContent();
+    const auto Imported = static_cast<uint32_t>(std::count_if(
+        Imports.begin(), Imports.end(), [](const AST::ImportDesc &D) {
+          return D.getExternalType() == ExternalType::Function;
+        }));
+    for (uint32_t I = 0; I < Mod->getCodeSection().getContent().size(); ++I) {
+      if (R->getFunctionName(I + Imported) != "sumList") {
+        continue;
+      }
+      const auto *Fn = M->getFunction("f" + std::to_string(I + Imported));
+      if (!Fn) {
+        return std::nullopt;
+      }
+      for (const auto &B : *Fn) {
+        for (const auto &Instr : B) {
+          const auto *Call = llvm::dyn_cast<llvm::CallInst>(&Instr);
+          const auto *Callee = Call ? Call->getCalledFunction() : nullptr;
+          if (Callee && Callee->getName().substr(0, 14) == "llvm.stacksave") {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    return std::nullopt;
+  };
+  const auto Plain = HasStackCheck(false);
+  const auto Debug = HasStackCheck(true);
+  ASSERT_TRUE(Plain);
+  ASSERT_TRUE(Debug);
+  EXPECT_FALSE(*Plain);
+  EXPECT_TRUE(*Debug);
+}
+
+TEST(DebugInfoAOT, UnitWithoutLineTableKeepsNamesAndTypes) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  auto &Customs = Mod->getCustomSections();
+  Customs.erase(std::remove_if(Customs.begin(), Customs.end(),
+                               [](const AST::CustomSection &C) {
+                                 return C.getName() == ".debug_line"sv;
+                               }),
+                Customs.end());
+  const auto SO = compileModuleToSO(
+      Conf, *Mod, true, CompilerConfigure::OptimizationLevel::O0,
+      tempOutput("nolines"sv), readHexFixture("dwarf_basic_O0.wasm"sv));
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  auto Head = findVariable(*D.Ctx, "sumList"sv, "Head"sv);
+  ASSERT_TRUE(Head);
+  auto Type = Head.getAttributeValueAsReferencedDie(llvm::dwarf::DW_AT_type);
+  ASSERT_TRUE(Type);
+  const char *TypeName = Type.getName(llvm::DINameKind::ShortName);
+  EXPECT_STREQ(TypeName ? TypeName : "", "__wasm_ptr<Node>");
+  removeOutput(SO);
+}
+
+/// Joins the first wasm local range of the variable with the entry after it,
+/// so that the range also covers the start of the next path.
+bool widenFirstLocalRange(AST::Module &Mod, std::string_view Fn,
+                          std::string_view Var) {
+  uint64_t ListOffset = 0;
+  {
+    auto R = LLVM::DebugInfo::DwarfReader::create(Mod);
+    if (!R) {
+      return false;
+    }
+    auto Die = findVariable(R->getContext(), Fn, Var);
+    if (!Die) {
+      return false;
+    }
+    auto Offset =
+        llvm::dwarf::toSectionOffset(Die.find(llvm::dwarf::DW_AT_location));
+    if (!Offset) {
+      return false;
+    }
+    ListOffset = *Offset;
+  }
+  for (auto &Custom : Mod.getCustomSections()) {
+    if (Custom.getName() != ".debug_loc"sv) {
+      continue;
+    }
+    auto &Bytes = Custom.getContent();
+    auto read = [&](size_t At, size_t Size) {
+      uint64_t Value = 0;
+      for (size_t I = 0; I < Size; ++I) {
+        Value |= static_cast<uint64_t>(Bytes[At + I]) << (I * 8);
+      }
+      return Value;
+    };
+    for (size_t At = ListOffset; At + 10 <= Bytes.size();) {
+      const auto Begin = read(At, 4);
+      const auto End = read(At + 4, 4);
+      if (Begin == 0 && End == 0) {
+        return false;
+      }
+      if (Begin == UINT32_MAX) {
+        At += 8;
+        continue;
+      }
+      const auto Size = read(At + 8, 2);
+      const size_t Next = At + 10 + Size;
+      const bool Local =
+          Size >= 2 && Bytes[At + 10] == 0xed && Bytes[At + 11] == 0x00;
+      if (Local && Next + 8 <= Bytes.size() && read(Next, 4) > End) {
+        for (size_t I = 0; I < 4; ++I) {
+          Bytes[At + 4 + I] = Bytes[Next + I];
+        }
+        return true;
+      }
+      At = Next;
+    }
+  }
+  return false;
+}
+
+TEST(DebugInfoAOT, RangeReachesEveryPathThatEntersIt) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+#if LLVM_VERSION_MAJOR < 12
+  GTEST_SKIP() << "LLVM 11 and older cannot list native locations";
+#else
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_branch_O2.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  ASSERT_TRUE(widenFirstLocalRange(*Mod, "choose"sv, "R"sv));
+  const auto SO = compileModuleToSO(Conf, *Mod, true,
+                                    CompilerConfigure::OptimizationLevel::O0,
+                                    tempOutput("branch"sv));
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  auto R = findVariable(*D.Ctx, "choose"sv, "R"sv);
+  ASSERT_TRUE(R);
+  auto Locations = R.getLocations(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(static_cast<bool>(Locations));
+  const auto Then =
+      lineAddresses(D, markerLine("THEN_PATH"sv, "dwarf_branch.c"sv));
+  const auto Else =
+      lineAddresses(D, markerLine("ELSE_PATH"sv, "dwarf_branch.c"sv));
+  ASSERT_FALSE(Then.empty());
+  ASSERT_FALSE(Else.empty());
+  for (const auto Address : Then) {
+    EXPECT_FALSE(coversAddress(*Locations, Address)) << std::hex << Address;
+  }
+  for (const auto Address : Else) {
+    EXPECT_TRUE(coversAddress(*Locations, Address)) << std::hex << Address;
+  }
+  removeOutput(SO);
+#endif
+}
+
+TEST(DebugInfoAOT, ConstantLocalsKeepTheirValue) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  auto SO = compileToSO(Configure{}, "dwarf_const_O2.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  for (const auto &[Name, Value] : {std::pair{"Fixed"sv, INT64_C(42)},
+                                    std::pair{"Negative"sv, INT64_C(-2)}}) {
+    auto V = findVariable(*D.Ctx, "scale"sv, Name);
+    ASSERT_TRUE(V) << Name;
+    auto Constant = V.find(llvm::dwarf::DW_AT_const_value);
+    ASSERT_TRUE(Constant) << Name;
+    auto Signed = Constant->getAsSignedConstant();
+    ASSERT_TRUE(Signed) << Name;
+    EXPECT_EQ(*Signed, Value) << Name;
+  }
+  removeOutput(SO);
+
+  Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O0);
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_const_O2.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  LLVM::Compiler Compiler(Conf);
+  auto Data = Compiler.compile(*Mod);
+  ASSERT_TRUE(Data);
+  auto &M = *llvm::unwrap(Data->extract().LLModule.unwrap());
+  uint32_t Guarded = 0;
+  for (const auto &F : M) {
+    if (F.isDeclaration()) {
+      continue;
+    }
+    const auto &Entry = F.getEntryBlock();
+    const bool HasGuard =
+        std::any_of(Entry.begin(), Entry.end(), [](const llvm::Instruction &I) {
+          const auto *Call = llvm::dyn_cast<llvm::CallInst>(&I);
+          const auto *Callee = Call ? Call->getCalledFunction() : nullptr;
+          return Callee &&
+                 Callee->getIntrinsicID() == llvm::Intrinsic::stacksave;
+        });
+    if (!HasGuard) {
+      continue;
+    }
+    ++Guarded;
+    for (const auto &I : Entry) {
+      EXPECT_FALSE(llvm::isa<llvm::StoreInst>(I)) << F.getName().str();
+    }
+  }
+  EXPECT_GT(Guarded, 0U);
+#if LLVM_VERSION_MAJOR < 19
+#else
+  std::map<std::string, int64_t> Values;
+  for (const auto &F : M) {
+    for (const auto &I : llvm::instructions(F)) {
+      for (const llvm::DbgVariableRecord &DVR :
+           llvm::filterDbgVars(I.getDbgRecordRange())) {
+        const auto Name = DVR.getVariable()->getName().str();
+        if (Name != "Fixed" && Name != "Negative") {
+          continue;
+        }
+        EXPECT_FALSE(DVR.isDbgDeclare()) << Name;
+        EXPECT_EQ(&I, &F.getEntryBlock().front()) << Name;
+        if (const auto *C =
+                llvm::dyn_cast<llvm::ConstantInt>(DVR.getValue(0))) {
+          Values[Name] = C->getSExtValue();
+        }
+      }
+    }
+  }
+  EXPECT_EQ(Values["Fixed"], 42);
+  EXPECT_EQ(Values["Negative"], -2);
+#endif
+}
+
+TEST(DebugInfoAOT, Memory64GetsOnlyLines) {
+  for (auto Name :
+       {"dwarf_basic_mem64_O0.wasm"sv, "dwarf_basic_mem64_import_O0.wasm"sv}) {
+    Configure Conf;
+    Conf.addProposal(Proposal::Memory64);
+    auto SO =
+        compileToSO(Conf, Name, true, CompilerConfigure::OptimizationLevel::O0);
+    ASSERT_FALSE(SO.empty()) << Name;
+    NativeDwarf D;
+    ASSERT_TRUE(D.open(SO)) << Name;
+    EXPECT_TRUE(D.hasSubprogram("sumList"sv)) << Name;
+    EXPECT_TRUE(D.hasLine("dwarf_basic.c"sv, markerLine("BREAK_SUMLIST"sv)))
+        << Name;
+    EXPECT_FALSE(findVariable(*D.Ctx, "sumList"sv, "Head"sv)) << Name;
+    EXPECT_FALSE(findVariable(*D.Ctx, ""sv, "Counter"sv)) << Name;
+    EXPECT_FALSE(findVariable(*D.Ctx, "sumList"sv, "__wasm_memory"sv)) << Name;
+    bool HasTypes = false;
+    for (const auto &CU : D.Ctx->compile_units()) {
+      for (const auto &Entry : CU->dies()) {
+        llvm::DWARFDie Die(CU.get(), &Entry);
+        HasTypes |= Die.getTag() == llvm::dwarf::DW_TAG_structure_type ||
+                    Die.getTag() == llvm::dwarf::DW_TAG_base_type;
+      }
+    }
+    EXPECT_FALSE(HasTypes) << Name;
+    removeOutput(SO);
+  }
+}
+
+TEST(DebugInfoAOT, NoMemoryModuleCompiles) {
+  auto SO = compileToSO(Configure{}, "dwarf_nomem_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  EXPECT_TRUE(D.hasSubprogram("add3"sv));
   removeOutput(SO);
 }
 

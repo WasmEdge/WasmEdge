@@ -17,11 +17,16 @@ class FunctionCompiler {
   struct Control;
 
 public:
+  struct DebugPolicy {
+    bool LocalsInMemory = false;
+  };
+
   FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
                    bool GasMeasuring, bool IsLazyJIT, bool StackCheck,
-                   uint32_t FuncIndex, uint32_t DefinedIndex) noexcept;
+                   uint32_t FuncIndex, uint32_t DefinedIndex,
+                   DebugPolicy Debug) noexcept;
 
   LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept;
 
@@ -75,6 +80,18 @@ public:
   void updateGasAtTrap() noexcept;
 
 private:
+  void storeMemoryBase() noexcept;
+  void reloadMemoryBase() noexcept;
+  void reloadAfterCall() noexcept;
+  bool isBindable(const LLVM::DebugInfo::AddressSlot &Slot) const noexcept;
+  void refreshAddressSlots(bool MemoryMoved) noexcept;
+  /// Stores the host address that address slot I names. Value is the wasm
+  /// local or global that the slot follows, if the caller just wrote it.
+  void updateAddressSlot(size_t I, LLVM::Value Value = {}) noexcept;
+  void updateAddressSlots(LLVM::DebugInfo::AddressSlot::Kind K, uint32_t Index,
+                          LLVM::Value Value) noexcept;
+  void localWritten(uint32_t Index, LLVM::Value Value) noexcept;
+
   void compileTryTableOp(const AST::Instruction &Instr) noexcept;
 
   void compileThrowOp(const uint32_t TagIndex) noexcept;
@@ -265,6 +282,16 @@ private:
   LLVM::Value TmpValues = nullptr;
   size_t TmpValuesSize = 0;
   uint64_t TmpValuesUsed = 0;
+  /// Frame slots that only debug info uses.
+  struct DebugFrameSlots {
+    /// The host address of memory 0.
+    LLVM::Value Memory;
+    /// The host addresses that the address slots of the debug info name.
+    std::vector<LLVM::Value> Addresses;
+    /// The address slots that follow a wasm global, which a call can change.
+    std::vector<size_t> GlobalAddresses;
+  };
+  std::unique_ptr<DebugFrameSlots> DebugFrame;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;

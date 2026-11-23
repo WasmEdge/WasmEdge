@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge::LLVM::DebugInfo {
@@ -23,6 +24,28 @@ using llvm::DWARFDie;
 namespace dwarf = llvm::dwarf;
 
 inline constexpr uint32_t MaxDepth = 128;
+
+struct VariableLocation {
+  std::optional<WasmLocation> Single;
+  std::vector<LocationEntry> Ranges;
+};
+
+/// The location of D. ConstantsUsable lets a constant entry of a location
+/// list win over an overlapping entry that is not in a wasm local.
+std::optional<VariableLocation>
+locationOf(DWARFDie D, bool ConstantsUsable = false) noexcept;
+
+/// The linear memory address of a global variable: a single address
+/// location, or a location list that gives one address at every address,
+/// such as one DWARF 5 default entry. A list with a gap gives no address,
+/// because the variable is unavailable in the gap.
+std::optional<uint64_t>
+globalAddress(const std::optional<VariableLocation> &L) noexcept;
+
+std::optional<uint64_t> globalAddress(DWARFDie D) noexcept;
+
+bool coversScope(DWARFDie Scope,
+                 const std::vector<LocationEntry> &Entries) noexcept;
 
 std::string lineTableFile(const llvm::DWARFDebugLine::LineTable *LT,
                           llvm::DWARFUnit *U, uint64_t Index) noexcept;
@@ -65,6 +88,11 @@ DWARFDie stripAliases(DWARFDie T) noexcept;
 bool isSignedType(DWARFDie T) noexcept;
 
 uint64_t byteSize(DWARFDie D) noexcept;
+
+/// The width and signedness of an integer, boolean, or enumeration type.
+std::optional<std::pair<unsigned, bool>> integerType(DWARFDie T) noexcept;
+
+bool isAggregate(dwarf::Tag Tag) noexcept;
 
 /// The byte offset of a member or base in its parent, or std::nullopt if
 /// the offset is not a constant or a lone DW_OP_plus_uconst.

@@ -12,6 +12,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/Support/Path.h>
 
 #include <algorithm>
@@ -165,6 +166,12 @@ std::string typeName(DWARFDie D, uint32_t Depth) {
   return Name;
 }
 
+bool isStaticMember(DWARFDie C) noexcept {
+  return !C.find(dwarf::DW_AT_data_member_location) &&
+         (dwarf::toUnsigned(C.find(dwarf::DW_AT_declaration), 0) ||
+          dwarf::toUnsigned(C.find(dwarf::DW_AT_external), 0));
+}
+
 } // namespace
 
 llvm::DIFile *fileFor(UnitState &S, llvm::StringRef Path,
@@ -184,6 +191,26 @@ llvm::DIFile *file(UnitState &S, DWARFDie D) noexcept {
   return fileFor(S, Path, "");
 }
 
+llvm::DIType *TypeTranslator::variableType(UnitState &S,
+                                           DWARFDie Var) noexcept {
+  auto *T = type(S, ref(Var));
+  return T ? T : opaque(S, 0);
+}
+
+llvm::DIScope *TypeTranslator::namespaceScope(UnitState &S,
+                                              DWARFDie D) noexcept {
+  if (D.getTag() != dwarf::DW_TAG_namespace) {
+    return S.CU;
+  }
+  if (auto It = Namespaces.find(dieKey(D)); It != Namespaces.end()) {
+    return It->second;
+  }
+  auto *Scope =
+      S.DB->createNameSpace(namespaceScope(S, D.getParent()), name(D), false);
+  Namespaces[dieKey(D)] = Scope;
+  return Scope;
+}
+
 llvm::DIType *TypeTranslator::uchar(UnitState &S) noexcept {
   return S.DB->createBasicType("unsigned char", 8, dwarf::DW_ATE_unsigned_char);
 }
@@ -199,6 +226,29 @@ llvm::DIType *TypeTranslator::type(UnitState &S, DWARFDie D) noexcept {
   if (auto It = Types.find(dieKey(D)); It != Types.end()) {
     return It->second;
   }
+  if (TypeDepth >= MaxDepth) {
+    return nullptr;
+  }
+  ++TypeDepth;
+  if (auto P = D.getParent(); P && isAggregate(P.getTag())) {
+    type(S, P);
+  }
+  llvm::DIType *T = nullptr;
+  if (auto It = Types.find(dieKey(D)); It != Types.end()) {
+    T = It->second;
+  } else {
+    Types[dieKey(D)] = nullptr;
+    T = buildType(S, D);
+    Types[dieKey(D)] = T;
+  }
+  --TypeDepth;
+  if (TypeDepth == 0) {
+    completePointers();
+  }
+  return T;
+}
+
+llvm::DIType *TypeTranslator::buildType(UnitState &S, DWARFDie D) noexcept {
   auto &DB = *S.DB;
   llvm::DIType *T = nullptr;
   switch (D.getTag()) {
@@ -244,7 +294,6 @@ llvm::DIType *TypeTranslator::type(UnitState &S, DWARFDie D) noexcept {
     T = opaque(S, byteSize(D));
     break;
   }
-  Types[dieKey(D)] = T;
   return T;
 }
 
@@ -278,30 +327,16 @@ llvm::DIType *TypeTranslator::wasmPointer(UnitState &S, DWARFDie D) noexcept {
     return funcRef(S);
   }
   auto &Cached = PointerTypes[{reinterpret_cast<uintptr_t>(S.CU),
-                                Pointee ? dieKey(Pointee) : VoidPointeeKey}];
+                               Pointee ? dieKey(Pointee) : VoidPointeeKey}];
   if (Cached) {
     return Cached;
   }
-  auto &DB = *S.DB;
-  auto *T = DB.createReplaceableCompositeType(
+  auto *T = S.DB->createReplaceableCompositeType(
       dwarf::DW_TAG_structure_type, pointerName(Pointee), S.CU, nullptr, 0, 0,
       32, 32, llvm::DINode::FlagZero);
-  Types[dieKey(D)] = T;
+  PendingPointers.push_back({&S, T, Pointee});
   Cached = T;
-  llvm::DIType *Elem = Pointee ? type(S, Pointee) : nullptr;
-  if (!Elem) {
-    Elem = uchar(S);
-  }
-  auto *Addr = DB.createMemberType(T, "__addr", nullptr, 0, 32, 32, 0,
-                                   llvm::DINode::FlagZero, uint32(S));
-  auto *Arr = DB.createArrayType(
-      0, 0, Elem,
-      DB.getOrCreateArray({DB.getOrCreateSubrange(int64_t(0), int64_t(0))}));
-  auto *Pt = DB.createMemberType(T, "__pointee", nullptr, 0, uint64_t(0), 0,
-                                 uint64_t(0), llvm::DINode::FlagZero, Arr);
-  llvm::Metadata *Fields[] = {Addr, Pt};
-  DB.replaceArrays(T, DB.getOrCreateArray(Fields));
-  return llvm::MDNode::replaceWithDistinct(llvm::TempDICompositeType(T));
+  return T;
 }
 
 std::string TypeTranslator::pointerName(DWARFDie Pointee) {
@@ -322,6 +357,8 @@ llvm::DIScope *TypeTranslator::typeScope(UnitState &S, DWARFDie D) noexcept {
     return S.CU;
   }
   switch (P.getTag()) {
+  case dwarf::DW_TAG_namespace:
+    return namespaceScope(S, P);
   case dwarf::DW_TAG_structure_type:
   case dwarf::DW_TAG_class_type:
   case dwarf::DW_TAG_union_type:
@@ -332,6 +369,35 @@ llvm::DIScope *TypeTranslator::typeScope(UnitState &S, DWARFDie D) noexcept {
   default:
     return S.CU;
   }
+}
+
+void TypeTranslator::completePointers() noexcept {
+  ++TypeDepth;
+  while (!PendingPointers.empty()) {
+    const auto Pending = PendingPointers.back();
+    PendingPointers.pop_back();
+    completePointer(*Pending.S, Pending.T, Pending.Pointee);
+  }
+  --TypeDepth;
+}
+
+void TypeTranslator::completePointer(UnitState &S, llvm::DICompositeType *T,
+                                     DWARFDie Pointee) noexcept {
+  auto &DB = *S.DB;
+  llvm::DIType *Elem = Pointee ? type(S, Pointee) : nullptr;
+  if (!Elem) {
+    Elem = uchar(S);
+  }
+  auto *Addr = DB.createMemberType(T, "__addr", nullptr, 0, 32, 32, 0,
+                                   llvm::DINode::FlagZero, uint32(S));
+  auto *Arr = DB.createArrayType(
+      0, 0, DB.createPointerType(Elem, PointerBits),
+      DB.getOrCreateArray({DB.getOrCreateSubrange(int64_t(0), int64_t(0))}));
+  auto *Pt = DB.createMemberType(T, "__pointee", nullptr, 0, uint64_t(0), 0,
+                                 uint64_t(0), llvm::DINode::FlagZero, Arr);
+  llvm::Metadata *Fields[] = {Addr, Pt};
+  DB.replaceArrays(T, DB.getOrCreateArray(Fields));
+  llvm::MDNode::replaceWithDistinct(llvm::TempDICompositeType(T));
 }
 
 llvm::DIDerivedType *TypeTranslator::member(UnitState &S, llvm::DIScope *Scope,
@@ -449,7 +515,9 @@ llvm::DIType *TypeTranslator::composite(UnitState &S, DWARFDie D) noexcept {
     llvm::Metadata *E = nullptr;
     switch (C.getTag()) {
     case dwarf::DW_TAG_member:
-      E = member(S, T, C);
+      if (!isStaticMember(C)) {
+        E = member(S, T, C);
+      }
       break;
     case dwarf::DW_TAG_inheritance:
       if (dwarf::toUnsigned(C.find(dwarf::DW_AT_virtuality),

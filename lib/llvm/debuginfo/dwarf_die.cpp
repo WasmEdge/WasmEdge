@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "debuginfo/dwarf_die.h"
+#include "debuginfo/dwarf_reader.h"
 
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/Config/llvm-config.h>
@@ -23,6 +24,134 @@
 #include <vector>
 
 namespace WasmEdge::LLVM::DebugInfo {
+
+namespace {
+
+#if LLVM_VERSION_MAJOR < 10
+std::optional<std::vector<LocationEntry>>
+locationList(DWARFDie D, const llvm::DWARFFormValue &Attr) noexcept {
+  auto Offset = Attr.getAsSectionOffset();
+  if (!Offset) {
+    return std::nullopt;
+  }
+  auto *U = D.getDwarfUnit();
+  const auto Section = U->getContext().getDWARFObj().getLocSection().Data;
+  llvm::DataExtractor Data(Section, true, U->getAddressByteSize());
+  const uint64_t Max = U->getAddressByteSize() == 4 ? UINT32_MAX : UINT64_MAX;
+  uint64_t Base = 0;
+  if (auto B = U->getBaseAddress()) {
+    Base = B->Address;
+  }
+  uint32_t Cursor = static_cast<uint32_t>(*Offset);
+  const auto Convention = locationConvention(U);
+  std::vector<LocationEntry> Entries;
+  while (Data.isValidOffsetForDataOfSize(Cursor, 2 * U->getAddressByteSize())) {
+    const auto Begin = Data.getAddress(&Cursor);
+    const auto End = Data.getAddress(&Cursor);
+    if (Begin == 0 && End == 0) {
+      return Entries;
+    }
+    if (Begin == Max) {
+      Base = End;
+      continue;
+    }
+    const auto Size = Data.getU16(&Cursor);
+    if (!Data.isValidOffsetForDataOfSize(Cursor, Size)) {
+      return std::nullopt;
+    }
+    Entries.push_back({Base + Begin, Base + End,
+                       decodeLocation(llvm::ArrayRef<uint8_t>(
+                                          Section.bytes_begin() + Cursor, Size),
+                                      U, Convention)});
+    Cursor += Size;
+  }
+  return std::nullopt;
+}
+#endif
+
+} // namespace
+
+std::optional<VariableLocation> locationOf(DWARFDie D,
+                                           bool ConstantsUsable) noexcept {
+  auto Attr = D.find(dwarf::DW_AT_location);
+  if (!Attr) {
+    return std::nullopt;
+  }
+  if (auto Block = Attr->getAsBlock()) {
+    return VariableLocation{decodeLocation(*Block, D.getDwarfUnit()), {}};
+  }
+  VariableLocation Result;
+  std::vector<LocationEntry> Bounded;
+  std::vector<WasmLocation> Defaults;
+#if LLVM_VERSION_MAJOR < 10
+  auto Locs = locationList(D, *Attr);
+  if (!Locs) {
+    return std::nullopt;
+  }
+  Bounded = std::move(*Locs);
+#else
+  auto Locs = D.getLocations(dwarf::DW_AT_location);
+  if (!Locs) {
+    llvm::consumeError(Locs.takeError());
+    return std::nullopt;
+  }
+  auto *U = D.getDwarfUnit();
+  const auto Convention = locationConvention(U);
+  for (const auto &E : *Locs) {
+    const auto L = decodeLocation(E.Expr, U, Convention);
+    if (E.Range) {
+      Bounded.push_back({E.Range->LowPC, E.Range->HighPC, L});
+    } else {
+      Defaults.push_back(L);
+    }
+  }
+#endif
+  Result.Ranges =
+      normalizeLocationEntries(std::move(Bounded), Defaults, ConstantsUsable);
+  if (std::none_of(Result.Ranges.begin(), Result.Ranges.end(),
+                   [](const LocationEntry &E) {
+                     return E.L.K != WasmLocation::Kind::None;
+                   })) {
+    return std::nullopt;
+  }
+  return Result;
+}
+
+std::optional<uint64_t>
+globalAddress(const std::optional<VariableLocation> &L) noexcept {
+  if (!L) {
+    return std::nullopt;
+  }
+  if (L->Single) {
+    if (L->Single->K == WasmLocation::Kind::Address) {
+      return L->Single->Index;
+    }
+    return std::nullopt;
+  }
+  if (L->Ranges.size() != 1 || L->Ranges.front().Low != 0 ||
+      L->Ranges.front().High != UINT64_MAX ||
+      L->Ranges.front().L.K != WasmLocation::Kind::Address) {
+    return std::nullopt;
+  }
+  return L->Ranges.front().L.Index;
+}
+
+std::optional<uint64_t> globalAddress(DWARFDie D) noexcept {
+  return globalAddress(locationOf(D));
+}
+
+bool coversScope(DWARFDie Scope,
+                 const std::vector<LocationEntry> &Entries) noexcept {
+  auto Ranges = Scope.getAddressRanges();
+  if (!Ranges) {
+    llvm::consumeError(Ranges.takeError());
+    return false;
+  }
+  return !Ranges->empty() &&
+         std::all_of(Ranges->begin(), Ranges->end(), [&](const auto &R) {
+           return coversRange(Entries, R.LowPC, R.HighPC);
+         });
+}
 
 std::string lineTableFile(const llvm::DWARFDebugLine::LineTable *LT,
                           llvm::DWARFUnit *U, uint64_t Index) noexcept {
@@ -176,6 +305,40 @@ bool isSignedType(DWARFDie T) noexcept {
 
 uint64_t byteSize(DWARFDie D) noexcept {
   return dwarf::toUnsigned(D.find(dwarf::DW_AT_byte_size), 0);
+}
+
+std::optional<std::pair<unsigned, bool>> integerType(DWARFDie T) noexcept {
+  T = stripAliases(T);
+  if (!T) {
+    return std::nullopt;
+  }
+  const auto Bits = byteSize(T) * 8;
+  if (Bits == 0 || Bits > 64) {
+    return std::nullopt;
+  }
+  if (T.getTag() == dwarf::DW_TAG_enumeration_type) {
+    return std::pair{static_cast<unsigned>(Bits), isSignedType(ref(T))};
+  }
+  if (T.getTag() != dwarf::DW_TAG_base_type) {
+    return std::nullopt;
+  }
+  switch (dwarf::toUnsigned(T.find(dwarf::DW_AT_encoding), 0)) {
+  case dwarf::DW_ATE_signed:
+  case dwarf::DW_ATE_signed_char:
+    return std::pair{static_cast<unsigned>(Bits), true};
+  case dwarf::DW_ATE_unsigned:
+  case dwarf::DW_ATE_unsigned_char:
+  case dwarf::DW_ATE_boolean:
+  case dwarf::DW_ATE_UTF:
+    return std::pair{static_cast<unsigned>(Bits), false};
+  default:
+    return std::nullopt;
+  }
+}
+
+bool isAggregate(dwarf::Tag Tag) noexcept {
+  return Tag == dwarf::DW_TAG_structure_type ||
+         Tag == dwarf::DW_TAG_class_type || Tag == dwarf::DW_TAG_union_type;
 }
 
 std::optional<uint64_t> memberOffset(DWARFDie D) noexcept {

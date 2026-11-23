@@ -915,6 +915,9 @@ public:
   void setLinkage(LLVMLinkage Linkage) noexcept {
     LLVMSetLinkage(Ref, Linkage);
   }
+  LLVMVisibility getVisibility() const noexcept {
+    return LLVMGetVisibility(Ref);
+  }
   void setVisibility(LLVMVisibility Viz) noexcept {
     LLVMSetVisibility(Ref, Viz);
   }
@@ -1403,6 +1406,12 @@ public:
     return Ret;
   }
 
+  Value createGEP1(Type Ty, Value Pointer, Value Idx0,
+                   const char *Name = "") noexcept {
+    LLVMValueRef Data[1] = {Idx0.unwrap()};
+    return LLVMBuildGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
+                         static_cast<unsigned>(std::size(Data)), Name);
+  }
   Value createInBoundsGEP1(Type Ty, Value Pointer, Value Idx0,
                            const char *Name = "") noexcept {
     LLVMValueRef Data[1] = {Idx0.unwrap()};

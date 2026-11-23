@@ -13,13 +13,11 @@ using namespace std::literals;
 
 namespace WasmEdge {
 
-FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
-                                   LLVM::FunctionCallee F,
-                                   Span<const ValType> Locals,
-                                   bool Interruptible, bool InstructionCounting,
-                                   bool GasMeasuring, bool IsLazyJIT,
-                                   bool StackCheck, uint32_t FuncIndex,
-                                   uint32_t DefinedIndex) noexcept
+FunctionCompiler::FunctionCompiler(
+    LLVM::Compiler::CompileContext &Context, LLVM::FunctionCallee F,
+    Span<const ValType> Locals, bool Interruptible, bool InstructionCounting,
+    bool GasMeasuring, bool IsLazyJIT, bool StackCheck, uint32_t FuncIndex,
+    uint32_t DefinedIndex, DebugPolicy Debug) noexcept
     : Context(Context), LLContext(Context.LLContext),
       Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
       Builder(LLContext) {
@@ -55,8 +53,22 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       LLVM::Type Ty = toLLVMType(LLContext, Type);
       Local.emplace_back(Ty, Builder.createAlloca(Ty));
     }
+    if (DI && DI->hasVariables()) {
+      DebugFrame = std::make_unique<DebugFrameSlots>();
+      if (!Context.MemoryAddrTypes.empty()) {
+        DebugFrame->Memory = Builder.createAlloca(Context.Int8PtrTy);
+      }
+      for (const auto &Slot : DI->getAddressSlots()) {
+        const bool Bindable = isBindable(Slot);
+        if (Bindable && Slot.K == LLVM::DebugInfo::AddressSlot::Kind::Global) {
+          DebugFrame->GlobalAddresses.push_back(DebugFrame->Addresses.size());
+        }
+        DebugFrame->Addresses.push_back(
+            Bindable ? Builder.createAlloca(Context.Int8PtrTy) : LLVM::Value());
+      }
+    }
 
-    if (StackCheck) {
+    if (StackCheck || (DebugFrame && !DebugFrame->Addresses.empty())) {
       checkStackLimit();
     }
 
@@ -76,7 +88,138 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
           toLLVMConstantZero(LLContext, Type, Context.CompositeTypes),
           (LocalIt++)->second);
     }
+    if (DebugFrame) {
+      storeMemoryBase();
+      std::vector<LLVMValueRef> LocalRefs;
+      LocalRefs.reserve(Local.size());
+      for (const auto &L : Local) {
+        LocalRefs.push_back(L.second.unwrap());
+      }
+      std::vector<LLVMValueRef> SlotRefs;
+      SlotRefs.reserve(DebugFrame->Addresses.size());
+      for (size_t I = 0; I < DebugFrame->Addresses.size(); ++I) {
+        updateAddressSlot(I);
+        SlotRefs.push_back(DebugFrame->Addresses[I].unwrap());
+      }
+      DI->bindFrame(LocalRefs, DebugFrame->Memory.unwrap(), SlotRefs,
+                    Debug.LocalsInMemory);
+    }
   }
+}
+
+void FunctionCompiler::storeMemoryBase() noexcept {
+  if (!DebugFrame || !DebugFrame->Memory) {
+    return;
+  }
+  auto Base = Context.getMemory(Builder, ModCtx, 0);
+  Builder.createStore(Base, DebugFrame->Memory);
+  if (auto MB = LLVM::Value(Context.DI->getMemoryBaseGlobal())) {
+    auto Store = Builder.createStore(Base, MB);
+    Store.setOrdering(LLVMAtomicOrderingMonotonic);
+    Store.setAlignment(8);
+  }
+}
+
+void FunctionCompiler::reloadMemoryBase() noexcept {
+#if !WASMEDGE_ALLOCATOR_IS_STABLE
+  if (!DebugFrame || !DebugFrame->Memory) {
+    return;
+  }
+  storeMemoryBase();
+  refreshAddressSlots(true);
+#endif
+}
+
+void FunctionCompiler::reloadAfterCall() noexcept {
+#if WASMEDGE_ALLOCATOR_IS_STABLE
+  if (DI) {
+    refreshAddressSlots(false);
+  }
+#else
+  reloadMemoryBase();
+#endif
+}
+
+bool FunctionCompiler::isBindable(
+    const LLVM::DebugInfo::AddressSlot &Slot) const noexcept {
+  using Kind = LLVM::DebugInfo::AddressSlot::Kind;
+  switch (Slot.K) {
+  case Kind::Local:
+    return DebugFrame->Memory && Slot.Index < Local.size() &&
+           Local[Slot.Index].first.isIntegerTy();
+  case Kind::Global:
+    return DebugFrame->Memory && Slot.Index < Context.Globals.size() &&
+           Context.Globals[Slot.Index].isIntegerTy();
+  case Kind::GlobalStorage:
+    return Slot.Index < Context.Globals.size();
+  }
+  return false;
+}
+
+void FunctionCompiler::refreshAddressSlots(bool MemoryMoved) noexcept {
+  using Kind = LLVM::DebugInfo::AddressSlot::Kind;
+  if (!DebugFrame) {
+    return;
+  }
+  if (!MemoryMoved) {
+    for (const auto I : DebugFrame->GlobalAddresses) {
+      updateAddressSlot(I);
+    }
+    return;
+  }
+  const auto Sources = DI->getAddressSlots();
+  for (size_t I = 0; I < Sources.size(); ++I) {
+    if (Sources[I].K == Kind::Global || Sources[I].K == Kind::Local) {
+      updateAddressSlot(I);
+    }
+  }
+}
+
+void FunctionCompiler::updateAddressSlot(size_t I, LLVM::Value Value) noexcept {
+  using Kind = LLVM::DebugInfo::AddressSlot::Kind;
+  auto Slot = DebugFrame->Addresses[I];
+  if (!Slot) {
+    return;
+  }
+  const auto Source = DI->getAddressSlots()[I];
+  if (Source.K == Kind::GlobalStorage) {
+    Builder.createStore(
+        Builder.createBitCast(
+            Context.getGlobal(Builder, ModCtx, Source.Index).second,
+            Context.Int8PtrTy),
+        Slot);
+    return;
+  }
+  if (!Value && Source.K == Kind::Local) {
+    Value = Builder.createLoad(Local[Source.Index].first,
+                               Local[Source.Index].second);
+  } else if (!Value) {
+    const auto G = Context.getGlobal(Builder, ModCtx, Source.Index);
+    Value = Builder.createLoad(G.first, G.second);
+  }
+  auto Offset = Builder.createZExtOrTrunc(Value, Context.Int64Ty);
+  auto Base = Builder.createLoad(Context.Int8PtrTy, DebugFrame->Memory);
+  Builder.createStore(Builder.createGEP1(Context.Int8Ty, Base, Offset), Slot);
+}
+
+void FunctionCompiler::updateAddressSlots(LLVM::DebugInfo::AddressSlot::Kind K,
+                                          uint32_t Index,
+                                          LLVM::Value Value) noexcept {
+  if (!DI || DI->getAddressSlots().empty()) {
+    return;
+  }
+  if (const auto Slot = DI->findAddressSlot(K, Index)) {
+    updateAddressSlot(*Slot, Value);
+  }
+}
+
+void FunctionCompiler::localWritten(uint32_t Index,
+                                    LLVM::Value Value) noexcept {
+  if (!DI) {
+    return;
+  }
+  updateAddressSlots(LLVM::DebugInfo::AddressSlot::Kind::Local, Index, Value);
+  DI->localWritten(Builder.unwrap(), Index, Value.unwrap());
 }
 
 LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
@@ -142,6 +285,10 @@ Expect<void> FunctionCompiler::compile(
     } else {
       Builder.createRet(LLVM::Value::getUndef(Ty));
     }
+  }
+
+  if (DI) {
+    DI->finish(LLVMGetEntryBasicBlock(F.Fn.unwrap()));
   }
   return {};
 }
@@ -471,22 +618,30 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       stackPush(Builder.createLoad(L.first, L.second));
       break;
     }
-    case OpCode::Local__set:
-      Builder.createStore(stackPop(), Local[Instr.getTargetIndex()].second);
+    case OpCode::Local__set: {
+      auto Value = stackPop();
+      Builder.createStore(Value, Local[Instr.getTargetIndex()].second);
+      localWritten(Instr.getTargetIndex(), Value);
       break;
+    }
     case OpCode::Local__tee:
       Builder.createStore(Stack.back(), Local[Instr.getTargetIndex()].second);
+      localWritten(Instr.getTargetIndex(), Stack.back());
       break;
     case OpCode::Global__get: {
       const auto G = Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
       stackPush(Builder.createLoad(G.first, G.second));
       break;
     }
-    case OpCode::Global__set:
+    case OpCode::Global__set: {
+      auto Value = stackPop();
       Builder.createStore(
-          stackPop(),
+          Value,
           Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex()).second);
+      updateAddressSlots(LLVM::DebugInfo::AddressSlot::Kind::Global,
+                         Instr.getTargetIndex(), Value);
       break;
+    }
 
     // Table Instructions
     case OpCode::Table__get: {
@@ -1508,6 +1663,7 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
     stackPush(Ret);
   }
 
+  reloadAfterCall();
   checkPendingException();
 }
 
@@ -1677,6 +1833,7 @@ void FunctionCompiler::compileIndirectCallOp(
     stackPush(PHIRet);
   }
 
+  reloadAfterCall();
   checkPendingException();
 }
 
@@ -2003,6 +2160,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     stackPush(PHIRet);
   }
 
+  reloadAfterCall();
   checkPendingException();
 }
 

@@ -16,16 +16,25 @@ struct TypeFixture {
   llvm::LLVMContext Ctx;
   std::unique_ptr<llvm::Module> M;
   std::unique_ptr<LLVM::DebugInfo::ModuleDebugInfo> DI;
-  bool load(std::string_view Name) {
-    return adopt(loadFixture(Conf, Name));
+  bool load(std::string_view Name, std::string_view Triple = {}) {
+    return adopt(loadFixture(Conf, Name), Triple);
   }
-  bool adopt(std::unique_ptr<AST::Module> Module) {
+  bool adopt(std::unique_ptr<AST::Module> Module,
+             std::string_view Triple = {}) {
     Mod = std::move(Module);
     if (!Mod) {
       return false;
     }
     Reader = LLVM::DebugInfo::DwarfReader::create(*Mod);
     M = std::make_unique<llvm::Module>("t", Ctx);
+    if (!Triple.empty()) {
+#if LLVM_VERSION_MAJOR < 21
+      M->setTargetTriple(llvm::StringRef(Triple.data(), Triple.size()));
+#else
+      M->setTargetTriple(
+          llvm::Triple(llvm::StringRef(Triple.data(), Triple.size())));
+#endif
+    }
     DI = LLVM::DebugInfo::ModuleDebugInfo::create(
         *Mod, llvm::wrap(M.get()), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
     return Reader && DI;
@@ -49,7 +58,9 @@ TEST(DebugInfoTypes, RecursiveStructUsesWasmPointer) {
   EXPECT_EQ(Ptr->getSizeInBits(), 32U);
   auto *Pointee = llvm::cast<llvm::DIDerivedType>(Ptr->getElements()[1]);
   auto *Arr = llvm::cast<llvm::DICompositeType>(Pointee->getBaseType());
-  EXPECT_EQ(Arr->getBaseType(), T);
+  auto *Elem = llvm::cast<llvm::DIDerivedType>(Arr->getBaseType());
+  EXPECT_EQ(Elem->getTag(), llvm::dwarf::DW_TAG_pointer_type);
+  EXPECT_EQ(Elem->getBaseType(), T);
   F.DI->finalize();
   EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
 }
@@ -69,6 +80,133 @@ TEST(DebugInfoTypes, RustEnumHasVariantPart) {
     }
   }
   EXPECT_TRUE(HasVariantPart);
+  auto *NS = llvm::dyn_cast_or_null<llvm::DINamespace>(T->getScope());
+  ASSERT_NE(NS, nullptr);
+  EXPECT_EQ(NS->getName(), "dwarf_enum");
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, NestedTypeFirstKeepsEnclosingMembers) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_nested_O0.wasm"sv));
+  auto KindDie = findType(F.Reader->getContext(),
+                          llvm::dwarf::DW_TAG_enumeration_type, "Kind"sv);
+  auto OuterDie = findType(F.Reader->getContext(),
+                           llvm::dwarf::DW_TAG_structure_type, "Outer"sv);
+  ASSERT_TRUE(KindDie);
+  ASSERT_TRUE(OuterDie);
+  auto *Kind = llvm::dyn_cast_or_null<llvm::DICompositeType>(
+      llvm::unwrap(F.DI->translateType(KindDie.getOffset())));
+  ASSERT_NE(Kind, nullptr);
+  auto *T = llvm::cast<llvm::DICompositeType>(
+      llvm::unwrap(F.DI->translateType(OuterDie.getOffset())));
+  EXPECT_EQ(Kind->getScope(), T);
+  ASSERT_EQ(T->getElements().size(), 4U);
+  auto *K = llvm::cast<llvm::DIDerivedType>(T->getElements()[0]);
+  EXPECT_EQ(K->getName(), "K");
+  EXPECT_EQ(K->getBaseType(), Kind);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, Dwarf2MemberLayout) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_nested_O0.wasm"sv));
+  auto OuterDie = findType(F.Reader->getContext(),
+                           llvm::dwarf::DW_TAG_structure_type, "Outer"sv);
+  ASSERT_TRUE(OuterDie);
+  auto *T = llvm::cast<llvm::DICompositeType>(
+      llvm::unwrap(F.DI->translateType(OuterDie.getOffset())));
+  ASSERT_EQ(T->getElements().size(), 4U);
+  auto *Low = llvm::cast<llvm::DIDerivedType>(T->getElements()[1]);
+  auto *High = llvm::cast<llvm::DIDerivedType>(T->getElements()[2]);
+  auto *Tail = llvm::cast<llvm::DIDerivedType>(T->getElements()[3]);
+  EXPECT_EQ(Low->getName(), "Low");
+  EXPECT_EQ(Low->getOffsetInBits(), 32U);
+  EXPECT_EQ(Low->getSizeInBits(), 3U);
+  EXPECT_EQ(High->getName(), "High");
+  EXPECT_EQ(High->getOffsetInBits(), 35U);
+  EXPECT_EQ(High->getSizeInBits(), 5U);
+  EXPECT_EQ(Tail->getName(), "Tail");
+  EXPECT_EQ(Tail->getOffsetInBits(), 64U);
+  EXPECT_EQ(Tail->getSizeInBits(), 32U);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, BitFieldBeforeTheParentIsDropped) {
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_nested_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  uint64_t Code = 0;
+  uint64_t ValueAt = 0;
+  {
+    auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    ASSERT_NE(R, nullptr);
+    auto Outer = findType(R->getContext(), llvm::dwarf::DW_TAG_structure_type,
+                          "Outer"sv);
+    ASSERT_TRUE(Outer);
+    for (auto C : Outer.children()) {
+      const char *Name = C.getName(llvm::DINameKind::ShortName);
+      if (!Name || "Low"sv != Name) {
+        continue;
+      }
+      for (const auto &A : C.attributes()) {
+        if (A.Attr == llvm::dwarf::DW_AT_bit_offset &&
+            A.Value.getForm() == llvm::dwarf::DW_FORM_data1) {
+          Code = C.getAbbreviationDeclarationPtr()->getCode();
+          ValueAt = A.Offset;
+        }
+      }
+    }
+  }
+  ASSERT_NE(Code, 0U);
+  for (auto &Custom : Mod->getCustomSections()) {
+    if (Custom.getName() == ".debug_info"sv) {
+      Custom.getContent()[ValueAt] = 96;
+    }
+  }
+  auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+  ASSERT_NE(R, nullptr);
+  llvm::LLVMContext Ctx;
+  llvm::Module M("t", Ctx);
+  auto DI = LLVM::DebugInfo::ModuleDebugInfo::create(
+      *Mod, llvm::wrap(&M), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
+  ASSERT_NE(DI, nullptr);
+  auto OuterDie =
+      findType(R->getContext(), llvm::dwarf::DW_TAG_structure_type, "Outer"sv);
+  ASSERT_TRUE(OuterDie);
+  auto *T = llvm::cast<llvm::DICompositeType>(
+      llvm::unwrap(DI->translateType(OuterDie.getOffset())));
+  bool HasHigh = false;
+  for (auto *E : T->getElements()) {
+    const auto Name = llvm::cast<llvm::DIDerivedType>(E)->getName();
+    EXPECT_NE(Name, "Low");
+    HasHigh |= Name == "High";
+  }
+  EXPECT_TRUE(HasHigh);
+  DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, NamespacedStaticGetsGlobalVariable) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_enum_O0.wasm"sv));
+  auto *MB = F.M->getGlobalVariable("__wasmedge_debug_membase");
+  ASSERT_NE(MB, nullptr);
+  llvm::SmallVector<llvm::DIGlobalVariableExpression *, 4> GVEs;
+  MB->getDebugInfo(GVEs);
+  const llvm::DIGlobalVariable *Calls = nullptr;
+  for (auto *GVE : GVEs) {
+    if (GVE->getVariable()->getName() == "CALLS") {
+      Calls = GVE->getVariable();
+    }
+  }
+  ASSERT_NE(Calls, nullptr);
+  auto *NS = llvm::dyn_cast_or_null<llvm::DINamespace>(Calls->getScope());
+  ASSERT_NE(NS, nullptr);
+  EXPECT_EQ(NS->getName(), "dwarf_enum");
   F.DI->finalize();
   EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
 }
@@ -242,7 +380,7 @@ TEST(DebugInfoTypes, TypeUnitsKeepTheirOwnTypes) {
         llvm::DISourceLanguageName(dwarf::DW_LANG_C_plus_plus),
 #endif
         S.DB->createFile("t.cpp", ""), "test", false, "", 0);
-    LLVM::DebugInfo::TypeTranslator T(Ctx);
+    LLVM::DebugInfo::TypeTranslator T(Ctx, 64);
     llvm::DIType *FromTypeUnit = nullptr;
     llvm::DIType *FromInfo = nullptr;
     if (TypeUnitFirst) {
@@ -263,6 +401,117 @@ TEST(DebugInfoTypes, TypeUnitsKeepTheirOwnTypes) {
     EXPECT_EQ(Defined->getElements().size(), 1U) << TypeUnitFirst;
     S.DB->finalize();
   }
+}
+
+TEST(DebugInfoTypes, NativePointersUseTheTargetWidth) {
+  for (auto [Triple, Bits] : {std::pair{"i686-unknown-linux-gnu"sv, 32U},
+                              std::pair{"x86_64-unknown-linux-gnu"sv, 64U}}) {
+    TypeFixture F;
+    ASSERT_TRUE(F.load("dwarf_basic_O0.wasm"sv, Triple));
+    auto NodeDie = findType(F.Reader->getContext(),
+                            llvm::dwarf::DW_TAG_structure_type, "Node"sv);
+    ASSERT_TRUE(NodeDie);
+    auto *T = llvm::cast<llvm::DICompositeType>(
+        llvm::unwrap(F.DI->translateType(NodeDie.getOffset())));
+    auto *Next = llvm::cast<llvm::DIDerivedType>(T->getElements()[1]);
+    auto *Ptr = llvm::cast<llvm::DICompositeType>(Next->getBaseType());
+    auto *Pointee = llvm::cast<llvm::DIDerivedType>(Ptr->getElements()[1]);
+    auto *Array = llvm::cast<llvm::DICompositeType>(Pointee->getBaseType());
+    EXPECT_EQ(Array->getBaseType()->getSizeInBits(), Bits) << Triple;
+    auto *MB = F.M->getGlobalVariable("__wasmedge_debug_membase");
+    ASSERT_NE(MB, nullptr);
+    llvm::SmallVector<llvm::DIGlobalVariableExpression *, 4> GVEs;
+    MB->getDebugInfo(GVEs);
+    const auto It = std::find_if(GVEs.begin(), GVEs.end(), [](auto *GVE) {
+      return GVE->getVariable()->getName() == "__wasmedge_debug_membase";
+    });
+    ASSERT_NE(It, GVEs.end());
+    EXPECT_EQ((*It)->getVariable()->getType()->getSizeInBits(), Bits) << Triple;
+  }
+}
+
+TEST(DebugInfoTypes, BigEndianTargetGetsOnlyLines) {
+  for (const auto [Triple, Variables] :
+       {std::pair{"x86_64-unknown-linux-gnu"sv, true},
+        std::pair{"s390x-unknown-linux-gnu"sv, false}}) {
+    TypeFixture F;
+    ASSERT_TRUE(F.load("dwarf_basic_O0.wasm"sv, Triple));
+    EXPECT_EQ(F.DI->getMemoryBaseGlobal() != nullptr, Variables) << Triple;
+  }
+}
+
+TEST(DebugInfoTypes, StaticInAFunctionBlockIsAGlobal) {
+  namespace dwarf = llvm::dwarf;
+  TestDie Unit{
+      dwarf::DW_TAG_compile_unit,
+      {strAttr(dwarf::DW_AT_producer, "clang"),
+       {dwarf::DW_AT_language, dwarf::DW_FORM_data2, dwarf::DW_LANG_C11}},
+      {{dwarf::DW_TAG_base_type,
+        {strAttr(dwarf::DW_AT_name, "int"),
+         {dwarf::DW_AT_encoding, dwarf::DW_FORM_data1, dwarf::DW_ATE_signed},
+         {dwarf::DW_AT_byte_size, dwarf::DW_FORM_data1, 4}},
+        {},
+        1},
+       {dwarf::DW_TAG_subprogram,
+        {strAttr(dwarf::DW_AT_name, "count")},
+        {{dwarf::DW_TAG_lexical_block,
+          {},
+          {{dwarf::DW_TAG_variable,
+            {strAttr(dwarf::DW_AT_name, "Calls"),
+             refAttr(dwarf::DW_AT_type, 1),
+             {dwarf::DW_AT_location,
+              dwarf::DW_FORM_exprloc,
+              0,
+              {dwarf::DW_OP_addr, 0x10, 0, 0, 0}}}}}}}}}};
+  TypeFixture F;
+  ASSERT_TRUE(F.adopt(moduleWithDwarf(F.Conf, writeDwarfUnit(4, Unit))));
+  EXPECT_TRUE(F.Reader->hasGlobalVariables());
+  EXPECT_NE(F.M->getGlobalVariable("__wasmedge_debug_membase"), nullptr);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, DiscardedGlobalKeepsItsName) {
+  namespace dwarf = llvm::dwarf;
+  TestDie Unit{
+      dwarf::DW_TAG_compile_unit,
+      {strAttr(dwarf::DW_AT_producer, "clang"),
+       {dwarf::DW_AT_language, dwarf::DW_FORM_data2, dwarf::DW_LANG_C11}},
+      {{dwarf::DW_TAG_base_type,
+        {strAttr(dwarf::DW_AT_name, "int"),
+         {dwarf::DW_AT_encoding, dwarf::DW_FORM_data1, dwarf::DW_ATE_signed},
+         {dwarf::DW_AT_byte_size, dwarf::DW_FORM_data1, 4}},
+        {},
+        1},
+       {dwarf::DW_TAG_variable,
+        {strAttr(dwarf::DW_AT_name, "Dropped"),
+         refAttr(dwarf::DW_AT_type, 1),
+         {dwarf::DW_AT_location,
+          dwarf::DW_FORM_exprloc,
+          0,
+          {dwarf::DW_OP_addr, 0xFF, 0xFF, 0xFF, 0xFF}}}}}};
+  TypeFixture F;
+  ASSERT_TRUE(F.adopt(moduleWithDwarf(F.Conf, writeDwarfUnit(4, Unit))));
+  EXPECT_FALSE(F.Reader->hasGlobalVariables());
+  EXPECT_EQ(F.M->getGlobalVariable("__wasmedge_debug_membase"), nullptr);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+  bool Found = false;
+  for (const auto *CU : F.M->debug_compile_units()) {
+    for (const auto *GVE : CU->getGlobalVariables()) {
+      Found |= GVE->getVariable()->getName() == "Dropped";
+    }
+  }
+  EXPECT_TRUE(Found);
+}
+
+TEST(DebugInfoTypes, NoGlobalsMeansNoMemoryBaseGlobal) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_scope_Og.wasm"sv));
+  EXPECT_FALSE(F.Reader->hasGlobalVariables());
+  EXPECT_EQ(F.M->getGlobalVariable("__wasmedge_debug_membase"), nullptr);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
 }
 
 TEST(DebugInfoTypes, OneBasedLanguageArrayStartsAtOne) {
@@ -696,6 +945,74 @@ TEST(DebugInfoTypes, VariantWithAnUnreadableFieldIsOmitted) {
   EXPECT_TRUE(T->getElements().empty());
   F.DI->finalize();
   EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, GlobalsWithoutAPlainAddressKeepTheirNames) {
+#if LLVM_VERSION_MAJOR < 12
+  GTEST_SKIP() << "the test writes a DWARF 5 location list";
+#else
+  namespace dwarf = llvm::dwarf;
+  std::vector<uint8_t> LocLists = {0, 0, 0, 0, 5, 0, 4, 0, 0, 0, 0, 0};
+  auto AddressEntry = [&LocLists](uint8_t Kind, std::vector<uint8_t> Range,
+                                  uint32_t Address) {
+    LocLists.push_back(Kind);
+    LocLists.insert(LocLists.end(), Range.begin(), Range.end());
+    LocLists.insert(LocLists.end(),
+                    {5, dwarf::DW_OP_addr, static_cast<uint8_t>(Address),
+                     static_cast<uint8_t>(Address >> 8), 0, 0});
+  };
+  AddressEntry(dwarf::DW_LLE_default_location, {}, 0x400);
+  LocLists.push_back(dwarf::DW_LLE_end_of_list);
+  const uint64_t GapList = LocLists.size();
+  AddressEntry(dwarf::DW_LLE_start_end, {0x10, 0, 0, 0, 0x20, 0, 0, 0}, 0x500);
+  AddressEntry(dwarf::DW_LLE_start_end, {0x30, 0, 0, 0, 0x40, 0, 0, 0}, 0x500);
+  LocLists.push_back(dwarf::DW_LLE_end_of_list);
+  LocLists[0] = static_cast<uint8_t>(LocLists.size() - 4);
+  TestDie Unit{
+      dwarf::DW_TAG_compile_unit,
+      {strAttr(dwarf::DW_AT_producer, "clang"),
+       {dwarf::DW_AT_language, dwarf::DW_FORM_data2, dwarf::DW_LANG_C11}},
+      {{dwarf::DW_TAG_base_type,
+        {strAttr(dwarf::DW_AT_name, "int"),
+         {dwarf::DW_AT_encoding, dwarf::DW_FORM_data1, dwarf::DW_ATE_signed},
+         {dwarf::DW_AT_byte_size, dwarf::DW_FORM_data1, 4}},
+        {},
+        1},
+       {dwarf::DW_TAG_variable,
+        {strAttr(dwarf::DW_AT_name, "Limit"),
+         refAttr(dwarf::DW_AT_type, 1),
+         {dwarf::DW_AT_const_value, dwarf::DW_FORM_sdata, 7}}},
+       {dwarf::DW_TAG_variable,
+        {strAttr(dwarf::DW_AT_name, "Base"),
+         refAttr(dwarf::DW_AT_type, 1),
+         {dwarf::DW_AT_location, dwarf::DW_FORM_sec_offset, 12}}},
+       {dwarf::DW_TAG_variable,
+        {strAttr(dwarf::DW_AT_name, "Gap"),
+         refAttr(dwarf::DW_AT_type, 1),
+         {dwarf::DW_AT_location, dwarf::DW_FORM_sec_offset, GapList}}}}};
+  const auto Dwarf = writeDwarfUnit(5, Unit);
+  TypeFixture F;
+  ASSERT_TRUE(
+      F.adopt(moduleWithDwarf(F.Conf, Dwarf, {{".debug_loclists", LocLists}})));
+  EXPECT_TRUE(F.Reader->hasGlobalVariables());
+  F.DI->finalize();
+  std::map<std::string, std::vector<uint64_t>> Expressions;
+  for (const auto *CU : F.M->debug_compile_units()) {
+    for (const auto *GVE : CU->getGlobalVariables()) {
+      const auto *E = GVE->getExpression();
+      Expressions[GVE->getVariable()->getName().str()] = {E->elements_begin(),
+                                                          E->elements_end()};
+    }
+  }
+  EXPECT_EQ(Expressions["Limit"],
+            (std::vector<uint64_t>{dwarf::DW_OP_constu, 7,
+                                   dwarf::DW_OP_stack_value}));
+  EXPECT_EQ(Expressions["Base"],
+            (std::vector<uint64_t>{dwarf::DW_OP_deref, dwarf::DW_OP_plus_uconst,
+                                   0x400}));
+  EXPECT_EQ(Expressions.count("Gap"), 0U);
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+#endif
 }
 
 TEST(DebugInfoTypes, ArrayStorageOrderMatchesTheStrides) {

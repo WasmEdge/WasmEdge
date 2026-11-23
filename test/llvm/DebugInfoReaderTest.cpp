@@ -269,6 +269,215 @@ TEST(DwarfReader, NameSectionRecovery) {
   }
 }
 
+TEST(DwarfReader, StackValueDropsMemoryLocations) {
+  using LLVM::DebugInfo::decodeLocation;
+  using Kind = LLVM::DebugInfo::WasmLocation::Kind;
+  const uint8_t FrameBase[] = {0x91, 0x0c};
+  const uint8_t FrameBaseValue[] = {0x91, 0x0c, 0x9f};
+  const uint8_t Addr[] = {0x03, 0x10, 0x00, 0x00, 0x00};
+  const uint8_t AddrValue[] = {0x03, 0x10, 0x00, 0x00, 0x00, 0x9f};
+  const uint8_t LocalValue[] = {0xed, 0x00, 0x02, 0x9f};
+  const auto FB = decodeLocation(FrameBase, nullptr);
+  EXPECT_EQ(FB.K, Kind::FrameBaseOffset);
+  EXPECT_EQ(FB.Offset, 12);
+  EXPECT_EQ(decodeLocation(FrameBaseValue, nullptr).K, Kind::None);
+  const auto A = decodeLocation(Addr, nullptr);
+  EXPECT_EQ(A.K, Kind::Address);
+  EXPECT_EQ(A.Index, 16U);
+  EXPECT_EQ(decodeLocation(AddrValue, nullptr).K, Kind::None);
+  const auto L = decodeLocation(LocalValue, nullptr);
+  EXPECT_EQ(L.K, Kind::Local);
+  EXPECT_EQ(L.Index, 2U);
+}
+
+TEST(DwarfReader, WasmLocationOperands) {
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  const uint8_t GlobalU32[] = {0xed, 0x03, 0x01, 0x00, 0x00, 0x00, 0x9f};
+  const uint8_t Local64[] = {0xed, 0x00, 0x40};
+  const auto G = decodeLocation(GlobalU32, nullptr);
+  EXPECT_EQ(G.K, Kind::Global);
+  EXPECT_EQ(G.Index, 1U);
+  EXPECT_FALSE(G.Indirect);
+  const auto L = decodeLocation(Local64, nullptr, WasmLocationConvention::LLVM);
+  EXPECT_EQ(L.K, Kind::Local);
+  EXPECT_EQ(L.Index, 64U);
+  EXPECT_TRUE(L.Indirect);
+  const auto S =
+      decodeLocation(Local64, nullptr, WasmLocationConvention::Standard);
+  EXPECT_EQ(S.K, Kind::Local);
+  EXPECT_EQ(S.Index, 64U);
+  EXPECT_FALSE(S.Indirect);
+  EXPECT_EQ(decodeLocation(Local64, nullptr).K, Kind::None);
+}
+
+TEST(DwarfReader, LocationConventionFollowsTheProducer) {
+  namespace dwarf = llvm::dwarf;
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  const std::tuple<const char *, WasmLocationConvention, Kind, bool> Cases[] = {
+      {"clang version 21.1.8", WasmLocationConvention::LLVM, Kind::Local, true},
+      {"clang LLVM (rustc version 1.98.1)", WasmLocationConvention::LLVM,
+       Kind::Local, true},
+      {"Example Wasm Compiler 1.0", WasmLocationConvention::Standard,
+       Kind::Local, false},
+      {nullptr, WasmLocationConvention::Unknown, Kind::None, false}};
+  for (const auto &[Producer, Convention, K, Indirect] : Cases) {
+    TestDie Unit{
+        dwarf::DW_TAG_compile_unit,
+        {{dwarf::DW_AT_language, dwarf::DW_FORM_data2, dwarf::DW_LANG_C11}}};
+    if (Producer) {
+      Unit.Attributes.push_back(strAttr(dwarf::DW_AT_producer, Producer));
+    }
+    Unit.Children.push_back({dwarf::DW_TAG_variable,
+                             {strAttr(dwarf::DW_AT_name, "v"),
+                              {dwarf::DW_AT_location,
+                               dwarf::DW_FORM_exprloc,
+                               0,
+                               {0xed, 0x00, 0x02}}},
+                             {},
+                             1});
+    const auto Dwarf = writeDwarfUnit(4, Unit);
+    Configure Conf;
+    auto Mod = moduleWithDwarf(Conf, Dwarf);
+    ASSERT_NE(Mod, nullptr);
+    auto R = DwarfReader::create(*Mod);
+    ASSERT_NE(R, nullptr);
+    auto Var = R->getContext().getDIEForOffset(Dwarf.Offsets.at(1));
+    ASSERT_TRUE(Var);
+    auto *U = Var.getDwarfUnit();
+    EXPECT_EQ(locationConvention(U), Convention);
+    const auto Block = dwarf::toBlock(Var.find(dwarf::DW_AT_location));
+    ASSERT_TRUE(Block);
+    const auto L = decodeLocation(*Block, U);
+    EXPECT_EQ(L.K, K);
+    EXPECT_EQ(L.Indirect, Indirect);
+    if (K != Kind::None) {
+      EXPECT_EQ(L.Index, 2U);
+    }
+  }
+}
+
+TEST(DwarfReader, LocationExpressionGrammar) {
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  auto decode = [](llvm::ArrayRef<uint8_t> Bytes) {
+    return decodeLocation(Bytes, nullptr, WasmLocationConvention::LLVM);
+  };
+  const uint8_t TwoLocations[] = {0x91, 0x08, 0x03, 0x10, 0x00, 0x00, 0x00};
+  const uint8_t TruncatedAddr[] = {0x03, 0x10, 0x00};
+  const uint8_t TruncatedLEB[] = {0x91, 0x88};
+  const uint8_t TruncatedGlobal[] = {0xed, 0x03, 0x01, 0x00};
+  const uint8_t OperandStack[] = {0xed, 0x02, 0x00};
+  const uint8_t AfterStackValue[] = {0xed, 0x00, 0x01, 0x9f, 0x9f};
+  const uint8_t StackValueOnly[] = {0x9f};
+  const uint8_t LocalValue[] = {0xed, 0x00, 0x01, 0x9f};
+  const uint8_t MultiByteKind[] = {0xed, 0x80, 0x00, 0x01};
+  const uint8_t LocalOver32Bits[] = {0xed, 0x00, 0x80, 0x80, 0x80, 0x80, 0x10};
+  const uint8_t GlobalOver32Bits[] = {0xed, 0x01, 0x80, 0x80, 0x80, 0x80, 0x10};
+  const uint8_t LargestLocal[] = {0xed, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f};
+  EXPECT_EQ(decode(TwoLocations).K, Kind::None);
+  EXPECT_EQ(decode(TruncatedAddr).K, Kind::None);
+  EXPECT_EQ(decode(TruncatedLEB).K, Kind::None);
+  EXPECT_EQ(decode(TruncatedGlobal).K, Kind::None);
+  EXPECT_EQ(decode(OperandStack).K, Kind::None);
+  EXPECT_EQ(decode(AfterStackValue).K, Kind::None);
+  EXPECT_EQ(decode(StackValueOnly).K, Kind::None);
+  EXPECT_EQ(decode(LocalValue).K, Kind::Local);
+  EXPECT_EQ(decode(MultiByteKind).K, Kind::None);
+  EXPECT_EQ(decode(LocalOver32Bits).K, Kind::None);
+  EXPECT_EQ(decode(GlobalOver32Bits).K, Kind::None);
+  EXPECT_EQ(decode(LargestLocal).Index, UINT32_MAX);
+}
+
+TEST(DwarfReader, DefaultLocationOnlyFillsGaps) {
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  const WasmLocation Default{Kind::Local, 1, 0, false};
+  const WasmLocation Explicit{Kind::Local, 2, 0, false};
+  const WasmLocation Unavailable{};
+  const auto Entries = normalizeLocationEntries(
+      {{0x10, 0x20, Explicit}, {0x20, 0x30, Unavailable}, {0x40, 0x40, {}}},
+      {Default});
+  ASSERT_EQ(Entries.size(), 4U);
+  for (size_t I = 1; I < Entries.size(); ++I) {
+    EXPECT_EQ(Entries[I - 1].High, Entries[I].Low);
+  }
+  auto At = [&Entries](uint64_t Address) {
+    const auto I = findLocationEntry(Entries, Address);
+    return I ? Entries[*I].L : WasmLocation{Kind::Address, 0, 0, false};
+  };
+  EXPECT_EQ(At(0x18).Index, 2U);
+  EXPECT_EQ(At(0x28).K, Kind::None);
+  EXPECT_EQ(At(0x08).Index, 1U);
+  EXPECT_EQ(At(0x38).Index, 1U);
+}
+
+TEST(DwarfReader, SupportedEntryWinsOverlap) {
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  const WasmLocation Default{Kind::Local, 1, 0, false};
+  const WasmLocation Supported{Kind::Local, 2, 0, false};
+  const auto Entries = normalizeLocationEntries(
+      {{0x10, 0x30, {}}, {0x20, 0x40, Supported}}, {Default});
+  auto At = [&Entries](uint64_t Address) {
+    const auto I = findLocationEntry(Entries, Address);
+    return I ? Entries[*I].L : WasmLocation{Kind::Address, 0, 0, false};
+  };
+  EXPECT_EQ(At(0x18).K, Kind::None);
+  EXPECT_EQ(At(0x28).Index, 2U);
+  EXPECT_EQ(At(0x38).Index, 2U);
+  EXPECT_EQ(At(0x48).Index, 1U);
+}
+
+TEST(DwarfReader, LocalValueWinsOverlap) {
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  const WasmLocation Frame{Kind::FrameBaseOffset, 0, 16, false};
+  const WasmLocation Local{Kind::Local, 2, 0, false};
+  const WasmLocation Default{Kind::Local, 1, 0, false};
+  const auto Entries = normalizeLocationEntries(
+      {{0x10, 0x30, Frame}, {0x20, 0x40, Local}, {0x30, 0x50, {}}}, {Default});
+  auto At = [&Entries](uint64_t Address) {
+    const auto I = findLocationEntry(Entries, Address);
+    return I ? Entries[*I].L : WasmLocation{Kind::Address, 0, 0, false};
+  };
+  EXPECT_EQ(At(0x18).K, Kind::FrameBaseOffset);
+  EXPECT_EQ(At(0x28).K, Kind::Local);
+  EXPECT_EQ(At(0x28).Index, 2U);
+  EXPECT_EQ(At(0x38).Index, 2U);
+  EXPECT_EQ(At(0x48).K, Kind::None);
+  EXPECT_EQ(At(0x58).Index, 1U);
+}
+
+TEST(DwarfReader, UsableConstantWinsOverlap) {
+  using namespace LLVM::DebugInfo;
+  using Kind = WasmLocation::Kind;
+  const WasmLocation Frame{Kind::FrameBaseOffset, 0, 16, false};
+  const WasmLocation Constant{Kind::Constant, 5, 0, false};
+  const WasmLocation Local{Kind::Local, 2, 0, false};
+  for (const bool Usable : {false, true}) {
+    const auto Entries = normalizeLocationEntries(
+        {{0x10, 0x20, Frame}, {0x10, 0x20, Constant}, {0x20, 0x30, Local}}, {},
+        Usable);
+    ASSERT_EQ(Entries.size(), 2U) << Usable;
+    EXPECT_EQ(Entries[0].L.K, Usable ? Kind::Constant : Kind::FrameBaseOffset)
+        << Usable;
+    EXPECT_EQ(Entries[1].L.K, Kind::Local) << Usable;
+  }
+}
+
+TEST(DwarfReader, LocationMustCoverTheWholeScope) {
+  using namespace LLVM::DebugInfo;
+  const WasmLocation FB{WasmLocation::Kind::FrameBaseOffset, 0, 8, false};
+  EXPECT_TRUE(coversRange({{0x10, 0x30, FB}, {0x30, 0x40, FB}}, 0x10, 0x40));
+  EXPECT_TRUE(coversRange({{0x10, 0x40, FB}}, 0x18, 0x40));
+  EXPECT_FALSE(coversRange({{0x10, 0x20, FB}, {0x30, 0x40, FB}}, 0x10, 0x40));
+  EXPECT_FALSE(coversRange({{0x18, 0x38, FB}}, 0x10, 0x40));
+  EXPECT_FALSE(coversRange({{0x10, 0x38, FB}}, 0x10, 0x40));
+  EXPECT_TRUE(coversRange({{0, UINT64_MAX, FB}}, 0x10, 0x40));
+}
+
 TEST(DwarfReader, DeclFileUsesTheUnitOfTheAttribute) {
   Configure Conf;
   auto Mod = loadFixture(Conf, "dwarf_units_O2.wasm"sv);

@@ -10,14 +10,18 @@
 
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/Config/llvm-config.h>
+#include <llvm/DebugInfo/DWARF/DWARFCompileUnit.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/DebugInfo/DWARF/DWARFDie.h>
 #include <llvm/DebugInfo/DWARF/DWARFFormValue.h>
 #include <llvm/DebugInfo/DWARF/DWARFUnit.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
@@ -32,13 +36,40 @@ namespace WasmEdge::LLVM::DebugInfo {
 
 using namespace std::literals;
 
+namespace {
+
+llvm::DIGlobalVariableExpression *
+globalVariable(llvm::DIBuilder &DB, llvm::DIScope *Scope, llvm::StringRef Name,
+               llvm::DIFile *File, unsigned Line, llvm::DIType *Type,
+               bool LocalToUnit, llvm::DIExpression *Expr) noexcept {
+  return DB.createGlobalVariableExpression(Scope, Name, "", File, Line, Type,
+                                           LocalToUnit,
+#if LLVM_VERSION_MAJOR < 10
+#else
+                                           true,
+#endif
+                                           Expr);
+}
+
+} // namespace
+
 ModuleDebugInfoImpl::ModuleDebugInfoImpl(llvm::Module &M,
-                                         std::unique_ptr<DwarfReader> R,
-                                         Part P) noexcept
-    : M(M), Reader(std::move(R)), Translator(M.getContext()), P(P) {
+                                         std::unique_ptr<DwarfReader> R, Part P,
+                                         bool HasMemory,
+                                         bool LinesOnly) noexcept
+    : M(M), Reader(std::move(R)),
+      Translator(M.getContext(),
+                 llvm::Triple(M.getTargetTriple()).isArch32Bit() ? 32 : 64),
+      P(P), LinesOnly(LinesOnly) {
   M.addModuleFlag(llvm::Module::Warning, "Debug Info Version",
                   llvm::DEBUG_METADATA_VERSION);
   M.addModuleFlag(llvm::Module::Warning, "Dwarf Version", 4);
+  if (HasMemory && !LinesOnly && Reader->hasGlobalVariables()) {
+    createMemoryBase();
+  }
+  if (!LinesOnly && P != Part::FunctionsOnly) {
+    addUnitGlobals();
+  }
 }
 
 LLVMMetadataRef
@@ -152,6 +183,133 @@ llvm::DIScope *ModuleDebugInfoImpl::fileScope(UnitState &S,
   return Cached;
 }
 
+llvm::DIScope *ModuleDebugInfoImpl::lexicalBlock(UnitState &S,
+                                                 llvm::DIScope *Scope,
+                                                 DWARFDie Block) noexcept {
+  auto &Cached = Lexical[{Scope, Block.getOffset()}];
+  if (!Cached) {
+    Cached = S.DB->createLexicalBlock(Scope, Scope->getFile(), line(Block), 0);
+  }
+  return Cached;
+}
+
+llvm::DIFile *
+ModuleDebugInfoImpl::variableFile(UnitState &S, DWARFDie Var,
+                                  llvm::DIFile *Fallback) noexcept {
+  auto Path = declFile(Var);
+  return Path.empty() ? Fallback : fileFor(S, Path, "");
+}
+
+llvm::ConstantInt *ModuleDebugInfoImpl::constantOf(DWARFDie Var) noexcept {
+  const auto Attr = Var.find(dwarf::DW_AT_const_value);
+  const auto Type = integerType(ref(Var));
+  if (!Attr || !Type) {
+    return nullptr;
+  }
+  const auto Value = integerConstant(*Attr, Type->second);
+  if (!Value) {
+    return nullptr;
+  }
+  return integerValue(Type->first, Value->bits());
+}
+
+llvm::ConstantInt *ModuleDebugInfoImpl::integerValue(unsigned Width,
+                                                     uint64_t Value) noexcept {
+  const auto Mask = Width == 64 ? UINT64_MAX : (UINT64_C(1) << Width) - 1;
+  return llvm::ConstantInt::get(llvm::IntegerType::get(M.getContext(), Width),
+                                Value & Mask);
+}
+
+void ModuleDebugInfoImpl::addGlobal(UnitState &S, llvm::DIScope *Scope,
+                                    DWARFDie D, uint64_t Address) noexcept {
+  const bool Dead = isTombstoneDataAddress(Address);
+  if (P == Part::FunctionsOnly || (!MemoryBase && !Dead) ||
+      !Globals.insert(D.getOffset()).second) {
+    return;
+  }
+  auto *Expr = Dead ? S.DB->createExpression()
+                    : S.DB->createExpression(llvm::SmallVector<uint64_t, 3>{
+                          dwarf::DW_OP_deref, dwarf::DW_OP_plus_uconst,
+                          Address & 0xFFFFFFFFU});
+  auto *GVE = globalVariable(
+      *S.DB, Scope, name(D), file(S, D), line(D), Translator.variableType(S, D),
+      Dead || !dwarf::toUnsigned(D.findRecursively(dwarf::DW_AT_external), 0),
+      Expr);
+  if (!Dead) {
+    MemoryBase->addDebugInfo(GVE);
+  }
+}
+
+void ModuleDebugInfoImpl::addConstantGlobal(UnitState &S, llvm::DIScope *Scope,
+                                            DWARFDie D) noexcept {
+  if (P == Part::FunctionsOnly) {
+    return;
+  }
+  auto *Value = constantOf(D);
+  if (!Value || !Globals.insert(D.getOffset()).second) {
+    return;
+  }
+  globalVariable(
+      *S.DB, Scope, name(D), file(S, D), line(D), Translator.variableType(S, D),
+      !dwarf::toUnsigned(D.findRecursively(dwarf::DW_AT_external), 0),
+      S.DB->createConstantValueExpression(Value->getZExtValue()));
+}
+
+void ModuleDebugInfoImpl::createMemoryBase() noexcept {
+#if LLVM_VERSION_MAJOR < 15
+  auto *PtrTy = llvm::Type::getInt8PtrTy(M.getContext());
+#else
+  auto *PtrTy = llvm::PointerType::getUnqual(M.getContext());
+#endif
+  MemoryBase = new llvm::GlobalVariable(
+      M, PtrTy, false, llvm::GlobalValue::ExternalLinkage,
+      P == Part::FunctionsOnly ? nullptr
+                               : llvm::ConstantPointerNull::get(PtrTy),
+      "__wasmedge_debug_membase");
+#if LLVM_VERSION_MAJOR < 10
+  MemoryBase->setAlignment(8);
+#else
+  MemoryBase->setAlignment(llvm::Align(8));
+#endif
+  if (P == Part::FunctionsOnly) {
+    return;
+  }
+  MemoryBase->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  auto &A = artificialUnit();
+  MemoryBase->addDebugInfo(globalVariable(
+      *A.DB, A.CU, "__wasmedge_debug_membase", A.CU->getFile(), 0,
+      A.DB->createPointerType(Translator.uchar(A), Translator.pointerBits()),
+      true, A.DB->createExpression()));
+}
+
+void ModuleDebugInfoImpl::addUnitGlobals() noexcept {
+  for (const auto &CU : Reader->getContext().compile_units()) {
+    addScopeGlobals(CU->getUnitDIE(), 0);
+  }
+}
+
+void ModuleDebugInfoImpl::addScopeGlobals(DWARFDie Parent,
+                                          uint32_t Depth) noexcept {
+  for (auto C : Parent.children()) {
+    const auto Tag = C.getTag();
+    if (Tag == dwarf::DW_TAG_namespace) {
+      if (Depth < MaxDepth) {
+        addScopeGlobals(C, Depth + 1);
+      }
+      continue;
+    }
+    if (Tag != dwarf::DW_TAG_variable) {
+      continue;
+    }
+    auto &S = unit(C);
+    if (const auto Address = globalAddress(C)) {
+      addGlobal(S, Translator.namespaceScope(S, Parent), C, *Address);
+    } else if (!C.find(dwarf::DW_AT_location)) {
+      addConstantGlobal(S, Translator.namespaceScope(S, Parent), C);
+    }
+  }
+}
+
 llvm::DISubprogram *ModuleDebugInfoImpl::subprogramFor(DWARFDie D) noexcept {
   if (auto It = Subprograms.find(D.getOffset()); It != Subprograms.end()) {
     return It->second;
@@ -172,9 +330,26 @@ llvm::DISubprogram *ModuleDebugInfoImpl::createSubprogram(UnitState &S,
   if (!dwarf::toUnsigned(D.findRecursively(dwarf::DW_AT_external), 0)) {
     Flags |= llvm::DISubprogram::SPFlagLocalToUnit;
   }
-  auto *SP = S.DB->createFunction(File, name(D), Linkage ? Linkage : "", File,
-                                  line(D), Translator.subroutine(S, D), line(D),
-                                  llvm::DINode::FlagZero, Flags);
+  auto *Type = LinesOnly
+                   ? S.DB->createSubroutineType(S.DB->getOrCreateTypeArray({}))
+                   : Translator.subroutine(S, D);
+  const auto Declared = declarationOf(D);
+  const auto Parent = Declared.getParent();
+  llvm::DIScope *Scope = File;
+  llvm::DISubprogram *Method = nullptr;
+  if (Parent && Parent.getTag() == dwarf::DW_TAG_namespace) {
+    Scope = Translator.namespaceScope(S, Parent);
+  } else if (Parent && isAggregate(Parent.getTag()) && !LinesOnly) {
+    if (auto *Class = llvm::dyn_cast_or_null<llvm::DICompositeType>(
+            Translator.typeScope(S, Declared))) {
+      Scope = Class;
+      Method = S.DB->createMethod(Class, name(D), Linkage ? Linkage : "",
+                                  file(S, Declared), line(Declared), Type);
+    }
+  }
+  auto *SP = S.DB->createFunction(
+      Scope, name(D), Linkage ? Linkage : "", File, line(D), Type, line(D),
+      llvm::DINode::FlagZero, Flags, nullptr, Method);
   return SP;
 }
 
@@ -203,11 +378,7 @@ ModuleDebugInfoImpl::scopeFor(UnitState &S, llvm::DIScope *Parent,
     Blocks.push_back(B);
   }
   for (auto It = Blocks.rbegin(); It != Blocks.rend(); ++It) {
-    auto &Cached = Lexical[{Scope, It->getOffset()}];
-    if (!Cached) {
-      Cached = S.DB->createLexicalBlock(Scope, Scope->getFile(), line(*It), 0);
-    }
-    Scope = Cached;
+    Scope = lexicalBlock(S, Scope, *It);
   }
   return Scope;
 }
@@ -248,8 +419,31 @@ std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
     spdlog::info("debug info: module has no DWARF sections"sv);
     return nullptr;
   }
-  return std::make_unique<ModuleDebugInfoImpl>(*llvm::unwrap(M),
-                                               std::move(Reader), P);
+  const AST::MemoryType *Memory = nullptr;
+  for (const auto &Desc : Mod.getImportSection().getContent()) {
+    if (Desc.getExternalType() == ExternalType::Memory) {
+      Memory = &Desc.getExternalMemoryType();
+      break;
+    }
+  }
+  if (!Memory && !Mod.getMemorySection().getContent().empty()) {
+    Memory = &Mod.getMemorySection().getContent().front();
+  }
+  const bool Memory64 = Memory && Memory->getLimit().is64();
+  if (Memory64 && P != Part::FunctionsOnly) {
+    spdlog::warn("debug info: 64-bit memories are not supported, so only "
+                 "functions and lines get debug info"sv);
+  }
+  const llvm::Triple Target(llvm::unwrap(M)->getTargetTriple());
+  const bool BigEndian =
+      Target.getArch() != llvm::Triple::UnknownArch && !Target.isLittleEndian();
+  if (BigEndian && !Memory64 && P != Part::FunctionsOnly) {
+    spdlog::warn("debug info: wasm memory is little-endian and the target is "
+                 "big-endian, so only functions and lines get debug info"sv);
+  }
+  return std::make_unique<ModuleDebugInfoImpl>(
+      *llvm::unwrap(M), std::move(Reader), P, Memory != nullptr,
+      Memory64 || BigEndian);
 }
 
 } // namespace WasmEdge::LLVM::DebugInfo

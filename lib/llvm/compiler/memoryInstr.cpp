@@ -124,6 +124,9 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
             {Context.getModuleInst(Builder, ModCtx),
              LLContext.getInt32(Instr.getTargetIndex()), NewPageSize}),
         Context.MemoryAddrTypes[Instr.getTargetIndex()]));
+    if (Instr.getTargetIndex() == 0) {
+      reloadMemoryBase();
+    }
     break;
   }
   case OpCode::Memory__init: {

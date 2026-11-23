@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "debuginfo/dwarf_reader.h"
+#include "debuginfo/dwarf_die.h"
 
 #include "common/spdlog.h"
 #include "loader/name_section.h"
@@ -11,15 +12,230 @@
 #include <llvm/Config/llvm-config.h>
 #include <llvm/DebugInfo/DWARF/DWARFCompileUnit.h>
 #include <llvm/Support/Error.h>
+#include <llvm/Support/LEB128.h>
 
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <iterator>
+#include <optional>
+#include <set>
 #include <unordered_map>
 
 namespace WasmEdge::LLVM::DebugInfo {
 
 using namespace std::literals;
+
+namespace {
+
+constexpr uint8_t WasmLocationOp = 0xED;
+
+class ExpressionReader {
+public:
+  explicit ExpressionReader(llvm::ArrayRef<uint8_t> Bytes) noexcept
+      : Cur(Bytes.begin()), End(Bytes.end()) {}
+
+  bool atEnd() const noexcept { return Cur == End; }
+
+  std::optional<uint8_t> readU8() noexcept {
+    if (Cur == End) {
+      return std::nullopt;
+    }
+    return *Cur++;
+  }
+
+  std::optional<uint64_t> readFixed(unsigned Size) noexcept {
+    if (static_cast<size_t>(End - Cur) < Size) {
+      return std::nullopt;
+    }
+    uint64_t Value = 0;
+    for (unsigned I = 0; I < Size; ++I) {
+      Value |= static_cast<uint64_t>(Cur[I]) << (I * 8);
+    }
+    Cur += Size;
+    return Value;
+  }
+
+  std::optional<uint64_t> readU32() noexcept { return readFixed(4); }
+
+  std::optional<uint64_t> readULEB() noexcept {
+    unsigned Size = 0;
+    const char *Error = nullptr;
+    const auto Value = llvm::decodeULEB128(Cur, &Size, End, &Error);
+    if (Error) {
+      return std::nullopt;
+    }
+    Cur += Size;
+    return Value;
+  }
+
+  std::optional<int64_t> readSLEB() noexcept {
+    unsigned Size = 0;
+    const char *Error = nullptr;
+    const auto Value = llvm::decodeSLEB128(Cur, &Size, End, &Error);
+    if (Error) {
+      return std::nullopt;
+    }
+    Cur += Size;
+    return Value;
+  }
+
+private:
+  const uint8_t *Cur;
+  const uint8_t *End;
+};
+
+std::optional<WasmLocation>
+readLocation(ExpressionReader &R, llvm::DWARFUnit *U,
+             WasmLocationConvention Convention) noexcept {
+  namespace dwarf = llvm::dwarf;
+  using Kind = WasmLocation::Kind;
+  const auto Code = R.readU8();
+  if (!Code) {
+    return std::nullopt;
+  }
+  switch (*Code) {
+  case WasmLocationOp: {
+    const auto Space = R.readU8();
+    if (!Space) {
+      return std::nullopt;
+    }
+    const auto Index = *Space == 3 ? R.readU32() : R.readULEB();
+    if (!Index || *Index > UINT32_MAX) {
+      return std::nullopt;
+    }
+    const bool Indirect = Convention == WasmLocationConvention::LLVM;
+    if (*Space == 0) {
+      return WasmLocation{Kind::Local, *Index, 0, Indirect};
+    }
+    if (*Space == 1 || *Space == 3) {
+      return WasmLocation{Kind::Global, *Index, 0, Indirect};
+    }
+    return std::nullopt;
+  }
+  case dwarf::DW_OP_fbreg:
+    if (const auto Offset = R.readSLEB()) {
+      return WasmLocation{Kind::FrameBaseOffset, 0, *Offset, false};
+    }
+    return std::nullopt;
+  case dwarf::DW_OP_addr:
+    if (const auto Address = R.readU32()) {
+      return WasmLocation{Kind::Address, *Address, 0, false};
+    }
+    return std::nullopt;
+  case dwarf::DW_OP_addrx: {
+    const auto Index = R.readULEB();
+    if (!Index || *Index > UINT32_MAX || !U) {
+      return std::nullopt;
+    }
+    if (auto A = U->getAddrOffsetSectionItem(static_cast<uint32_t>(*Index))) {
+      return WasmLocation{Kind::Address, A->Address, 0, false};
+    }
+    return std::nullopt;
+  }
+  default:
+    return std::nullopt;
+  }
+}
+
+/// The bits of a constant that the next operation pushes, sign-extended for
+/// a signed operation.
+std::optional<uint64_t> readConstant(ExpressionReader &R) noexcept {
+  namespace dwarf = llvm::dwarf;
+  const auto Code = R.readU8();
+  if (!Code) {
+    return std::nullopt;
+  }
+  if (*Code >= dwarf::DW_OP_lit0 && *Code <= dwarf::DW_OP_lit31) {
+    return *Code - dwarf::DW_OP_lit0;
+  }
+  auto signExtend = [](std::optional<uint64_t> V,
+                       unsigned Bits) -> std::optional<uint64_t> {
+    if (!V || Bits == 64) {
+      return V;
+    }
+    const auto Sign = UINT64_C(1) << (Bits - 1);
+    return (*V ^ Sign) - Sign;
+  };
+  switch (*Code) {
+  case dwarf::DW_OP_const1u:
+    return R.readFixed(1);
+  case dwarf::DW_OP_const1s:
+    return signExtend(R.readFixed(1), 8);
+  case dwarf::DW_OP_const2u:
+    return R.readFixed(2);
+  case dwarf::DW_OP_const2s:
+    return signExtend(R.readFixed(2), 16);
+  case dwarf::DW_OP_const4u:
+    return R.readFixed(4);
+  case dwarf::DW_OP_const4s:
+    return signExtend(R.readFixed(4), 32);
+  case dwarf::DW_OP_const8u:
+  case dwarf::DW_OP_const8s:
+    return R.readFixed(8);
+  case dwarf::DW_OP_constu:
+    return R.readULEB();
+  case dwarf::DW_OP_consts:
+    if (const auto V = R.readSLEB()) {
+      return static_cast<uint64_t>(*V);
+    }
+    return std::nullopt;
+  default:
+    return std::nullopt;
+  }
+}
+
+} // namespace
+
+WasmLocationConvention locationConvention(llvm::DWARFUnit *U) noexcept {
+  if (!U) {
+    return WasmLocationConvention::Unknown;
+  }
+  const char *Producer = llvm::dwarf::toString(
+      U->getUnitDIE().find(llvm::dwarf::DW_AT_producer), nullptr);
+  if (!Producer) {
+    return WasmLocationConvention::Unknown;
+  }
+  const llvm::StringRef Name(Producer);
+  for (const char *LLVMBased :
+       {"clang", "LLVM", "rustc", "flang", "zig", "Swift"}) {
+    if (Name.find(LLVMBased) != llvm::StringRef::npos) {
+      return WasmLocationConvention::LLVM;
+    }
+  }
+  return WasmLocationConvention::Standard;
+}
+
+WasmLocation decodeLocation(llvm::ArrayRef<uint8_t> Bytes, llvm::DWARFUnit *U,
+                            WasmLocationConvention Convention) noexcept {
+  {
+    ExpressionReader R(Bytes);
+    if (const auto Value = readConstant(R);
+        Value && R.readU8() == llvm::dwarf::DW_OP_stack_value && R.atEnd()) {
+      return WasmLocation{WasmLocation::Kind::Constant, *Value, 0, false};
+    }
+  }
+  ExpressionReader R(Bytes);
+  auto L = readLocation(R, U, Convention);
+  if (!L) {
+    return {};
+  }
+  if (R.atEnd()) {
+    if (Convention == WasmLocationConvention::Unknown &&
+        (L->K == WasmLocation::Kind::Local ||
+         L->K == WasmLocation::Kind::Global)) {
+      return {};
+    }
+    return *L;
+  }
+  if (R.readU8() != llvm::dwarf::DW_OP_stack_value || !R.atEnd() ||
+      (L->K != WasmLocation::Kind::Local &&
+       L->K != WasmLocation::Kind::Global)) {
+    return {};
+  }
+  L->Indirect = false;
+  return *L;
+}
 
 std::optional<IntegerConstant> integerConstant(const llvm::DWARFFormValue &V,
                                                bool Signed) noexcept {
@@ -60,6 +276,70 @@ int64_t defaultLowerBound(uint64_t Language) noexcept {
     return *Bound;
   }
   return 0;
+}
+
+std::vector<LocationEntry>
+normalizeLocationEntries(std::vector<LocationEntry> Bounded,
+                         llvm::ArrayRef<WasmLocation> Defaults,
+                         bool ConstantsUsable) noexcept {
+  Bounded.erase(
+      std::remove_if(Bounded.begin(), Bounded.end(),
+                     [](const LocationEntry &E) { return E.Low >= E.High; }),
+      Bounded.end());
+  const auto BoundedCount = Bounded.size();
+  for (const auto &L : Defaults) {
+    Bounded.push_back({0, UINT64_MAX, L});
+  }
+  auto Rank = [&](size_t Index) -> uint8_t {
+    const auto &L = Bounded[Index].L;
+    if (Index >= BoundedCount) {
+      return 4;
+    }
+    if (L.K == WasmLocation::Kind::Local && !L.Indirect) {
+      return 0;
+    }
+    if (L.K == WasmLocation::Kind::Constant && ConstantsUsable) {
+      return 1;
+    }
+    return L.K != WasmLocation::Kind::None ? 2 : 3;
+  };
+  std::set<std::pair<uint8_t, size_t>> Active;
+  const auto Spans = sweepIntervals<WasmLocation>(
+      llvm::ArrayRef<LocationEntry>(Bounded),
+      [&](size_t Index) { Active.emplace(Rank(Index), Index); },
+      [&](size_t Index) { Active.erase({Rank(Index), Index}); },
+      [&]() -> std::optional<WasmLocation> {
+        if (Active.empty()) {
+          return std::nullopt;
+        }
+        return Bounded[Active.begin()->second].L;
+      });
+  std::vector<LocationEntry> Result;
+  Result.reserve(Spans.size());
+  for (const auto &S : Spans) {
+    Result.push_back({S.Low, S.High, S.Value});
+  }
+  return Result;
+}
+
+std::optional<size_t> findLocationEntry(llvm::ArrayRef<LocationEntry> Entries,
+                                        uint64_t Address) noexcept {
+  return findInterval(Entries, Address);
+}
+
+bool coversRange(llvm::ArrayRef<LocationEntry> Entries, uint64_t Low,
+                 uint64_t High) noexcept {
+  const auto Start = findLocationEntry(Entries, Low);
+  if (!Start) {
+    return Low >= High;
+  }
+  for (size_t I = *Start; I < Entries.size() && Entries[I].Low <= Low; ++I) {
+    Low = Entries[I].High;
+    if (Low >= High) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool DwarfReader::hasDwarf(const AST::Module &Mod) noexcept {
@@ -164,6 +444,46 @@ disjointSpans(llvm::ArrayRef<SubprogramSpan> Ranges) noexcept {
       });
 }
 
+/// True when Parent holds a variable at a live address in linear memory.
+/// The search follows namespaces, functions, and their lexical blocks. In a
+/// function, only a static variable can have such an address, and it has a
+/// single location expression, so a location list there is not decoded.
+bool hasLiveGlobal(llvm::DWARFDie Parent, bool InFunction,
+                   uint32_t Depth) noexcept {
+  namespace dwarf = llvm::dwarf;
+  for (auto C : Parent.children()) {
+    switch (C.getTag()) {
+    case dwarf::DW_TAG_variable: {
+      if (InFunction) {
+        auto Attr = C.find(dwarf::DW_AT_location);
+        if (!Attr || !Attr->getAsBlock()) {
+          continue;
+        }
+      }
+      if (const auto Address = globalAddress(C);
+          Address && !isTombstoneDataAddress(*Address)) {
+        return true;
+      }
+      break;
+    }
+    case dwarf::DW_TAG_namespace:
+      if (Depth < MaxDepth && hasLiveGlobal(C, InFunction, Depth + 1)) {
+        return true;
+      }
+      break;
+    case dwarf::DW_TAG_subprogram:
+    case dwarf::DW_TAG_lexical_block:
+      if (Depth < MaxDepth && hasLiveGlobal(C, true, Depth + 1)) {
+        return true;
+      }
+      break;
+    default:
+      break;
+    }
+  }
+  return false;
+}
+
 const llvm::DWARFDie *spanAt(llvm::ArrayRef<AddressSpan<llvm::DWARFDie>> Spans,
                              uint64_t Address) noexcept {
   const auto I = findInterval(Spans, Address);
@@ -203,6 +523,12 @@ void DwarfReader::indexSubprograms(const AST::Module &Mod) noexcept {
       } else {
         llvm::consumeError(DieRanges.takeError());
       }
+    }
+  }
+  for (const auto &CU : Ctx->compile_units()) {
+    if (hasLiveGlobal(CU->getUnitDIE(), false, 0)) {
+      HasGlobals = true;
+      break;
     }
   }
   const auto Spans = disjointSpans(Ranges);

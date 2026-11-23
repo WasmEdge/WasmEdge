@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "data.h"
 #include "debuginfo/debug_info.h"
 #include "debuginfo/dwarf_die.h"
 #include "debuginfo/dwarf_reader.h"
@@ -23,6 +24,12 @@
 #include <llvm/Config/llvm-config.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#if LLVM_VERSION_MAJOR < 19
+#else
+#include <llvm/IR/DebugProgramInstruction.h>
+#endif
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
@@ -30,6 +37,7 @@
 #if WASMEDGE_OS_MACOS
 #include <llvm/Object/MachO.h>
 #endif
+#include <llvm/Support/LEB128.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
@@ -40,6 +48,7 @@
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <random>
@@ -47,6 +56,8 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge::DebugInfoTest {

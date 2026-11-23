@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace WasmEdge::LLVM::DebugInfo {
 
@@ -30,7 +31,17 @@ llvm::DIFile *file(UnitState &S, DWARFDie D) noexcept;
 
 class TypeTranslator {
 public:
-  explicit TypeTranslator(llvm::LLVMContext &Ctx) noexcept : Ctx(Ctx) {}
+  TypeTranslator(llvm::LLVMContext &Ctx, uint32_t PointerBits) noexcept
+      : Ctx(Ctx), PointerBits(PointerBits) {}
+
+  /// The size of a native pointer on the target.
+  uint32_t pointerBits() const noexcept { return PointerBits; }
+
+  llvm::DIType *variableType(UnitState &S, DWARFDie Var) noexcept;
+
+  llvm::DIScope *namespaceScope(UnitState &S, DWARFDie D) noexcept;
+
+  llvm::DIType *uchar(UnitState &S) noexcept;
 
   llvm::DIType *type(UnitState &S, DWARFDie D) noexcept;
 
@@ -41,9 +52,15 @@ public:
   llvm::DISubroutineType *subroutine(UnitState &S, DWARFDie D) noexcept;
 
 private:
-  llvm::DIType *uchar(UnitState &S) noexcept;
+  struct PendingPointer {
+    UnitState *S;
+    llvm::DICompositeType *T;
+    DWARFDie Pointee;
+  };
 
   llvm::DIType *uint32(UnitState &S) noexcept;
+
+  llvm::DIType *buildType(UnitState &S, DWARFDie D) noexcept;
 
   llvm::DIType *opaque(UnitState &S, uint64_t Size) noexcept;
 
@@ -52,6 +69,11 @@ private:
   llvm::DIType *wasmPointer(UnitState &S, DWARFDie D) noexcept;
 
   std::string pointerName(DWARFDie Pointee);
+
+  void completePointers() noexcept;
+
+  void completePointer(UnitState &S, llvm::DICompositeType *T,
+                       DWARFDie Pointee) noexcept;
 
   /// Gives null for a member whose offset cannot be read, so that no member
   /// shows at a wrong place.
@@ -70,6 +92,7 @@ private:
   llvm::DIType *array(UnitState &S, DWARFDie D) noexcept;
 
   llvm::LLVMContext &Ctx;
+  uint32_t PointerBits;
   std::unordered_map<uint64_t, llvm::DIType *> Types;
   std::unordered_map<std::string, uint64_t> PointerNames;
   /// The synthetic pointer types of each compile unit, by the key of their
@@ -77,6 +100,9 @@ private:
   static constexpr uint64_t VoidPointeeKey = UINT64_MAX;
   static constexpr uint64_t FuncRefKey = UINT64_MAX - 1;
   std::map<std::pair<uintptr_t, uint64_t>, llvm::DIType *> PointerTypes;
+  std::unordered_map<uint64_t, llvm::DIScope *> Namespaces;
+  std::vector<PendingPointer> PendingPointers;
+  uint32_t TypeDepth = 0;
 };
 
 } // namespace WasmEdge::LLVM::DebugInfo

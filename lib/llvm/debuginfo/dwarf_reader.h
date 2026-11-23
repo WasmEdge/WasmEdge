@@ -5,10 +5,12 @@
 
 #include "ast/module.h"
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/DebugInfo/DWARF/DWARFDie.h>
 #include <llvm/DebugInfo/DWARF/DWARFFormValue.h>
+#include <llvm/DebugInfo/DWARF/DWARFUnit.h>
 #include <llvm/Support/MemoryBuffer.h>
 
 #include <algorithm>
@@ -89,6 +91,33 @@ std::vector<AddressSpan<T>> sweepIntervals(llvm::ArrayRef<Interval> Intervals,
   return Result;
 }
 
+/// Where a value is. For Constant, Index holds the two's complement bits of
+/// the value.
+struct WasmLocation {
+  enum class Kind : uint8_t {
+    None,
+    Local,
+    Global,
+    FrameBaseOffset,
+    Address,
+    Constant
+  };
+  Kind K = Kind::None;
+  uint64_t Index = 0;
+  int64_t Offset = 0;
+  bool Indirect = false;
+};
+
+inline bool sameLocation(const WasmLocation &L,
+                         const WasmLocation &R) noexcept {
+  return L.K == R.K && L.Index == R.Index && L.Offset == R.Offset &&
+         L.Indirect == R.Indirect;
+}
+
+inline bool operator==(const WasmLocation &L, const WasmLocation &R) noexcept {
+  return sameLocation(L, R);
+}
+
 /// True for an address that the linker gives to discarded data. Address 0
 /// is valid in linear memory.
 inline bool isTombstoneDataAddress(uint64_t Address) noexcept {
@@ -101,6 +130,64 @@ inline bool isTombstoneDataAddress(uint64_t Address) noexcept {
 inline bool isTombstoneAddress(uint64_t Address) noexcept {
   return Address == 0 || isTombstoneDataAddress(Address);
 }
+
+/// What a DW_OP_WASM_location without DW_OP_stack_value describes. LLVM
+/// marks a value in a wasm local or global with DW_OP_stack_value, and
+/// writes the operation alone for a local that holds the memory address of
+/// the value. The WebAssembly DWARF convention writes the operation alone
+/// for a value in a wasm local or global.
+enum class WasmLocationConvention : uint8_t {
+  /// The operation alone gives the memory address of the value.
+  LLVM,
+  /// The operation alone gives the value.
+  Standard,
+  /// The unit does not say. The operation alone gives no location.
+  Unknown,
+};
+
+/// The convention of U, from its DW_AT_producer. A producer based on LLVM
+/// uses the LLVM convention, and any other producer uses the standard one.
+/// A unit without a producer has an unknown convention.
+WasmLocationConvention locationConvention(llvm::DWARFUnit *U) noexcept;
+
+WasmLocation decodeLocation(llvm::ArrayRef<uint8_t> Bytes, llvm::DWARFUnit *U,
+                            WasmLocationConvention Convention) noexcept;
+
+inline WasmLocation decodeLocation(llvm::ArrayRef<uint8_t> Bytes,
+                                   llvm::DWARFUnit *U) noexcept {
+  return decodeLocation(Bytes, U, locationConvention(U));
+}
+
+struct LocationEntry {
+  uint64_t Low;
+  uint64_t High;
+  WasmLocation L;
+};
+
+/// Turns a location list into sorted intervals that do not overlap. DWARF 5
+/// section 2.6.2 makes overlapping bounded entries describe the variable at
+/// the same time, but native debug info holds one location per address. Each
+/// interval holds the first bounded entry in a wasm local, else the first
+/// constant entry if ConstantsUsable, else the first other bounded entry
+/// that the translator supports, else the first bounded entry, which marks
+/// the value unavailable. The translator can describe a changing location
+/// only in wasm locals and in constants of a type that it can emit, so these
+/// win. A default entry fills only the gaps that no bounded entry covers.
+/// Adjacent intervals with the same location merge, even when they come
+/// from different entries.
+std::vector<LocationEntry>
+normalizeLocationEntries(std::vector<LocationEntry> Bounded,
+                         llvm::ArrayRef<WasmLocation> Defaults,
+                         bool ConstantsUsable = false) noexcept;
+
+std::optional<size_t> findLocationEntry(llvm::ArrayRef<LocationEntry> Entries,
+                                        uint64_t Address) noexcept;
+
+/// True when the entries together cover every address in [Low, High). The
+/// entries must be sorted and must not overlap, as normalizeLocationEntries
+/// returns them.
+bool coversRange(llvm::ArrayRef<LocationEntry> Entries, uint64_t Low,
+                 uint64_t High) noexcept;
 
 /// An integer constant with the signedness that its form or its type gives.
 struct IntegerConstant {
@@ -152,6 +239,7 @@ public:
   llvm::DWARFDie getSubprogram(uint32_t DefinedIndex) const noexcept;
   std::string getFunctionName(uint32_t FuncIndex) const;
   uint32_t getErrorCount() const noexcept { return *Errors; }
+  bool hasGlobalVariables() const noexcept { return HasGlobals; }
 
 private:
   DwarfReader() = default;
@@ -166,6 +254,7 @@ private:
   std::unique_ptr<llvm::DWARFContext> Ctx;
   std::shared_ptr<uint32_t> Errors = std::make_shared<uint32_t>(0);
   uint64_t CodeOffset = 0;
+  bool HasGlobals = false;
   std::vector<llvm::DWARFDie> Subprograms;
   std::unordered_map<uint32_t, std::string> Names;
 };

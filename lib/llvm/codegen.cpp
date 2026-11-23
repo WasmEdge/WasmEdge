@@ -799,7 +799,8 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
 
   // set dllexport
   for (auto GV = LLModule.getFirstGlobal(); GV; GV = GV.getNextGlobal()) {
-    if (GV.getLinkage() == LLVMExternalLinkage) {
+    if (GV.getLinkage() == LLVMExternalLinkage &&
+        GV.getVisibility() != LLVMHiddenVisibility) {
       GV.setVisibility(LLVMProtectedVisibility);
       GV.setDSOLocal(true);
       GV.setDLLStorageClass(LLVMDLLExportStorageClass);

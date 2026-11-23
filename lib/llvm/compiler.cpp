@@ -699,12 +699,15 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
                                             return false;
                                           }
                                         });
+  const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
+  FunctionCompiler::DebugPolicy Debug;
+  Debug.LocalsInMemory = Level == CompilerConfigure::OptimizationLevel::O0;
   FunctionCompiler FC(
       *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
       Conf.getStatisticsConfigure().isInstructionCounting(),
       Conf.getStatisticsConfigure().isCostMeasuring(),
       Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT, !IsSmallLeaf,
-      GlobalFuncIndex, LocalFuncIndex);
+      GlobalFuncIndex, LocalFuncIndex, Debug);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 

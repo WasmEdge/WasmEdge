@@ -9,6 +9,7 @@
 #include "debuginfo/type_translator.h"
 
 #include <llvm/DebugInfo/DWARF/DWARFDie.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Module.h>
@@ -27,12 +28,14 @@ namespace WasmEdge::LLVM::DebugInfo {
 
 class ModuleDebugInfoImpl final : public ModuleDebugInfo {
 public:
-  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R,
-                      Part P) noexcept;
+  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R, Part P,
+                      bool HasMemory, bool LinesOnly) noexcept;
 
   ~ModuleDebugInfoImpl() noexcept override { finalize(); }
 
   LLVMMetadataRef translateType(uint64_t DieOffset) noexcept override;
+
+  bool linesOnly() const noexcept { return LinesOnly; }
 
   LLVMValueRef getMemoryBaseGlobal() const noexcept override {
     return llvm::wrap(MemoryBase);
@@ -60,7 +63,33 @@ public:
                            llvm::DIFile *File,
                            unsigned Discriminator = 0) noexcept;
 
+  llvm::DIScope *lexicalBlock(UnitState &S, llvm::DIScope *Scope,
+                              DWARFDie Block) noexcept;
+
+  llvm::DIFile *variableFile(UnitState &S, DWARFDie Var,
+                             llvm::DIFile *Fallback) noexcept;
+
+  llvm::ConstantInt *constantOf(DWARFDie Var) noexcept;
+
+  /// The low Width bits of Value as an integer constant of that width.
+  llvm::ConstantInt *integerValue(unsigned Width, uint64_t Value) noexcept;
+
+  void addGlobal(UnitState &S, llvm::DIScope *Scope, DWARFDie D,
+                 uint64_t Address) noexcept;
+
+  TypeTranslator &types() noexcept { return Translator; }
+
 private:
+  void createMemoryBase() noexcept;
+
+  /// Describes a global with DW_AT_const_value. It needs no memory base.
+  void addConstantGlobal(UnitState &S, llvm::DIScope *Scope,
+                         DWARFDie D) noexcept;
+
+  void addUnitGlobals() noexcept;
+
+  void addScopeGlobals(DWARFDie Parent, uint32_t Depth) noexcept;
+
   /// The subprogram of D, in the compile unit of D. Inlined copies in other
   /// units share it.
   llvm::DISubprogram *subprogramFor(DWARFDie D) noexcept;
@@ -114,8 +143,10 @@ private:
     }
   };
   std::map<ScopeFileKey, llvm::DIScope *, ScopeFileLess> FileScopes;
+  std::unordered_set<uint64_t> Globals;
   UnitState Artificial;
   Part P;
+  bool LinesOnly;
   bool Finalized = false;
   llvm::GlobalVariable *MemoryBase = nullptr;
 };

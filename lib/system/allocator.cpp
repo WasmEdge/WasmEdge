@@ -47,6 +47,7 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    release(Reserved + k4G, 0);
     return nullptr;
   }
   return Pointer;
@@ -63,6 +64,7 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    release(Reserved + k4G, 0);
     return nullptr;
   }
   return Pointer;

@@ -12,6 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/config.h"
 #include "common/configure.h"
 #include "common/spdlog.h"
 #include "common/types.h"
@@ -21,9 +22,15 @@
 
 #include <array>
 #include <cstdint>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
+
+#if defined(__linux__)
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 
 namespace {
 
@@ -50,6 +57,78 @@ TEST(AllocatorTest, ShrinkAndRegrow) {
       std::all_of(Pointer, Pointer + PageSize, [](Byte B) { return B == 0; }));
   Allocator::release(Pointer, 1);
 }
+
+#if defined(__linux__) && (WASMEDGE_ALLOCATOR_IS_STABLE || defined(__s390x__))
+// Returns the virtual size of the process in OS pages, or 0 on failure.
+uint64_t readVirtualPages() {
+  std::ifstream Statm("/proc/self/statm");
+  uint64_t Pages = 0;
+  if (!(Statm >> Pages)) {
+    return 0;
+  }
+  return Pages;
+}
+
+// Restores RLIMIT_DATA when the test leaves the scope.
+class DataLimitGuard {
+public:
+  bool save() noexcept { return getrlimit(RLIMIT_DATA, &Old) == 0; }
+  ~DataLimitGuard() noexcept {
+    if (Lowered) {
+      setrlimit(RLIMIT_DATA, &Old);
+    }
+  }
+  bool lower(rlim_t Limit) noexcept {
+    struct rlimit Low = Old;
+    Low.rlim_cur = Limit;
+    Lowered = setrlimit(RLIMIT_DATA, &Low) == 0;
+    return Lowered;
+  }
+  bool restore() noexcept {
+    Lowered = setrlimit(RLIMIT_DATA, &Old) != 0;
+    return !Lowered;
+  }
+
+private:
+  struct rlimit Old{};
+  bool Lowered = false;
+};
+
+TEST(AllocatorTest, ReleaseReservationOnCommitFailure) {
+  const long OSPageSize = sysconf(_SC_PAGESIZE);
+  ASSERT_GT(OSPageSize, 0);
+  const uint64_t ReservedPages =
+      UINT64_C(0x300000000) / static_cast<uint64_t>(OSPageSize);
+
+  // Read the virtual size outside the lowered limit, because the read itself
+  // allocates.
+  const uint64_t Before = readVirtualPages();
+  ASSERT_NE(Before, 0U);
+
+  DataLimitGuard Limit;
+  ASSERT_TRUE(Limit.save());
+  ASSERT_TRUE(Limit.lower(static_cast<rlim_t>(OSPageSize)));
+
+  // The reservation alone must succeed under the lowered limit, so that a
+  // failed allocate(1) below comes from the commit and not the reservation.
+  auto *Reserved = Allocator::allocate(0);
+  if (Reserved == nullptr) {
+    ASSERT_TRUE(Limit.restore());
+    GTEST_SKIP() << "the 12 GiB reservation is not available";
+  }
+  Allocator::release(Reserved, 0);
+
+  auto *Pointer = Allocator::allocate(1);
+  ASSERT_TRUE(Limit.restore());
+  if (Pointer != nullptr) {
+    Allocator::release(Pointer, 1);
+    GTEST_SKIP() << "RLIMIT_DATA does not limit private writable mappings";
+  }
+  const uint64_t After = readVirtualPages();
+  ASSERT_NE(After, 0U);
+  EXPECT_LT(After, Before + ReservedPages / 2);
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Memory page limit tests (formerly MemLimitTest).

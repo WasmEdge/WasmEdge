@@ -71,7 +71,11 @@ using floatx4_t = SIMDArray<float, 16>;
 
 /// Raw 128-bit storage passed in a vector register across the AOT boundary.
 /// It does not depend on the cxx26::simd backend, so CXX26_SIMD_FORCE_GENERIC
-/// keeps the AOT and JIT calling convention.
+/// keeps the AOT and JIT calling convention. The fallback for other compilers
+/// is an array, which is returned by the aggregate calling convention of the
+/// platform. That convention can differ from the vector calling convention
+/// that compiled code expects from intrinsics that return a reference, such as
+/// the one for ref.func.
 #if defined(__GNUC__) || defined(__clang__)
 using RawV128 [[gnu::vector_size(16)]] = uint64_t;
 #elif defined(_M_X64)

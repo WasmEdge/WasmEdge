@@ -34,24 +34,29 @@ namespace Runtime {
 /// Runtime match helper class.
 class Matcher {
 public:
-  /// Match a reference to a value type of a module instance.
+  /// Match a reference to a value type of a module instance, if any. The
+  /// expected type tells whether the reference is seen as an extern reference.
   static bool matchRef(const Instance::ModuleInstance *ModInst,
                        const ValType &Exp, const RefVariant &Ref) noexcept {
-    // Match the own type of the referenced instance.
-    auto VT = Ref.getType();
-    Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+    // The null reference has the bottom type.
+    if (Ref.isNull()) {
+      return AST::TypeMatcher::matchBottomRef(Exp, true);
+    }
+    // A non-null reference matches by the own type of the referenced instance.
+    auto VT = Ref.getType().getNonNullableRef();
+    // An expected type out of any module is abstract and needs no type list.
+    Span<const AST::SubType *const> ExpTypeList;
+    if (ModInst) {
+      ExpTypeList = ModInst->getTypeList();
+    }
+    Span<const AST::SubType *const> GotTypeList = ExpTypeList;
     const AST::SubType *HostType = nullptr;
-    if (VT.isExternalized()) {
-      VT = ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-                   TypeCode::ExternRef);
-    } else if (!VT.isAbsHeapType()) {
-      // Null references have abstract heap types.
+    if (!VT.isAbsHeapType()) {
       const auto *Inst = Ref.getPtr<Instance::CompositeBase>();
-      assuming(Inst);
       if (Inst->getModule()) {
         GotTypeList = Inst->getModule()->getTypeList();
       }
-    } else if (VT.getHeapTypeCode() == TypeCode::FuncRef && !Ref.isNull()) {
+    } else if (VT.getHeapTypeCode() == TypeCode::FuncRef) {
       const auto *FuncInst = retrieveFuncRef(Ref);
       if (FuncInst->getModule()) {
         GotTypeList = FuncInst->getModule()->getTypeList();
@@ -62,9 +67,28 @@ public:
         GotTypeList = Span<const AST::SubType *const>(&HostType, 1);
         VT = ValType(TypeCode::Ref, 0U);
       }
+    } else if (VT.getHeapTypeCode() == TypeCode::ExternRef) {
+      // A reference to a host object is an any reference.
+      VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
     }
-    return AST::TypeMatcher::matchType(ModInst->getTypeList(), Exp, GotTypeList,
-                                       VT);
+    // An extern reference is the outside view of a reference of the any
+    // hierarchy.
+    if (Exp.isExternRefType() &&
+        AST::TypeMatcher::getTopHeapType(GotTypeList, VT) == TypeCode::AnyRef) {
+      VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+    }
+    return AST::TypeMatcher::matchType(ExpTypeList, Exp, GotTypeList, VT);
+  }
+
+  /// Match a reference passed with a type to a value type of a module
+  /// instance, if any. The passed type tells how the reference is seen.
+  static bool matchRef(const Instance::ModuleInstance *ModInst,
+                       const ValType &Exp, const RefVariant &Ref,
+                       const ValType &Got) noexcept {
+    // A reference passed as an extern one fits the extern types only, and no
+    // other reference fits them. The null reference has no view.
+    return (Ref.isNull() || Got.isExternRefType() == Exp.isExternRefType()) &&
+           matchRef(ModInst, Exp, Ref);
   }
 
   /// Match a function instance of a module instance to a defined type.

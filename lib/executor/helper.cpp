@@ -320,8 +320,8 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
       if (Def.second.isRefType()) {
-        // Type the null refs with the bottom heap type of their hierarchy so
-        // that ref.test/ref.cast match them against the concrete types.
+        // Type the null refs with the bottom heap type of their hierarchy,
+        // which is the type an invocation reports for a null result.
         const auto BotTypeCode = toBottomType(Func.getModule(), Def.second);
         RefVariant InitVal(ValType(TypeCode::RefNull, BotTypeCode));
         for (uint32_t I = 0; I < Def.first; I++) {

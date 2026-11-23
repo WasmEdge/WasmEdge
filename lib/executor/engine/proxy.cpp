@@ -246,7 +246,7 @@ Executor::proxyRefFunc(Runtime::StackManager &,
                        const uint32_t FuncIdx) noexcept {
   auto *FuncInst = getFuncInstByIdx(ModInst, FuncIdx);
   assuming(FuncInst);
-  return RefVariant(FuncInst->getDefType(), FuncInst);
+  return RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef), FuncInst);
 }
 
 Expect<RefVariant>

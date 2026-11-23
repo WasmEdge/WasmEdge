@@ -91,7 +91,8 @@ Expect<void> Executor::runRefIsNullOp(ValVariant &Val) const noexcept {
 Expect<void> Executor::runRefFuncOp(Runtime::StackManager &StackMgr,
                                     uint32_t Idx) const noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr.getModule(), Idx);
-  StackMgr.push(RefVariant(FuncInst->getDefType(), FuncInst));
+  StackMgr.push(
+      RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef), FuncInst));
   return {};
 }
 
@@ -110,8 +111,6 @@ Executor::runRefAsNonNullOp(RefVariant &Ref,
   if (Ref.isNull()) {
     return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
-  ValType Type = Ref.getType();
-  Ref.setType(Type.toNonNullableRef());
   return {};
 }
 
@@ -365,29 +364,11 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
 
 Expect<void> Executor::runRefConvOp(RefVariant &Ref,
                                     TypeCode TCode) const noexcept {
-  if (TCode == TypeCode::AnyRef) {
-    // Internalize.
-    if (Ref.isNull()) {
-      Ref = RefVariant(ValType(TypeCode::RefNull, TypeCode::NullRef));
-    } else {
-      ValType VT = Ref.getType();
-      VT.setInternalized();
-      if (VT.isExternRefType()) {
-        VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
-      }
-      Ref.setType(VT);
-    }
-  } else {
-    // Externalize.
-    if (Ref.isNull()) {
-      Ref = RefVariant(ValType(TypeCode::RefNull, TypeCode::NullExternRef));
-    } else {
-      // Use the externalize flag because the value type information should be
-      // reserved when a reference being externalized and internalized.
-      ValType VT = Ref.getType();
-      VT.setExternalized();
-      Ref.setType(VT);
-    }
+  // A non-null reference is the same value seen from inside and from outside.
+  if (Ref.isNull()) {
+    Ref = RefVariant(ValType(TypeCode::RefNull, TCode == TypeCode::AnyRef
+                                                    ? TypeCode::NullRef
+                                                    : TypeCode::NullExternRef));
   }
   return {};
 }

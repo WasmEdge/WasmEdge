@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "experimental/bit.hpp"
 #include "experimental/simd/backend_array.hpp"
 #include "experimental/simd/detail.hpp"
 
@@ -291,6 +292,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
   template <std::float_round_style R>
   static storage_type round(const storage_type &A) noexcept {
     using ib = signed_backend;
+    using ub = simd_backend<std::make_unsigned_t<int_type>, m128i_abi<N>>;
     const auto Splat = [](auto Value) {
       return ib::broadcast(static_cast<int_type>(Value));
     };
@@ -316,7 +318,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
 
     // 1 <= |A| < 2^mantissa_bits clears the fraction bits, then adds one unit
     // when the rounding goes away from zero.
-    const storage_type Unit = integer_unit(ib::shr(Abs, mantissa_bits));
+    const storage_type Unit = integer_unit(ub::shr(Abs, mantissa_bits));
     const storage_type FractionMask = ib::sub(Unit, Splat(1));
     const storage_type Fraction = bit_and(Abs, FractionMask);
     const storage_type Truncated = _mm_andnot_si128(FractionMask, A);
@@ -328,7 +330,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
     } else if constexpr (R == std::round_toward_neg_infinity) {
       Up = _mm_andnot_si128(Positive, HasFraction);
     } else if constexpr (R == std::round_to_nearest) {
-      const storage_type Half = ib::shr(Unit, 1);
+      const storage_type Half = ub::shr(Unit, 1);
       const storage_type Odd = bit_not(ib::eq(bit_and(Truncated, Unit), Zero));
       Up = bit_or(ib::gt(Fraction, Half), bit_and(ib::eq(Fraction, Half), Odd));
     }

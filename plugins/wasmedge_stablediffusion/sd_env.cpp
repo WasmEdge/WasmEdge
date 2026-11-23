@@ -46,9 +46,11 @@ uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx, int32_t Nthreads,
 }
 
 void SDEnviornment::freeContext(const uint32_t Id) noexcept {
-  sd_ctx_t *SDCtx = Contexts[Id].Context;
-  free_sd_ctx(SDCtx);
-  Contexts.erase(Contexts.begin() + Id - 1);
+  if (Id >= Contexts.size() || Contexts[Id].Context == nullptr) {
+    return;
+  }
+  free_sd_ctx(Contexts[Id].Context);
+  Contexts[Id].Context = nullptr;
 }
 
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {

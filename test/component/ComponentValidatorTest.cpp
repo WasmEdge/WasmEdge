@@ -3948,4 +3948,33 @@ TEST(ComponentValidatorTest, BorrowCountsEightBytesTowardsTheSizeLimit) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
   EXPECT_TRUE(Validate(BelowLimit));
 }
+
+TEST(ComponentValidatorTest, FailedRevalidationClearsValidatedFlags) {
+  // (component (core module (global (export "g") (mut i32) (i32.const 0))))
+  const std::vector<uint8_t> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x17, 0x00,
+      0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x06, 0x06, 0x01, 0x7f,
+      0x01, 0x41, 0x00, 0x0b, 0x07, 0x05, 0x01, 0x01, 0x67, 0x03, 0x00,
+  };
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(Wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = *std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  ASSERT_EQ(Comp.getSections().size(), 1U);
+  const auto &Mod =
+      std::get<AST::Component::CoreModuleSection>(Comp.getSections()[0])
+          .getContent();
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+  EXPECT_TRUE(Comp.getIsValidated());
+  EXPECT_TRUE(Mod.getIsValidated());
+
+  Configure StrictConf(Conf);
+  StrictConf.removeProposal(Proposal::ImportExportMutGlobals);
+  Validator::Validator StrictV(StrictConf);
+  ASSERT_FALSE(StrictV.validate(Comp));
+  EXPECT_FALSE(Comp.getIsValidated());
+  EXPECT_FALSE(Mod.getIsValidated());
+}
 } // namespace

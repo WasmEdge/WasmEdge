@@ -1252,6 +1252,27 @@ TEST_F(ValidatorRegressionTest, SelectRejectsBottomRefAfterUnreachable) {
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
+TEST_F(ValidatorRegressionTest, FailedRevalidationClearsValidatedFlag) {
+  // (module (global (export "g") (mut i32) (i32.const 0)))
+  std::array<WasmEdge::Byte, 23> MutGlobalWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x06, 0x06, 0x01, 0x7f,
+      0x01, 0x41, 0x00, 0x0b, 0x07, 0x05, 0x01, 0x01, 0x67, 0x03, 0x00};
+  auto Mod = LoadEngine->parseModule(MutGlobalWasm);
+  ASSERT_TRUE(Mod);
+  ASSERT_TRUE(ValidEngine->validate(**Mod));
+  EXPECT_TRUE((*Mod)->getIsValidated());
+
+  WasmEdge::Configure StrictConf;
+  StrictConf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
+  WasmEdge::Validator::Validator StrictValid(StrictConf);
+  ASSERT_FALSE(StrictValid.validate(**Mod));
+  EXPECT_FALSE((*Mod)->getIsValidated());
+
+  WasmEdge::Executor::Executor Exec(StrictConf);
+  WasmEdge::Runtime::StoreManager Store;
+  EXPECT_FALSE(Exec.instantiateModule(Store, **Mod));
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

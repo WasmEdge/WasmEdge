@@ -24,6 +24,7 @@ using namespace std::literals;
 
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
+  Comp.setIsValidated(false);
   CompCtx.reset();
   DeferredModules.clear();
   EXPECTED_TRY(validate(Comp, *CompCtx.addShape()));
@@ -88,6 +89,7 @@ Expect<void>
 Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
   // Validate every section but the function bodies, which defer to the end.
   const auto &Mod = ModSec.getContent();
+  Mod.setIsValidated(false);
   Checker.reset(true);
   auto ReportError = [](ASTNodeAttr Attr) {
     return [Attr](auto E) {

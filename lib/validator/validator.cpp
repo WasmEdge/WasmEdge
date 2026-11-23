@@ -150,6 +150,7 @@ void setCanonicalIndices(Span<const AST::SubType> RecType, uint32_t BaseIdx,
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
   // https://webassembly.github.io/spec/core/valid/modules.html
+  Mod.setIsValidated(false);
   Checker.reset(true);
 
   // Validate and register type section.

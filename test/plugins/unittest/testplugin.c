@@ -62,6 +62,20 @@ HostFuncNameSize(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
   return WasmEdge_Result_Success;
 }
 
+static WasmEdge_Result
+HostFuncNameByte(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+                 const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  (void)Data;
+  (void)CallFrameCxt;
+  uint32_t Index = (uint32_t)WasmEdge_ValueGetI32(In[0]);
+  int32_t Byte = -1;
+  if (Index < NameString.Length) {
+    Byte = (int32_t)(unsigned char)NameString.Buf[Index];
+  }
+  Out[0] = WasmEdge_ValueGenI32(Byte);
+  return WasmEdge_Result_Success;
+}
+
 static WasmEdge_ModuleInstanceContext *
 CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   /* Allocate and initialize a host data. */
@@ -99,6 +113,13 @@ CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   FType = WasmEdge_FunctionTypeCreate(NULL, 0, ReturnTypes, 1);
   FuncName = WasmEdge_StringCreateByCString("name_size");
   FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncNameSize, NULL, 0);
+  WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_FunctionTypeDelete(FType);
+  /* Create the "name_byte" function and add it to the module instance. */
+  FType = WasmEdge_FunctionTypeCreate(ParamTypes, 1, ReturnTypes, 1);
+  FuncName = WasmEdge_StringCreateByCString("name_byte");
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncNameByte, NULL, 0);
   WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
   WasmEdge_StringDelete(FuncName);
   WasmEdge_FunctionTypeDelete(FType);

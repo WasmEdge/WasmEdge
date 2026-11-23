@@ -114,10 +114,11 @@ TEST(wasmedgePluginTests, CPP_Module) {
   // Create the wasmedge_plugintest_c_module module instance.
   auto TestModC = createModuleC();
   ASSERT_TRUE(TestModC);
-  EXPECT_EQ(TestModC->getFuncExportNum(), 3U);
+  EXPECT_EQ(TestModC->getFuncExportNum(), 4U);
   EXPECT_NE(TestModC->findFuncExports("add"), nullptr);
   EXPECT_NE(TestModC->findFuncExports("sub"), nullptr);
   EXPECT_NE(TestModC->findFuncExports("name_size"), nullptr);
+  EXPECT_NE(TestModC->findFuncExports("name_byte"), nullptr);
 }
 
 TEST(wasmedgePluginTests, C_ProgramOptions) {
@@ -127,28 +128,50 @@ TEST(wasmedgePluginTests, C_ProgramOptions) {
   const auto *Plugin =
       WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_c"sv);
   ASSERT_NE(Plugin, nullptr);
-  auto *FuncInst = TestModC->findFuncExports("name_size");
-  ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncInst = FuncInst->getHostFunc();
+  auto *SizeFunc = TestModC->findFuncExports("name_size");
+  ASSERT_NE(SizeFunc, nullptr);
+  auto *ByteFunc = TestModC->findFuncExports("name_byte");
+  ASSERT_NE(ByteFunc, nullptr);
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-  std::array<WasmEdge::ValVariant, 1> RetVal;
 
   auto Parse = [Plugin](std::vector<const char *> Args) {
     WasmEdge::PO::ArgumentParser Parser;
     Plugin->registerOptions(Parser);
     return Parser.parse(stdout, static_cast<int>(Args.size()), Args.data());
   };
+  auto Call = [&CallFrame](WasmEdge::Runtime::Instance::FunctionInstance *Func,
+                           int32_t Arg) {
+    std::array<WasmEdge::ValVariant, 1> Params = {WasmEdge::ValVariant(Arg)};
+    std::array<WasmEdge::ValVariant, 1> RetVal;
+    const auto ParamCount = Func->getFuncType().getParamTypes().size();
+    EXPECT_TRUE(Func->getHostFunc().run(
+        CallFrame,
+        WasmEdge::Span<const WasmEdge::ValVariant>(Params.data(), ParamCount),
+        RetVal));
+    return RetVal[0].get<int32_t>();
+  };
+  auto Name = [&]() {
+    std::string Result;
+    const int32_t Size = Call(SizeFunc, 0);
+    for (int32_t I = 0; I < Size; ++I) {
+      Result.push_back(static_cast<char>(Call(ByteFunc, I)));
+    }
+    EXPECT_EQ(Call(ByteFunc, Size), -1);
+    return Result;
+  };
 
   // The options are optional, and the declared default is stored.
   EXPECT_TRUE(Parse({"test"}));
-  EXPECT_TRUE(HostFuncInst.run(CallFrame, {}, RetVal));
-  EXPECT_EQ(RetVal[0].get<int32_t>(), 4);
+  EXPECT_EQ(Name(), "name");
 
   EXPECT_TRUE(
       Parse({"test", "--number", "7", "--name", "abc", "--name", "abcdefg"}));
-  EXPECT_TRUE(HostFuncInst.run(CallFrame, {}, RetVal));
-  EXPECT_EQ(RetVal[0].get<int32_t>(), 7);
+  EXPECT_EQ(Name(), "abcdefg");
+  EXPECT_TRUE(Parse({"test", "--name", ""}));
+  EXPECT_EQ(Name(), "");
+  EXPECT_TRUE(Parse({"test", "--name", "abc", "--name"}));
+  EXPECT_EQ(Name(), "name");
 
   EXPECT_FALSE(Parse({"test", "--number", "x"}));
   EXPECT_FALSE(Parse({"test", "--number"}));

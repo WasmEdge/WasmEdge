@@ -44,6 +44,11 @@ typedef enum WasmEdge_ProgramOptionType {
 /// `DefaultValue` is not NULL, it points to a value of the same type, which is
 /// written to `Storage` when the plugin is registered. A toggle option given
 /// on the command line stores true.
+///
+/// For a `WasmEdge_ProgramOptionType_String` option, the runtime owns the
+/// buffer of a parsed value, which is not null-terminated. The buffer stays
+/// valid until the option is parsed again. Do not free it, and do not read
+/// the option while it is parsed.
 typedef struct WasmEdge_ProgramOption {
   const char *Name;
   const char *Description;

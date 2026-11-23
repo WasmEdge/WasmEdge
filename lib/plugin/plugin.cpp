@@ -52,24 +52,57 @@ static bool GetFunctionModuleFileName(void *FuncPtr,
 
 namespace WasmEdge {
 
-namespace PO {
-template <> struct Parser<WasmEdge_String> {
-  static cxx20::expected<WasmEdge_String, Error>
-  parse(std::string Value) noexcept {
-    if (!Value.empty()) {
-      const uint32_t Length = static_cast<uint32_t>(Value.size());
-      char *Buf = new char[Value.size()];
-      std::copy_n(Value.data(), Value.size(), Buf);
-      return WasmEdge_String{/* Length */ Length, /* Buf */ Buf};
-    }
-    return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
-  }
-};
-} // namespace PO
-
 namespace Plugin {
 
 namespace {
+
+class CStringOption {
+public:
+  CStringOption(PO::Description &&D, WasmEdge_String *Storage,
+                const WasmEdge_String *DefaultValue) noexcept
+      : Store(Storage), Default(DefaultValue), Desc(D.Value) {
+    if (Default) {
+      *Store = *Default;
+    }
+  }
+
+  std::string_view description() const noexcept { return Desc; }
+
+  std::string_view meta() const noexcept { return {}; }
+
+  bool hidden() const noexcept { return false; }
+
+  std::size_t min_narg() const noexcept { return Default != nullptr ? 0 : 1; }
+
+  std::size_t max_narg() const noexcept { return 1; }
+
+  const WasmEdge_String &value() const noexcept { return *Store; }
+  WasmEdge_String &value() noexcept { return *Store; }
+
+  void default_argument() noexcept {
+    std::string().swap(Buffer);
+    *Store = *Default;
+  }
+
+  cxx20::expected<void, PO::Error> argument(std::string Argument) noexcept {
+    Buffer = std::move(Argument);
+    if (Buffer.empty()) {
+      std::string().swap(Buffer);
+      *Store = WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
+    } else {
+      *Store =
+          WasmEdge_String{/* Length */ static_cast<uint32_t>(Buffer.size()),
+                          /* Buf */ Buffer.data()};
+    }
+    return {};
+  }
+
+private:
+  WasmEdge_String *Store;
+  const WasmEdge_String *Default;
+  std::string_view Desc;
+  std::string Buffer;
+};
 
 class CAPIPluginRegister {
 public:
@@ -174,7 +207,7 @@ public:
                 static_cast<const double *>(OptionDesc->DefaultValue));
         break;
       case WasmEdge_ProgramOptionType_String:
-        Emplace(std::in_place_type<PO::Option<WasmEdge_String *>>,
+        Emplace(std::in_place_type<CStringOption>,
                 static_cast<WasmEdge_String *>(OptionDesc->Storage),
                 static_cast<const WasmEdge_String *>(OptionDesc->DefaultValue));
         break;
@@ -214,14 +247,14 @@ private:
   }
 
   Plugin::PluginDescriptor Descriptor;
-  mutable std::vector<std::pair<
-      const WasmEdge_ProgramOption *,
-      std::variant<PO::Option<PO::Toggle *>, PO::Option<int8_t *>,
-                   PO::Option<int16_t *>, PO::Option<int32_t *>,
-                   PO::Option<int64_t *>, PO::Option<uint8_t *>,
-                   PO::Option<uint16_t *>, PO::Option<uint32_t *>,
-                   PO::Option<uint64_t *>, PO::Option<float *>,
-                   PO::Option<double *>, PO::Option<WasmEdge_String *>>>>
+  mutable std::vector<
+      std::pair<const WasmEdge_ProgramOption *,
+                std::variant<PO::Option<PO::Toggle *>, PO::Option<int8_t *>,
+                             PO::Option<int16_t *>, PO::Option<int32_t *>,
+                             PO::Option<int64_t *>, PO::Option<uint8_t *>,
+                             PO::Option<uint16_t *>, PO::Option<uint32_t *>,
+                             PO::Option<uint64_t *>, PO::Option<float *>,
+                             PO::Option<double *>, CStringOption>>>
       Options;
   std::vector<PluginModule::ModuleDescriptor> ModuleDescriptions;
   static std::unordered_map<const PluginModule::ModuleDescriptor *,

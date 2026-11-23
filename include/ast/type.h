@@ -532,6 +532,11 @@ public:
                      Got.getTypeIndex(), Equal);
   }
 
+  /// Matcher: Match the bottom reference type to a value type.
+  static bool matchBottomRef(const ValType &Exp, bool IsNullable) noexcept {
+    return IsNullable ? Exp.isNullableRefType() : Exp.isRefType();
+  }
+
   /// Matcher: Match two table types.
   static bool matchType(Span<const SubType *const> ExpTypeList,
                         const TableType &Exp,
@@ -609,6 +614,21 @@ public:
     default:
       return TypeCode::NullRef;
     }
+  }
+
+  /// Matcher: Get the top type of the hierarchy of a reference type.
+  static TypeCode getTopHeapType(Span<const SubType *const> TypeList,
+                                 const ValType &Type) noexcept {
+    return getTopHeapType(
+        Type.isAbsHeapType()
+            ? Type.getHeapTypeCode()
+            : TypeList[Type.getTypeIndex()]->getCompositeType().expand());
+  }
+
+  /// Matcher: Get the bottom type of the hierarchy of a reference type.
+  static TypeCode getBottomHeapType(Span<const SubType *const> TypeList,
+                                    const ValType &Type) noexcept {
+    return getBottomHeapType(getTopHeapType(TypeList, Type));
   }
 
 private:

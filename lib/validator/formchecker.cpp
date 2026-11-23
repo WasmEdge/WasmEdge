@@ -134,10 +134,12 @@ void FormChecker::addLocal(const ValType &V, bool Initialized) {
 void FormChecker::addTag(const uint32_t TypeIdx) { Tags.push_back(TypeIdx); }
 
 ValType FormChecker::VTypeToAST(const VType &V) {
-  if (!V) {
-    return TypeCode::I32;
+  if (V.getValType().has_value()) {
+    return *V.getValType();
   }
-  return *V;
+  // The bottom types have no value type: print the closest one.
+  return V.isBottom() ? ValType(TypeCode::I32)
+                      : ValType(TypeCode::Ref, TypeCode::NullRef);
 }
 
 Expect<void> FormChecker::checkExpr(AST::InstrView Instrs) {
@@ -359,15 +361,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return T;
   };
 
-  // Helper lambda for downcasting into the top heap type.
-  auto toTopHeapType = [this](const ValType &T) -> ValType {
-    assuming(T.isRefType());
-    return AST::TypeMatcher::getTopHeapType(
-        T.isAbsHeapType()
-            ? T.getHeapTypeCode()
-            : Types[T.getTypeIndex()]->getCompositeType().expand());
-  };
-
   switch (Instr.getOpCode()) {
   // Control instructions.
   case OpCode::Unreachable:
@@ -508,13 +501,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       for (uint32_t IdxN = static_cast<uint32_t>(NTypes.size()); IdxN >= 1;
            --IdxN) {
         const uint32_t Idx = IdxN - 1;
-        // Check whether `unreachableVType` occurred when an `unreachable`
-        // instruction appeared before the `br_table` instruction.
-        const bool IsBottom = ValStack.size() == CtrlStack.back().Height ||
-                              ValStack.back() == unreachableVType();
         // Cannot use popTypes() here because we need the popped value.
-        EXPECTED_TRY(auto Type, popType(NTypes[Idx]));
-        TypeBuf[Idx] = IsBottom ? unreachableVType() : Type;
+        EXPECTED_TRY(TypeBuf[Idx], popType(NTypes[Idx]));
       }
       recordJump(LabelTable[LabelIdx], static_cast<uint32_t>(NTypes.size()), N);
       pushTypes(TypeBuf);
@@ -531,7 +519,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     EXPECTED_TRY(auto D, checkCtrlStackDepth(Instr.getJump().TargetIndex));
     const auto NTypes = getLabelTypes(CtrlStack[D]);
     EXPECTED_TRY(auto ResT, popType());
-    if (ResT.has_value() && !ResT->isRefType()) {
+    if (!ResT.isRefType()) {
       spdlog::error(ErrCode::Value::InvalidBrRefType);
       return Unexpect(ErrCode::ErrCode::Value::InvalidBrRefType);
     }
@@ -539,11 +527,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     recordJump(const_cast<AST::Instruction &>(Instr).getJump(),
                static_cast<uint32_t>(NTypes.size()), D);
     pushTypes(NTypes);
-    if (ResT.has_value()) {
-      pushType(ResT->toNonNullableRef());
-    } else {
-      pushType(unreachableVType());
-    }
+    pushType(ResT.getNonNullableRef());
     return {};
   }
 
@@ -666,7 +650,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
   case OpCode::Ref__is_null: {
     EXPECTED_TRY(auto Type, popType());
-    if (Type.has_value() && !Type->isRefType()) {
+    if (!Type.isRefType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(TypeCode::FuncRef, VTypeToAST(Type)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -691,17 +675,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                       {ValType(TypeCode::I32)});
   case OpCode::Ref__as_non_null: {
     EXPECTED_TRY(auto Type, popType());
-    if (Type == unreachableVType()) {
-      pushType(unreachableVType());
-      return {};
-    }
-    if (!Type->isRefType()) {
+    if (!Type.isRefType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(
           ValType(TypeCode::RefNull, TypeCode::FuncRef), VTypeToAST(Type)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
-    return StackTrans({}, {Type->toNonNullableRef()});
+    pushType(Type.getNonNullableRef());
+    return {};
   }
 
   case OpCode::Struct__new:
@@ -923,23 +904,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Ref__cast:
   case OpCode::Ref__cast_null: {
     EXPECTED_TRY(validate(Instr.getValType()));
-    EXPECTED_TRY(auto Type, popType());
-    if (Type.has_value() && !Type->isRefType()) {
-      // The trap occurs when the actual type is not a reference type.
-      spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(
-          ErrInfo::InfoMismatch(Instr.getValType(), VTypeToAST(Type)));
-      return Unexpect(ErrCode::Value::TypeCheckFailed);
-    }
-    // When Type is nullopt (unreachable/bottom type), the bottom type matches
-    // any target type, so skip the type matching check.
-    if (Type.has_value() &&
-        !AST::TypeMatcher::matchType(Types, toTopHeapType(*Type),
-                                     Instr.getValType())) {
-      spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(ErrInfo::InfoMismatch(*Type, Instr.getValType()));
-      return Unexpect(ErrCode::Value::TypeCheckFailed);
-    }
+    // The operand is a reference in the type hierarchy of the target type.
+    EXPECTED_TRY(
+        popType(AST::TypeMatcher::getTopHeapType(Types, Instr.getValType())));
     if (Instr.getOpCode() == OpCode::Ref__test ||
         Instr.getOpCode() == OpCode::Ref__test_null) {
       return StackTrans({}, {ValType(TypeCode::I32)});
@@ -991,13 +958,16 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     pushTypes(NTypes);
     return {};
   }
-  case OpCode::Any__convert_extern: {
-    EXPECTED_TRY(auto Type, popType(TypeCode::ExternRef));
-    return StackTrans({}, {ValType(Type->getCode(), TypeCode::AnyRef)});
-  }
+  case OpCode::Any__convert_extern:
   case OpCode::Extern__convert_any: {
-    EXPECTED_TRY(auto Type, popType(TypeCode::AnyRef));
-    return StackTrans({}, {ValType(Type->getCode(), TypeCode::ExternRef)});
+    // The result keeps the nullability of the operand, non-null when unknown.
+    const bool IsToAny = Instr.getOpCode() == OpCode::Any__convert_extern;
+    EXPECTED_TRY(auto Type,
+                 popType(IsToAny ? TypeCode::ExternRef : TypeCode::AnyRef));
+    return StackTrans(
+        {},
+        {ValType(Type.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
+                 IsToAny ? TypeCode::AnyRef : TypeCode::ExternRef)});
   }
   case OpCode::Ref__i31:
     return StackTrans({ValType(TypeCode::I32)},
@@ -1017,28 +987,24 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     EXPECTED_TRY(VType T1, popType());
     EXPECTED_TRY(VType T2, popType());
     // T1 and T2 should be number type.
-    if (T1.has_value() && !T1->isNumType()) {
+    if (!T1.isNumType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(TypeCode::I32, VTypeToAST(T1)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
-    if (T2.has_value() && !T2->isNumType()) {
+    if (!T2.isNumType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(VTypeToAST(T1), VTypeToAST(T2)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Error if t1 != t2 && t1 =/= Unknown && t2 =/= Unknown
-    if (T1 != T2 && T1 != unreachableVType() && T2 != unreachableVType()) {
+    if (T1 != T2 && !T1.isBottom() && !T2.isBottom()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(VTypeToAST(T1), VTypeToAST(T2)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Push value.
-    if (T1 == unreachableVType()) {
-      pushType(T2);
-    } else {
-      pushType(T1);
-    }
+    pushType(T1.isBottom() ? T2 : T1);
     return {};
   }
   case OpCode::Select_t: {
@@ -2009,7 +1975,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
 }
 
-void FormChecker::pushType(VType V) { ValStack.emplace_back(V); }
+void FormChecker::pushType(const VType &V) { ValStack.emplace_back(V); }
 
 void FormChecker::pushTypes(Span<const VType> Input) {
   for (auto Val : Input) {
@@ -2026,7 +1992,7 @@ void FormChecker::pushTypes(Span<const ValType> Input) {
 Expect<VType> FormChecker::popType() {
   if (ValStack.size() == CtrlStack.back().Height) {
     if (CtrlStack.back().IsUnreachable) {
-      return unreachableVType();
+      return VType();
     }
     // Value stack underflow
     spdlog::error(ErrCode::Value::TypeCheckFailed);
@@ -2038,13 +2004,13 @@ Expect<VType> FormChecker::popType() {
   return T;
 }
 
-Expect<VType> FormChecker::popType(ValType E) {
+Expect<VType> FormChecker::popType(const ValType &E) {
   EXPECTED_TRY(auto Type, popType());
-  if (Type == unreachableVType()) {
-    return E;
-  }
-
-  if (!AST::TypeMatcher::matchType(Types, E, *Type)) {
+  // Bottom matches every value type.
+  const auto &Got = Type.getValType();
+  if (Got.has_value()
+          ? !AST::TypeMatcher::matchType(Types, E, *Got)
+          : !Type.isBottom() && !AST::TypeMatcher::matchBottomRef(E, false)) {
     // The expected value on the value stack does not match.
     spdlog::error(ErrCode::Value::TypeCheckFailed);
     spdlog::error(ErrInfo::InfoMismatch(VTypeToAST(E), VTypeToAST(Type)));

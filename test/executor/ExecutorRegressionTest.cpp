@@ -891,11 +891,7 @@ std::array<WasmEdge::Byte, 120> HostFuncTableWasm{
     0x00, 0x0b, 0x09, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x14, 0x01, 0x0b};
 // clang-format on
 
-/// Regression test for ref.test on externalized nullable references.
-///
-/// The bug: runRefTestOp always created non-nullable types for externalized
-/// references (TypeCode::Ref), discarding the original nullability info.
-/// The fix preserves nullability by checking isNullableRefType().
+/// Regression test for ref.test on externalized references.
 ///
 /// This test exercises the externalized reference code path in ref.test via
 /// the extern.convert_any + ref.test pattern, verifying correct behavior for
@@ -911,14 +907,13 @@ TEST(ExecutorRegression, RefTestNullAbility) {
 
   // --- Part 1: Non-null anyref input ---
   //
-  // When a non-null anyref is externalized via extern.convert_any, the
-  // externalized flag is set on the value. The ref.test instruction must
-  // correctly handle this externalized type when matching against both
-  // nullable and non-nullable extern targets.
+  // When a non-null anyref is externalized via extern.convert_any, the value
+  // stays as it is and is seen as an extern reference. The ref.test
+  // instruction must match it against both nullable and non-nullable extern
+  // targets.
   //
-  // Note: The runtime parameter-pushing code converts non-null nullable refs
-  // to non-nullable before execution. So the externalized type at ref.test
-  // time will be non-nullable. Both ref.test targets should succeed.
+  // Note: The type of a reference value comes from the value, so a non-null
+  // reference is non-nullable. Both ref.test targets should succeed.
   {
     int DummyObj = 42;
     RefVariant AnyRefVal(ValType(TypeCode::RefNull, TypeCode::AnyRef),
@@ -940,8 +935,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
 
     // Test 2: extern.convert_any + ref.test (ref extern)
     // Non-null externalized ref with non-nullable type should also match
-    // non-nullable extern target (the externalized type is (ref extern)
-    // because the runtime made it non-nullable before execution).
+    // non-nullable extern target.
     {
       auto Result = VM.execute("test_nonnull", Params, ParamTypes);
       ASSERT_TRUE(Result);
@@ -954,8 +948,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   // --- Part 2: Null anyref input ---
   //
   // When a null anyref is externalized, extern.convert_any creates a new
-  // RefVariant with type (ref null noextern) without setting the externalized
-  // flag. ref.test follows the normal (non-externalized) code path.
+  // RefVariant with type (ref null noextern).
   // A null value should match nullable target but not non-nullable.
   {
     RefVariant NullAnyRef(ValType(TypeCode::RefNull, TypeCode::NullRef));
@@ -988,11 +981,9 @@ TEST(ExecutorRegression, RefTestNullAbility) {
 
   // --- Part 3: Non-null externref round-trip ---
   //
-  // In this path, any.convert_extern (internalize) converts a non-null
-  // externref to (ref any) (non-nullable), then extern.convert_any
-  // (externalize) sets the externalized flag on this non-nullable type.
-  // The fix correctly preserves this non-nullability. Both nullable and
-  // non-nullable ref.test targets should match.
+  // In this path, any.convert_extern (internalize) and then
+  // extern.convert_any (externalize) keep a non-null externref as it is.
+  // Both nullable and non-nullable ref.test targets should match.
   {
     int DummyObj = 42;
     RefVariant ExternRefVal(&DummyObj);
@@ -1001,9 +992,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
     std::vector<ValType> ParamTypes = {ValType(TypeCode::ExternRef)};
 
     // Test 5: internalize + externalize + ref.test (ref null extern)
-    // After internalize, type is (ref any) (non-nullable).
-    // After externalize, type is (ref any) + externalized.
-    // The fix normalizes this to (ref extern), matching (ref null extern).
+    // The value is seen as (ref extern), matching (ref null extern).
     {
       auto Result = VM.execute("test_ext_nullable", Params, ParamTypes);
       ASSERT_TRUE(Result);
@@ -1013,7 +1002,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
     }
 
     // Test 6: internalize + externalize + ref.test (ref extern)
-    // Same path, normalized to (ref extern) which matches (ref extern).
+    // Same path, seen as (ref extern) which matches (ref extern).
     {
       auto Result = VM.execute("test_ext_nonnull", Params, ParamTypes);
       ASSERT_TRUE(Result);
@@ -1027,7 +1016,6 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   //
   // When a null externref is internalized, it becomes (ref null none).
   // When externalized, a null value becomes (ref null noextern).
-  // Neither step sets the externalized flag on the value.
   {
     RefVariant NullExternRef(
         ValType(TypeCode::RefNull, TypeCode::NullExternRef));
@@ -1056,58 +1044,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
     }
   }
 
-  // --- Part 5: Direct ValType nullability preservation logic ---
-  //
-  // Verifies the same condition checked in runRefTestOp without going
-  // through the full execution pipeline.
-  {
-    // Simulate a nullable externalized type (ref null any) + externalized flag.
-    ValType NullableAny(TypeCode::RefNull, TypeCode::AnyRef);
-    NullableAny.setExternalized();
-
-    ASSERT_TRUE(NullableAny.isExternalized());
-    ASSERT_TRUE(NullableAny.isNullableRefType());
-
-    // The fix: construct the normalized type preserving nullability.
-    ValType NormalizedNullable(
-        NullableAny.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-        TypeCode::ExternRef);
-    EXPECT_TRUE(NormalizedNullable.isNullableRefType())
-        << "Normalized type should preserve nullable from source";
-    EXPECT_FALSE(NormalizedNullable.isExternalized())
-        << "Normalized type should not have externalize flag";
-
-    // Simulate a non-nullable externalized type (ref any) + externalized flag.
-    ValType NonNullableAny(TypeCode::Ref, TypeCode::AnyRef);
-    NonNullableAny.setExternalized();
-
-    ASSERT_TRUE(NonNullableAny.isExternalized());
-    ASSERT_FALSE(NonNullableAny.isNullableRefType());
-
-    // The fix: non-nullable should remain non-nullable.
-    ValType NormalizedNonNullable(
-        NonNullableAny.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-        TypeCode::ExternRef);
-    EXPECT_FALSE(NormalizedNonNullable.isNullableRefType())
-        << "Normalized type should preserve non-nullable from source";
-
-    // Old code (the bug) would always use TypeCode::Ref:
-    ValType OldBugResult(TypeCode::Ref, TypeCode::ExternRef);
-    EXPECT_FALSE(OldBugResult.isNullableRefType())
-        << "Old code always produced non-nullable";
-
-    // Verify the difference: for a nullable input, old and new code differ.
-    EXPECT_NE(NormalizedNullable.isNullableRefType(),
-              OldBugResult.isNullableRefType())
-        << "Fix should produce different result than bug for nullable input";
-
-    // Verify: for a non-nullable input, old and new code agree.
-    EXPECT_EQ(NormalizedNonNullable.isNullableRefType(),
-              OldBugResult.isNullableRefType())
-        << "Fix should produce same result as bug for non-nullable input";
-  }
-
-  // --- Part 6: ref.test on null from concrete-typed table (issue #4757) ---
+  // --- Part 5: ref.test on null from concrete-typed table (issue #4757) ---
   //
   // table.get on a concrete-typed table (e.g. `(table N (ref null $s))`)
   // returned null references that retained the concrete type. When ref.test
@@ -1129,7 +1066,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
     EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $s)
   }
 
-  // --- Part 7: function returning null ref with concrete type ---
+  // --- Part 6: function returning null ref with concrete type ---
   {
     Configure Conf7;
     GCCheckModule GCMod;
@@ -1145,7 +1082,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
     EXPECT_EQ(Values[0], 1); // null from concrete return matches eqref
   }
 
-  // --- Part 8: table.grow creates null entries, then ref.cast ---
+  // --- Part 7: table.grow creates null entries, then ref.cast ---
   {
     Configure Conf8;
     GCCheckModule GCMod;
@@ -1690,6 +1627,354 @@ TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
   ASSERT_EQ(TestRes->size(), 1U);
   EXPECT_EQ(TestRes->at(0).first.get<uint32_t>(), 0U);
 }
+
+/// A reference from the host is typed by its value: non-null when it refers
+/// to something, and of the bottom type when it is null.
+void checkHostRefValueType(const Configure &Conf) {
+  // (module
+  //   (table (export "tab") 2 externref)
+  //   (func (export "test") (param i32) (result i32)
+  //     (ref.test (ref extern) (table.get 0 (local.get 0))))
+  //   (func (export "test_bottom") (param i32) (result i32)
+  //     (ref.test (ref null noextern) (table.get 0 (local.get 0))))
+  //   (func (export "non_null") (param i32) (result i32)
+  //     (ref.test (ref extern) (ref.as_non_null (table.get 0 (local.get 0)))))
+  //   (func (export "branch") (param i32) (result i32)
+  //     (block (result (ref extern))
+  //       (br_on_cast 0 externref (ref extern) (table.get 0 (local.get 0)))
+  //       (drop)
+  //       (return (i32.const 0)))
+  //     (drop)
+  //     (i32.const 1)))
+  std::array<WasmEdge::Byte, 137> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7f, 0x01, 0x7f, 0x03, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00, 0x04,
+      0x04, 0x01, 0x6f, 0x00, 0x02, 0x07, 0x30, 0x05, 0x03, 0x74, 0x61, 0x62,
+      0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0b, 0x74, 0x65,
+      0x73, 0x74, 0x5f, 0x62, 0x6f, 0x74, 0x74, 0x6f, 0x6d, 0x00, 0x01, 0x08,
+      0x6e, 0x6f, 0x6e, 0x5f, 0x6e, 0x75, 0x6c, 0x6c, 0x00, 0x02, 0x06, 0x62,
+      0x72, 0x61, 0x6e, 0x63, 0x68, 0x00, 0x03, 0x0a, 0x38, 0x04, 0x09, 0x00,
+      0x20, 0x00, 0x25, 0x00, 0xfb, 0x14, 0x6f, 0x0b, 0x09, 0x00, 0x20, 0x00,
+      0x25, 0x00, 0xfb, 0x15, 0x72, 0x0b, 0x0a, 0x00, 0x20, 0x00, 0x25, 0x00,
+      0xd4, 0xfb, 0x14, 0x6f, 0x0b, 0x17, 0x00, 0x02, 0x64, 0x6f, 0x20, 0x00,
+      0x25, 0x00, 0xfb, 0x18, 0x01, 0x00, 0x6f, 0x6f, 0x1a, 0x41, 0x00, 0x0f,
+      0x0b, 0x1a, 0x41, 0x01, 0x0b};
+
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  EXPECT_EQ(VM.getActiveModule()->findFuncExports("test")->isCompiledFunction(),
+            Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT);
+
+  // Both references carry the nullable `externref` type of the host.
+  int Object = 0;
+  auto *TabInst = VM.getActiveModule()->findTableExports("tab");
+  ASSERT_NE(TabInst, nullptr);
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant(&Object)));
+  ASSERT_TRUE(TabInst->setRefAddr(1, RefVariant(ValType(TypeCode::ExternRef))));
+
+  const auto Run = [&VM](std::string_view Name, uint32_t Index) -> uint32_t {
+    auto Result =
+        VM.execute(Name, {ValVariant(Index)}, {ValType(TypeCode::I32)});
+    EXPECT_TRUE(Result) << Name;
+    return Result ? (*Result)[0].first.get<uint32_t>() : UINT32_MAX;
+  };
+  EXPECT_EQ(Run("test", 0U), 1U);
+  EXPECT_EQ(Run("test", 1U), 0U);
+  EXPECT_EQ(Run("test_bottom", 0U), 0U);
+  EXPECT_EQ(Run("test_bottom", 1U), 1U);
+  EXPECT_EQ(Run("non_null", 0U), 1U);
+  EXPECT_EQ(Run("branch", 0U), 1U);
+  EXPECT_EQ(Run("branch", 1U), 0U);
+}
+
+TEST(ExecutorRegression, HostRefValueType) {
+  checkHostRefValueType(Configure());
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, HostRefValueTypeJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkHostRefValueType(Conf);
+}
+#endif
+
+/// An externalized reference handed to the host internalizes to itself.
+void checkExternalizedRefThroughHost(const Configure &Conf) {
+  // (module
+  //   (type (struct (field i32)))
+  //   (func (export "wrap_struct") (result externref)
+  //     (extern.convert_any (struct.new 0 (i32.const 42))))
+  //   (func (export "wrap_i31") (result externref)
+  //     (extern.convert_any (ref.i31 (i32.const 7))))
+  //   (func (export "unwrap_struct") (param externref) (result i32)
+  //     (struct.get 0 0 (ref.cast (ref 0) (any.convert_extern (local.get 0)))))
+  //   (func (export "unwrap_i31") (param externref) (result i32)
+  //     (i31.get_u (ref.cast (ref i31) (any.convert_extern (local.get 0))))))
+  std::array<WasmEdge::Byte, 136> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0e, 0x03, 0x5f,
+      0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x6f, 0x60, 0x01, 0x6f, 0x01, 0x7f,
+      0x03, 0x05, 0x04, 0x01, 0x01, 0x02, 0x02, 0x07, 0x37, 0x04, 0x0b, 0x77,
+      0x72, 0x61, 0x70, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x00,
+      0x08, 0x77, 0x72, 0x61, 0x70, 0x5f, 0x69, 0x33, 0x31, 0x00, 0x01, 0x0d,
+      0x75, 0x6e, 0x77, 0x72, 0x61, 0x70, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63,
+      0x74, 0x00, 0x02, 0x0a, 0x75, 0x6e, 0x77, 0x72, 0x61, 0x70, 0x5f, 0x69,
+      0x33, 0x31, 0x00, 0x03, 0x0a, 0x2e, 0x04, 0x09, 0x00, 0x41, 0x2a, 0xfb,
+      0x00, 0x00, 0xfb, 0x1b, 0x0b, 0x08, 0x00, 0x41, 0x07, 0xfb, 0x1c, 0xfb,
+      0x1b, 0x0b, 0x0d, 0x00, 0x20, 0x00, 0xfb, 0x1a, 0xfb, 0x16, 0x00, 0xfb,
+      0x02, 0x00, 0x00, 0x0b, 0x0b, 0x00, 0x20, 0x00, 0xfb, 0x1a, 0xfb, 0x16,
+      0x6c, 0xfb, 0x1e, 0x0b};
+
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  EXPECT_EQ(VM.getActiveModule()
+                ->findFuncExports("wrap_struct")
+                ->isCompiledFunction(),
+            Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT);
+
+  // The host gets `(ref extern)` and passes the value back as it is.
+  auto Wrapped = VM.execute("wrap_struct");
+  ASSERT_TRUE(Wrapped);
+  ASSERT_EQ(Wrapped->size(), 1U);
+  EXPECT_EQ(Wrapped->at(0).second, ValType(TypeCode::Ref, TypeCode::ExternRef));
+  auto Res = VM.execute("unwrap_struct", {Wrapped->at(0).first},
+                        {Wrapped->at(0).second});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 42U);
+
+  Wrapped = VM.execute("wrap_i31");
+  ASSERT_TRUE(Wrapped);
+  ASSERT_EQ(Wrapped->size(), 1U);
+  EXPECT_EQ(Wrapped->at(0).second, ValType(TypeCode::Ref, TypeCode::ExternRef));
+  Res =
+      VM.execute("unwrap_i31", {Wrapped->at(0).first}, {Wrapped->at(0).second});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 7U);
+}
+
+TEST(ExecutorRegression, ExternalizedRefThroughHost) {
+  checkExternalizedRefThroughHost(Configure());
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, ExternalizedRefThroughHostJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkExternalizedRefThroughHost(Conf);
+}
+#endif
+
+/// An argument of an invocation matches the parameter type by its value.
+void checkInvokeArgumentValueType(const Configure &Conf) {
+  // (module
+  //   (type (struct (field i32)))
+  //   (type (array i32))
+  //   (type (func (result i32)))
+  //   (table (export "tab") 1 externref)
+  //   (func (export "one") (type 2)
+  //     (i32.const 1))
+  //   (func (export "new_struct") (result (ref 0))
+  //     (struct.new 0 (i32.const 42)))
+  //   (func (export "get_tab") (result externref)
+  //     (table.get 0 (i32.const 0)))
+  //   (func (export "get_one") (result funcref)
+  //     (ref.func 0))
+  //   (func (export "get_new") (result funcref)
+  //     (ref.func 1))
+  //   (func (export "test_struct") (param anyref) (result i32)
+  //     (ref.test (ref 0) (local.get 0)))
+  //   (func (export "take_extern") (param externref) (result i32)
+  //     (ref.is_null (local.get 0)))
+  //   (func (export "take_func") (param (ref null 2)) (result i32)
+  //     (ref.is_null (local.get 0)))
+  //   (func (export "take_non_null") (param (ref extern)))
+  //   (func (export "take_array") (param (ref 1))))
+  std::array<WasmEdge::Byte, 266> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x33, 0x0b, 0x5f,
+      0x01, 0x7f, 0x00, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x00,
+      0x01, 0x64, 0x00, 0x60, 0x00, 0x01, 0x6f, 0x60, 0x00, 0x01, 0x70, 0x60,
+      0x01, 0x6e, 0x01, 0x7f, 0x60, 0x01, 0x6f, 0x01, 0x7f, 0x60, 0x01, 0x63,
+      0x02, 0x01, 0x7f, 0x60, 0x01, 0x64, 0x6f, 0x00, 0x60, 0x01, 0x64, 0x01,
+      0x00, 0x03, 0x0b, 0x0a, 0x02, 0x03, 0x04, 0x05, 0x05, 0x06, 0x07, 0x08,
+      0x09, 0x0a, 0x04, 0x04, 0x01, 0x6f, 0x00, 0x01, 0x07, 0x7d, 0x0b, 0x03,
+      0x74, 0x61, 0x62, 0x01, 0x00, 0x03, 0x6f, 0x6e, 0x65, 0x00, 0x00, 0x0a,
+      0x6e, 0x65, 0x77, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x01,
+      0x07, 0x67, 0x65, 0x74, 0x5f, 0x74, 0x61, 0x62, 0x00, 0x02, 0x07, 0x67,
+      0x65, 0x74, 0x5f, 0x6f, 0x6e, 0x65, 0x00, 0x03, 0x07, 0x67, 0x65, 0x74,
+      0x5f, 0x6e, 0x65, 0x77, 0x00, 0x04, 0x0b, 0x74, 0x65, 0x73, 0x74, 0x5f,
+      0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x05, 0x0b, 0x74, 0x61, 0x6b,
+      0x65, 0x5f, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x00, 0x06, 0x09, 0x74,
+      0x61, 0x6b, 0x65, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x07, 0x0d, 0x74,
+      0x61, 0x6b, 0x65, 0x5f, 0x6e, 0x6f, 0x6e, 0x5f, 0x6e, 0x75, 0x6c, 0x6c,
+      0x00, 0x08, 0x0a, 0x74, 0x61, 0x6b, 0x65, 0x5f, 0x61, 0x72, 0x72, 0x61,
+      0x79, 0x00, 0x09, 0x0a, 0x39, 0x0a, 0x04, 0x00, 0x41, 0x01, 0x0b, 0x07,
+      0x00, 0x41, 0x2a, 0xfb, 0x00, 0x00, 0x0b, 0x06, 0x00, 0x41, 0x00, 0x25,
+      0x00, 0x0b, 0x04, 0x00, 0xd2, 0x00, 0x0b, 0x04, 0x00, 0xd2, 0x01, 0x0b,
+      0x07, 0x00, 0x20, 0x00, 0xfb, 0x14, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00,
+      0xd1, 0x0b, 0x05, 0x00, 0x20, 0x00, 0xd1, 0x0b, 0x02, 0x00, 0x0b, 0x02,
+      0x00, 0x0b};
+
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  EXPECT_EQ(VM.getActiveModule()
+                ->findFuncExports("test_struct")
+                ->isCompiledFunction(),
+            Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT);
+
+  int Object = 0;
+  auto *TabInst = VM.getActiveModule()->findTableExports("tab");
+  ASSERT_NE(TabInst, nullptr);
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant(&Object)));
+
+  // A result goes back as it was returned, and keeps its own type.
+  auto Made = VM.execute("new_struct");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  auto Res =
+      VM.execute("test_struct", {Made->at(0).first}, {Made->at(0).second});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 1U);
+
+  Made = VM.execute("get_tab");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  Res = VM.execute("take_extern", {Made->at(0).first}, {Made->at(0).second});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 0U);
+
+  Made = VM.execute("get_one");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  Res = VM.execute("take_func", {Made->at(0).first}, {Made->at(0).second});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 0U);
+
+  // A null reference fails for a non-null parameter type.
+  Res = VM.execute("take_non_null",
+                   {ValVariant(RefVariant(ValType(TypeCode::ExternRef)))},
+                   {ValType(TypeCode::ExternRef)});
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::NonNullRequired);
+
+  // A value out of the parameter type fails under a type that contains it.
+  Made = VM.execute("new_struct");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  Res = VM.execute("take_array", {Made->at(0).first},
+                   {ValType(TypeCode::AnyRef)});
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::FuncSigMismatch);
+
+  Made = VM.execute("get_new");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  Res = VM.execute("take_func", {Made->at(0).first},
+                   {ValType(TypeCode::FuncRef)});
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::FuncSigMismatch);
+
+  // A reference is seen as the type passed with it: an extern reference does
+  // not fit an internal parameter, and the same value passed as an any does.
+  Made = VM.execute("get_tab");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  Res = VM.execute("test_struct", {Made->at(0).first}, {Made->at(0).second});
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::FuncSigMismatch);
+  Res = VM.execute("test_struct", {Made->at(0).first},
+                   {ValType(TypeCode::AnyRef)});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 0U);
+
+  // An internal reference does not fit an extern parameter, and the same value
+  // passed as an extern reference does.
+  Made = VM.execute("new_struct");
+  ASSERT_TRUE(Made);
+  ASSERT_EQ(Made->size(), 1U);
+  Res = VM.execute("take_extern", {Made->at(0).first}, {Made->at(0).second});
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::FuncSigMismatch);
+  Res = VM.execute("take_extern", {Made->at(0).first},
+                   {ValType(TypeCode::ExternRef)});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 0U);
+}
+
+TEST(ExecutorRegression, InvokeArgumentValueType) {
+  checkInvokeArgumentValueType(Configure());
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, InvokeArgumentValueTypeJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkInvokeArgumentValueType(Conf);
+}
+#endif
+
+/// Only a reference to a function instance is retrieved as a function.
+void checkStructRefNotFuncRef(const Configure &Conf) {
+  // (module
+  //   (type (struct (field i32)))
+  //   (global (export "struct") (mut anyref) (ref.null any))
+  //   (global (export "func") (mut funcref) (ref.null func))
+  //   (func (export "run")
+  //     (global.set 0 (struct.new 0 (i32.const 1)))
+  //     (global.set 1 (ref.func 0))))
+  std::array<WasmEdge::Byte, 77> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01,
+      0x06, 0x0b, 0x02, 0x6e, 0x01, 0xd0, 0x6e, 0x0b, 0x70, 0x01, 0xd0,
+      0x70, 0x0b, 0x07, 0x17, 0x03, 0x06, 0x73, 0x74, 0x72, 0x75, 0x63,
+      0x74, 0x03, 0x00, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x03, 0x01, 0x03,
+      0x72, 0x75, 0x6e, 0x00, 0x00, 0x0a, 0x0f, 0x01, 0x0d, 0x00, 0x41,
+      0x01, 0xfb, 0x00, 0x00, 0x24, 0x00, 0xd2, 0x00, 0x24, 0x01, 0x0b};
+
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const auto *ModInst = VM.getActiveModule();
+  const auto *FuncInst = ModInst->findFuncExports("run");
+  ASSERT_NE(FuncInst, nullptr);
+  EXPECT_EQ(FuncInst->isCompiledFunction(),
+            Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT);
+  ASSERT_TRUE(VM.execute("run"));
+
+  const auto &Struct =
+      ModInst->findGlobalExports("struct")->getValue().get<RefVariant>();
+  EXPECT_FALSE(Struct.isNull());
+  EXPECT_EQ(retrieveFuncRef(Struct), nullptr);
+  const auto &Func =
+      ModInst->findGlobalExports("func")->getValue().get<RefVariant>();
+  EXPECT_EQ(retrieveFuncRef(Func), FuncInst);
+}
+
+TEST(ExecutorRegression, StructRefNotFuncRef) {
+  checkStructRefNotFuncRef(Configure());
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, StructRefNotFuncRefJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkStructRefNotFuncRef(Conf);
+}
+#endif
 
 #ifdef WASMEDGE_USE_LLVM
 /// A compiled function left in an imported table by an instantiation that

@@ -39,24 +39,29 @@ EXPORT_GET_DESCRIPTOR(Descriptor)
 
 namespace StableDiffusion {
 
+void ContextDeleter::operator()(sd_ctx_t *Ctx) const noexcept {
+  free_sd_ctx(Ctx);
+}
+
+SDEnviornment::~SDEnviornment() noexcept = default;
+
 uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx, int32_t Nthreads) noexcept {
-  Contexts.push_back({Ctx, Nthreads});
+  Contexts.push_back(
+      {std::unique_ptr<sd_ctx_t, ContextDeleter>(Ctx), Nthreads});
   return Contexts.size() - 1;
 }
 
 void SDEnviornment::freeContext(const uint32_t Id) noexcept {
-  if (Id >= Contexts.size() || Contexts[Id].Context == nullptr) {
-    return;
+  if (Id < Contexts.size()) {
+    Contexts[Id].Context.reset();
   }
-  free_sd_ctx(Contexts[Id].Context);
-  Contexts[Id].Context = nullptr;
 }
 
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {
   if (Id >= Contexts.size()) {
     return nullptr;
   }
-  return Contexts[Id].Context;
+  return Contexts[Id].Context.get();
 }
 
 void SBLog(enum sd_log_level_t Level, const char *Log, void *) {

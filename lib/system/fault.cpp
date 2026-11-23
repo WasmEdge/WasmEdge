@@ -8,10 +8,10 @@
 #include "common/spdlog.h"
 #include "system/stacktrace.h"
 
-#include <atomic>
 #include <csetjmp>
 #include <csignal>
 #include <cstdint>
+#include <mutex>
 #include <utility>
 
 #if WASMEDGE_OS_WINDOWS
@@ -22,7 +22,8 @@ namespace WasmEdge {
 
 namespace {
 
-std::atomic_uint handlerCount = 0;
+std::mutex handlerMutex;
+uint32_t handlerCount = 0;
 thread_local Fault *localHandler = nullptr;
 
 #if defined(SA_SIGINFO)
@@ -91,12 +92,14 @@ void disableHandler() noexcept {
 #endif
 
 void increaseHandler() noexcept {
+  std::lock_guard<std::mutex> Lock(handlerMutex);
   if (handlerCount++ == 0) {
     enableHandler();
   }
 }
 
 void decreaseHandler() noexcept {
+  std::lock_guard<std::mutex> Lock(handlerMutex);
   if (--handlerCount == 0) {
     disableHandler();
   }

@@ -18,13 +18,17 @@
 #include "common/types.h"
 #include "runtime/instance/memory.h"
 #include "system/allocator.h"
+#include "system/fault.h"
 #include "vm/vm.h"
 
 #include <array>
+#include <atomic>
+#include <csignal>
 #include <cstdint>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
+#include <thread>
 #include <vector>
 
 #if defined(__linux__)
@@ -127,6 +131,75 @@ TEST(AllocatorTest, ReleaseReservationOnCommitFailure) {
   const uint64_t After = readVirtualPages();
   ASSERT_NE(After, 0U);
   EXPECT_LT(After, Before + ReservedPages / 2);
+}
+#endif
+
+#if defined(SA_SIGINFO)
+// Restores the fault signal dispositions when the test leaves the scope,
+// because the last Fault resets them to SIG_DFL.
+class FaultSignalGuard {
+public:
+  FaultSignalGuard() noexcept {
+    for (size_t I = 0; I < Signals.size(); ++I) {
+      Saved[I] = sigaction(Signals[I], nullptr, &Old[I]) == 0;
+    }
+  }
+  ~FaultSignalGuard() noexcept {
+    for (size_t I = 0; I < Signals.size(); ++I) {
+      if (Saved[I]) {
+        sigaction(Signals[I], &Old[I], nullptr);
+      }
+    }
+  }
+
+private:
+  static constexpr std::array<int, 3> Signals = {SIGFPE, SIGBUS, SIGSEGV};
+  std::array<struct sigaction, 3> Old{};
+  std::array<bool, 3> Saved{};
+};
+
+TEST(FaultTest, HandlerStaysInstalledWhileInScope) {
+  FaultSignalGuard Guard;
+
+  // The handler that a Fault installs, taken without contention.
+  struct sigaction Expected{};
+  {
+    Fault FaultHandler;
+    ASSERT_EQ(sigaction(SIGSEGV, nullptr, &Expected), 0);
+  }
+  ASSERT_NE(Expected.sa_flags & SA_SIGINFO, 0);
+  ASSERT_NE(Expected.sa_sigaction, nullptr);
+
+  constexpr uint32_t ThreadCount = 4;
+  std::atomic_uint32_t Ready = 0;
+  std::atomic_bool Start = false;
+  std::atomic_bool Uninstalled = false;
+  std::vector<std::thread> Threads;
+  for (uint32_t I = 0; I < ThreadCount; ++I) {
+    Threads.emplace_back([&]() {
+      ++Ready;
+      while (!Start.load()) {
+        std::this_thread::yield();
+      }
+      for (uint32_t J = 0; J < 20000 && !Uninstalled.load(); ++J) {
+        Fault FaultHandler;
+        struct sigaction Action{};
+        if (sigaction(SIGSEGV, nullptr, &Action) != 0 ||
+            (Action.sa_flags & SA_SIGINFO) == 0 ||
+            Action.sa_sigaction != Expected.sa_sigaction) {
+          Uninstalled = true;
+        }
+      }
+    });
+  }
+  while (Ready.load() != ThreadCount) {
+    std::this_thread::yield();
+  }
+  Start = true;
+  for (auto &Thread : Threads) {
+    Thread.join();
+  }
+  EXPECT_FALSE(Uninstalled.load());
 }
 #endif
 

@@ -255,7 +255,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   }
 
   // Set the validated flag.
-  const_cast<AST::Module &>(Mod).setIsValidated();
+  Mod.setIsValidated();
   return {};
 }
 

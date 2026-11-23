@@ -37,9 +37,9 @@ Validator::validate(const AST::Component::Component &Comp) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
       return E;
     }));
-    const_cast<AST::Module &>(*Mod).setIsValidated();
+    Mod->setIsValidated();
   }
-  const_cast<AST::Component::Component &>(Comp).setIsValidated();
+  Comp.setIsValidated();
   return {};
 }
 

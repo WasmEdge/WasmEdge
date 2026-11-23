@@ -36,9 +36,8 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
   // vec(u32) + vec(expr)
   //
   // Modes 0x00 to 0x03 only express a (ref func) element type and mode 0x04
-  // only a nullable funcref element type; 0x00 and 0x04 also imply table
-  // index 0.
-  const bool IsRefFunc =
+  // only a nullable funcref one; 0x00 and 0x04 also imply table index 0.
+  const bool IsNonNullFuncRef =
       Seg.getRefType() == ValType(TypeCode::Ref, TypeCode::FuncRef);
   const bool IsFuncRef =
       Seg.getRefType() == ValType(TypeCode::RefNull, TypeCode::FuncRef);
@@ -59,7 +58,7 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
       Seg.getMode() == AST::ElementSegment::ElemMode::Declarative;
 
   uint8_t Mode;
-  if (IsRefFunc && AllRefFunc) {
+  if (IsNonNullFuncRef && AllRefFunc) {
     Mode = IsPassive       ? 0x01U
            : IsDeclarative ? 0x03U
                            : (Seg.getIdx() != 0 ? 0x02U : 0x00U);

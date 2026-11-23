@@ -131,7 +131,7 @@
       * **Immutability**: WebAssembly modules are immutable once compiled. The AOT compiler produces deterministic output.
       * **Minimal attack surface**: As a standalone runtime, WasmEdge has no network listeners, no default filesystem access, and no ambient authority.
     * How do you recommend users alter security defaults in order to "loosen" the security of the project? Please link to any documentation the project has written concerning these use cases.
-      * Enable filesystem access via `--dir guest_path:host_path` (or with `:readonly` suffix for read-only access). Documentation: [WASI CLI options](https://wasmedge.org/docs/start/build-and-run/cli).
+      * Enable filesystem access via `--dir guest_path:host_path` (or with `:readonly` suffix for read-only access). Documentation: [WASI CLI options](https://wasmedge.org/docs/start/build-and-run/cli) and [WASI Security Guidance](https://github.com/WasmEdge/WasmEdge/blob/master/docs/wasi-security-guidance.md).
       * Disable specific WASM proposals via CLI flags (e.g., `--disable-simd`) or API configuration if not needed.
       * Enable JIT mode or interruptible execution for specific use cases.
   * Security Hygiene

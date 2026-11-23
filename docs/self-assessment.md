@@ -38,6 +38,7 @@ A table at the top for quick reference information, later used for indexing.
 | Security file | https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md |
 | Embargo policy | https://github.com/WasmEdge/WasmEdge/blob/master/docs/embargo-policy.md |
 | Security contacts | https://github.com/WasmEdge/WasmEdge/blob/master/docs/SECURITY_CONTACTS.md |
+| WASI Security Guidance | https://github.com/WasmEdge/WasmEdge/blob/master/docs/wasi-security-guidance.md |
 
 ### Overview
 
@@ -175,7 +176,9 @@ security audit.
   provided by this virtual machine.
 - If users want to access the host OS's filesystem within the WasmEdge runtime,
   they can add the `--dir guest_path:host_path:readonly` option in the WasmEdge
-  CLI to assign the read-only configuration.
+  CLI to assign the read-only configuration. Detailed security architecture,
+  capability-based rights validation, path traversal prevention, and symlink
+  handling are documented in the [WASI Security Guidance](https://github.com/WasmEdge/WasmEdge/blob/master/docs/wasi-security-guidance.md).
 
 ### Project compliance
 

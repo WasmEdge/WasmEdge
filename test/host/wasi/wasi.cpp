@@ -4312,6 +4312,17 @@ TEST(WasiTest, PreopenDoubleColonSeparator) {
 #endif
 }
 
+TEST(WasiTest, CanonicalGuestPath) {
+  using WasmEdge::Host::WASI::VINode;
+  EXPECT_EQ(VINode::canonicalGuest("/"sv), ""s);
+  EXPECT_EQ(VINode::canonicalGuest("/a//b/"sv), "a/b"s);
+  EXPECT_EQ(VINode::canonicalGuest("a/b/../c"sv), "a/c"s);
+  EXPECT_EQ(VINode::canonicalGuest("a/.hidden"sv), "a/.hidden"s);
+  EXPECT_EQ(VINode::canonicalGuest("a/b/./c"sv), "a/b/c"s);
+  EXPECT_EQ(VINode::canonicalGuest("./a"sv), "a"s);
+  EXPECT_EQ(VINode::canonicalGuest(".hidden/a"sv), ".hidden/a"s);
+}
+
 TEST(WasiTest, PreopenRejectsUnknownMode) {
   namespace fs = std::filesystem;
 

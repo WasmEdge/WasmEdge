@@ -8,6 +8,7 @@
 #include "host/wasi/vfs.h"
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <numeric>
 #include <string>
 
@@ -53,45 +54,33 @@ VINode::fromFd(int32_t Fd, __wasi_rights_t FRB, __wasi_rights_t FRI) {
 }
 std::string VINode::canonicalGuest(std::string_view Path) {
   std::vector<std::string_view> Parts;
-
-  while (!Path.empty() && Path.front() == '/') {
-    Path = Path.substr(1);
-  }
   while (!Path.empty()) {
-    auto Slash = Path.find('/');
+    const auto Slash = Path.find('/');
     const auto Part = Path.substr(0, Slash);
-    auto Remain = Path.substr(Part.size());
-    while (!Remain.empty() && Remain.front() == '/') {
-      Remain = Remain.substr(1);
-    }
-    if (Part.front() == '.' && Part.size() == 2 && Part[1] == '.') {
+    Path = Slash == std::string_view::npos ? std::string_view()
+                                           : Path.substr(Slash + 1);
+    if (Part == ".."sv) {
       if (!Parts.empty()) {
         Parts.pop_back();
       }
-    } else if (Part.front() != '.' || Parts.size() != 1) {
+    } else if (!Part.empty() && Part != "."sv) {
       Parts.push_back(Part);
     }
-    if (Remain.empty()) {
-      break;
-    }
-    Path = Remain;
-  }
-  if (Parts.empty()) {
-    Parts.push_back({});
   }
 
   std::string Result;
-  Result.reserve(std::accumulate(
-      Parts.begin(), Parts.end(), Parts.size(),
-      [](size_t L, std::string_view P) { return L + P.size(); }));
-  std::for_each(Parts.begin(), Parts.end(), [&Result](std::string_view P) {
-    Result += P;
-    Result += '/';
-  });
-  if (!Result.empty()) {
-    Result.pop_back();
+  if (Parts.empty()) {
+    return Result;
   }
-
+  Result.reserve(std::accumulate(
+      Parts.begin(), Parts.end(), Parts.size() - 1,
+      [](size_t L, std::string_view P) { return L + P.size(); }));
+  Result += Parts.front();
+  std::for_each(std::next(Parts.begin()), Parts.end(),
+                [&Result](std::string_view P) {
+                  Result += '/';
+                  Result += P;
+                });
   return Result;
 }
 

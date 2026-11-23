@@ -828,10 +828,21 @@ TEST(WasmEdgeStableDiffusionTest, ResultsAndInputs) {
             ErrNo::Success);
   const std::vector<uint8_t> First = Gen.output();
   expectPngSize(First, 256, 256);
+  EXPECT_EQ(readFile(Dir / "batch.png"), First);
   for (const char *Name : {"batch_2.png", "batch_3.png"}) {
     SCOPED_TRACE(Name);
     expectPngSize(readFile(Dir / Name), 256, 256);
   }
+
+  // A buffer that is too small reports the required size and writes no file.
+  const std::string SmallPath = (Dir / "small.png").string();
+  EXPECT_EQ(Gen.textToImage(256, 256, 1, SmallPath, 16), ErrNo::RuntimeError);
+  const uint32_t Required = Gen.bytesWritten();
+  EXPECT_GT(Required, 16U);
+  EXPECT_FALSE(std::filesystem::exists(SmallPath));
+  ASSERT_EQ(Gen.textToImage(256, 256, 1, SmallPath, Required), ErrNo::Success);
+  EXPECT_EQ(Gen.bytesWritten(), Required);
+  EXPECT_TRUE(std::filesystem::exists(SmallPath));
 
   // An input image of another size is resized, whether it is given as bytes
   // or as a path.

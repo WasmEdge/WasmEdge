@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -318,7 +319,8 @@ void upscaleResults(ResultImages &Results, const std::string &ModelPath,
   }
 }
 
-void writeResultFiles(ResultImages &Results, std::string_view OutputPath) {
+bool writeResultFiles(ResultImages &Results, std::string_view OutputPath,
+                      Span<const uint8_t> FirstPng) {
   std::string_view BaseName = OutputPath;
   std::string_view Extension = ".png"sv;
   if (const size_t Last = OutputPath.find_last_of('.');
@@ -329,10 +331,10 @@ void writeResultFiles(ResultImages &Results, std::string_view OutputPath) {
       Extension = LastStr;
     }
   }
+  bool Success = true;
   for (uint32_t I = 0; I < Results.size(); I++) {
     const sd_image_t &Image = Results[I];
-    if (Image.data == nullptr ||
-        !fitsImageBytes(Image.width, Image.height, Image.channel)) {
+    if (Image.data == nullptr) {
       continue;
     }
     std::string FileName(BaseName);
@@ -340,29 +342,48 @@ void writeResultFiles(ResultImages &Results, std::string_view OutputPath) {
       FileName += "_" + std::to_string(I + 1);
     }
     FileName += Extension;
-    stbi_write_png(FileName.c_str(), static_cast<int>(Image.width),
-                   static_cast<int>(Image.height),
-                   static_cast<int>(Image.channel), Image.data, 0);
-    spdlog::info("[WasmEdge-StableDiffusion] Save result image to {}."sv,
-                 FileName);
+    bool Written = false;
+    if (I == 0) {
+      std::ofstream File(FileName, std::ios::binary);
+      File.write(reinterpret_cast<const char *>(FirstPng.data()),
+                 static_cast<std::streamsize>(FirstPng.size()));
+      Written = static_cast<bool>(File.flush());
+    } else if (fitsImageBytes(Image.width, Image.height, Image.channel)) {
+      Written =
+          stbi_write_png(FileName.c_str(), static_cast<int>(Image.width),
+                         static_cast<int>(Image.height),
+                         static_cast<int>(Image.channel), Image.data, 0) != 0;
+    }
+    if (Written) {
+      spdlog::info("[WasmEdge-StableDiffusion] Save result image to {}."sv,
+                   FileName);
+    } else {
+      spdlog::error(
+          "[WasmEdge-StableDiffusion] Failed to save result image to {}."sv,
+          FileName);
+      Success = false;
+    }
   }
+  return Success;
 }
 
+// Encode the first image into the guest buffer before any file is written,
+// so that a call that fails here, for example to ask for the required buffer
+// size, leaves no files behind.
 ErrNo saveResults(ResultImages &Results, std::string_view OutputPath,
                   Span<uint8_t> OutBuffer, uint32_t &BytesWritten) {
   BytesWritten = 0;
+  if (Results.size() == 0 || Results[0].data == nullptr ||
+      !fitsImageBytes(Results[0].width, Results[0].height,
+                      Results[0].channel)) {
+    spdlog::error("[WasmEdge-StableDiffusion] Encode result image failed."sv);
+    return ErrNo::RuntimeError;
+  }
   int Len = 0;
-  std::unique_ptr<uint8_t, FreeDeleter> Png;
-  if (Results.size() > 0 && Results[0].data != nullptr &&
-      fitsImageBytes(Results[0].width, Results[0].height, Results[0].channel)) {
-    Png.reset(stbi_write_png_to_mem(
-        Results[0].data, 0, static_cast<int>(Results[0].width),
-        static_cast<int>(Results[0].height),
-        static_cast<int>(Results[0].channel), &Len, nullptr));
-  }
-  if (!OutputPath.empty()) {
-    writeResultFiles(Results, OutputPath);
-  }
+  std::unique_ptr<uint8_t, FreeDeleter> Png(stbi_write_png_to_mem(
+      Results[0].data, 0, static_cast<int>(Results[0].width),
+      static_cast<int>(Results[0].height), static_cast<int>(Results[0].channel),
+      &Len, nullptr));
   if (!Png || Len < 0) {
     spdlog::error("[WasmEdge-StableDiffusion] Encode result image failed."sv);
     return ErrNo::RuntimeError;
@@ -373,6 +394,11 @@ ErrNo saveResults(ResultImages &Results, std::string_view OutputPath,
     return ErrNo::RuntimeError;
   }
   std::copy_n(Png.get(), BytesWritten, OutBuffer.data());
+  if (!OutputPath.empty() &&
+      !writeResultFiles(Results, OutputPath,
+                        Span<const uint8_t>(Png.get(), BytesWritten))) {
+    return ErrNo::RuntimeError;
+  }
   return ErrNo::Success;
 }
 

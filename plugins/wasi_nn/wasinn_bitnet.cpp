@@ -1732,10 +1732,21 @@ struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
   return Batch;
 }
 
+// The batch-size of the graph is shared by all contexts, but each context
+// allocates its own prompt batch and the llama context keeps the n_batch it was
+// created with. Split the tokens by the smallest of them.
+int64_t getEffectivePromptBatchSize(const Graph &GraphRef,
+                                    const Context &CxtRef) noexcept {
+  return std::min(
+      {static_cast<int64_t>(GraphRef.Params.n_batch),
+       CxtRef.PromptBatchCapacity,
+       static_cast<int64_t>(llama_n_batch(GraphRef.LlamaContext.get()))});
+}
+
 // Fill a batch with tokens (smaller than batch size) and position data.
-void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
+void fillBatch(Span<const llama_token> Tokens, int64_t BatchSize,
                llama_batch &Batch, int &NPos, bool IsLogit = false) {
-  assuming(GraphRef.Params.n_batch >= static_cast<int64_t>(Tokens.size()));
+  assuming(BatchSize >= static_cast<int64_t>(Tokens.size()));
   assuming(Batch.token != nullptr);
   assuming(Batch.pos != nullptr);
   assuming(Batch.logits != nullptr);
@@ -1758,8 +1769,12 @@ void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
 
 // Evaluate tokens. Construct the batch from tokens and decode.
 ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
-                     llama_batch &Batch, int &NPos,
+                     llama_batch &Batch, int64_t BatchSize, int &NPos,
                      bool IsLogits = false) noexcept {
+  if (BatchSize <= 0) {
+    RET_ERROR(ErrNo::RuntimeError, "evaluateTokens: batch size is zero."sv)
+  }
+
   // End the inference if the context is full.
   uint32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
   if (NPos + static_cast<uint32_t>(Tokens.size()) > NCtx) {
@@ -1772,17 +1787,13 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
   }
 
   // Loop for decoding batches. Split tokens by batch size.
-  for (int I = 0; I < static_cast<int>(Tokens.size());
-       I += static_cast<int>(GraphRef.Params.n_batch)) {
-    int NEval = static_cast<int>(Tokens.size()) - I;
-    if (NEval > static_cast<int>(GraphRef.Params.n_batch)) {
-      NEval = static_cast<int>(GraphRef.Params.n_batch);
-    }
+  for (auto Remaining = Tokens; !Remaining.empty();) {
+    const auto Chunk = Remaining.first(
+        std::min(Remaining.size(), static_cast<size_t>(BatchSize)));
+    Remaining = Remaining.subspan(Chunk.size());
 
     // Fill the batch with pos information.
-    fillBatch(Span<const llama_token>(Tokens.begin() + I, NEval), GraphRef,
-              Batch, NPos,
-              IsLogits && I + NEval >= static_cast<int>(Tokens.size()));
+    fillBatch(Chunk, BatchSize, Batch, NPos, IsLogits && Remaining.empty());
 
     // Decode the batch.
     auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
@@ -1839,10 +1850,11 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   }
 
   // Evaluate input tokens.
-  ReturnCode =
-      evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
-                                             CxtRef.LlamaInputs.size()),
-                     GraphRef, CxtRef.LlamaBatch, CxtRef.NPos, true);
+  ReturnCode = evaluateTokens(
+      Span<const llama_token>(CxtRef.LlamaInputs.begin(),
+                              CxtRef.LlamaInputs.size()),
+      GraphRef, CxtRef.LlamaBatch,
+      getEffectivePromptBatchSize(GraphRef, CxtRef), CxtRef.NPos, true);
   if (ReturnCode != ErrNo::Success) {
     RET_ERROR(ReturnCode, "{}: failed to evaluate input tokens."sv, LogPrefix)
   }
@@ -1892,7 +1904,8 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
   }
   // Evaluate the output token.
   return evaluateTokens(Span<const llama_token>(&Id, 1), GraphRef,
-                        CxtRef.OutputBatch, CxtRef.NPos, true);
+                        CxtRef.OutputBatch, /* BatchSize */ 1, CxtRef.NPos,
+                        true);
 }
 
 // TODO: Merge into compute.
@@ -1911,13 +1924,13 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   }
 
   // Check if the input is too long.
-  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
-      GraphRef.Params.n_batch) {
+  const int64_t BatchSize = getEffectivePromptBatchSize(GraphRef, CxtRef);
+  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) > BatchSize) {
     RET_ERROR(
         ErrNo::PromptTooLong,
         "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
         "size {}. Please reduce the input size or increase your batch-size."sv,
-        CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
+        CxtRef.LlamaInputs.size(), BatchSize)
   }
 
   // Evaluate the input tokens.
@@ -2125,7 +2138,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
     RET_ERROR(ErrNo::RuntimeError,
               "initExecCtx: unable to allocate llama_batch."sv)
   }
-  CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
+  CxtRef.PromptBatchCapacity = GraphRef.Params.n_batch;
 
   // Allocate the batch for single-token output sampling.
   CxtRef.OutputBatch = allocBatch(1);
@@ -2230,7 +2243,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
     }
 
     // Re-allocate batch if the batch size changed.
-    if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
+    if (CxtRef.PromptBatchCapacity != GraphRef.Params.n_batch) {
       LOG_INFO(GraphRef.EnableLog,
                "Re-allocating batch due to n_batch change."sv);
       llama_batch_free(CxtRef.LlamaBatch);
@@ -2238,12 +2251,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
       if (CxtRef.LlamaBatch.token == nullptr) {
         // Force a reallocation on the next metadata pass and keep compute
         // away from the empty batch until then.
-        CxtRef.CurrentBatchSize = 0;
+        CxtRef.PromptBatchCapacity = 0;
         G.setInvalid();
         RET_ERROR(ErrNo::RuntimeError,
                   "setInput: unable to allocate llama_batch."sv)
       }
-      CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
+      CxtRef.PromptBatchCapacity = GraphRef.Params.n_batch;
     }
 
     G.setReady();

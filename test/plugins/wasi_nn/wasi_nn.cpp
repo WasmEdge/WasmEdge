@@ -5503,7 +5503,7 @@ TEST(WasiNNTest, BitNetBackend) {
       ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
       EXPECT_EQ(Params.n_batch, 64);
       EXPECT_EQ(Params.n_ubatch, 0);
-      EXPECT_EQ(BitNetContext.CurrentBatchSize, 64);
+      EXPECT_EQ(BitNetContext.PromptBatchCapacity, 64);
       EXPECT_NE(BitNetContext.LlamaBatch.token, nullptr);
       ASSERT_TRUE(SetMetadata(R"({"batch-size":)" + std::to_string(PrevNBatch) +
                               R"(,"ubatch-size":)" +
@@ -5511,7 +5511,7 @@ TEST(WasiNNTest, BitNetBackend) {
       ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
       EXPECT_EQ(Params.n_batch, PrevNBatch);
       EXPECT_EQ(Params.n_ubatch, PrevNUBatch);
-      EXPECT_EQ(BitNetContext.CurrentBatchSize, PrevNBatch);
+      EXPECT_EQ(BitNetContext.PromptBatchCapacity, PrevNBatch);
     }
 
     // Test: set_input -- in-range KV cache types, pooling types, and mirostat
@@ -5828,5 +5828,126 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
+}
+
+namespace {
+// Loads the BitNet test model into one graph and opens two execution contexts
+// on it, for the tests of the state that the contexts of a graph share.
+class BitNetTwoContexts {
+public:
+  void setUp() {
+    NNMod = createModule();
+    ASSERT_TRUE(NNMod);
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(2)));
+    MemInst = Mod.findMemoryExports("memory");
+    ASSERT_NE(MemInst, nullptr);
+
+    const std::string Name = "bitnet";
+    const std::string ModelPreloadStr =
+        "preload:./wasinn_bitnet_fixtures/ggml-model-i2_s.gguf";
+    NNMod->getEnv().RawMdMap.emplace(
+        Name,
+        std::make_tuple(std::vector<std::vector<uint8_t>>{std::vector<uint8_t>(
+                            ModelPreloadStr.begin(), ModelPreloadStr.end())},
+                        Backend::BitNet, Device::CPU));
+    writeBinaries<uint8_t>(
+        *MemInst, std::vector<uint8_t>(Name.begin(), Name.end()), StorePtr);
+    uint32_t BuilderPtr = LoadEntryPtr;
+    ASSERT_EQ(call("load_by_name"sv,
+                   {StorePtr, static_cast<uint32_t>(Name.size()), BuilderPtr}),
+              ErrNo::Success);
+    const uint32_t GraphId = *MemInst->getPointer<uint32_t *>(BuilderPtr);
+    for (uint32_t &CtxId : CtxIds) {
+      ASSERT_EQ(call("init_execution_context"sv, {GraphId, BuilderPtr}),
+                ErrNo::Success);
+      CtxId = *MemInst->getPointer<uint32_t *>(BuilderPtr);
+    }
+  }
+
+  // Returns HostCallFailed when the function is missing or the call traps, so
+  // that no stale Errno is reported as the result.
+  ErrNo call(std::string_view Name,
+             std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *FuncInst = NNMod->findFuncExports(Name);
+    if (FuncInst == nullptr) {
+      ADD_FAILURE() << "missing host function " << Name;
+      return HostCallFailed;
+    }
+    if (!FuncInst->getHostFunc().run(CallFrame, Args, Errno)) {
+      ADD_FAILURE() << "host function " << Name << " failed";
+      return HostCallFailed;
+    }
+    return static_cast<ErrNo>(Errno[0].get<int32_t>());
+  }
+
+  ErrNo setInput(uint32_t CtxId, uint32_t Index, std::string_view Text) {
+    std::vector<uint8_t> Data(Text.begin(), Text.end());
+    const std::vector<uint32_t> Dim{1};
+    uint32_t EntryPtr = SetInputEntryPtr;
+    writeFatPointer(*MemInst, StorePtr, UINT32_C(1), EntryPtr);
+    writeUInt32(*MemInst, static_cast<uint32_t>(TensorType::U8), EntryPtr);
+    writeFatPointer(*MemInst, StorePtr + UINT32_C(4),
+                    static_cast<uint32_t>(Data.size()), EntryPtr);
+    writeBinaries<uint32_t>(*MemInst, Dim, StorePtr);
+    writeBinaries<uint8_t>(*MemInst, Data, StorePtr + UINT32_C(4));
+    return call("set_input"sv, {CtxId, Index, SetInputEntryPtr});
+  }
+
+  ErrNo run(std::string_view Name, uint32_t CtxId) {
+    return call(Name, {CtxId});
+  }
+
+  static std::string repeatPrompt(size_t Count) {
+    std::string Prompt;
+    for (size_t I = 0; I < Count; ++I) {
+      Prompt += "Once upon a time, "sv;
+    }
+    return Prompt;
+  }
+
+  std::unique_ptr<WasmEdge::Host::WasiNNModule> NNMod;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod{""};
+  WasmEdge::Runtime::Instance::MemoryInstance *MemInst = nullptr;
+  WasmEdge::Runtime::CallingFrame CallFrame{nullptr, &Mod};
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+  std::array<uint32_t, 2> CtxIds{};
+  static constexpr ErrNo HostCallFailed =
+      static_cast<ErrNo>(std::numeric_limits<uint32_t>::max());
+
+private:
+  static constexpr uint32_t LoadEntryPtr = UINT32_C(0);
+  static constexpr uint32_t SetInputEntryPtr = UINT32_C(16);
+  static constexpr uint32_t StorePtr = UINT32_C(65536);
+};
+} // namespace
+
+TEST(WasiNNTest, BitNetBackendBatchSizeChange) {
+  BitNetTwoContexts T;
+  ASSERT_NO_FATAL_FAILURE(T.setUp());
+
+  // The second context shrinks its prompt batch, then the first context
+  // raises the batch-size of the graph again. The second context must still
+  // split its prompt by the 64 slots of its own batch.
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 1, R"({"batch-size":64,"n-predict":2})"sv),
+            ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 1, R"({"batch-size":512})"sv),
+            ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[1], 0, BitNetTwoContexts::repeatPrompt(40)),
+            ErrNo::Success);
+  EXPECT_EQ(T.run("compute"sv, T.CtxIds[1]), ErrNo::Success);
+
+  // A batch-size above the n_batch of the llama context does not rebuild the
+  // llama context, so the prompt must be split by the n_batch it was built
+  // with.
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 1,
+                       R"({"ctx-size":1024,"batch-size":128,"n-predict":2})"sv),
+            ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 1, R"({"batch-size":1024})"sv),
+            ErrNo::Success);
+  ASSERT_EQ(T.setInput(T.CtxIds[0], 0, BitNetTwoContexts::repeatPrompt(40)),
+            ErrNo::Success);
+  EXPECT_EQ(T.run("compute"sv, T.CtxIds[0]), ErrNo::Success);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET

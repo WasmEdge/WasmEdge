@@ -98,7 +98,7 @@ public:
   std::vector<llama_token> LlamaOutputTokens;
   std::vector<uint8_t> LlamaOutputs;
   CommonSamplerPtr LlamaSampler = nullptr;
-  int64_t CurrentBatchSize = 0;
+  int64_t PromptBatchCapacity = 0;
   struct llama_batch LlamaBatch{};
   struct llama_batch OutputBatch{};
 

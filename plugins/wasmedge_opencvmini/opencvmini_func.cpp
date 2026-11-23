@@ -228,6 +228,11 @@ Expect<void> WasmEdgeOpenCVMiniImencode::body(
   return {};
 }
 
+Expect<void> WasmEdgeOpenCVMiniReleaseMat::body(const Runtime::CallingFrame &,
+                                                uint32_t MatKey) {
+  return Env.releaseMat(MatKey);
+}
+
 Expect<uint32_t>
 WasmEdgeOpenCVMiniNormalize::body(const Runtime::CallingFrame &,
                                   uint32_t SrcMatKey) {

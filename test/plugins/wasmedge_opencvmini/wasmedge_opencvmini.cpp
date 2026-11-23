@@ -68,11 +68,13 @@ TEST(WasmEdgeOpenCVMiniTest, Module) {
   // Create the wasmedge_opencvmini module instance.
   auto ImgMod = createModule();
   ASSERT_TRUE(ImgMod);
-  EXPECT_EQ(ImgMod->getFuncExportNum(), 17U);
+  EXPECT_EQ(ImgMod->getFuncExportNum(), 18U);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imdecode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imencode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_rectangle"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_cvt_color"), nullptr);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_release_mat"),
+            nullptr);
   EXPECT_EQ(ImgMod->findFuncExports("wasmedge_opencvmini_imshow"), nullptr);
   EXPECT_EQ(ImgMod->findFuncExports("wasmedge_opencvmini_waitkey"), nullptr);
 }
@@ -128,6 +130,72 @@ TEST(WasmEdgeOpenCVMiniTest, ExecuteHostFunction) {
   auto OutSpan = MemInst->getSpan<const uint8_t>(OutOffset, PngMagic.size());
   ASSERT_EQ(OutSpan.size(), PngMagic.size());
   EXPECT_TRUE(std::equal(PngMagic.begin(), PngMagic.end(), OutSpan.begin()));
+}
+
+TEST(WasmEdgeOpenCVMiniTest, MatrixHandles) {
+  auto ImgMod = createModule();
+  ASSERT_TRUE(ImgMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInst = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInst, nullptr);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  const uint32_t InOffset = 0;
+  const uint32_t ExtOffset = 512;
+  const uint32_t OutOffset = 1024;
+  const uint32_t OutCap = 32768;
+  constexpr std::string_view Ext = ".png";
+  std::copy(TestRedPNG.begin(), TestRedPNG.end(),
+            MemInst->getPointer<uint8_t *>(InOffset));
+  std::copy(Ext.begin(), Ext.end(), MemInst->getPointer<char *>(ExtOffset));
+
+  auto Run = [&](std::string_view Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args,
+                 WasmEdge::Span<WasmEdge::ValVariant> Rets) -> bool {
+    auto *FuncInst = ImgMod->findFuncExports(Name);
+    EXPECT_NE(FuncInst, nullptr);
+    return FuncInst != nullptr &&
+           FuncInst->getHostFunc().run(CallFrame, Args, Rets).has_value();
+  };
+  auto Decode = [&]() -> uint32_t {
+    std::array<WasmEdge::ValVariant, 1> Rets = {UINT32_C(0)};
+    EXPECT_TRUE(Run("wasmedge_opencvmini_imdecode",
+                    {InOffset, static_cast<uint32_t>(TestRedPNG.size())},
+                    Rets));
+    return Rets[0].get<uint32_t>();
+  };
+  auto Encode = [&](uint32_t MatKey) {
+    return Run("wasmedge_opencvmini_imencode",
+               {ExtOffset, static_cast<uint32_t>(Ext.size()), MatKey, OutOffset,
+                OutCap},
+               {});
+  };
+  std::array<WasmEdge::ValVariant, 1> Rets = {UINT32_C(0)};
+
+  // Two matrices of the same type and a filter result get distinct handles,
+  // and the source stays usable after the filter.
+  const uint32_t First = Decode();
+  const uint32_t Second = Decode();
+  EXPECT_NE(First, Second);
+  ASSERT_TRUE(
+      Run("wasmedge_opencvmini_blur", {First, UINT32_C(3), UINT32_C(3)}, Rets));
+  const uint32_t Blurred = Rets[0].get<uint32_t>();
+  EXPECT_NE(Blurred, First);
+  EXPECT_NE(Blurred, Second);
+  EXPECT_TRUE(Encode(First));
+  EXPECT_TRUE(Encode(Second));
+  EXPECT_TRUE(Encode(Blurred));
+
+  // A released handle is rejected, and the other handles stay usable.
+  EXPECT_TRUE(Run("wasmedge_opencvmini_release_mat", {First}, {}));
+  EXPECT_FALSE(Encode(First));
+  EXPECT_FALSE(Run("wasmedge_opencvmini_release_mat", {First}, {}));
+  EXPECT_TRUE(Encode(Second));
+  EXPECT_TRUE(Encode(Blurred));
 }
 
 GTEST_API_ int main(int argc, char **argv) {

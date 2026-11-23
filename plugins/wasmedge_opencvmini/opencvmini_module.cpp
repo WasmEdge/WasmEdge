@@ -18,6 +18,8 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
 
   addHostFunc("wasmedge_opencvmini_imwrite",
               std::make_unique<WasmEdgeOpenCVMiniImwrite>(Env));
+  addHostFunc("wasmedge_opencvmini_release_mat",
+              std::make_unique<WasmEdgeOpenCVMiniReleaseMat>(Env));
 
   addHostFunc("wasmedge_opencvmini_blur",
               std::make_unique<WasmEdgeOpenCVMiniBlur>(Env));

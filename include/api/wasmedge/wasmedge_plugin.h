@@ -39,6 +39,11 @@ typedef enum WasmEdge_ProgramOptionType {
 } WasmEdge_ProgramOptionType;
 
 /// Program option for plugins.
+///
+/// `Storage` points to a value of the type that `Type` names. If
+/// `DefaultValue` is not NULL, it points to a value of the same type, which is
+/// written to `Storage` when the plugin is registered. A toggle option given
+/// on the command line stores true.
 typedef struct WasmEdge_ProgramOption {
   const char *Name;
   const char *Description;

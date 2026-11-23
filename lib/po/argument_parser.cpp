@@ -100,8 +100,9 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
     return true;
   }
   if (!HelpOpt->value()) {
-    for (const auto &Desc : ArgumentDescriptors) {
-      if (Desc.nargs() < Desc.min_nargs()) {
+    for (const auto &Index : PositionalList) {
+      if (const auto &Desc = ArgumentDescriptors[Index];
+          Desc.nargs() < Desc.min_nargs()) {
         help(Out);
         return false;
       }

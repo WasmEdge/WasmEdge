@@ -12,6 +12,7 @@ static WasmEdge_String NameString;
 static const char NameCString[] = "name";
 static const WasmEdge_String NameStringDefaultValue = {.Buf = NameCString,
                                                        .Length = 4};
+static int32_t Number;
 static void Finalizer(void *Data) {
   printf("Deallocate host data\n");
   free((int32_t *)Data);
@@ -51,6 +52,16 @@ HostFuncSub(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
   return WasmEdge_Result_Success;
 }
 
+static WasmEdge_Result
+HostFuncNameSize(void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+                 const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  (void)Data;
+  (void)CallFrameCxt;
+  (void)In;
+  Out[0] = WasmEdge_ValueGenI32((int32_t)NameString.Length);
+  return WasmEdge_Result_Success;
+}
+
 static WasmEdge_ModuleInstanceContext *
 CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   /* Allocate and initialize a host data. */
@@ -84,17 +95,32 @@ CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
   WasmEdge_StringDelete(FuncName);
   WasmEdge_FunctionTypeDelete(FType);
+  /* Create the "name_size" function and add it to the module instance. */
+  FType = WasmEdge_FunctionTypeCreate(NULL, 0, ReturnTypes, 1);
+  FuncName = WasmEdge_StringCreateByCString("name_size");
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncNameSize, NULL, 0);
+  WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_FunctionTypeDelete(FType);
 
   return Mod;
 }
 
-static WasmEdge_ProgramOption PODesc[] = {{
-    .Name = "name",
-    .Description = "test name string",
-    .Type = WasmEdge_ProgramOptionType_String,
-    .Storage = &NameString,
-    .DefaultValue = &NameStringDefaultValue,
-}};
+static WasmEdge_ProgramOption PODesc[] = {
+    {
+        .Name = "name",
+        .Description = "test name string",
+        .Type = WasmEdge_ProgramOptionType_String,
+        .Storage = &NameString,
+        .DefaultValue = &NameStringDefaultValue,
+    },
+    {
+        .Name = "number",
+        .Description = "test number without a default value",
+        .Type = WasmEdge_ProgramOptionType_Int32,
+        .Storage = &Number,
+        .DefaultValue = NULL,
+    }};
 static WasmEdge_ModuleDescriptor ModuleDesc[] = {{
     .Name = "wasmedge_plugintest_c_module",
     .Description = "This is for the plugin tests in WasmEdge C API.",
@@ -112,7 +138,7 @@ static WasmEdge_PluginDescriptor Desc = {
             .Build = 0,
         },
     .ModuleCount = 1,
-    .ProgramOptionCount = 1,
+    .ProgramOptionCount = 2,
     .ModuleDescriptions = ModuleDesc,
     .ProgramOptions = PODesc,
 };

@@ -114,9 +114,45 @@ TEST(wasmedgePluginTests, CPP_Module) {
   // Create the wasmedge_plugintest_c_module module instance.
   auto TestModC = createModuleC();
   ASSERT_TRUE(TestModC);
-  EXPECT_EQ(TestModC->getFuncExportNum(), 2U);
+  EXPECT_EQ(TestModC->getFuncExportNum(), 3U);
   EXPECT_NE(TestModC->findFuncExports("add"), nullptr);
   EXPECT_NE(TestModC->findFuncExports("sub"), nullptr);
+  EXPECT_NE(TestModC->findFuncExports("name_size"), nullptr);
+}
+
+TEST(wasmedgePluginTests, C_ProgramOptions) {
+  using namespace std::literals::string_view_literals;
+  auto TestModC = createModuleC();
+  ASSERT_TRUE(TestModC);
+  const auto *Plugin =
+      WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_c"sv);
+  ASSERT_NE(Plugin, nullptr);
+  auto *FuncInst = TestModC->findFuncExports("name_size");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncInst = FuncInst->getHostFunc();
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  auto Parse = [Plugin](std::vector<const char *> Args) {
+    WasmEdge::PO::ArgumentParser Parser;
+    Plugin->registerOptions(Parser);
+    return Parser.parse(stdout, static_cast<int>(Args.size()), Args.data());
+  };
+
+  // The options are optional, and the declared default is stored.
+  EXPECT_TRUE(Parse({"test"}));
+  EXPECT_TRUE(HostFuncInst.run(CallFrame, {}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 4);
+
+  EXPECT_TRUE(
+      Parse({"test", "--number", "7", "--name", "abc", "--name", "abcdefg"}));
+  EXPECT_TRUE(HostFuncInst.run(CallFrame, {}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 7);
+
+  EXPECT_FALSE(Parse({"test", "--number", "x"}));
+  EXPECT_FALSE(Parse({"test", "--number"}));
+  EXPECT_FALSE(Parse({"test", "--number", "7", "--number"}));
 }
 
 GTEST_API_ int main(int argc, char **argv) {

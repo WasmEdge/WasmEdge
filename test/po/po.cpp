@@ -89,6 +89,19 @@ TEST(RequiredOptions, RejectMissingValue) {
   EXPECT_TRUE(A.value());
 }
 
+TEST(ExternalOptions, StoreDefault) {
+  bool Flag = false;
+  const bool FlagDefault = true;
+  int32_t Number = 0;
+  const int32_t NumberDefault = 3;
+  Option<Toggle *> T(Description("t option"sv), &Flag, &FlagDefault);
+  Option<int32_t *> N(Description("n option"sv), &Number, &NumberDefault);
+  EXPECT_TRUE(Flag);
+  EXPECT_EQ(Number, 3);
+  EXPECT_EQ(T.min_narg(), 0U);
+  EXPECT_EQ(N.min_narg(), 0U);
+}
+
 TEST(RequiredOptions, RepeatedOption) {
   Option<std::string> N(Description("n option"sv));
   Option<std::string> D(Description("d option"sv),

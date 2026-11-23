@@ -174,13 +174,15 @@ TEST(wasmedgePluginTests, C_Module) {
   // Create the wasmedge_plugintest_c_module module instance.
   auto *ModInstC = createModuleC();
   ASSERT_FALSE(ModInstC == nullptr);
-  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(ModInstC), 2U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(ModInstC), 3U);
   std::memset(NameBuf, 0, sizeof(WasmEdge_String) * 16);
-  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModInstC, NameBuf, 16), 2U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModInstC, NameBuf, 16), 3U);
   EXPECT_TRUE(
       WasmEdge_StringIsEqual(NameBuf[0], WasmEdge_StringWrap("add", 3U)));
   EXPECT_TRUE(
-      WasmEdge_StringIsEqual(NameBuf[1], WasmEdge_StringWrap("sub", 3U)));
+      WasmEdge_StringIsEqual(NameBuf[1], WasmEdge_StringWrap("name_size", 9U)));
+  EXPECT_TRUE(
+      WasmEdge_StringIsEqual(NameBuf[2], WasmEdge_StringWrap("sub", 3U)));
   WasmEdge_ModuleInstanceDelete(ModInstC);
 
   // Create the wasmedge_plugintest_cpp_module module instance.

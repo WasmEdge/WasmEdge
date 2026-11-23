@@ -90,7 +90,11 @@ private:
 template <typename T> class Option<T *, Parser<T>> {
 public:
   Option(T *Storage, const T *DefaultValue) noexcept
-      : Store(Storage), Default(DefaultValue) {}
+      : Store(Storage), Default(DefaultValue) {
+    if (Default) {
+      *Store = *Default;
+    }
+  }
 
   template <typename... ArgsT>
   Option(Description &&D, ArgsT &&...Args) noexcept
@@ -190,7 +194,11 @@ private:
 
 template <> class Option<Toggle *, Parser<bool>> {
 public:
-  Option(bool *Storage, const bool *) noexcept : Store(Storage) {}
+  Option(bool *Storage, const bool *DefaultValue) noexcept : Store(Storage) {
+    if (DefaultValue) {
+      *Store = *DefaultValue;
+    }
+  }
 
   template <typename... ArgsT>
   Option(Description &&D, ArgsT &&...Args) noexcept

@@ -129,7 +129,7 @@ createNullTerminatedString(std::string_view View) noexcept {
 } // namespace
 
 void FdHolder::reset() noexcept {
-  if (likely(ok()) && Cleanup && likely(!isSpecialFd(Fd))) {
+  if (likely(ok()) && Cleanup) {
     ::close(Fd);
   }
   Fd = -1;
@@ -167,11 +167,11 @@ WasiExpect<INode> createStdNode(int32_t Fd) {
 }
 } // namespace
 
-INode INode::stdIn() noexcept { return INode(STDIN_FILENO); }
+INode INode::stdIn() noexcept { return INode(STDIN_FILENO, false); }
 
-INode INode::stdOut() noexcept { return INode(STDOUT_FILENO); }
+INode INode::stdOut() noexcept { return INode(STDOUT_FILENO, false); }
 
-INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
+INode INode::stdErr() noexcept { return INode(STDERR_FILENO, false); }
 
 WasiExpect<INode> INode::fromFd(int32_t FdNum) { return createStdNode(FdNum); }
 
@@ -280,17 +280,18 @@ INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
 WasiExpect<void>
 INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
   EXPECTED_TRY(updateStat());
+  const bool IsStdio = !Cleanup && isSpecialFd(Fd);
 
   // Zeroing out these values to prevent leaking information about the host
   // environment from special fd such as stdin, stdout and stderr.
-  Filestat.dev = isSpecialFd(Fd) ? 0 : EndianValue(Stat->st_dev).le();
-  Filestat.ino = isSpecialFd(Fd) ? 0 : EndianValue(Stat->st_ino).le();
+  Filestat.dev = IsStdio ? 0 : EndianValue(Stat->st_dev).le();
+  Filestat.ino = IsStdio ? 0 : EndianValue(Stat->st_ino).le();
   Filestat.filetype = EndianValue(unsafeFiletype()).le();
-  Filestat.nlink = isSpecialFd(Fd) ? 0 : EndianValue(Stat->st_nlink).le();
-  Filestat.size = isSpecialFd(Fd) ? 0 : EndianValue(Stat->st_size).le();
-  Filestat.atim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_atim).le();
-  Filestat.mtim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_mtim).le();
-  Filestat.ctim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_ctim).le();
+  Filestat.nlink = IsStdio ? 0 : EndianValue(Stat->st_nlink).le();
+  Filestat.size = IsStdio ? 0 : EndianValue(Stat->st_size).le();
+  Filestat.atim = IsStdio ? 0 : fromTimespec(Stat->st_atim).le();
+  Filestat.mtim = IsStdio ? 0 : fromTimespec(Stat->st_mtim).le();
+  Filestat.ctim = IsStdio ? 0 : fromTimespec(Stat->st_ctim).le();
 
   return {};
 }

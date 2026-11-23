@@ -106,7 +106,7 @@ createNullTerminatedString(std::string_view View) noexcept {
 } // namespace
 
 void FdHolder::reset() noexcept {
-  if (likely(ok()) && Cleanup && likely(!isSpecialFd(Fd))) {
+  if (likely(ok()) && Cleanup) {
     close(Fd);
   }
   Fd = -1;
@@ -137,11 +137,11 @@ WasiExpect<INode> createStdNode(int32_t Fd) {
 }
 } // namespace
 
-INode INode::stdIn() noexcept { return INode(STDIN_FILENO); }
+INode INode::stdIn() noexcept { return INode(STDIN_FILENO, false); }
 
-INode INode::stdOut() noexcept { return INode(STDOUT_FILENO); }
+INode INode::stdOut() noexcept { return INode(STDOUT_FILENO, false); }
 
-INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
+INode INode::stdErr() noexcept { return INode(STDERR_FILENO, false); }
 
 WasiExpect<INode> INode::fromFd(int32_t FdNum) { return createStdNode(FdNum); }
 
@@ -262,17 +262,18 @@ INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
 WasiExpect<void>
 INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
   EXPECTED_TRY(updateStat());
+  const bool IsStdio = !Cleanup && isSpecialFd(Fd);
 
   // Zeroing out these values to prevent leaking information about the host
   // environment from special fd such as stdin, stdout and stderr.
-  Filestat.dev = isSpecialFd(Fd) ? 0 : Stat->st_dev;
-  Filestat.ino = isSpecialFd(Fd) ? 0 : Stat->st_ino;
+  Filestat.dev = IsStdio ? 0 : Stat->st_dev;
+  Filestat.ino = IsStdio ? 0 : Stat->st_ino;
   Filestat.filetype = unsafeFiletype();
-  Filestat.nlink = isSpecialFd(Fd) ? 0 : Stat->st_nlink;
-  Filestat.size = isSpecialFd(Fd) ? 0 : Stat->st_size;
-  Filestat.atim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_atimespec);
-  Filestat.mtim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_mtimespec);
-  Filestat.ctim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_ctimespec);
+  Filestat.nlink = IsStdio ? 0 : Stat->st_nlink;
+  Filestat.size = IsStdio ? 0 : Stat->st_size;
+  Filestat.atim = IsStdio ? 0 : fromTimespec(Stat->st_atimespec);
+  Filestat.mtim = IsStdio ? 0 : fromTimespec(Stat->st_mtimespec);
+  Filestat.ctim = IsStdio ? 0 : fromTimespec(Stat->st_ctimespec);
 
   return {};
 }

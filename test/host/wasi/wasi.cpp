@@ -4835,6 +4835,80 @@ TEST(WasiTest, FdHolderOwnership) {
   ::close(Pipe[1]);
 }
 
+TEST(WasiTest, CustomStdioKeepsMetadata) {
+  TestRoot Root("wasmedge-wasi-custom-stdio");
+  const auto Content = "0123456789"sv;
+  writeFile(Root.Path / "data.txt", Content);
+  const int DataFd = ::open((Root.Path / "data.txt").c_str(), O_RDONLY);
+  ASSERT_GT(DataFd, STDERR_FILENO);
+
+  WasmEdge::Host::WASI::Environ Env;
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, STDIN_FILENO, DataFd,
+                              STDERR_FILENO));
+  __wasi_filestat_t Stat{};
+  ASSERT_TRUE(Env.fdFilestatGet(1, Stat));
+  EXPECT_EQ(WasmEdge::EndianValue(Stat.size).le(), Content.size());
+  Env.fini();
+  EXPECT_NE(::fcntl(DataFd, F_GETFD), -1);
+  ::close(DataFd);
+}
+
+namespace {
+// Runs in a child process, because it replaces stdout and closes stdin.
+int checkOpenedFileOnHostStdioFdNumber(const std::filesystem::path &Root,
+                                       std::string_view Content) {
+  const auto DataPath = Root / "data.txt";
+  const int DataFd = ::open(DataPath.c_str(), O_RDONLY);
+  if (DataFd < 0 || ::dup2(DataFd, STDOUT_FILENO) < 0) {
+    return 1;
+  }
+  ::close(DataFd);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  __wasi_filestat_t Stat{};
+  if (!Env.fdFilestatGet(1, Stat) || Stat.ino != 0 || Stat.size != 0) {
+    return 2;
+  }
+
+  ::close(STDIN_FILENO);
+  auto FileFd = Env.pathOpen(
+      RootFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0),
+      __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_FILESTAT_GET,
+      static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+  struct stat HostStat;
+  if (!FileFd || ::fstat(STDIN_FILENO, &HostStat) != 0 ||
+      HostStat.st_size != static_cast<off_t>(Content.size())) {
+    return 3;
+  }
+
+  if (!Env.fdFilestatGet(*FileFd, Stat) ||
+      WasmEdge::EndianValue(Stat.size).le() != Content.size() ||
+      WasmEdge::EndianValue(Stat.ino).le() !=
+          static_cast<uint64_t>(HostStat.st_ino)) {
+    return 4;
+  }
+
+  if (!Env.fdClose(*FileFd) || ::fcntl(STDIN_FILENO, F_GETFD) != -1) {
+    return 5;
+  }
+  Env.fini();
+  return 0;
+}
+} // namespace
+
+TEST(WasiTest, OpenedFileOnHostStdioFdNumber) {
+  TestRoot Root("wasmedge-wasi-stdio-fd");
+  const auto Content = "0123456789"sv;
+  writeFile(Root.Path / "data.txt", Content);
+  EXPECT_EXIT(
+      std::_Exit(checkOpenedFileOnHostStdioFdNumber(Root.Path, Content)),
+      ::testing::ExitedWithCode(0), "");
+}
+
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

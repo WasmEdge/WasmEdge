@@ -245,8 +245,8 @@ Expect<void> Executor::instantiate(
       auto *ImpInst = ImpModInst->findTagExports(ExtName);
       if (!Runtime::Matcher::matchType(ModInst, TagType, *ImpModInst, *ImpInst,
                                        &Equal)) {
-        const auto &ExpFuncType =
-            TagType.getDefType().getCompositeType().getFuncType();
+        const auto &ExpDefType = **ModInst.getType(TagType.getTypeIdx());
+        const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
         const auto &ImpFuncType =
             ImpInst->getTagType().getDefType().getCompositeType().getFuncType();
         return logMatchError(

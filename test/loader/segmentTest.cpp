@@ -188,6 +188,7 @@ TEST(SegmentTest, LoadElementSegment) {
   //   12. Load element segment with unexpected end of reference type.
   //   13. Load element segment with unexpected end of initialization
   //       expression vector count.
+  //   14. Load element segment with table index without Bulk-Mem proposal.
 
   Vec = {
       0x09U, // Element section
@@ -334,6 +335,19 @@ TEST(SegmentTest, LoadElementSegment) {
             // Missing initialization expressions
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x09U,               // Element section
+      0x06U,               // Content size = 6
+      0x01U,               // Vector length = 1
+      0x01U,               // Table index
+      0x41U, 0x00U, 0x0BU, // Offset expression
+      0x00U                // Function indices list
+  };
+  auto Res = LdrWASM1.parseModule(prefixedVec(Vec));
+  ASSERT_TRUE(Res);
+  ASSERT_EQ((*Res)->getElementSection().getContent().size(), 1U);
+  EXPECT_EQ((*Res)->getElementSection().getContent()[0].getIdx(), 1U);
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
@@ -539,27 +553,6 @@ TEST(SegmentTest, LoadDataSegment) {
             // Missing initialization data
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-}
-TEST(SegmentTest, LoadElementSegmentLegacyTableIndex) {
-  // (module (table 1 funcref) (elem 1 (i32.const 0)))
-  // Without the BulkMemoryOperations and ReferenceTypes proposals the table
-  // index is the first field of the segment; it must not be replaced by 0.
-  WasmEdge::Configure LegacyConf;
-  LegacyConf.setWASMStandard(WasmEdge::Standard::WASM_1);
-  WasmEdge::Loader::Loader LegacyLdr(LegacyConf);
-
-  const std::vector<WasmEdge::Byte> Wasm = {
-      // Preamble
-      0x00U, 0x61U, 0x73U, 0x6DU, 0x01U, 0x00U, 0x00U, 0x00U,
-      // Table section: one funcref table with a minimum of 1
-      0x04U, 0x04U, 0x01U, 0x70U, 0x00U, 0x01U,
-      // Element section: one segment, table index 1, offset 0, no initializers
-      0x09U, 0x06U, 0x01U, 0x01U, 0x41U, 0x00U, 0x0BU, 0x00U};
-
-  auto Result = LegacyLdr.parseModule(Wasm);
-  ASSERT_TRUE(Result);
-  ASSERT_EQ((*Result)->getElementSection().getContent().size(), 1U);
-  EXPECT_EQ((*Result)->getElementSection().getContent()[0].getIdx(), 1U);
 }
 
 } // namespace

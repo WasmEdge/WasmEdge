@@ -97,9 +97,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // vec(FuncIdx): function index vector, vec(u32)
   // vec(expr): reference init list, vec(expr)
 
-  // The default table index is set before the legacy read below, which sets
-  // the index itself when the BulkMemoryOperations and ReferenceTypes
-  // proposals are off.
+  // Set the default table index.
   ElemSeg.setIdx(0);
 
   // Read the checking byte.

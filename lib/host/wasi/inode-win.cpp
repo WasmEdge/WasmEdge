@@ -1078,14 +1078,11 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
 WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
                                   __wasi_dircookie_t Cookie,
                                   __wasi_size_t &Size) noexcept {
-  if (likely(Find.ok())) {
-    EXPECTED_TRY(Find.seek(Cookie));
-  }
-
   if (unlikely(!Find.ok())) {
     // Begin the search for files
     EXPECTED_TRY(Find.emplace(Handle));
   }
+  EXPECTED_TRY(Find.seek(Cookie));
 
   bool FindNextResult = true;
   Size = 0;

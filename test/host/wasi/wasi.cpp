@@ -4751,10 +4751,41 @@ TEST(WasiTest, FdReaddirCookie) {
   EXPECT_EQ(dirEntryNames(Entries.begin(), Entries.end()),
             dirEntryNames(Reference.begin() + 1, Reference.end()));
 
+  // The first read of a new fd starts at the given cookie.
+  for (size_t I = 0; I + 1 < Reference.size(); ++I) {
+    SCOPED_TRACE(I);
+    auto DirFd = Env.pathOpen(
+        RootFd, "."sv, static_cast<__wasi_lookupflags_t>(0),
+        __WASI_OFLAGS_DIRECTORY, __WASI_RIGHTS_FD_READDIR,
+        static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+    ASSERT_TRUE(DirFd);
+    Entries = readDirEntries(Env, *DirFd, Reference[I].Next);
+    EXPECT_EQ(
+        dirEntryNames(Entries.begin(), Entries.end()),
+        dirEntryNames(Reference.begin() + static_cast<std::ptrdiff_t>(I) + 1,
+                      Reference.end()));
+    EXPECT_TRUE(Env.fdClose(*DirFd));
+  }
+
   Env.fini();
 }
 
 #if !WASMEDGE_OS_WINDOWS
+TEST(WasiTest, FdReaddirLastCookie) {
+  TestRoot Root("wasmedge-wasi-readdir-end");
+  writeFile(Root.Path / "a", ""sv);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  const auto Reference = readDirEntries(Env, RootFd, 0);
+  ASSERT_FALSE(Reference.empty());
+  EXPECT_TRUE(readDirEntries(Env, RootFd, Reference.back().Next).empty());
+
+  Env.fini();
+}
+
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

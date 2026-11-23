@@ -620,44 +620,12 @@ Executor::toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
   if (!Type.isRefType()) {
     return Type.getCode();
   }
-  return AST::TypeMatcher::getBottomHeapType(
-      Type.isAbsHeapType() ? Type.getHeapTypeCode()
-                           : ModInst->unsafeGetType(Type.getTypeIndex())
-                                 ->getCompositeType()
-                                 .expand());
-}
-
-bool Executor::matchRef(const Runtime::Instance::ModuleInstance *ModInst,
-                        const ValType &Exp,
-                        const RefVariant &Ref) const noexcept {
-  // Match the own type of the referenced instance.
-  auto VT = Ref.getType();
-  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
-  const AST::SubType *HostType = nullptr;
-  if (VT.isExternalized()) {
-    VT = ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-                 TypeCode::ExternRef);
-  } else if (!VT.isAbsHeapType()) {
-    // Null references have abstract heap types.
-    const auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    assuming(Inst);
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
-    }
-  } else if (VT.getHeapTypeCode() == TypeCode::FuncRef && !Ref.isNull()) {
-    const auto *FuncInst = retrieveFuncRef(Ref);
-    if (FuncInst->getModule()) {
-      GotTypeList = FuncInst->getModule()->getTypeList();
-      VT = ValType(TypeCode::Ref, FuncInst->getTypeIndex());
-    } else {
-      // A host function out of any module is a type list of its own.
-      HostType = &FuncInst->getHostFunc().getDefinedType();
-      GotTypeList = Span<const AST::SubType *const>(&HostType, 1);
-      VT = ValType(TypeCode::Ref, 0U);
-    }
+  // An abstract heap type needs no type list.
+  Span<const AST::SubType *const> TypeList;
+  if (ModInst) {
+    TypeList = ModInst->getTypeList();
   }
-  return AST::TypeMatcher::matchType(ModInst->getTypeList(), Exp, GotTypeList,
-                                     VT);
+  return AST::TypeMatcher::getBottomHeapType(TypeList, Type);
 }
 
 void Executor::cleanNumericVal(ValVariant &Val,

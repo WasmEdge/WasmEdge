@@ -611,6 +611,21 @@ public:
     }
   }
 
+  /// Matcher: Get the top type of the hierarchy of a reference type.
+  static TypeCode getTopHeapType(Span<const SubType *const> TypeList,
+                                 const ValType &Type) noexcept {
+    return getTopHeapType(
+        Type.isAbsHeapType()
+            ? Type.getHeapTypeCode()
+            : TypeList[Type.getTypeIndex()]->getCompositeType().expand());
+  }
+
+  /// Matcher: Get the bottom type of the hierarchy of a reference type.
+  static TypeCode getBottomHeapType(Span<const SubType *const> TypeList,
+                                    const ValType &Type) noexcept {
+    return getBottomHeapType(getTopHeapType(TypeList, Type));
+  }
+
 private:
   /// Matcher: Helper for matching two field types in the same module.
   static bool matchType(Span<const SubType *const> TypeList,

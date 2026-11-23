@@ -343,7 +343,8 @@ Expect<void>
 Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
                        ValVariant &Val, const AST::Instruction &Instr,
                        const bool IsCast) const noexcept {
-  if (matchRef(ModInst, Instr.getValType(), Val.get<RefVariant>())) {
+  if (Runtime::Matcher::matchRef(ModInst, Instr.getValType(),
+                                 Val.get<RefVariant>())) {
     if (!IsCast) {
       Val.emplace<uint32_t>(1U);
     }

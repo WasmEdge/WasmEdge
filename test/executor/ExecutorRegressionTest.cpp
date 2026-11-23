@@ -1583,6 +1583,21 @@ TEST(ExecutorRegression, TagImportMatchesBothWays) {
     ASSERT_TRUE(VM.validate());
     EXPECT_TRUE(VM.instantiate());
   }
+
+  // --- Part 3: the AST module the VM copied is gone (must not link) ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.registerModule("M", TagSubTypeExportWasm));
+    auto Mod = VM.getLoader().parseModule(TagSuperTypeImportWasm);
+    ASSERT_TRUE(Mod);
+    ASSERT_TRUE(VM.loadWasm(**Mod));
+    Mod->reset();
+    ASSERT_TRUE(VM.validate());
+    auto Res = VM.instantiate();
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::IncompatibleImportType);
+  }
 }
 
 /// Regression test for re-exported imports, typed by their defining module.

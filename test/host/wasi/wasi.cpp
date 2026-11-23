@@ -4786,6 +4786,55 @@ TEST(WasiTest, FdReaddirLastCookie) {
   Env.fini();
 }
 
+TEST(WasiTest, FdHolderOwnership) {
+  using WasmEdge::Host::WASI::FdHolder;
+  auto IsOpen = [](int Fd) { return ::fcntl(Fd, F_GETFD) != -1; };
+  int Pipe[2];
+  ASSERT_EQ(::pipe(Pipe), 0);
+  const int Borrowed = Pipe[0];
+
+  // An owned fd is closed when a borrowed fd replaces it.
+  {
+    FdHolder Owned(::dup(Pipe[1]));
+    const int OwnedFd = Owned.Fd;
+    ASSERT_TRUE(IsOpen(OwnedFd));
+    FdHolder Source(Borrowed, false);
+    Owned = std::move(Source);
+    EXPECT_FALSE(IsOpen(OwnedFd));
+    EXPECT_EQ(Owned.Fd, Borrowed);
+  }
+  EXPECT_TRUE(IsOpen(Borrowed));
+
+  // A borrowed fd stays open when an owned fd replaces it.
+  int OwnedFd = -1;
+  {
+    FdHolder Target(Borrowed, false);
+    FdHolder Source(::dup(Pipe[1]));
+    OwnedFd = Source.Fd;
+    Target = std::move(Source);
+    EXPECT_TRUE(IsOpen(Borrowed));
+    EXPECT_TRUE(IsOpen(OwnedFd));
+  }
+  EXPECT_TRUE(IsOpen(Borrowed));
+  EXPECT_FALSE(IsOpen(OwnedFd));
+
+  // reset() does not close a borrowed fd, and emplace() owns the new fd.
+  {
+    FdHolder Holder(Borrowed, false);
+    Holder.reset();
+    EXPECT_FALSE(Holder.ok());
+    EXPECT_TRUE(IsOpen(Borrowed));
+    Holder.emplace(::dup(Pipe[1]));
+    OwnedFd = Holder.Fd;
+    ASSERT_TRUE(IsOpen(OwnedFd));
+  }
+  EXPECT_FALSE(IsOpen(OwnedFd));
+  EXPECT_TRUE(IsOpen(Borrowed));
+
+  ::close(Pipe[0]);
+  ::close(Pipe[1]);
+}
+
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

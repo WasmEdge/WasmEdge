@@ -58,24 +58,26 @@ struct FdHolder {
     RHS.Cleanup = true;
   }
   FdHolder &operator=(FdHolder &&RHS) noexcept {
-    using std::swap;
-    swap(Fd, RHS.Fd);
-    Cleanup = RHS.Cleanup;
-    RHS.Cleanup = true;
+    if (this != &RHS) {
+      reset();
+      Fd = std::exchange(RHS.Fd, -1);
+      Cleanup = RHS.Cleanup;
+      RHS.Cleanup = true;
+    }
     return *this;
   }
 
   constexpr FdHolder() noexcept : Fd(-1), Cleanup(true) {}
-  ~FdHolder() noexcept {
-    if (Cleanup) {
-      reset();
-    }
-  }
+  ~FdHolder() noexcept { reset(); }
   explicit constexpr FdHolder(int Fd, bool Cleanup = true) noexcept
       : Fd(Fd), Cleanup(Cleanup) {}
   constexpr bool ok() const noexcept { return Fd >= 0; }
+  /// Close the fd if this holder owns it, and leave the holder empty.
   void reset() noexcept;
-  int release() noexcept { return std::exchange(Fd, -1); }
+  int release() noexcept {
+    Cleanup = true;
+    return std::exchange(Fd, -1);
+  }
   void emplace(int NewFd) noexcept {
     reset();
     Fd = NewFd;

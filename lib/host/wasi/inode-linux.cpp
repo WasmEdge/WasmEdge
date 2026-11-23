@@ -129,12 +129,11 @@ createNullTerminatedString(std::string_view View) noexcept {
 } // namespace
 
 void FdHolder::reset() noexcept {
-  if (likely(ok())) {
-    if (likely(!isSpecialFd(Fd))) {
-      ::close(Fd);
-    }
-    Fd = -1;
+  if (likely(ok()) && Cleanup && likely(!isSpecialFd(Fd))) {
+    ::close(Fd);
   }
+  Fd = -1;
+  Cleanup = true;
 }
 
 void TimerHolder::reset() noexcept {

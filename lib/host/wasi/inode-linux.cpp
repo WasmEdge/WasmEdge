@@ -502,13 +502,19 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
     }
   }
 
-  if (Cookie == 0) {
-    ::rewinddir(Dir.Dir);
-  } else if (unlikely(Cookie != Dir.Cookie)) {
-    ::seekdir(Dir.Dir, Cookie);
+  Size = 0;
+  if (unlikely(Buffer.empty())) {
+    return {};
   }
 
-  Size = 0;
+  if (Cookie == 0) {
+    ::rewinddir(Dir.Dir);
+    Dir.Buffer.clear();
+  } else if (unlikely(Cookie != Dir.Cookie)) {
+    ::seekdir(Dir.Dir, Cookie);
+    Dir.Buffer.clear();
+  }
+
   do {
     if (!Dir.Buffer.empty()) {
       const auto NewDataSize =

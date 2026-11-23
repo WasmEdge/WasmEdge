@@ -4682,7 +4682,77 @@ std::string readFile(const std::filesystem::path &Path) {
   return std::string(std::istreambuf_iterator<char>(File), {});
 }
 
+struct DirEntry {
+  std::string Name;
+  __wasi_dircookie_t Next;
+};
+
+std::vector<DirEntry> readDirEntries(WasmEdge::Host::WASI::Environ &Env,
+                                     __wasi_fd_t Fd,
+                                     __wasi_dircookie_t Cookie) {
+  std::array<uint8_t, 4096> Buffer{};
+  std::vector<DirEntry> Entries;
+  __wasi_size_t Size = 0;
+  EXPECT_TRUE(Env.fdReaddir(Fd, Buffer, Cookie, Size));
+  Size = WasmEdge::EndianValue(Size).le();
+  size_t Offset = 0;
+  while (Offset + sizeof(__wasi_dirent_t) <= Size) {
+    __wasi_dirent_t Dirent;
+    std::memcpy(&Dirent, Buffer.data() + Offset, sizeof(Dirent));
+    Offset += sizeof(Dirent);
+    const auto NameLen = WasmEdge::EndianValue(Dirent.d_namlen).le();
+    if (Offset + NameLen > Size) {
+      break;
+    }
+    Entries.push_back(
+        {std::string(reinterpret_cast<const char *>(Buffer.data()) + Offset,
+                     NameLen),
+         WasmEdge::EndianValue(Dirent.d_next).le()});
+    Offset += NameLen;
+  }
+  return Entries;
+}
+
+std::vector<std::string>
+dirEntryNames(std::vector<DirEntry>::const_iterator First,
+              std::vector<DirEntry>::const_iterator Last) {
+  std::vector<std::string> Names;
+  std::transform(First, Last, std::back_inserter(Names),
+                 [](const DirEntry &E) { return E.Name; });
+  return Names;
+}
 } // namespace
+
+TEST(WasiTest, FdReaddirCookie) {
+  TestRoot Root("wasmedge-wasi-readdir");
+  writeFile(Root.Path / "a", ""sv);
+  writeFile(Root.Path / "b", ""sv);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  const auto Reference = readDirEntries(Env, RootFd, 0);
+  const auto Names = dirEntryNames(Reference.begin(), Reference.end());
+  EXPECT_NE(std::find(Names.begin(), Names.end(), "a"s), Names.end());
+  EXPECT_NE(std::find(Names.begin(), Names.end(), "b"s), Names.end());
+
+  // A zero-length read keeps the position of the next read.
+  auto ReadZero = [&Env](__wasi_dircookie_t Cookie) {
+    __wasi_size_t Size = 1;
+    EXPECT_TRUE(Env.fdReaddir(RootFd, WasmEdge::Span<uint8_t>(), Cookie, Size));
+    EXPECT_EQ(Size, UINT32_C(0));
+  };
+  ReadZero(0);
+  auto Entries = readDirEntries(Env, RootFd, 0);
+  EXPECT_EQ(dirEntryNames(Entries.begin(), Entries.end()), Names);
+  ReadZero(0);
+  Entries = readDirEntries(Env, RootFd, Reference.front().Next);
+  EXPECT_EQ(dirEntryNames(Entries.begin(), Entries.end()),
+            dirEntryNames(Reference.begin() + 1, Reference.end()));
+
+  Env.fini();
+}
 
 #if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, SymbolicLink) {

@@ -89,6 +89,32 @@ TEST(RequiredOptions, RejectMissingValue) {
   EXPECT_TRUE(A.value());
 }
 
+TEST(RequiredOptions, RepeatedOption) {
+  Option<std::string> N(Description("n option"sv));
+  Option<std::string> D(Description("d option"sv),
+                        DefaultValue<std::string>("d"));
+  List<std::string> L(Description("l option"sv));
+  Option<Toggle> A(Description("a option"sv));
+  ArgumentParser Parser;
+  Parser.add_option("name"sv, N)
+      .add_option("d"sv, D)
+      .add_option("l"sv, L)
+      .add_option("a"sv, A);
+  auto Parse = [&Parser](std::vector<const char *> Args) {
+    return Parser.parse(stdout, static_cast<int>(Args.size()), Args.data());
+  };
+
+  EXPECT_FALSE(Parse({"test", "--name", "x", "--name"}));
+  EXPECT_FALSE(Parse({"test", "--name", "x", "--name", "--a"}));
+  EXPECT_TRUE(Parse({"test", "--d", "x", "--d"}));
+  EXPECT_EQ(D.value(), "d");
+  EXPECT_TRUE(Parse({"test", "--d", "y", "--d", "--a"}));
+  EXPECT_EQ(D.value(), "d");
+  EXPECT_TRUE(Parse({"test", "--l", "x", "--l"}));
+  ASSERT_EQ(L.value().size(), 1U);
+  EXPECT_EQ(L.value()[0], "x");
+}
+
 TEST_P(GeneralOptions, Test) {
   auto P = GetParam();
   EXPECT_EQ(P.R, Parser.parse(stdout, static_cast<int>(P.Args.size()),

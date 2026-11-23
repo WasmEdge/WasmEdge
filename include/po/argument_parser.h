@@ -43,6 +43,10 @@ private:
           Hidden(Opt.hidden()), Store(&Opt.value()) {}
     auto &nargs() noexcept { return NArgs; }
     auto &nargs() const noexcept { return NArgs; }
+    void begin_occurrence() noexcept { OccurrenceStart = NArgs; }
+    std::size_t occurrence_nargs() const noexcept {
+      return NArgs - OccurrenceStart;
+    }
     auto &options() noexcept { return Options; }
     auto &options() const noexcept { return Options; }
 
@@ -63,6 +67,7 @@ private:
     std::string_view Desc;
     std::string_view Meta;
     std::size_t NArgs = 0;
+    std::size_t OccurrenceStart = 0;
     std::size_t MinNArgs;
     std::size_t MaxNArgs;
     std::vector<std::string_view> Options;

@@ -255,7 +255,7 @@ void ArgumentParser::SubCommandDescriptor::indent_output(
 cxx20::expected<void, Error>
 ArgumentParser::SubCommandDescriptor::finish_option(
     const ArgumentDescriptor *CurrentDesc) noexcept {
-  if (!CurrentDesc || CurrentDesc->nargs() != 0) {
+  if (!CurrentDesc || CurrentDesc->occurrence_nargs() != 0) {
     return {};
   }
   if (CurrentDesc->min_nargs() > 0) {
@@ -264,7 +264,9 @@ ArgumentParser::SubCommandDescriptor::finish_option(
         fmt::format("option {} requires an argument."sv,
                     CurrentDesc->options().front()));
   }
-  CurrentDesc->default_value();
+  if (CurrentDesc->max_nargs() == 1 || CurrentDesc->nargs() == 0) {
+    CurrentDesc->default_value();
+  }
   return {};
 }
 
@@ -326,6 +328,7 @@ ArgumentParser::SubCommandDescriptor::consume_short_option(
     CurrentDesc.default_value();
     return nullptr;
   }
+  CurrentDesc.begin_occurrence();
   return &CurrentDesc;
 }
 
@@ -342,6 +345,7 @@ ArgumentParser::SubCommandDescriptor::consume_long_option(
     CurrentDesc.default_value();
     return nullptr;
   }
+  CurrentDesc.begin_occurrence();
   return &CurrentDesc;
 }
 

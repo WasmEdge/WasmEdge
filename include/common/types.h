@@ -105,7 +105,7 @@ enum class AddressType : uint8_t { I32, I64 };
 //       |             | ValTypeCode  |         For the HeapType use
 //       |   0th:      | 0x7F, 0x7E,  | (Function references and GC proposal)
 //       | Reserved    | 0x7D, 0x7C,  | HeapTypeCode        |
-//       | (Padding)   |   (numtype)  | 0x00, 0x40,         |    Type index
+//       | (Zero)      |   (numtype)  | 0x00, 0x40,         |    Type index
 //  code |             | 0x7B,        | 0x70, 0x6F,         |    (uint32_t)
 //       |             |   (vectype)  | (func-ref proposal) |
 //       |   1st:      | 0x78, 0x77,  | 0x73, 0x72, 0x71,   |
@@ -129,6 +129,7 @@ public:
   ValType() noexcept = default;
   // General constructors for initializing data.
   ValType(TypeCode C, TypeCode HT, uint32_t I) noexcept {
+    Inner.Data.Padding = 0;
     Inner.Data.Externalize = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = HT;
@@ -139,6 +140,7 @@ public:
   }
   // Constructor for the value type codes without heap type immediates.
   ValType(TypeCode C) noexcept {
+    Inner.Data.Padding = 0;
     Inner.Data.Externalize = 0;
     Inner.Data.Idx = 0;
     switch (C) {
@@ -180,6 +182,7 @@ public:
   }
   // Constructor for the value type with abs heap type in reference type.
   ValType(TypeCode C, TypeCode HT) noexcept {
+    Inner.Data.Padding = 0;
     Inner.Data.Externalize = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = HT;
@@ -188,6 +191,7 @@ public:
   }
   // Constructor for the value type with type index in reference type.
   ValType(TypeCode C, uint32_t I) noexcept {
+    Inner.Data.Padding = 0;
     Inner.Data.Externalize = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = TypeCode::TypeIndex;

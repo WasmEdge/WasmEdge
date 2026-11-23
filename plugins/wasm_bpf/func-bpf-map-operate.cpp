@@ -28,7 +28,6 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  std::shared_lock guard(this->state->lock);
   bpf_map_info map_info;
   memset(&map_info, 0, sizeof(map_info));
   uint32_t info_len = sizeof(map_info);
@@ -40,7 +39,22 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
     return err;
   }
   auto key_size = map_info.key_size;
-  auto value_size = map_info.value_size;
+  uint64_t value_size = map_info.value_size;
+  switch (map_info.type) {
+  case BPF_MAP_TYPE_PERCPU_HASH:
+  case BPF_MAP_TYPE_PERCPU_ARRAY:
+  case BPF_MAP_TYPE_LRU_PERCPU_HASH:
+  case BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE: {
+    const int cpus = libbpf_num_possible_cpus();
+    if (cpus < 0) {
+      return cpus;
+    }
+    value_size = (value_size + 7) / 8 * 8 * static_cast<uint64_t>(cpus);
+    break;
+  }
+  default:
+    break;
+  }
 
   switch ((bpf_cmd)cmd) {
   case BPF_MAP_GET_NEXT_KEY: {

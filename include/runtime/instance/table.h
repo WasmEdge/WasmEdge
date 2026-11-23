@@ -20,8 +20,13 @@
 #include "common/spdlog.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <vector>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <type_traits>
 
 namespace WasmEdge {
 namespace Runtime {
@@ -33,24 +38,21 @@ class TableInstance {
 public:
   TableInstance() = delete;
   TableInstance(const AST::TableType &TType) noexcept
-      : TabType(TType),
-        Refs(TType.getLimit().getMin(), RefVariant(TType.getRefType())),
-        InitValue(RefVariant(TType.getRefType())),
-        LiveSize(TType.getLimit().getMin()) {
+      : TableInstance(TType, RefVariant(TType.getRefType())) {
     // The reference type should be nullable because there is no initial ref.
     // This constructor only handles abstract heap types correctly for null
     // refs. For concrete type indices, the caller should use the two-arg
     // constructor with a properly initialized RefVariant.
     assuming(TType.getRefType().isNullableRefType());
     assuming(TType.getRefType().isAbsHeapType());
-    DataPtr = Refs.data();
   }
+  /// The table size stays 0 if the allocation of the initial size failed.
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
-        InitValue(InitVal), LiveSize(TType.getLimit().getMin()) {
+      : TabType(TType), InitValue(InitVal), LiveSize(0) {
     // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
-    DataPtr = Refs.data();
+    TabType.getLimit().setMin(0);
+    growRefs(TType.getLimit().getMin(), InitVal);
   }
   /// Constructor for a table instance defined by a module.
   TableInstance(const ModuleInstance *Mod, const AST::TableType &TType,
@@ -58,6 +60,9 @@ public:
       : TableInstance(TType, InitVal) {
     ModInst = Mod;
   }
+  TableInstance(const TableInstance &) = delete;
+  TableInstance &operator=(const TableInstance &) = delete;
+  ~TableInstance() noexcept { std::free(DataPtr); }
 
   /// Getter for the defining module instance, if any.
   const ModuleInstance *getModule() const noexcept { return ModInst; }
@@ -104,11 +109,7 @@ public:
     if (Count > MaxSizeCaped - Min) {
       return false;
     }
-    Refs.resize(Refs.size() + Count);
-    std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
-    DataPtr = Refs.data();
-    setLiveSize(Min + Count);
-    return true;
+    return growRefs(Count, Val);
   }
   bool growTable(const uint64_t Count) noexcept {
     return growTable(Count, InitValue);
@@ -119,9 +120,7 @@ public:
     if (Count > getSize()) {
       return false;
     }
-    Refs.resize(getSize() - Count);
-    DataPtr = Refs.data();
-    setLiveSize(Refs.size());
+    setLiveSize(getSize() - Count);
     return true;
   }
 
@@ -134,8 +133,7 @@ public:
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
-    return Span<const RefVariant>(
-        Refs.begin() + static_cast<std::ptrdiff_t>(Offset), Length);
+    return Span<const RefVariant>(DataPtr + Offset, Length);
   }
 
   /// Replace the Refs[Dst :] by Slice[Src : Src + Length)
@@ -159,7 +157,7 @@ public:
     // Copy the references. The slice may be from the same table instance, so
     // use memmove semantics for the possible overlapping case.
     if (likely(Length > 0)) {
-      std::memmove(Refs.data() + Dst, Slice.data() + Src,
+      std::memmove(DataPtr + Dst, Slice.data() + Src,
                    Length * sizeof(RefVariant));
     }
     return {};
@@ -176,33 +174,68 @@ public:
     }
 
     // Fill the references.
-    std::fill_n(Refs.begin() + static_cast<std::ptrdiff_t>(Offset), Length,
-                Val);
+    std::fill_n(DataPtr + Offset, Length, Val);
     return {};
   }
 
   /// Get the elem address.
   Expect<RefVariant> getRefAddr(const uint64_t Idx) const noexcept {
-    if (Idx >= Refs.size()) {
+    if (Idx >= getSize()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
-    return Refs[Idx];
+    return DataPtr[Idx];
   }
 
   /// Set the elem address.
   Expect<void> setRefAddr(const uint64_t Idx, const RefVariant &Val) {
-    if (Idx >= Refs.size()) {
+    if (Idx >= getSize()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
-    Refs[Idx] = Val;
+    DataPtr[Idx] = Val;
     return {};
   }
 
 private:
+  /// Append references. Fail without changes if the allocation failed.
+  bool growRefs(const uint64_t Count, const RefVariant &Val) noexcept {
+    static_assert(std::is_trivially_copyable_v<RefVariant>);
+    const uint64_t MaxSize =
+        std::numeric_limits<size_t>::max() / sizeof(RefVariant);
+    const uint64_t Size = getSize();
+    if (Count > MaxSize - Size) {
+      return false;
+    }
+    const uint64_t NewSize = Size + Count;
+    if (NewSize > Capacity) {
+      // Grow geometrically, and fall back to the exact size.
+      const uint64_t NewCap =
+          std::max(NewSize, std::min(MaxSize, Capacity + Capacity / 2));
+      if (!reserveRefs(NewCap) &&
+          (NewCap == NewSize || !reserveRefs(NewSize))) {
+        return false;
+      }
+    }
+    std::uninitialized_fill_n(DataPtr + Size, Count, Val);
+    setLiveSize(NewSize);
+    return true;
+  }
+
+  /// Reallocate the buffer. Fail without changes if the allocation failed.
+  bool reserveRefs(const uint64_t NewCap) noexcept {
+    auto *NewPtr = static_cast<RefVariant *>(std::realloc(
+        DataPtr, static_cast<size_t>(NewCap) * sizeof(RefVariant)));
+    if (NewPtr == nullptr) {
+      return false;
+    }
+    DataPtr = NewPtr;
+    Capacity = NewCap;
+    return true;
+  }
+
   /// Update the size in the limit and its live mirror synchronously.
   void setLiveSize(const uint64_t Size) noexcept {
     TabType.getLimit().setMin(Size);
@@ -213,9 +246,9 @@ private:
   /// @{
   const ModuleInstance *ModInst = nullptr;
   AST::TableType TabType;
-  std::vector<RefVariant> Refs;
   RefVariant InitValue;
   RefVariant *DataPtr = nullptr;
+  uint64_t Capacity = 0;
   uint64_t LiveSize;
   /// @}
 };

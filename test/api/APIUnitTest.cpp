@@ -593,22 +593,28 @@ TEST(APICoreTest, Value) {
   std::vector<uint32_t> Vec = {1U, 2U, 3U};
   WasmEdge_Value Val = WasmEdge_ValueGenI32(INT32_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenI64(INT64_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF64(Val),
             -std::numeric_limits<double>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<int128_t>(INT64_MAX) * 2 + 1);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #else
   int128_t V = {/* Low */ UINT64_MAX, /* High */ INT64_MAX};
   Val = WasmEdge_ValueGenV128(V);
   EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #endif
   Val = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
@@ -618,14 +624,13 @@ TEST(APICoreTest, Value) {
 
   WasmEdge_FunctionTypeContext *FuncType =
       WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
-  WasmEdge_FunctionInstanceContext *HostFunc =
-      WasmEdge_FunctionInstanceCreate(
-          FuncType,
-          [](void *, const WasmEdge_CallingFrameContext *,
-             const WasmEdge_Value *, WasmEdge_Value *) -> WasmEdge_Result {
-            return WasmEdge_Result_Success;
-          },
-          nullptr, 0);
+  WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(
+      FuncType,
+      [](void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *,
+         WasmEdge_Value *) -> WasmEdge_Result {
+        return WasmEdge_Result_Success;
+      },
+      nullptr, 0);
   Val = WasmEdge_ValueGenFuncRef(HostFunc);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
@@ -749,6 +754,37 @@ TEST(APICoreTest, Configure) {
   EXPECT_FALSE(
       WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_Memory64));
   EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_Memory64));
+  // Tests for proposal dependencies.
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_RelaxSIMD));
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_RelaxSIMD);
+  EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_SIMD));
+  WasmEdge_ConfigureRemoveProposal(Conf,
+                                   WasmEdge_Proposal_BulkMemoryOperations);
+  for (auto Prop :
+       {WasmEdge_Proposal_ReferenceTypes, WasmEdge_Proposal_FunctionReferences,
+        WasmEdge_Proposal_GC, WasmEdge_Proposal_ExceptionHandling}) {
+    EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, Prop));
+  }
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+  for (auto Prop : {WasmEdge_Proposal_BulkMemoryOperations,
+                    WasmEdge_Proposal_ReferenceTypes,
+                    WasmEdge_Proposal_FunctionReferences}) {
+    EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, Prop));
+  }
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ExceptionHandling));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_FunctionReferences);
+  EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_GC));
+  EXPECT_TRUE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ReferenceTypes));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  EXPECT_TRUE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ReferenceTypes));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ExceptionHandling));
   // Tests for host registrations.
   WasmEdge_ConfigureAddHostRegistration(ConfNull,
                                         WasmEdge_HostRegistration_Wasi);
@@ -2426,6 +2462,12 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
+  TabLim = WasmEdge_LimitCreate(UINT64_C(1) << 62, true);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_EQ(TabCxt, nullptr);
   TabLim = WasmEdge_LimitCreateWithMax(10, 20, false, false);
   TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
   TabCxt = WasmEdge_TableInstanceCreate(TabType);

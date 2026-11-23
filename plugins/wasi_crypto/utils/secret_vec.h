@@ -92,7 +92,7 @@ public:
         "Random key size shouldn't beyond std::numeric_limits<int>::max()");
 
     SecretVec Res(Size);
-    ensureOrReturn(RAND_bytes(Res.data(), static_cast<int>(Size)),
+    ensureOrReturn(RAND_bytes(Res.data(), static_cast<int>(Size)) == 1,
                    __WASI_CRYPTO_ERRNO_RNG_ERROR);
     return Res;
   }

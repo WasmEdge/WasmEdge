@@ -291,12 +291,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     // Read the block return type.
     EXPECTED_TRY(int64_t Code, FMgr.readS33().map_error(ReportError));
     if (Code < 0) {
-      // The empty and valtype cases are encoded as a single-byte SLEB128,
-      // i.e. the decoded value must be in [-64, -1]. Any negative value
-      // smaller than -64 means a non-canonical multi-byte SLEB128 encoding,
-      // which is not a valid blocktype.
-      if (Code < -64) {
-        return logLoadError(ErrCode::Value::MalformedValType,
+      // The empty and valtype cases are encoded in a single byte. A negative
+      // value in a multi-byte SLEB128 encoding is not a valid blocktype.
+      if (FMgr.getOffset() - StartOffset > 1) {
+        return logLoadError(ErrCode::Value::IntegerTooLong,
                             FMgr.getLastOffset(), ASTNodeAttr::Instruction);
       }
       TypeCode TypeByte = static_cast<TypeCode>(Code & INT64_C(0x7F));

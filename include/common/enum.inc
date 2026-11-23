@@ -1475,6 +1475,8 @@ E(UncaughtException, 0x0419, "uncaught exception")
 E(PendingException, 0x041A, "pending exception")
 // Call stack exhausted (e.g. unbounded recursion)
 E(CallStackExhausted, 0x041B, "call stack exhausted")
+// Allocation of a table or an array failed
+E(AllocationFailed, 0x041C, "allocation failed")
 // @}
 
 // Component model execution phase

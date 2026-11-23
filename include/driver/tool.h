@@ -45,7 +45,10 @@ struct DriverToolOptions : public DriverProposalOptions,
                 "that will correspond to `host_path` for calls like `fopen` in "
                 "the guest. The default permission is `readwrite`, however, "
                 "you can use --dir `guest_path:host_path:readonly` to make the "
-                "mapping directory become a read only mode."sv),
+                "mapping directory become a read only mode. If a path "
+                "contains `:`, such as a Windows drive letter, use `::` as "
+                "the separator instead: --dir `guest_path::host_path` or "
+                "--dir `guest_path::host_path::readonly`."sv),
             PO::MetaVar("PREOPEN_DIRS"sv)),
         Env(PO::Description(
                 "Environ variables. Each variable can be specified as --env "

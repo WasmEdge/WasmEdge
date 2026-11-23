@@ -388,16 +388,16 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
   auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
   assuming(AtomicObj);
 
-  if (AtomicObj->load() != Expected.le()) {
-    return static_cast<uint64_t>(1); // NotEqual
-  }
-
   auto &WaiterMapMtx = MemInst.getWaiterMapMutex();
   auto &WaiterMap = MemInst.getWaiterMap();
 
   std::remove_reference_t<decltype(WaiterMap)>::iterator WaiterIterator;
   {
+    // Compare and enqueue under the lock that atomicNotify() takes.
     std::unique_lock<std::mutex> Locker(WaiterMapMtx);
+    if (AtomicObj->load() != Expected.le()) {
+      return static_cast<uint64_t>(1); // NotEqual
+    }
     WaiterIterator = WaiterMap.emplace(std::piecewise_construct,
                                        std::forward_as_tuple(Address),
                                        std::forward_as_tuple());
@@ -419,6 +419,9 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     // get woken by the subsequent notify_all().
     if (unlikely(StopToken.load(std::memory_order_acquire) != 0)) {
       return Unexpect(ErrCode::Value::Interrupted);
+    }
+    if (WaiterIterator->second.Notified) {
+      return static_cast<uint64_t>(0); // ok
     }
     std::cv_status WaitResult = std::cv_status::no_timeout;
     if (!Until) {

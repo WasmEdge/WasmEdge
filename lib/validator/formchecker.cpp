@@ -43,6 +43,7 @@ void FormChecker::reset(bool CleanGlobal) {
   ValStack.clear();
   CtrlStack.clear();
   Locals.clear();
+  LocalInits.clear();
   Returns.clear();
 
   if (CleanGlobal) {

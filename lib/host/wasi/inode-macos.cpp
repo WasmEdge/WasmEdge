@@ -1431,10 +1431,12 @@ bool INode::canBrowse() const noexcept {
 }
 
 WasiExpect<void> INode::updateStat() const noexcept {
-  Stat.emplace();
-  if (unlikely(::fstat(Fd, &*Stat) != 0)) {
+  struct stat Buf;
+  if (unlikely(::fstat(Fd, &Buf) != 0)) {
+    Stat.reset();
     return WasiUnexpect(fromErrNo(errno));
   }
+  Stat = Buf;
   return {};
 }
 
@@ -1639,16 +1641,21 @@ void Poller::wait() noexcept {
     }
   }
 
+  const bool HasResult =
+      std::any_of(Events.begin(), Events.end(),
+                  [](const OptionalEvent &Event) { return Event.Valid; });
+  const struct timespec NoWait = {0, 0};
   KEvents.resize(Events.size());
-  const int Count =
-      ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(), nullptr);
+  const int Count = ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(),
+                             HasResult ? &NoWait : nullptr);
   if (unlikely(Count < 0)) {
     const auto Error = fromErrNo(errno);
     for (auto &Event : Events) {
-      Event.Valid = true;
-      Event.error = Error;
+      if (!Event.Valid) {
+        Event.Valid = true;
+        Event.error = Error;
+      }
     }
-    return;
   }
 
   for (int I = 0; I < Count; ++I) {

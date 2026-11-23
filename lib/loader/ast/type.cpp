@@ -7,7 +7,8 @@ namespace WasmEdge {
 namespace Loader {
 
 // Load binary and decode HeapType. See "include/loader/loader.h".
-Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
+Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From,
+                                     bool IsAbsHeapType) {
   // Read the heap type code.
   auto Val = FMgr.readS33();
   if (unlikely(!Val)) {
@@ -20,26 +21,21 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
                                 : ErrCode::Value::MalformedElemType;
 
   if (*Val < 0) {
-    if (*Val < -64) {
-      // Check for an invalid s33 value larger than 1 byte.
-      return logLoadError(FailCode, FMgr.getLastOffset(), From);
+    if (FMgr.getOffset() - FMgr.getLastOffset() > 1) {
+      // The abstract heap type codes are encoded in a single byte.
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          From);
     }
     TypeCode HTCode =
         static_cast<TypeCode>(static_cast<uint8_t>((*Val) & INT64_C(0x7F)));
     switch (HTCode) {
     case TypeCode::ExternRef:
+    case TypeCode::FuncRef:
       // For the ref.func instruction, the immediate changed to store the heap
       // type directly instead of the reference type after applying the
       // typed function reference proposal. Therefore the reference-types
       // proposal should be checked here.
       if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(FailCode, Proposal::ReferenceTypes,
-                               FMgr.getLastOffset(), From);
-      }
-      [[fallthrough]];
-    case TypeCode::FuncRef:
-      if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
-          !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         return logNeedProposal(FailCode, Proposal::ReferenceTypes,
                                FMgr.getLastOffset(), From);
       }
@@ -70,6 +66,9 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
     }
   } else {
     // Type index case. Legal if the function reference proposal is enabled.
+    if (IsAbsHeapType) {
+      return logLoadError(FailCode, FMgr.getLastOffset(), From);
+    }
     if (!Conf.hasProposal(Proposal::FunctionReferences)) {
       return logNeedProposal(FailCode, Proposal::FunctionReferences,
                              FMgr.getLastOffset(), From);
@@ -115,7 +114,7 @@ Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
     return loadHeapType(Code, From);
   }
   default:
-    return loadHeapType(TypeCode::RefNull, From);
+    return loadHeapType(TypeCode::RefNull, From, true);
   }
 }
 
@@ -153,6 +152,12 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From, bool IsStorageType) {
     FMgr.readByte();
     return ValType(Code);
   default:
+    // The reference types are value types with the reference-types proposal.
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::Value::MalformedValType,
+                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
+                             From);
+    }
     return loadRefType(From);
   }
 }
@@ -221,7 +226,7 @@ Expect<void> Loader::loadCompositeType(AST::CompositeType &CType) {
 }
 
 // Load binary to construct Limit node. See "include/loader/loader.h".
-Expect<void> Loader::loadLimit(AST::Limit &Lim) {
+Expect<void> Loader::loadLimit(AST::Limit &Lim, bool IsMemory) {
   // Read the limit type flag.
   EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
@@ -256,7 +261,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
       }
     }
   }
-  if (Lim.isShared() && !Conf.hasProposal(Proposal::Threads)) {
+  if (Lim.isShared() && (!Conf.hasProposal(Proposal::Threads) || !IsMemory)) {
     if (Conf.hasProposal(Proposal::Memory64)) {
       return logLoadError(ErrCode::Value::MalformedLimitFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
@@ -359,7 +364,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
 // Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   // Read limit.
-  return loadLimit(MemType.getLimit()).map_error([](auto E) {
+  return loadLimit(MemType.getLimit(), true).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
     return E;
   });

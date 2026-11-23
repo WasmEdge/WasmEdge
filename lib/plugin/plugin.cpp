@@ -180,10 +180,10 @@ public:
         break;
       }
     }
-
-    Result = Plugin::registerPlugin(&Descriptor);
   }
-  bool result() const noexcept { return Result; }
+  const Plugin::PluginDescriptor *descriptor() const noexcept {
+    return &Descriptor;
+  }
 
 private:
   static Runtime::Instance::ModuleInstance *
@@ -227,8 +227,6 @@ private:
   static std::unordered_map<const PluginModule::ModuleDescriptor *,
                             const WasmEdge_ModuleDescriptor *>
       DescriptionLookup;
-
-  bool Result = false;
 };
 std::unordered_map<const PluginModule::ModuleDescriptor *,
                    const WasmEdge_ModuleDescriptor *>
@@ -379,6 +377,11 @@ WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
 }
 
 bool Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
+  std::unique_lock Lock(Mutex);
+  return unsafeRegisterPlugin(Desc);
+}
+
+bool Plugin::unsafeRegisterPlugin(const PluginDescriptor *Desc) noexcept {
   if (Desc->APIVersion != CurrentAPIVersion) {
     spdlog::debug(
         "Plugin: API version {} of plugin {} is not match to current {}."sv,
@@ -436,7 +439,7 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 
   if (auto GetDescriptor =
           Lib->get<Plugin::PluginDescriptor const *()>("GetDescriptor")) {
-    Result = Plugin::registerPlugin(GetDescriptor());
+    Result = unsafeRegisterPlugin(GetDescriptor());
   }
 
   if (!Result) {
@@ -454,10 +457,10 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
       // it would leak since registerPlugin() would reject the duplicate.
       return false;
     } else {
-      Result =
+      Result = unsafeRegisterPlugin(
           CAPIPluginRegisters
               .emplace_back(std::make_unique<CAPIPluginRegister>(Descriptor))
-              ->result();
+              ->descriptor());
       if (unlikely(!Result)) {
         CAPIPluginRegisters.pop_back();
       }
@@ -478,7 +481,7 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 void Plugin::registerBuiltInPlugins() noexcept {
   std::unique_lock Lock(Mutex);
   // BUILTIN-PLUGIN: Register wasi-logging here. May be refactored in 0.15.0.
-  registerPlugin(&Host::WasiLoggingModule::PluginDescriptor);
+  unsafeRegisterPlugin(&Host::WasiLoggingModule::PluginDescriptor);
 }
 
 Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {

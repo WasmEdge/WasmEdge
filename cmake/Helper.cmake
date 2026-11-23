@@ -7,7 +7,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
     set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION ON)
   endif()
   if(CMAKE_GENERATOR STREQUAL Ninja)
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
       list(TRANSFORM CMAKE_C_COMPILE_OPTIONS_IPO REPLACE "^-flto$" "-flto=auto")
       list(TRANSFORM CMAKE_CXX_COMPILE_OPTIONS_IPO REPLACE "^-flto$" "-flto=auto")
     endif()
@@ -161,6 +161,13 @@ if(WIN32)
       -Wno-error=cast-function-type-strict
       -Wno-error=c++-keyword
     )
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23.0.0)
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-error=lifetime-safety-dangling-field-moved
+        -Wno-error=lifetime-safety-invalidation
+        -Wno-error=lifetime-safety-suggestions
+      )
+    endif()
   endif()
 endif()
 
@@ -340,6 +347,11 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
     ${LLD_LIBRARY_DIR}/liblldELF.a
     ${LLD_LIBRARY_DIR}/liblldCommon.a
   )
+  if(EXISTS "${LLVM_LIBRARY_DIR}/libLLVMDTLTO.a")
+    list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
+      ${LLVM_LIBRARY_DIR}/libLLVMDTLTO.a
+    )
+  endif()
   foreach(LIB_NAME IN LISTS WASMEDGE_LLVM_LINK_LIBS_NAME)
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
       ${LLVM_LIBRARY_DIR}/lib${LIB_NAME}.a
@@ -476,7 +488,7 @@ function(wasmedge_setup_simdjson)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  1bcf71bd85059ab6574ea1159de9298dcc1212c5  # v4.6.4
+      GIT_TAG  a0d5ad9798f9e51706399b649929dafb91d9b714  # v5.2.0
       GIT_SHALLOW TRUE
     )
     set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)

@@ -25,6 +25,7 @@
 #include <initializer_list>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace {
@@ -1690,6 +1691,55 @@ TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
   EXPECT_EQ(TestRes->at(0).first.get<uint32_t>(), 0U);
 }
 
+#ifdef WASMEDGE_USE_LLVM
+/// A compiled function left in an imported table by an instantiation that
+/// failed while initializing the memory still reads the global of its module.
+TEST(ExecutorRegression, FailedInstantiationKeepsContextJIT) {
+  // (module
+  //   (type (func (result i32)))
+  //   (table (export "tab") 2 funcref)
+  //   (func (export "read") (param i32) (result i32)
+  //     (call_indirect (type 0) (local.get 0))))
+  std::array<Byte, 57> SharedWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+      0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x01,
+      0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x07, 0x0e, 0x02, 0x03, 0x74, 0x61,
+      0x62, 0x01, 0x00, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x0a, 0x09,
+      0x01, 0x07, 0x00, 0x20, 0x00, 0x11, 0x00, 0x00, 0x0b};
+  // (module
+  //   (import "shared" "tab" (table 2 funcref))
+  //   (global (mut i32) (i32.const 7))
+  //   (memory 1)
+  //   (func (result i32) (global.get 0))
+  //   (elem (i32.const 0) func 0)
+  //   (data (i32.const 65536) "d"))
+  std::array<Byte, 78> DataOutOfBoundsWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x06, 0x73, 0x68, 0x61, 0x72, 0x65,
+      0x64, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x02, 0x03, 0x02, 0x01,
+      0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41,
+      0x07, 0x0b, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a,
+      0x06, 0x01, 0x04, 0x00, 0x23, 0x00, 0x0b, 0x0b, 0x09, 0x01, 0x00, 0x41,
+      0x80, 0x80, 0x04, 0x0b, 0x01, 0x64};
+
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.registerModule("shared", SharedWasm));
+  ASSERT_TRUE(VM.loadWasm(DataOutOfBoundsWasm));
+  ASSERT_TRUE(VM.validate());
+  auto InstRes = VM.instantiate();
+  ASSERT_FALSE(InstRes);
+  EXPECT_EQ(InstRes.error(), ErrCode::Value::MemoryOutOfBounds);
+
+  auto Res = VM.execute("shared", "read", {ValVariant(UINT32_C(0))},
+                        {ValType(TypeCode::I32)});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 7U);
+}
+#endif
+
 // clang-format off
 /// Binary Wasm module: vector min, max, and rounding on caller-supplied lanes.
 ///
@@ -1939,6 +1989,115 @@ TEST(ExecutorRegression, ScalarNaNResultsAreArithmeticJIT) {
 #endif
 
 } // namespace
+
+/// A table whose initial size cannot be allocated must fail instantiation.
+TEST(ExecutorRegression, TableAllocationFailure) {
+  // (module (table i64 0x4000000000000000 funcref))
+  std::array<WasmEdge::Byte, 22> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x0c, 0x01,
+      0x70, 0x04, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x40};
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  auto Result = VM.instantiate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::AllocationFailed);
+}
+
+/// A table.grow whose new size cannot be allocated must return -1.
+TEST(ExecutorRegression, TableGrowAllocationFailure) {
+  // (module
+  //   (table i64 1 funcref)
+  //   (func (export "grow") (result i64)
+  //     ref.null func
+  //     i64.const 0x4000000000000000
+  //     table.grow 0))
+  std::array<WasmEdge::Byte, 57> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x04,
+      0x01, 0x07, 0x08, 0x01, 0x04, 0x67, 0x72, 0x6f, 0x77, 0x00, 0x00, 0x0a,
+      0x14, 0x01, 0x12, 0x00, 0xd0, 0x70, 0x42, 0x80, 0x80, 0x80, 0x80, 0x80,
+      0x80, 0x80, 0x80, 0xc0, 0x00, 0xfc, 0x0f, 0x00, 0x0b};
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto Result = VM.execute("grow");
+  ASSERT_TRUE(Result);
+  ASSERT_EQ(Result->size(), 1U);
+  EXPECT_EQ((*Result)[0].first.get<uint64_t>(), UINT64_MAX);
+}
+
+/// A name registered by another party while a named module is being
+/// instantiated must fail the instantiation instead of being ignored.
+TEST(ExecutorRegression, RegisterModuleLateNameConflict) {
+  class RegisterOther : public Runtime::HostFunction<RegisterOther> {
+  public:
+    RegisterOther(Runtime::StoreManager &S,
+                  const Runtime::Instance::ModuleInstance &M)
+        : Store(S), Other(M) {}
+    Expect<void> body(const Runtime::CallingFrame &) {
+      return Store.registerModule(&Other, "dup");
+    }
+
+  private:
+    Runtime::StoreManager &Store;
+    const Runtime::Instance::ModuleInstance &Other;
+  };
+
+  // (module
+  //   (import "host" "f" (func))
+  //   (start 0))
+  std::array<WasmEdge::Byte, 29> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x02, 0x0a, 0x01, 0x04, 0x68, 0x6f,
+      0x73, 0x74, 0x01, 0x66, 0x00, 0x00, 0x08, 0x01, 0x00};
+  Configure Conf;
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  Executor::Executor Executor(Conf);
+  Runtime::Instance::ModuleInstance Other("other");
+  Runtime::Instance::ModuleInstance HostMod("host");
+  Runtime::StoreManager Store;
+  HostMod.addHostFunc("f", std::make_unique<RegisterOther>(Store, Other));
+  ASSERT_TRUE(Executor.registerModule(Store, HostMod));
+
+  auto Mod = Loader.parseModule(Wasm);
+  ASSERT_TRUE(Mod);
+  ASSERT_TRUE(Validator.validate(**Mod));
+  auto Res = Executor.registerModule(Store, **Mod, "dup");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ModuleNameConflict);
+  EXPECT_EQ(Store.findModule("dup"), &Other);
+}
+
+/// Registering a component under a name that is already taken must fail.
+TEST(ExecutorRegression, RegisterComponentNameConflict) {
+  // (component)
+  std::array<WasmEdge::Byte, 8> Wasm{0x00, 0x61, 0x73, 0x6d,
+                                     0x0d, 0x00, 0x01, 0x00};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  Executor::Executor Executor(Conf);
+  Runtime::StoreManager Store;
+
+  auto Unit = Loader.parseWasmUnit(Wasm);
+  ASSERT_TRUE(Unit);
+  using CompPtr = std::unique_ptr<AST::Component::Component>;
+  ASSERT_TRUE(std::holds_alternative<CompPtr>(*Unit));
+  const auto &Comp = *std::get<CompPtr>(*Unit);
+  ASSERT_TRUE(Validator.validate(Comp));
+  auto First = Executor.registerComponent(Store, Comp, "dup");
+  ASSERT_TRUE(First);
+  auto Second = Executor.registerComponent(Store, Comp, "dup");
+  ASSERT_FALSE(Second);
+  EXPECT_EQ(Second.error(), ErrCode::Value::ModuleNameConflict);
+  EXPECT_EQ(Store.findComponent("dup"), First->get());
+}
 
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();

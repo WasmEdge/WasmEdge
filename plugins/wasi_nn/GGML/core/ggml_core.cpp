@@ -195,22 +195,6 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
            llama_print_system_info())
 
   auto &CxtRef = C.get<Context>();
-  // Allocate the batch for input string prompt tokens. On failure the caller
-  // drops the context, whose destructor frees whatever was allocated.
-  CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
-  if (CxtRef.LlamaBatch.token == nullptr) {
-    RET_ERROR(ErrNo::RuntimeError,
-              "initExecCtx: unable to allocate llama_batch."sv)
-  }
-  CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
-
-  // Allocate the batch for output sampling. The batch size is always 1.
-  CxtRef.OutputBatch = allocBatch(1);
-  if (CxtRef.OutputBatch.token == nullptr) {
-    RET_ERROR(ErrNo::RuntimeError,
-              "initExecCtx: unable to allocate output batch."sv)
-  }
-
   // Allocate sampler.
   try {
     CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
@@ -222,6 +206,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
   if (CxtRef.LlamaSampler == nullptr) {
     RET_ERROR(ErrNo::InvalidArgument, "initExecCtx: unable to init sampler."sv)
   }
+  CxtRef.SamplerGeneration = GraphRef.ModelGeneration;
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
@@ -232,6 +217,13 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle"sv)
+
+  // A sampler built before a model reload refers to the freed model.
+  if (CxtRef.LlamaSampler != nullptr &&
+      CxtRef.SamplerGeneration != GraphRef.ModelGeneration) {
+    common_sampler_free(CxtRef.LlamaSampler);
+    CxtRef.LlamaSampler = nullptr;
+  }
 
   // A failed set_input reload can leave a null llama context or sampler and
   // fini_single still admits the graph, so guard both.

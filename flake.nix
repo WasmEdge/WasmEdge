@@ -2,9 +2,17 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
+    # This is the tree-sitter runtime. The evaluator fetches it, so that the
+    # sealed build sandbox gets it through FETCHCONTENT_SOURCE_DIR. The sandbox
+    # then does not clone it at configure time. Keep this rev equal to the rev
+    # in lib/wat/CMakeLists.txt, which is the commit of v0.26.13.
+    tree-sitter-src = {
+      url = "github:tree-sitter/tree-sitter/d97971e24500218865c05ed1febdee2acf41bae1";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, tree-sitter-src }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -33,6 +41,7 @@
             "-DWASMEDGE_BUILD_PLUGINS=OFF"
             "-DWASMEDGE_BUILD_TESTS=OFF"
             "-DWASMEDGE_USE_LLVM=ON"
+            "-DFETCHCONTENT_SOURCE_DIR_TREESITTER=${tree-sitter-src}"
           ];
         };
       in with pkgs; rec {

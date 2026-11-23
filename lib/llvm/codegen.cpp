@@ -8,9 +8,12 @@
 #include "common/filesystem.h"
 #include "common/hash.h"
 #include "data.h"
+#include "experimental/scope.hpp"
 #include "llvm.h"
 
 #include <lld/Common/Driver.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Process.h>
 
 #include <charconv>
 #include <fstream>
@@ -34,8 +37,16 @@ LLD_HAS_DRIVER(coff)
 #endif
 
 #if WASMEDGE_OS_MACOS
+#include <cerrno>
+#include <crt_externs.h>
+#include <spawn.h>
+#include <sys/stat.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <unistd.h>
+
+#include <llvm/Object/MachO.h>
+#include <llvm/Support/MemoryBuffer.h>
 #endif
 #if WASMEDGE_OS_WINDOWS
 #include <llvm/Object/COFF.h>
@@ -167,48 +178,246 @@ std::filesystem::path uniquePath(const std::filesystem::path Model) noexcept {
   return String;
 }
 
-std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
-  while (true) {
-    auto Result = uniquePath(Model);
-    std::error_code Error;
-    if (!std::filesystem::exists(Result, Error)) {
-      if (Error) {
-        return {};
-      }
+/// Creates an empty file at a unique path from Base and a suffix, so no
+/// other build can take the path. Only the `%` characters of the suffix
+/// become random digits, so a `%` in Base stays.
+std::filesystem::path reserveTemp(const std::filesystem::path &Base,
+                                  std::string_view Suffix) noexcept {
+  for (uint32_t Attempt = 0; Attempt < 128; ++Attempt) {
+    auto Result = Base;
+    Result += uniquePath(std::filesystem::u8path(Suffix));
+    int FD = -1;
+    const auto Error = llvm::sys::fs::openFileForWrite(
+        u8string(Result), FD, llvm::sys::fs::CD_CreateNew);
+    if (!Error) {
+      llvm::sys::Process::SafelyCloseFileDescriptor(FD);
       return Result;
     }
+    if (Error != std::errc::file_exists) {
+      return {};
+    }
+  }
+  return {};
+}
+
+bool hasDebugInfo(const LLVM::Module &M) noexcept {
+  constexpr auto Name = "llvm.dbg.cu"sv;
+  return LLVMGetNamedMetadata(M.unwrap(), Name.data(), Name.size()) != nullptr;
+}
+
+#if WASMEDGE_OS_MACOS
+/// The object file that the debug map of a library names, with the
+/// modification time that the linker recorded for it.
+struct DebugObject {
+  std::filesystem::path Path;
+  uint32_t ModTime = 0;
+};
+
+/// Reads the debug object of a library that this compiler built. A library
+/// without the version and intrinsics symbols of WasmEdge gives no object.
+DebugObject debugObjectOf(const std::filesystem::path &Library) {
+  auto Buffer = llvm::MemoryBuffer::getFile(u8string(Library));
+  if (!Buffer) {
+    return {};
+  }
+  auto Binary = llvm::object::createBinary((*Buffer)->getMemBufferRef());
+  if (!Binary) {
+    llvm::consumeError(Binary.takeError());
+    return {};
+  }
+  const auto *MachO =
+      llvm::dyn_cast<llvm::object::MachOObjectFile>(Binary->get());
+  if (!MachO) {
+    return {};
+  }
+  DebugObject Found;
+  bool HasVersion = false;
+  bool HasIntrinsics = false;
+  for (const auto &Symbol : MachO->symbols()) {
+    const auto Ref = Symbol.getRawDataRefImpl();
+    uint8_t Type = 0;
+    uint64_t Value = 0;
+    if (MachO->is64Bit()) {
+      const auto Entry = MachO->getSymbol64TableEntry(Ref);
+      Type = Entry.n_type;
+      Value = Entry.n_value;
+    } else {
+      const auto Entry = MachO->getSymbolTableEntry(Ref);
+      Type = Entry.n_type;
+      Value = Entry.n_value;
+    }
+    auto Name = Symbol.getName();
+    if (!Name) {
+      llvm::consumeError(Name.takeError());
+      return {};
+    }
+    if (Type == llvm::MachO::N_OSO) {
+      if (Found.Path.empty()) {
+        Found.Path = std::filesystem::u8path(Name->str());
+        Found.ModTime = static_cast<uint32_t>(Value);
+      }
+    } else if (*Name == SYMBOL("version")) {
+      HasVersion = true;
+    } else if (*Name == SYMBOL("intrinsics")) {
+      HasIntrinsics = true;
+    }
+  }
+  if (!HasVersion || !HasIntrinsics) {
+    return {};
+  }
+  return Found;
+}
+
+bool isDebugObjectOf(const std::filesystem::path &Object,
+                     const std::filesystem::path &Library) noexcept {
+  if (Object.parent_path() != Library.parent_path()) {
+    return false;
+  }
+  const auto Prefix = u8string(Library.stem()) + ".";
+  const auto Name = u8string(Object.filename());
+  if (Name.size() != Prefix.size() + "%%%%%%%%%%.o"sv.size() ||
+      !startsWith(Name, Prefix) ||
+      Name.compare(Name.size() - 2, 2, ".o") != 0) {
+    return false;
+  }
+  const auto Random = std::string_view(Name).substr(Prefix.size(), 10);
+  return Random.find_first_not_of("0123456789abcdef"sv) ==
+         std::string_view::npos;
+}
+
+/// Deletes the debug object of a replaced library only when this compiler
+/// owns it: the replaced library is a WasmEdge library, the object has the
+/// name that this compiler gives, and the object is unchanged since the
+/// link.
+void removeReplacedObject(const DebugObject &Replaced,
+                          const std::filesystem::path &Library,
+                          const std::filesystem::path &Keep) noexcept {
+  if (Replaced.Path.empty() || Replaced.Path == Keep || Replaced.ModTime == 0 ||
+      !isDebugObjectOf(Replaced.Path, Library)) {
+    return;
+  }
+  struct stat Status;
+  if (::stat(u8string(Replaced.Path).c_str(), &Status) != 0 ||
+      static_cast<uint32_t>(Status.st_mtime) != Replaced.ModTime) {
+    return;
+  }
+  std::error_code Error;
+  std::filesystem::remove(Replaced.Path, Error);
+}
+
+/// Signs Library with an ad hoc signature. The signature replaces one that
+/// the linker wrote, because ld64.lld signs arm64 output by default. A
+/// failure is logged, and the library keeps the signature of the linker, if
+/// any. The child process starts with posix_spawn, so nothing runs in it
+/// between fork and exec.
+void signLibrary(const std::filesystem::path &Library) noexcept {
+  std::string Program = "codesign";
+  std::string Force = "--force";
+  std::string Identity = "-s";
+  std::string AdHoc = "-";
+  std::string Path = u8string(Library);
+  char *const Argv[] = {Program.data(), Force.data(), Identity.data(),
+                        AdHoc.data(),   Path.data(),  nullptr};
+  pid_t PID = 0;
+  if (const int Error = ::posix_spawn(&PID, "/usr/bin/codesign", nullptr,
+                                      nullptr, Argv, *_NSGetEnviron());
+      Error != 0) {
+    spdlog::error("codesign error on posix_spawn:{}"sv, std::strerror(Error));
+    return;
+  }
+  int ChildStat = 0;
+  pid_t Waited = 0;
+  do {
+    Waited = ::waitpid(PID, &ChildStat, 0);
+  } while (Waited == -1 && errno == EINTR);
+  if (Waited == -1) {
+    spdlog::error("codesign error on waitpid:{}"sv, std::strerror(errno));
+    return;
+  }
+  if (!WIFEXITED(ChildStat)) {
+    spdlog::error("codesign did not exit normally"sv);
+    return;
+  }
+  if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
+    spdlog::error("codesign exited with status {}"sv, Status);
+    return;
   }
 }
 
-// Write output object and link
+#endif
+
+/// Links OSVec into a native library at OutputPath. An Intermediate library
+/// is new, so it replaces no earlier build.
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
-                                 const LLVM::MemoryBuffer &OSVec) noexcept {
+                                 const LLVM::MemoryBuffer &OSVec,
+                                 bool DebugInfo,
+                                 bool Intermediate = false) noexcept {
   spdlog::info("output start"sv);
   std::filesystem::path ObjectName;
+  std::filesystem::path LinkPath(OutputPath);
+  const bool KeepObject = WASMEDGE_OS_MACOS && DebugInfo;
+  bool Committed = false;
+  cxx20::scope_exit Cleanup([&]() noexcept {
+    std::error_code Error;
+    if (!ObjectName.empty() && (!Committed || !KeepObject)) {
+      std::filesystem::remove(ObjectName, Error);
+    }
+    if (!Committed && LinkPath != OutputPath) {
+      std::filesystem::remove(LinkPath, Error);
+    }
+  });
+#if WASMEDGE_OS_MACOS
+  // The library is linked and signed at a temporary path, and replaces the
+  // output only when both steps succeed.
+  std::filesystem::path Absolute;
   {
-    // tempfile
-    std::filesystem::path OPath(OutputPath);
-#if WASMEDGE_OS_WINDOWS
-    OPath.replace_extension("%%%%%%%%%%.obj"sv);
-#else
-    OPath.replace_extension("%%%%%%%%%%.o"sv);
+    std::error_code Error;
+    Absolute = std::filesystem::absolute(OutputPath, Error);
+  }
+  if (!Absolute.empty()) {
+    LinkPath =
+        reserveTemp(Absolute.parent_path() / "wasmedge", ".%%%%%%%%%%.tmp"sv);
+    if (KeepObject && !LinkPath.empty()) {
+      ObjectName =
+          reserveTemp(std::filesystem::path(Absolute).replace_extension(),
+                      ".%%%%%%%%%%.o"sv);
+    }
+  }
+  if (Absolute.empty() || LinkPath.empty() ||
+      (KeepObject && ObjectName.empty())) {
+    spdlog::error("so file creation failed:{}"sv, u8string(OutputPath));
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
 #endif
-    ObjectName = createTemp(OPath);
+  if (ObjectName.empty()) {
+    ObjectName =
+        reserveTemp(std::filesystem::path(OutputPath).replace_extension(),
+#if WASMEDGE_OS_WINDOWS
+                    ".%%%%%%%%%%.obj"sv
+#else
+                    ".%%%%%%%%%%.o"sv
+#endif
+        );
     if (ObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, u8string(OPath));
+      spdlog::error("so file creation failed:{}"sv, u8string(OutputPath));
       return Unexpect(ErrCode::Value::IllegalPath);
     }
+  }
+  {
     std::ofstream OS(ObjectName, std::ios_base::binary);
     OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
+    if (!OS) {
+      spdlog::error("object file write failed:{}"sv, u8string(ObjectName));
+      return Unexpect(ErrCode::Value::IllegalPath);
+    }
   }
 
   // link
   // Serialize LLD invocations: CommonLinkerContext is a global singleton, so
   // concurrent link() calls from multiple threads would corrupt it.
   static std::mutex LldMutex;
-  std::lock_guard<std::mutex> Lock(LldMutex);
+  std::unique_lock<std::mutex> Lock(LldMutex);
   bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
   const auto OSVersion = getOSVersion();
@@ -240,7 +449,8 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #endif
           "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
           "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-          u8string(ObjectName).c_str(), "-o", u8string(OutputPath).c_str()},
+          u8string(ObjectName).c_str(), "-install_name",
+          u8string(OutputPath).c_str(), "-o", u8string(LinkPath).c_str()},
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
       std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
@@ -251,7 +461,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
           "lld-link", "-dll", "-base:0", "-nologo",
-          u8string(ObjectName).c_str(),
+          DebugInfo ? "-debug:dwarf" : "-nologo", u8string(ObjectName).c_str(),
           ("-out:" + u8string(OutputPath)).c_str()},
 #endif
 
@@ -268,41 +478,43 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #else
   lld::CommonLinkerContext::destroy();
 #endif
+  Lock.unlock();
 
-  if (LinkResult) {
-    std::error_code Error;
-    std::filesystem::remove(ObjectName, Error);
-#if WASMEDGE_OS_WINDOWS
-    std::filesystem::path LibPath(OutputPath);
-    LibPath.replace_extension(".lib"sv);
-    std::filesystem::remove(LibPath, Error);
-#endif
-
-    spdlog::info("codegen done"sv);
-  } else {
+  if (!LinkResult) {
     spdlog::error("link error"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
 
 #if WASMEDGE_OS_MACOS
-  // codesign
-  if (LinkResult) {
-    pid_t PID = ::fork();
-    if (PID == -1) {
-      spdlog::error("codesign error on fork:{}"sv, std::strerror(errno));
-    } else if (PID == 0) {
-      execlp("/usr/bin/codesign", "codesign", "-s", "-",
-             u8string(OutputPath).c_str(), nullptr);
-      std::exit(256);
-    } else {
-      int ChildStat;
-      waitpid(PID, &ChildStat, 0);
-      if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
-        spdlog::error("codesign exited with status {}"sv, Status);
-      }
+  signLibrary(LinkPath);
+  {
+    static std::mutex ReplaceMutex;
+    std::lock_guard<std::mutex> ReplaceLock(ReplaceMutex);
+    const auto Replaced =
+        Intermediate ? DebugObject{} : debugObjectOf(Absolute);
+    std::error_code Error;
+    std::filesystem::rename(LinkPath, OutputPath, Error);
+    if (Error) {
+      spdlog::error("so file creation failed:{}"sv, u8string(OutputPath));
+      return Unexpect(ErrCode::Value::IllegalPath);
     }
+    Committed = true;
+    removeReplacedObject(Replaced, Absolute, ObjectName);
+  }
+#else
+  static_cast<void>(Intermediate);
+  Committed = true;
+#endif
+#if WASMEDGE_OS_WINDOWS
+  {
+    std::error_code Error;
+    std::filesystem::path LibPath(OutputPath);
+    LibPath.replace_extension(".lib"sv);
+    std::filesystem::remove(LibPath, Error);
   }
 #endif
 
+  spdlog::info("codegen done"sv);
   return {};
 }
 
@@ -310,23 +522,19 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
                                const std::filesystem::path &OutputPath,
                                Span<const Byte> Data,
                                const LLVM::MemoryBuffer &OSVec) noexcept {
-  std::filesystem::path SharedObjectName;
-  {
-    // tempfile
-    std::filesystem::path SOPath(OutputPath);
-    SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
-    SharedObjectName = createTemp(SOPath);
-    if (SharedObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, u8string(SOPath));
-      return Unexpect(ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(SharedObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
+  const auto SharedObjectName =
+      reserveTemp(std::filesystem::path(OutputPath).replace_extension(),
+                  ".%%%%%%%%%%" WASMEDGE_LIB_EXTENSION ""sv);
+  if (SharedObjectName.empty()) {
+    spdlog::error("so file creation failed:{}"sv, u8string(OutputPath));
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
+  cxx20::scope_exit RemoveIntermediate([&SharedObjectName]() noexcept {
+    std::error_code Error;
+    std::filesystem::remove(SharedObjectName, Error);
+  });
 
-  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
+  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec, false, true));
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =
@@ -502,9 +710,6 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
   WriteByte(OS, UINT8_C(0x00));
   WriteName(OS, std::string_view(OSCustomSecVec.data(), OSCustomSecVec.size()));
 
-  std::error_code Error;
-  std::filesystem::remove(SharedObjectName, Error);
-
   spdlog::info("output done"sv);
   return {};
 }
@@ -632,7 +837,8 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
         CompilerConfigure::OutputFormat::Wasm) {
       EXPECTED_TRY(outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec));
     } else {
-      EXPECTED_TRY(outputNativeLibrary(OutputPath, OSVec));
+      EXPECTED_TRY(
+          outputNativeLibrary(OutputPath, OSVec, hasDebugInfo(LLModule)));
     }
   }
 

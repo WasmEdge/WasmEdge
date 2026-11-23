@@ -342,13 +342,9 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
 #endif
   EXPECTED_TRY(auto NewModInst,
                ExecutorEngine.instantiateModule(StoreRef, Module));
-#ifdef WASMEDGE_USE_LLVM
-  // Drop the lazy binding of the replaced instance only after the new
-  // instantiation succeeds, so a failed run keeps the current instance bound.
-  if (LazyEngine && ActiveModInst) {
-    LazyEngine->unregisterInstance(*ActiveModInst);
-  }
-#endif
+  // Release the replaced instance only after the new instantiation succeeds,
+  // so a failed run keeps the current instance bound.
+  unsafeReleaseActiveModule();
   ActiveModInst = std::move(NewModInst);
   ActiveCompInst.reset();
   if (&Module == Mod.get()) {
@@ -521,13 +517,11 @@ Expect<void> VM::unsafeInstantiate() {
     EXPECTED_TRY(auto NewModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
 
+    // Release the replaced instance only after instantiation succeeds, so a
+    // failed re-instantiation keeps the current instance bound.
+    unsafeReleaseActiveModule();
 #ifdef WASMEDGE_USE_LLVM
     if (LazyEngine) {
-      // Rebind the lazy JIT state only after instantiation succeeds, so a
-      // failed re-instantiation keeps the current instance bound.
-      if (ActiveModInst) {
-        LazyEngine->unregisterInstance(*ActiveModInst);
-      }
       LazyEngine->registerInstance(*NewModInst, Mod);
     }
 #endif

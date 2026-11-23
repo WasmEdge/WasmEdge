@@ -506,6 +506,15 @@ TEST(VMRegistrationTest, UnregisterUnknownNameSucceeds) {
   EXPECT_TRUE(TestVM.unregisterModule("no-such-module"));
 }
 
+// Wasm module that imports the function "a" "f" and calls it:
+//   (import "a" "f" (func $f (result i32)))
+//   (func (export "g") (result i32) call $f)
+static const std::array<WasmEdge::Byte, 43> CallImportedFuncWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x00, 0x01, 0x7f, 0x02, 0x07, 0x01, 0x01, 0x61, 0x01, 0x66,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x67,
+    0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b};
+
 // Wasm module that exports a funcref table and calls its first slot:
 //   (type $t (func (result i32)))
 //   (table (export "t") 1 funcref)
@@ -540,6 +549,14 @@ static const std::array<WasmEdge::Byte, 22> FailDataWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03, 0x01,
     0x00, 0x00, 0x0b, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x78};
 
+/// Helper: register the active module as "a", and register a module "b" that
+/// imports "a" "f".
+void registerImporterOfActive(VM::VM &TestVM) {
+  ASSERT_NE(TestVM.getActiveModule(), nullptr);
+  ASSERT_TRUE(TestVM.registerModule("a", *TestVM.getActiveModule()));
+  ASSERT_TRUE(TestVM.registerModule("b", CallImportedFuncWasm));
+}
+
 /// Helper: execute a function of a registered module and expect a constant.
 void expectModuleResult(VM::VM &TestVM, std::string_view ModName,
                         std::string_view Func, uint32_t Expected) {
@@ -553,6 +570,24 @@ void expectModuleResult(VM::VM &TestVM, std::string_view ModName,
 void expectDataSegmentFailure(const Expect<void> &Res) {
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds);
+}
+
+TEST(VMLifetimeTest, ReinstantiateKeepsImportedActiveModuleAlive) {
+  Configure Conf;
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  registerImporterOfActive(TestVM);
+  ASSERT_TRUE(TestVM.instantiate());
+  expectModuleResult(TestVM, "b", "g", 7U);
+}
+
+TEST(VMLifetimeTest, RunWasmFileKeepsImportedActiveModuleAlive) {
+  Configure Conf;
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  registerImporterOfActive(TestVM);
+  ASSERT_TRUE(TestVM.runWasmFile(ConstFuncWasm, "f"));
+  expectModuleResult(TestVM, "b", "g", 7U);
 }
 
 TEST(VMLifetimeTest, FailedModuleStaysReferenceableAfterLaterFailure) {

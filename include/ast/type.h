@@ -417,8 +417,8 @@ public:
   }
 
 private:
-  uint32_t TypeIdx;
-  const SubType *Type;
+  uint32_t TypeIdx = 0;
+  const SubType *Type = nullptr;
 };
 
 /// AST Type match helper class.

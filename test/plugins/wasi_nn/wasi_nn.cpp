@@ -5154,6 +5154,19 @@ TEST(WasiNNTest, ChatTTSBackendContextState) {
   runPython("sys.modules['ChatTTS'].Chat.exit_on_infer_lookup = False");
   EXPECT_EQ(Output(Context), "('hello', None, None)");
 
+  const std::string Applied =
+      "('hello', [('prompt', 'a')], [('temperature', 0.5)])";
+  EXPECT_EQ(SetInput(Context, 1, R"({"prompt":"a","temperature":0.5})"),
+            ErrNo::Success);
+  EXPECT_EQ(Output(Context), Applied);
+  EXPECT_EQ(SetInput(Context, 1, R"({"prompt":"exit"})"), ErrNo::RuntimeError);
+  EXPECT_EQ(SetInput(Context, 1, R"({"prompt":"b","top_P":2.0})"),
+            ErrNo::RuntimeError);
+  EXPECT_EQ(SetInput(Context, 1, R"({"prompt":"b","top_P":"x"})"),
+            ErrNo::InvalidArgument);
+  EXPECT_EQ(SetInput(Context, 1, R"(["prompt"])"), ErrNo::InvalidArgument);
+  EXPECT_EQ(Output(Context), Applied);
+
   runPython(RestoreChatTTSModule);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS

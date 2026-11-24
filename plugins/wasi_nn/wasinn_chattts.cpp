@@ -12,6 +12,9 @@
 #include <dlfcn.h>
 #endif
 #include <chrono>
+#include <initializer_list>
+#include <optional>
+#include <string_view>
 #include <time.h>
 #include <utility>
 #endif
@@ -68,6 +71,41 @@ void logPythonError() noexcept {
                 ValueRef ? Py_TYPE(ValueRef.get())->tp_name : "unknown",
                 Message != nullptr ? Message : "");
   PyErr_Clear();
+}
+
+bool setItem(const PyRef &Dict, const char *Key, const PyRef &Value) noexcept {
+  return Value && PyDict_SetItemString(Dict.get(), Key, Value.get()) == 0;
+}
+
+PyRef createParams(PyObject *Chat, const char *Name,
+                   const PyRef &Kwargs) noexcept {
+  PyRef ParamsClass(PyObject_GetAttrString(Chat, Name));
+  if (!ParamsClass) {
+    return {};
+  }
+  PyRef Args(PyTuple_New(0));
+  if (!Args) {
+    return {};
+  }
+  return PyRef(PyObject_Call(ParamsClass.get(), Args.get(), Kwargs.get()));
+}
+
+template <typename T>
+WASINN::ErrNo getOptionalOption(simdjson::dom::object &Object,
+                                std::string_view Key,
+                                std::optional<T> &Result) noexcept {
+  T Value{};
+  if (auto Error = Object[Key].get(Value)) {
+    if (Error == simdjson::error_code::NO_SUCH_FIELD) {
+      return WASINN::ErrNo::Success;
+    }
+    spdlog::error(
+        "[WASI-NN] ChatTTS backend: Unable to retrieve the \"{}\" option: {}"sv,
+        Key, simdjson::error_message(Error));
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  Result = Value;
+  return WASINN::ErrNo::Success;
 }
 } // namespace
 
@@ -167,101 +205,90 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
       spdlog::error("[WASI-NN] ChatTTS backend: Parse metadata error"sv);
       return ErrNo::InvalidEncoding;
     }
+    simdjson::dom::object Object;
+    if (Doc.get(Object)) {
+      spdlog::error(
+          "[WASI-NN] ChatTTS backend: The metadata is not a JSON object."sv);
+      return ErrNo::InvalidArgument;
+    }
+    std::optional<std::string_view> Prompt;
+    std::optional<double> Temperature;
+    std::optional<double> TopK;
+    std::optional<double> TopP;
+    std::optional<std::string_view> SpkEmb;
+    for (auto Err : {getOptionalOption(Object, "prompt"sv, Prompt),
+                     getOptionalOption(Object, "temperature"sv, Temperature),
+                     getOptionalOption(Object, "top_K"sv, TopK),
+                     getOptionalOption(Object, "top_P"sv, TopP),
+                     getOptionalOption(Object, "spk_emb"sv, SpkEmb)}) {
+      if (Err != ErrNo::Success) {
+        return Err;
+      }
+    }
+
     GIL Lock;
-    // Handle Refine Text Params
-    PyObject *PromptObj = nullptr;
-    if (Doc.at_key("prompt").error() == simdjson::SUCCESS) {
-      std::string_view PromptView;
-      auto Err = Doc["prompt"].get<std::string_view>().get(PromptView);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] ChatTTS backend: Unable to retrieve the prompt option."sv);
-        return ErrNo::InvalidArgument;
+    auto ReportError = []() noexcept {
+      spdlog::error(
+          "[WASI-NN] ChatTTS backend: Unable to apply the metadata."sv);
+      logPythonError();
+      return WASINN::ErrNo::RuntimeError;
+    };
+    PyRef NewParamsRefineText;
+    if (Prompt) {
+      PyRef Kwargs(PyDict_New());
+      if (!Kwargs || !setItem(Kwargs, "prompt",
+                              PyRef(PyUnicode_FromStringAndSize(
+                                  Prompt->data(),
+                                  static_cast<Py_ssize_t>(Prompt->size()))))) {
+        return ReportError();
       }
-      PromptObj = PyUnicode_FromString(std::string(PromptView).c_str());
-    }
-    if (PromptObj != nullptr) {
-      PyObject *Args = PyTuple_New(0);
-      PyObject *Kwargs = PyDict_New();
-      PyDict_SetItemString(Kwargs, "prompt", PromptObj);
-      PyObject *RefineTextParamsFun =
-          PyObject_GetAttrString(GraphRef.Chat, "RefineTextParams");
-      GraphRef.ParamsRefineText =
-          PyObject_Call(RefineTextParamsFun, Args, Kwargs);
-      Py_XDECREF(PromptObj);
-      Py_XDECREF(Args);
-      Py_XDECREF(Kwargs);
-      Py_XDECREF(RefineTextParamsFun);
-    }
-    // Handle Infer Code Params
-    PyObject *InferKwargs = PyDict_New();
-    if (Doc.at_key("temperature").error() == simdjson::SUCCESS) {
-      double Temperature;
-      auto Err = Doc["temperature"].get<double>().get(Temperature);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] ChatTTS backend: Unable to retrieve the temperature option."sv);
-        return ErrNo::InvalidArgument;
-      }
-      PyObject *TemperatureObject = PyFloat_FromDouble(Temperature);
-      PyDict_SetItemString(InferKwargs, "temperature", TemperatureObject);
-      Py_XDECREF(TemperatureObject);
-    }
-    if (Doc.at_key("top_K").error() == simdjson::SUCCESS) {
-      double TopK;
-      auto Err = Doc["top_K"].get<double>().get(TopK);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] ChatTTS backend: Unable to retrieve the topK option."sv);
-        return ErrNo::InvalidArgument;
-      }
-      PyObject *TopKObject = PyFloat_FromDouble(TopK);
-      PyDict_SetItemString(InferKwargs, "top_K", TopKObject);
-      Py_XDECREF(TopKObject);
-    }
-    if (Doc.at_key("top_P").error() == simdjson::SUCCESS) {
-      double TopP;
-      auto Err = Doc["top_P"].get<double>().get(TopP);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] ChatTTS backend: Unable to retrieve the temperature option."sv);
-        return ErrNo::InvalidArgument;
-      }
-      PyObject *TopPObject = PyFloat_FromDouble(TopP);
-      PyDict_SetItemString(InferKwargs, "top_P", TopPObject);
-      Py_XDECREF(TopPObject);
-    }
-    if (Doc.at_key("spk_emb").error() == simdjson::SUCCESS) {
-      std::string_view SpkEmb;
-      auto Err = Doc["spk_emb"].get<std::string_view>().get(SpkEmb);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] ChatTTS backend: Unable to retrieve the spk_emb option."sv);
-        return ErrNo::InvalidArgument;
-      }
-      if (SpkEmb == "random") {
-        PyObject *SampleRandomSpeaker =
-            PyObject_GetAttrString(GraphRef.Chat, "sample_random_speaker");
-        PyObject *Spk = PyObject_CallNoArgs(SampleRandomSpeaker);
-        PyDict_SetItemString(InferKwargs, "spk_emb", Spk);
-        Py_XDECREF(SampleRandomSpeaker);
-        Py_XDECREF(Spk);
-      } else {
-        PyObject *Spk = PyUnicode_FromString(std::string(SpkEmb).c_str());
-        PyDict_SetItemString(InferKwargs, "spk_emb", Spk);
-        Py_XDECREF(Spk);
+      NewParamsRefineText =
+          createParams(GraphRef.Chat, "RefineTextParams", Kwargs);
+      if (!NewParamsRefineText) {
+        return ReportError();
       }
     }
-    if (PyDict_Size(InferKwargs) != 0) {
-      PyObject *Args = PyTuple_New(0);
-      PyObject *InferCodeParams =
-          PyObject_GetAttrString(GraphRef.Chat, "InferCodeParams");
-      GraphRef.ParamsInferCode =
-          PyObject_Call(InferCodeParams, Args, InferKwargs);
-      Py_XDECREF(Args);
-      Py_XDECREF(InferCodeParams);
+    PyRef NewParamsInferCode;
+    if (Temperature || TopK || TopP || SpkEmb) {
+      PyRef Kwargs(PyDict_New());
+      if (!Kwargs) {
+        return ReportError();
+      }
+      if (Temperature && !setItem(Kwargs, "temperature",
+                                  PyRef(PyFloat_FromDouble(*Temperature)))) {
+        return ReportError();
+      }
+      if (TopK && !setItem(Kwargs, "top_K", PyRef(PyFloat_FromDouble(*TopK)))) {
+        return ReportError();
+      }
+      if (TopP && !setItem(Kwargs, "top_P", PyRef(PyFloat_FromDouble(*TopP)))) {
+        return ReportError();
+      }
+      if (SpkEmb) {
+        PyRef Spk(
+            *SpkEmb == "random"sv
+                ? PyObject_CallMethod(GraphRef.Chat, "sample_random_speaker",
+                                      nullptr)
+                : PyUnicode_FromStringAndSize(
+                      SpkEmb->data(), static_cast<Py_ssize_t>(SpkEmb->size())));
+        if (!setItem(Kwargs, "spk_emb", Spk)) {
+          return ReportError();
+        }
+      }
+      NewParamsInferCode =
+          createParams(GraphRef.Chat, "InferCodeParams", Kwargs);
+      if (!NewParamsInferCode) {
+        return ReportError();
+      }
     }
-    Py_XDECREF(InferKwargs);
+    if (NewParamsRefineText) {
+      Py_XDECREF(GraphRef.ParamsRefineText);
+      GraphRef.ParamsRefineText = NewParamsRefineText.release();
+    }
+    if (NewParamsInferCode) {
+      Py_XDECREF(GraphRef.ParamsInferCode);
+      GraphRef.ParamsInferCode = NewParamsInferCode.release();
+    }
     return WASINN::ErrNo::Success;
   }
   return WASINN::ErrNo::InvalidArgument;

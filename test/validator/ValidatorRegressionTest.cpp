@@ -1112,6 +1112,146 @@ TEST_F(ValidatorRegressionTest, DisabledProposals) {
   EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::InvalidGlobalIdx);
 }
 
+// Test that the conversions between any and extern after unreachable result
+// in non-null references.
+TEST_F(ValidatorRegressionTest, ExternConvertAfterUnreachable) {
+  // Module: (module
+  //   (func (local (ref extern))
+  //     unreachable  extern.convert_any  local.set 0)
+  //   (func (local (ref any))
+  //     unreachable  any.convert_extern  local.set 0)
+  //   (func (result (ref any))
+  //     unreachable  extern.convert_any  any.convert_extern))
+  std::array<WasmEdge::Byte, 58> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+      0x00, 0x00, 0x60, 0x00, 0x01, 0x64, 0x6e, 0x03, 0x04, 0x03, 0x00, 0x00,
+      0x01, 0x0a, 0x1f, 0x03, 0x0a, 0x01, 0x01, 0x64, 0x6f, 0x00, 0xfb, 0x1b,
+      0x21, 0x00, 0x0b, 0x0a, 0x01, 0x01, 0x64, 0x6e, 0x00, 0xfb, 0x1a, 0x21,
+      0x00, 0x0b, 0x07, 0x00, 0x00, 0xfb, 0x1b, 0xfb, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+// Test that the result of extern.convert_any after unreachable is not a
+// number.
+TEST_F(ValidatorRegressionTest, ExternConvertRejectsNumberAfterUnreachable) {
+  // Module: (module
+  //   (func (result i32) unreachable  extern.convert_any  i32.eqz))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+      0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a,
+      0x08, 0x01, 0x06, 0x00, 0x00, 0xfb, 0x1b, 0x45, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that the result of any.convert_extern after unreachable is an any
+// reference, which does not match eq.
+TEST_F(ValidatorRegressionTest, AnyConvertRejectsHeapTypeAfterUnreachable) {
+  // Module: (module
+  //   (func (local (ref eq)) unreachable  any.convert_extern  local.set 0))
+  std::array<WasmEdge::Byte, 32> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+      0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x0c, 0x01, 0x0a,
+      0x01, 0x01, 0x64, 0x6d, 0x00, 0xfb, 0x1a, 0x21, 0x00, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that ref.as_non_null and br_on_null after unreachable result in
+// references that match every reference type.
+TEST_F(ValidatorRegressionTest, BottomRefAfterUnreachable) {
+  // Module: (module
+  //   (func (local (ref func) (ref extern))
+  //     unreachable  ref.as_non_null  local.set 0
+  //     (block unreachable  br_on_null 0  local.set 1)))
+  std::array<WasmEdge::Byte, 42> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+      0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x16, 0x01, 0x14,
+      0x02, 0x01, 0x64, 0x70, 0x01, 0x64, 0x6f, 0x00, 0xd4, 0x21, 0x00,
+      0x02, 0x40, 0x00, 0xd5, 0x00, 0x21, 0x01, 0x0b, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+// Test that the result of ref.as_non_null after unreachable is not a number.
+TEST_F(ValidatorRegressionTest, RefAsNonNullRejectsNumberAfterUnreachable) {
+  // Module: (module
+  //   (func (result i32) unreachable  ref.as_non_null  i32.eqz))
+  std::array<WasmEdge::Byte, 28> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+      0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a,
+      0x07, 0x01, 0x05, 0x00, 0x00, 0xd4, 0x45, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that the result of br_on_null after unreachable is not a number.
+TEST_F(ValidatorRegressionTest, BrOnNullRejectsNumberAfterUnreachable) {
+  // Module: (module
+  //   (func (result i32)
+  //     (block unreachable  br_on_null 0  i32.eqz  return)
+  //     i32.const 0))
+  std::array<WasmEdge::Byte, 35> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00,
+      0x02, 0x40, 0x00, 0xd5, 0x00, 0x45, 0x0f, 0x0b, 0x41, 0x00, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that select without a type rejects the result of ref.as_non_null
+// after unreachable.
+TEST_F(ValidatorRegressionTest, SelectRejectsBottomRefAfterUnreachable) {
+  // Module: (module
+  //   (func (result i32)
+  //     unreachable  ref.as_non_null  i32.const 1  i32.const 0  select))
+  std::array<WasmEdge::Byte, 32> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+      0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x0b, 0x01,
+      0x09, 0x00, 0x00, 0xd4, 0x41, 0x01, 0x41, 0x00, 0x1b, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

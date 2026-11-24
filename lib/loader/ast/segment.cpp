@@ -97,6 +97,9 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // vec(FuncIdx): function index vector, vec(u32)
   // vec(expr): reference init list, vec(expr)
 
+  // Set the default table index.
+  ElemSeg.setIdx(0);
+
   // Read the checking byte.
   uint32_t Check = 0;
   if (unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
@@ -135,7 +138,6 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
 
   // Read the table index.
-  ElemSeg.setIdx(0);
   switch (Check) {
   case 0x02:
   case 0x06:

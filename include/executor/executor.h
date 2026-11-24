@@ -25,6 +25,7 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
+#include "runtime/matcher.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
 #include "system/stacktrace.h"
@@ -565,10 +566,6 @@ private:
   /// Helper function for converting into bottom abstract heap type.
   TypeCode toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
                         const ValType &Type) const;
-
-  /// Helper function for matching a reference against a reference type.
-  bool matchRef(const Runtime::Instance::ModuleInstance *ModInst,
-                const ValType &Exp, const RefVariant &Ref) const noexcept;
 
   /// Helper function for cleaning unused bits of numeric values in ValVariant.
   void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;

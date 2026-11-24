@@ -5,6 +5,7 @@
 
 #include "loader/filemgr.h"
 #include "loader/loader.h"
+#include "runtime/matcher.h"
 
 #include <algorithm>
 #include <array>
@@ -170,28 +171,11 @@ private:
 };
 
 Expect<TypeCode> bottomType(const ValType &Type, const ModuleInstance &Owner) {
-  auto Heap = Type.getHeapTypeCode();
-  if (Heap == TypeCode::TypeIndex) {
-    const auto Def = Owner.getType(Type.getTypeIndex());
-    if (!Def) {
-      return Unexpect(Mismatch);
-    }
-    Heap = (*Def)->getCompositeType().isFunc() ? TypeCode::FuncRef
-                                               : TypeCode::AnyRef;
+  if (Type.getHeapTypeCode() == TypeCode::TypeIndex &&
+      !Owner.getType(Type.getTypeIndex())) {
+    return Unexpect(Mismatch);
   }
-  switch (Heap) {
-  case TypeCode::FuncRef:
-  case TypeCode::NullFuncRef:
-    return TypeCode::NullFuncRef;
-  case TypeCode::ExternRef:
-  case TypeCode::NullExternRef:
-    return TypeCode::NullExternRef;
-  case TypeCode::ExnRef:
-  case TypeCode::NullExnRef:
-    return TypeCode::NullExnRef;
-  default:
-    return TypeCode::NullRef;
-  }
+  return AST::TypeMatcher::getBottomHeapType(Owner.getTypeList(), Type);
 }
 
 Expect<RefVariant> readRef(Reader &R, const ValType &Type,
@@ -216,19 +200,12 @@ Expect<RefVariant> readRef(Reader &R, const ValType &Type,
     if (FuncIdx >= Functions.size() || Functions[FuncIdx] == nullptr) {
       return Unexpect(Malformed);
     }
-    const auto *Func = Functions[FuncIdx];
-    const auto *FuncOwner = Func->getModule();
-    if (Type.getHeapTypeCode() == TypeCode::TypeIndex &&
-        !Owner.getType(Type.getTypeIndex())) {
+    const RefVariant Ref(ValType(TypeCode::Ref, TypeCode::FuncRef),
+                         Functions[FuncIdx]);
+    if (!Runtime::Matcher::matchRef(&Owner, Type, Ref)) {
       return Unexpect(Mismatch);
     }
-    if (FuncOwner == nullptr ||
-        !AST::TypeMatcher::matchType(Owner.getTypeList(), Type,
-                                     FuncOwner->getTypeList(),
-                                     Func->getDefType())) {
-      return Unexpect(Mismatch);
-    }
-    return RefVariant(Func->getDefType(), Func);
+    return Ref;
   }
   case kRefMissing:
     return Unexpect(Unsupported);

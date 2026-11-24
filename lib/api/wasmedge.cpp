@@ -762,7 +762,7 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) noexcept {
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
           .get<WasmEdge::RefVariant>();
-  if (!Ref.getType().isExternRefType()) {
+  if (!genValType(Val.Type).isExternRefType()) {
     return nullptr;
   }
   return Ref.getPtr<void>();
@@ -1581,7 +1581,7 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) noexcept {
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt) noexcept {
-  if (Cxt) {
+  if (Cxt && fromTagTypeCxt(Cxt)->hasDefType()) {
     const auto &CompType = fromTagTypeCxt(Cxt)->getDefType().getCompositeType();
     if (CompType.isFunc()) {
       return toFuncTypeCxt(&CompType.getFuncType());
@@ -2830,22 +2830,20 @@ WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
                                      const WasmEdge_Value Value) noexcept {
   try {
     if (TabType) {
-      // Comparison of the value types needs the module instance to retrieve the
-      // function type index after applying the typed function reference
-      // proposal. It's impossible to do this without refactoring. Therefore
-      // simply match the FuncRef and ExternRef here.
+      // A reference matches by its value. The new table is out of any module.
       const AST::TableType &TType = *fromTabTypeCxt(TabType);
       WasmEdge::ValType GotType = genValType(Value.Type);
+      auto Val = WasmEdge::ValVariant(
+                     to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value))
+                     .get<WasmEdge::RefVariant>();
       if (!GotType.isRefType() ||
-          TType.getRefType().isFuncRefType() != GotType.isFuncRefType()) {
+          (!Val.isNull() && !WasmEdge::Runtime::Matcher::matchRef(
+                                nullptr, TType.getRefType(), Val, GotType))) {
         spdlog::error(WasmEdge::ErrCode::Value::RefTypeMismatch);
         spdlog::error(
             WasmEdge::ErrInfo::InfoMismatch(TType.getRefType(), GotType));
         return nullptr;
       }
-      auto Val = WasmEdge::ValVariant(
-                     to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value))
-                     .get<WasmEdge::RefVariant>();
       if (!TType.getRefType().isNullableRefType() && Val.isNull()) {
         spdlog::error(WasmEdge::ErrCode::Value::NonNullRequired);
         return nullptr;
@@ -2890,22 +2888,21 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceSetData(
     const uint64_t Offset) noexcept {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        // Comparison of the value types needs the module instance to retrieve
-        // the function type index after applying the typed function reference
-        // proposal. It's impossible to do this without refactoring. Therefore
-        // simply match the FuncRef and ExternRef here.
+        // A reference matches by its value in the module defining the table.
         WasmEdge::ValType ExpType =
             fromTabCxt(Cxt)->getTableType().getRefType();
         WasmEdge::ValType GotType = genValType(Data.Type);
+        auto Val = WasmEdge::ValVariant(
+                       to_WasmEdge_128_t<WasmEdge::uint128_t>(Data.Value))
+                       .get<WasmEdge::RefVariant>();
         if (!GotType.isRefType() ||
-            ExpType.isFuncRefType() != GotType.isFuncRefType()) {
+            (!Val.isNull() &&
+             !WasmEdge::Runtime::Matcher::matchRef(fromTabCxt(Cxt)->getModule(),
+                                                   ExpType, Val, GotType))) {
           spdlog::error(WasmEdge::ErrCode::Value::RefTypeMismatch);
           spdlog::error(WasmEdge::ErrInfo::InfoMismatch(ExpType, GotType));
           return Unexpect(WasmEdge::ErrCode::Value::RefTypeMismatch);
         }
-        auto Val = WasmEdge::ValVariant(
-                       to_WasmEdge_128_t<WasmEdge::uint128_t>(Data.Value))
-                       .get<WasmEdge::RefVariant>();
         if (!ExpType.isNullableRefType() && Val.isNull()) {
           // If this table is not a nullable ref type, the data should not be
           // null.
@@ -3065,16 +3062,17 @@ WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
                               const WasmEdge_Value Value) noexcept {
   try {
     if (GlobType) {
-      // Comparison of the value types needs the module instance to retrieve the
-      // function type index after applying the typed function reference
-      // proposal. It's impossible to do this without refactoring. Therefore
-      // simply match the FuncRef and ExternRef here.
+      // A reference matches by its value. The new global is out of any module.
       const AST::GlobalType &GType = *fromGlobTypeCxt(GlobType);
       WasmEdge::ValType ExpType = GType.getValType();
       WasmEdge::ValType GotType = genValType(Value.Type);
+      WasmEdge::ValVariant Val =
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value);
       if (ExpType.isRefType()) {
+        const auto &Ref = Val.get<WasmEdge::RefVariant>();
         if (!GotType.isRefType() ||
-            ExpType.isFuncRefType() != GotType.isFuncRefType()) {
+            (!Ref.isNull() && !WasmEdge::Runtime::Matcher::matchRef(
+                                  nullptr, ExpType, Ref, GotType))) {
           spdlog::error(WasmEdge::ErrCode::Value::SetValueErrorType);
           spdlog::error(WasmEdge::ErrInfo::InfoMismatch(ExpType, GotType));
           return nullptr;
@@ -3086,8 +3084,6 @@ WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
         }
       }
 
-      WasmEdge::ValVariant Val =
-          to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value);
       if (ExpType.isRefType()) {
         // Reference type case.
         if (!ExpType.isNullableRefType() &&
@@ -3137,23 +3133,23 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_GlobalInstanceSetValue(
           return Unexpect(WasmEdge::ErrCode::Value::SetValueToConst);
         }
 
-        // Comparison of the value types needs the module instance to retrieve
-        // the function type index after applying the typed function reference
-        // proposal. It's impossible to do this without refactoring. Therefore
-        // simply match the FuncRef and ExternRef here.
+        // A reference matches by its value in the module defining the global.
         WasmEdge::ValType ExpType = GlobType.getValType();
         WasmEdge::ValType GotType = genValType(Value.Type);
+        WasmEdge::ValVariant Val =
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value);
         if (ExpType.isRefType()) {
+          const auto &Ref = Val.get<WasmEdge::RefVariant>();
           if (!GotType.isRefType() ||
-              ExpType.isFuncRefType() != GotType.isFuncRefType()) {
+              (!Ref.isNull() &&
+               !WasmEdge::Runtime::Matcher::matchRef(
+                   fromGlobCxt(Cxt)->getModule(), ExpType, Ref, GotType))) {
             spdlog::error(WasmEdge::ErrCode::Value::RefTypeMismatch);
             spdlog::error(WasmEdge::ErrInfo::InfoMismatch(ExpType, GotType));
             return Unexpect(WasmEdge::ErrCode::Value::RefTypeMismatch);
           }
         }
 
-        WasmEdge::ValVariant Val =
-            to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value);
         if (ExpType.isRefType()) {
           // Reference type case.
           if (!ExpType.isNullableRefType() &&

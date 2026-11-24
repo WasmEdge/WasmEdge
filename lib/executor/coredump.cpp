@@ -248,10 +248,7 @@ public:
 
   std::optional<std::pair<uint32_t, uint32_t>>
   lookup(const RefVariant &Ref) const noexcept {
-    if (Ref.getType().isExternRefType() || !Ref.getType().isFuncRefType()) {
-      return std::nullopt;
-    }
-    const auto It = Indices.find(Ref.getPtr<FunctionInstance>());
+    const auto It = Indices.find(retrieveFuncRef(Ref));
     if (It == Indices.end()) {
       return std::nullopt;
     }

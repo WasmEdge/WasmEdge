@@ -357,6 +357,18 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
+  // Test: load -- TPU is not supported by the OpenVINO backend.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), static_cast<uint32_t>(Backend::OpenVINO),
+            static_cast<uint32_t>(Device::TPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
   // Test: load -- load successfully.
   {
     EXPECT_TRUE(HostFuncLoad.run(

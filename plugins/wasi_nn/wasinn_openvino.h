@@ -9,6 +9,8 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 #include "openvino/openvino.hpp"
+
+#include <string_view>
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -23,7 +25,7 @@ struct Graph {
   ~Graph() noexcept {}
   ov::Tensor OpenVINOIWeightTensor;
   std::shared_ptr<ov::Model> OpenVINOModel;
-  Device TargetDevice = Device::AUTO;
+  std::string_view DeviceName;
 };
 
 struct Context {

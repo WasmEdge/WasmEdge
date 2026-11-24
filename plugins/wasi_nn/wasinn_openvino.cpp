@@ -5,29 +5,28 @@
 #include "wasinnenv.h"
 
 #include <algorithm>
+#include <optional>
+#include <string>
+#include <string_view>
 
 using namespace std::literals;
 
 namespace WasmEdge::Host::WASINN::OpenVINO {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 
-static Expect<WASINN::ErrNo>
-GetDeviceString(WASINN::Device TargetDevice,
-                std::string &DeviceString) noexcept {
-  switch (TargetDevice) {
+namespace {
+std::optional<std::string_view> deviceName(WASINN::Device Device) noexcept {
+  switch (Device) {
   case Device::AUTO:
   case Device::CPU:
-    DeviceString = "CPU";
-    break;
+    return "CPU"sv;
   case Device::GPU:
-    DeviceString = "GPU";
-    break;
+    return "GPU"sv;
   default:
-    spdlog::error("[WASI-NN] Unsupported device type"sv);
-    return WASINN::ErrNo::InvalidArgument;
+    return std::nullopt;
   }
-  return WASINN::ErrNo::Success;
 }
+} // namespace
 
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
                            Span<const Span<uint8_t>> Builders,
@@ -47,8 +46,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
   auto XML = Builders[0];
   auto Weight = Builders[1];
 
-  // Store device information
-  GraphRef.TargetDevice = Device;
+  const auto DeviceName = deviceName(Device);
+  if (!DeviceName) {
+    spdlog::error("[WASI-NN] Unsupported device type"sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  GraphRef.DeviceName = *DeviceName;
 
   try {
     std::string ModelString(reinterpret_cast<const char *>(XML.data()),
@@ -114,16 +117,11 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
                          Tensor.Dimension.data() + Tensor.Dimension.size());
     ov::Tensor InputTensor =
         ov::Tensor(InputType, InputShape, Tensor.Tensor.data());
-    std::string Device;
-    if (!GetDeviceString(GraphRef.TargetDevice, Device)) {
-      spdlog::error("[WASI-NN] Failed to get device string for OpenVINO."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
 
     // Without an explicit hint OpenVINO infers in bf16 or f16 on CPUs that
     // support them, so the same F32 model would produce host-dependent output.
     ov::CompiledModel CompiledModel = Env.OpenVINOCore.compile_model(
-        GraphRef.OpenVINOModel, Device,
+        GraphRef.OpenVINOModel, std::string(GraphRef.DeviceName),
         ov::hint::inference_precision(ov::element::f32));
     CxtRef.OpenVINOInferRequest = CompiledModel.create_infer_request();
     CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);

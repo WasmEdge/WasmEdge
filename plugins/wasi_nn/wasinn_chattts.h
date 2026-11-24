@@ -44,22 +44,29 @@ struct Graph {
   ~Graph() noexcept {
     if (Py_IsInitialized()) {
       GIL Lock;
-      Py_XDECREF(ParamsRefineText);
-      Py_XDECREF(ParamsInferCode);
       Py_XDECREF(Chat);
       Py_XDECREF(ChatTTSModule);
     }
   }
   PyObject *Chat = nullptr;
   PyObject *ChatTTSModule = nullptr;
-  PyObject *ParamsRefineText = nullptr;
-  PyObject *ParamsInferCode = nullptr;
 };
 struct Context {
   Context(uint32_t Gid, Graph &) noexcept : GraphId(Gid) {}
+  Context(const Context &) = delete;
+  Context &operator=(const Context &) = delete;
+  ~Context() noexcept {
+    if (Py_IsInitialized()) {
+      GIL Lock;
+      Py_XDECREF(ParamsRefineText);
+      Py_XDECREF(ParamsInferCode);
+    }
+  }
   uint32_t GraphId;
   std::string Inputs;
   std::vector<uint8_t> Outputs;
+  PyObject *ParamsRefineText = nullptr;
+  PyObject *ParamsInferCode = nullptr;
 };
 #else
 struct Graph {};

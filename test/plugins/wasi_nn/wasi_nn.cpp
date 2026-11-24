@@ -5167,6 +5167,10 @@ TEST(WasiNNTest, ChatTTSBackendContextState) {
   EXPECT_EQ(SetInput(Context, 1, R"(["prompt"])"), ErrNo::InvalidArgument);
   EXPECT_EQ(Output(Context), Applied);
 
+  const uint32_t Sibling = InitContext();
+  EXPECT_EQ(SetInput(Sibling, 0, "hello"), ErrNo::Success);
+  EXPECT_EQ(Output(Sibling), "('hello', None, None)");
+
   runPython(RestoreChatTTSModule);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS

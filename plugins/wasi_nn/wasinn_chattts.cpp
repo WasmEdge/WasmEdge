@@ -282,12 +282,12 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
       }
     }
     if (NewParamsRefineText) {
-      Py_XDECREF(GraphRef.ParamsRefineText);
-      GraphRef.ParamsRefineText = NewParamsRefineText.release();
+      Py_XDECREF(CxtRef.ParamsRefineText);
+      CxtRef.ParamsRefineText = NewParamsRefineText.release();
     }
     if (NewParamsInferCode) {
-      Py_XDECREF(GraphRef.ParamsInferCode);
-      GraphRef.ParamsInferCode = NewParamsInferCode.release();
+      Py_XDECREF(CxtRef.ParamsInferCode);
+      CxtRef.ParamsInferCode = NewParamsInferCode.release();
     }
     return WASINN::ErrNo::Success;
   }
@@ -344,8 +344,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
     Py_XDECREF(InferMethod);
     return WASINN::ErrNo::RuntimeError;
   }
-  if (GraphRef.ParamsRefineText == nullptr &&
-      GraphRef.ParamsInferCode == nullptr) {
+  if (CxtRef.ParamsRefineText == nullptr && CxtRef.ParamsInferCode == nullptr) {
     PyObject *Args = PyTuple_Pack(1, InputStr);
     Result = PyObject_CallObject(InferMethod, Args);
     Py_XDECREF(Args);
@@ -353,13 +352,12 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
     PyObject *Args = PyTuple_New(0);
     PyObject *Kwargs = PyDict_New();
     PyDict_SetItemString(Kwargs, "text", InputStr);
-    if (GraphRef.ParamsRefineText != nullptr) {
+    if (CxtRef.ParamsRefineText != nullptr) {
       PyDict_SetItemString(Kwargs, "params_refine_text",
-                           GraphRef.ParamsRefineText);
+                           CxtRef.ParamsRefineText);
     }
-    if (GraphRef.ParamsInferCode != nullptr) {
-      PyDict_SetItemString(Kwargs, "params_infer_code",
-                           GraphRef.ParamsInferCode);
+    if (CxtRef.ParamsInferCode != nullptr) {
+      PyDict_SetItemString(Kwargs, "params_infer_code", CxtRef.ParamsInferCode);
     }
     Result = PyObject_Call(InferMethod, Args, Kwargs);
     Py_XDECREF(Args);

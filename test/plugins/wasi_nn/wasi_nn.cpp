@@ -4882,6 +4882,27 @@ TEST(WasiNNTest, ChatTTSBackend) {
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 
+TEST(WasiNNTest, DenseTensorSize) {
+  using WasmEdge::Host::WASINN::isDenseTensorSize;
+  using WasmEdge::Host::WASINN::tensorElementSize;
+  const std::vector<uint32_t> Dims{2, 3};
+  EXPECT_TRUE(isDenseTensorSize(Dims, 4, 24));
+  EXPECT_FALSE(isDenseTensorSize(Dims, 4, 20));
+  EXPECT_FALSE(isDenseTensorSize(Dims, 4, 28));
+  EXPECT_FALSE(isDenseTensorSize(Dims, 4, 26));
+  EXPECT_TRUE(isDenseTensorSize({}, 4, 4));
+  EXPECT_FALSE(isDenseTensorSize({}, 4, 0));
+  const std::vector<uint32_t> Empty{0xFFFFFFFF, 0xFFFFFFFF, 0};
+  EXPECT_TRUE(isDenseTensorSize(Empty, 4, 0));
+  EXPECT_FALSE(isDenseTensorSize(Empty, 4, 4));
+  const std::vector<uint32_t> Huge{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+  EXPECT_FALSE(isDenseTensorSize(Huge, 4, 4));
+  EXPECT_EQ(tensorElementSize(TensorType::U8), 1U);
+  EXPECT_EQ(tensorElementSize(TensorType::F16), 2U);
+  EXPECT_EQ(tensorElementSize(TensorType::F32), 4U);
+  EXPECT_EQ(tensorElementSize(TensorType::I64), 8U);
+}
+
 // A load from the bytes of the guest writes the model to a file of the host
 // for the backends which load by path. Concurrent loads must not share that
 // file, and it goes away with its owner. This runs in every build.

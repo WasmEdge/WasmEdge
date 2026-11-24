@@ -6,6 +6,8 @@
 #include "common/span.h"
 #include "common/spdlog.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 
 namespace WasmEdge::Host::WASINN {
@@ -74,6 +76,45 @@ struct TensorData {
   WASINN::TensorType RType;
   Span<uint8_t> Tensor;
 };
+
+// The size in bytes of one element of a tensor type.
+constexpr std::size_t tensorElementSize(TensorType Type) noexcept {
+  switch (Type) {
+  case TensorType::U8:
+    return 1;
+  case TensorType::F16:
+    return 2;
+  case TensorType::F32:
+  case TensorType::I32:
+    return 4;
+  case TensorType::F64:
+  case TensorType::I64:
+    return 8;
+  }
+  return 0;
+}
+
+// Whether a dense tensor with the dimensions and the element size fills
+// exactly ByteLength bytes. A tensor without dimensions is a scalar.
+inline bool isDenseTensorSize(Span<const uint32_t> Dimension,
+                              std::size_t ElementSize,
+                              std::size_t ByteLength) noexcept {
+  if (ElementSize == 0 || ByteLength % ElementSize != 0) {
+    return false;
+  }
+  if (std::find(Dimension.begin(), Dimension.end(), 0U) != Dimension.end()) {
+    return ByteLength == 0;
+  }
+  const std::size_t ExpectedCount = ByteLength / ElementSize;
+  std::size_t Count = 1;
+  for (const uint32_t Dim : Dimension) {
+    if (Count > ExpectedCount / Dim) {
+      return false;
+    }
+    Count *= Dim;
+  }
+  return Count == ExpectedCount;
+}
 
 } // namespace WasmEdge::Host::WASINN
 

@@ -113,6 +113,25 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
+      - name: Check the build without the WAT loader
+        if: ${{ matrix.no_wat }}
+        run: |
+          # The build must not find or fetch tree-sitter, and libwasmedge must
+          # not hold the tree-sitter runtime. The runtime symbols are hidden,
+          # so the check reads the full symbol table, and not only the
+          # exported symbols.
+          if [ -e build/_deps/treesitter-src ]; then
+            echo "::error::The build without WAT fetched tree-sitter"
+            exit 1
+          fi
+          if grep '^TREESITTER_FOUND' build/CMakeCache.txt; then
+            echo "::error::The build without WAT looked for tree-sitter"
+            exit 1
+          fi
+          if nm build/lib/api/libwasmedge.so | grep ' ts_parser_'; then
+            echo "::error::libwasmedge holds tree-sitter symbols"
+            exit 1
+          fi
       - name: Check symbol exposure
         if: ${{ !matrix.coverage && !matrix.fuzzing }}
         run: |

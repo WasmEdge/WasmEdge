@@ -305,6 +305,7 @@ TEST(ModuleTest, LoadNativeLibraryMagicNotInAOTMode) {
   }
 }
 
+#ifdef WASMEDGE_BUILD_WAT
 // The text format input is experimental. The loader reads WAT text from a
 // buffer and from a file only with the EnableWAT flag. Without it, the text
 // goes to the binary loader, which rejects the magic header.
@@ -519,6 +520,7 @@ TEST(ModuleTest, TextAndBinaryMetadataMatch) {
   EXPECT_EQ(&BinTag.getDefType(),
             &(*BinMod)->getTypeSection().getContent()[BinTag.getTypeIdx()]);
 }
+#endif
 
 } // namespace
 

@@ -25,9 +25,11 @@
 #include "loader/loader.h"
 #include "runtime/instance/composite.h"
 #include "runtime/instance/module.h"
+#ifdef WASMEDGE_BUILD_WAT
 #include "wast_parser.h"
 #include "wat/parser.h"
 #include "wat/wat_util.h"
+#endif
 
 #include <gtest/gtest-spi.h>
 #include <gtest/gtest.h>
@@ -794,6 +796,7 @@ void SpecTest::executeCommands(Span<const Wast::ScriptCommand> Commands,
   // first byte does not decide, or if the bytes look like the other format. A
   // fixture that the harness cannot read is an error of the fixture, and not
   // an empty module.
+#ifdef WASMEDGE_BUILD_WAT
   auto FirstByteLooksLikeText = [](int C) -> std::optional<bool> {
     if (C == std::char_traits<char>::eof()) {
       return false;
@@ -807,9 +810,11 @@ void SpecTest::executeCommands(Span<const Wast::ScriptCommand> Commands,
     }
     return false;
   };
+#endif
 
   auto ParseSource = [&](std::string_view Source,
                          Wast::ModuleType Type) -> Expect<WasmUnit> {
+#ifdef WASMEDGE_BUILD_WAT
     const bool IsFile = Type == Wast::ModuleType::TextFile ||
                         Type == Wast::ModuleType::BinaryFile;
     const bool IsText =
@@ -851,6 +856,7 @@ void SpecTest::executeCommands(Span<const Wast::ScriptCommand> Commands,
       EXPECTED_TRY(auto Mod, WAT::parseWat(Bytes, Conf));
       return WasmUnit(std::make_unique<AST::Module>(std::move(Mod)));
     }
+#endif
     return onParse(RootCtx, Source, Type, Conf);
   };
 
@@ -947,6 +953,16 @@ void SpecTest::executeCommands(Span<const Wast::ScriptCommand> Commands,
 
   // Run the commands.
   for (const auto &Cmd : Commands) {
+#ifndef WASMEDGE_BUILD_WAT
+    // A build without the WAT loader cannot load a text module, so it skips
+    // the commands of a text module.
+    if (!Cmd.ModuleSource.empty() &&
+        (Cmd.ModType == Wast::ModuleType::Text ||
+         Cmd.ModType == Wast::ModuleType::TextFile ||
+         Cmd.ModType == Wast::ModuleType::Quote)) {
+      continue;
+    }
+#endif
     switch (Cmd.Type) {
     case Wast::CommandType::Module: {
       const auto ModName = EnterModule(Cmd);
@@ -1384,8 +1400,16 @@ void SpecTest::runFile(const std::filesystem::path &Path, const Configure &Conf,
 
   // A script that does not parse is a failure, and not a skip. A skip hides
   // a corrupt test unit behind a green result.
+#ifdef WASMEDGE_BUILD_WAT
   const auto Script =
       IsWast ? Wast::parseWast(Path) : Wast::parseJson(Path, !IsComp);
+#else
+  // The WAST parser uses the WAT parser, so a build without the WAT loader
+  // runs only the JSON scripts.
+  const auto Script =
+      IsWast ? Expect<Wast::WastScript>(Unexpect(ErrCode::Value::IllegalPath))
+             : Wast::parseJson(Path, !IsComp);
+#endif
   if (Script && Script->Commands.empty()) {
     ADD_FAILURE_AT(u8string(Path).c_str(), 1)
         << "The script has no command: " << u8string(Path);

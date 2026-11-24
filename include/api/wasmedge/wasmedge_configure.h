@@ -163,7 +163,9 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
 /// module. An empty input is a binary module, so an empty text module needs at
 /// least one whitespace character or one comment. A UTF-8 BOM before the text
 /// counts only for the detection: the text format has no BOM, so the parser
-/// rejects it.
+/// rejects it. In a build without the WAT loader (`WASMEDGE_BUILD_WAT=OFF`),
+/// the loader reads only the binary format. The flag is still kept, and
+/// WasmEdge_ConfigureIsEnableWAT returns it.
 ///
 /// This function is thread-safe.
 ///

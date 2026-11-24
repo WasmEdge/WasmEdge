@@ -110,6 +110,7 @@ each tree still keeps its own copy.
 | `WASMEDGE_BUILD_EXAMPLE` | OFF | Build `examples/plugin/get-string` |
 | `WASMEDGE_BUILD_WASI_NN_RPC` | OFF | Build WASI-NN RPC support/server; requires shared library |
 | `WASMEDGE_USE_LLVM` | ON | LLVM-based AOT/JIT compilation |
+| `WASMEDGE_BUILD_WAT` | ON | Build the experimental WAT text format loader; it uses or fetches the tree-sitter runtime |
 | `WASMEDGE_BUILD_SHARED_LIB` | ON | Build shared library |
 | `WASMEDGE_BUILD_STATIC_LIB` | OFF | Build static library |
 | `WASMEDGE_USE_CXX11_ABI` | — | Deprecated; warns and has no effect (the cxx11 ABI is always used) |

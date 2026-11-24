@@ -1645,6 +1645,7 @@ TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
+#ifdef WASMEDGE_BUILD_WAT
 TEST(APICoreTest, CompilerWat) {
   // The compiled output of WAT text must load with the configuration that
   // compiled it, also when that configuration has fewer proposals.
@@ -1731,6 +1732,7 @@ TEST(APICoreTest, CompilerWat) {
   }
   WasmEdge_StringDelete(FuncName);
 }
+#endif
 
 // Skip APICoreTest.RunModes on riscv64 builds. The test compiles a WASM to a
 // native shared library and then loads it back via dlopen. Under

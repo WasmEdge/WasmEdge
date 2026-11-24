@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#ifdef WASMEDGE_BUILD_FUZZING
+#if defined(WASMEDGE_BUILD_FUZZING) && defined(WASMEDGE_BUILD_WAT)
 #include "driver/fuzzWAT.h"
 #include "common/configure.h"
 #include "common/spdlog.h"

@@ -153,7 +153,12 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.EnableWAT.value()) {
     Conf.setEnableWAT(true);
+#ifdef WASMEDGE_BUILD_WAT
     spdlog::warn("WAT text format input is enabled, this is experimental."sv);
+#else
+    spdlog::warn("WAT text format input is not in this build. The option "
+                 "has no effect."sv);
+#endif
   }
 
   for (const auto &Name : Opt.ForbiddenPlugins.value()) {

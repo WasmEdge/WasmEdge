@@ -4,7 +4,9 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#ifdef WASMEDGE_BUILD_WAT
 #include "wat/parser.h"
+#endif
 
 #include <algorithm>
 #include <cstddef>
@@ -151,13 +153,20 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
 
 // Find if Code is WAT text that the loader reads. The text format loader is
 // experimental, so it is on only by request.
-bool Loader::isWatInput(Span<const uint8_t> Code) const {
+// A build without the WAT loader reads only the binary format, also with the
+// EnableWAT flag.
+bool Loader::isWatInput([[maybe_unused]] Span<const uint8_t> Code) const {
+#ifdef WASMEDGE_BUILD_WAT
   return EnableWAT && WAT::maybeWAT(Code);
+#else
+  return false;
+#endif
 }
 
 // Convert the WAT text Code into a module.
 Expect<std::unique_ptr<AST::Module>>
-Loader::parseWatUnit(Span<const uint8_t> Code) {
+Loader::parseWatUnit([[maybe_unused]] Span<const uint8_t> Code) {
+#ifdef WASMEDGE_BUILD_WAT
   // The text is a WASM module, so the input type is WASM.
   WASMType = InputType::WASM;
   EXPECTED_TRY(auto Mod, WAT::parseWat(Code, Conf).map_error([](auto E) {
@@ -165,6 +174,9 @@ Loader::parseWatUnit(Span<const uint8_t> Code) {
     return E;
   }));
   return std::make_unique<AST::Module>(std::move(Mod));
+#else
+  return Unexpect(ErrCode::Value::MalformedMagic);
+#endif
 }
 
 // Parse module or component from byte code. See "include/loader/loader.h".

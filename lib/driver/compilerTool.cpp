@@ -92,7 +92,12 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   Configure Conf = createProposalConfigure(Opt);
   if (Opt.EnableWAT.value()) {
     Conf.setEnableWAT(true);
+#ifdef WASMEDGE_BUILD_WAT
     spdlog::warn("WAT text format input is enabled, this is experimental."sv);
+#else
+    spdlog::warn("WAT text format input is not in this build. The option "
+                 "has no effect."sv);
+#endif
   }
 
   using OptimizationLevel = CompilerConfigure::OptimizationLevel;

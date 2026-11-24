@@ -49,16 +49,21 @@ foreach(PROPOSAL ${WASMEDGE_SPECTEST_FOLDERS})
   wasmedge_copy_spec_testsuite(${PROPOSAL})
 endforeach()
 
-wasmedge_add_library(wasmedgeTestSpec
+set(WASMEDGE_TESTSPEC_SOURCES
   spectest.cpp
-  wast_parser.cpp
   json_parser.cpp
+)
+if(WASMEDGE_BUILD_WAT)
+  list(APPEND WASMEDGE_TESTSPEC_SOURCES wast_parser.cpp)
+endif()
+
+wasmedge_add_library(wasmedgeTestSpec
+  ${WASMEDGE_TESTSPEC_SOURCES}
 )
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
   simdjson::simdjson
-  wasmedgeWat
   wasmedgeLoader
   PUBLIC
   std::filesystem
@@ -66,15 +71,24 @@ target_link_libraries(wasmedgeTestSpec
   ${GTEST_BOTH_LIBRARIES}
 )
 
-add_executable(wast2wat EXCLUDE_FROM_ALL
-  wast2wat.cpp
-  wast_parser.cpp
-)
-wasmedge_setup_target(wast2wat)
+# The WAST runner and the tests of the WAT loader need wasmedgeWat. A test
+# that links wasmedgeTestSpec gets the WASMEDGE_BUILD_WAT macro with it.
+if(WASMEDGE_BUILD_WAT)
+  target_link_libraries(wasmedgeTestSpec
+    PUBLIC
+    wasmedgeWat
+  )
 
-target_link_libraries(wast2wat
-  PRIVATE
-  wasmedgeWat
-  wasmedgeCommon
-  std::filesystem
-)
+  add_executable(wast2wat EXCLUDE_FROM_ALL
+    wast2wat.cpp
+    wast_parser.cpp
+  )
+  wasmedge_setup_target(wast2wat)
+
+  target_link_libraries(wast2wat
+    PRIVATE
+    wasmedgeWat
+    wasmedgeCommon
+    std::filesystem
+  )
+endif()

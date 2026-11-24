@@ -351,6 +351,8 @@ public:
   /// The WebAssembly text format loader is experimental. The loader reads
   /// WAT text only when this flag is on. The default is off, and
   /// setWASMStandard does not change it. An empty input is a binary module.
+  /// A build without the WAT loader keeps the flag, but it reads only the
+  /// binary format.
   void setEnableWAT(bool IsEnableWAT) noexcept {
     std::unique_lock Lock(Mutex);
     EnableWAT = IsEnableWAT;

@@ -17,7 +17,9 @@
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
 #include "driver/fuzzTool.h"
+#ifdef WASMEDGE_BUILD_WAT
 #include "driver/fuzzWAT.h"
+#endif
 #endif
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -3905,6 +3907,7 @@ WasmEdge_Driver_FuzzPO(const uint8_t *Data, size_t Size) noexcept {
   }
 }
 
+#ifdef WASMEDGE_BUILD_WAT
 WASMEDGE_CAPI_EXPORT extern "C" int
 WasmEdge_Driver_FuzzWAT(const uint8_t *Data, size_t Size) noexcept {
   try {
@@ -3914,6 +3917,7 @@ WasmEdge_Driver_FuzzWAT(const uint8_t *Data, size_t Size) noexcept {
     return EXIT_FAILURE;
   }
 }
+#endif
 #endif
 
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

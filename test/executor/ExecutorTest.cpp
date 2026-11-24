@@ -566,6 +566,7 @@ TEST(WideArithmetic, MulWideU) {
   }
 }
 
+#ifdef WASMEDGE_BUILD_WAT
 // This suite runs the same spec tests directly from the .wast files. It uses
 // the WAST parser of tree-sitter, and the interpreter of the VM.
 static SpecTest TWast(u8path("../spec/testSuites"sv),
@@ -1127,6 +1128,7 @@ TEST(JsonRunnerTest, TextFixtureFiles) {
   EXPECT_NONFATAL_FAILURE(T.runFile(MissingMalformed, Conf),
                           "cannot read its module fixture");
 }
+#endif
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

@@ -198,6 +198,14 @@ target_link_libraries(wasmedgeWat
   wasmedgeCommon
 )
 
+# The code that links wasmedgeWat can use the WAT loader. A build with
+# WASMEDGE_BUILD_WAT=OFF has no wasmedgeWat, and this macro is then not
+# defined.
+target_compile_definitions(wasmedgeWat
+  PUBLIC
+  WASMEDGE_BUILD_WAT
+)
+
 # The public header wat/tree_sitter.h includes the api.h header of the
 # runtime. The WAST script parser of the spec tests uses that header.
 target_include_directories(wasmedgeWat

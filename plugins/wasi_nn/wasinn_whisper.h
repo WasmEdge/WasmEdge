@@ -92,7 +92,9 @@ public:
   uint32_t GraphId;
   // mono-channel F32 PCM input.
   std::vector<float> InputPCM;
-  std::vector<std::vector<float>> InputPCMs;
+  // Interleaved 16-bit samples of a stereo input for diarization. Empty for a
+  // mono input.
+  std::vector<int16_t> InputStereoPCM16;
   // Whisper config. Inherited from the graph and updated from metadata when
   // setting input.
   Config WhisperConfig;

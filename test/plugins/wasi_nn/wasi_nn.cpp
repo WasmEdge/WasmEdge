@@ -3942,6 +3942,67 @@ private:
   uint32_t GraphId = 0;
 };
 
+// RIFF stores integers in little-endian byte order.
+uint32_t readLE32(const uint8_t *Bytes) {
+  return static_cast<uint32_t>(Bytes[0]) |
+         static_cast<uint32_t>(Bytes[1]) << 8 |
+         static_cast<uint32_t>(Bytes[2]) << 16 |
+         static_cast<uint32_t>(Bytes[3]) << 24;
+}
+
+std::vector<int16_t> readWAVSamples(const std::vector<uint8_t> &WAV) {
+  size_t Pos = 12;
+  while (Pos + 8 <= WAV.size()) {
+    const uint32_t Size = readLE32(WAV.data() + Pos + 4);
+    if (std::equal(WAV.data() + Pos, WAV.data() + Pos + 4, "data")) {
+      const size_t Count = std::min<size_t>(Size, WAV.size() - Pos - 8) / 2;
+      std::vector<int16_t> Samples(Count);
+      const uint8_t *Data = WAV.data() + Pos + 8;
+      for (size_t I = 0; I < Count; ++I) {
+        Samples[I] =
+            static_cast<int16_t>(static_cast<uint16_t>(Data[2 * I]) |
+                                 static_cast<uint16_t>(Data[2 * I + 1]) << 8);
+      }
+      return Samples;
+    }
+    Pos += 8 + static_cast<size_t>(Size) + (Size & 1);
+  }
+  return {};
+}
+
+std::vector<uint8_t> makeWAV(uint16_t Channels,
+                             const std::vector<int16_t> &Samples) {
+  const uint32_t SampleRate = 16000;
+  const uint32_t DataSize = static_cast<uint32_t>(Samples.size() * 2);
+  std::vector<uint8_t> WAV;
+  auto Put = [&WAV](const auto Value) {
+    for (size_t I = 0; I < sizeof(Value); ++I) {
+      WAV.push_back(
+          static_cast<uint8_t>(static_cast<uint64_t>(Value) >> (8 * I)));
+    }
+  };
+  auto PutTag = [&WAV](std::string_view Tag) {
+    WAV.insert(WAV.end(), Tag.begin(), Tag.end());
+  };
+  PutTag("RIFF"sv);
+  Put(static_cast<uint32_t>(36 + DataSize));
+  PutTag("WAVE"sv);
+  PutTag("fmt "sv);
+  Put(UINT32_C(16));
+  Put(static_cast<uint16_t>(1));
+  Put(Channels);
+  Put(SampleRate);
+  Put(static_cast<uint32_t>(SampleRate * Channels * 2));
+  Put(static_cast<uint16_t>(Channels * 2));
+  Put(static_cast<uint16_t>(16));
+  PutTag("data"sv);
+  Put(DataSize);
+  for (const int16_t Sample : Samples) {
+    Put(static_cast<uint16_t>(Sample));
+  }
+  return WAV;
+}
+
 } // namespace
 
 TEST(WasiNNTest, WhisperBackend) {
@@ -4219,6 +4280,36 @@ TEST(WasiNNTest, WhisperBackendFailedMetadataKeepsConfig) {
   const auto Output = H.getOutput(Ctx);
   ASSERT_FALSE(Output.empty());
   EXPECT_EQ(Output.front(), '[') << Output;
+}
+
+TEST(WasiNNTest, WhisperBackendDiarizeFollowsChannels) {
+  WhisperHarness H;
+  ASSERT_TRUE(H.load());
+  const auto Mono = readEntireFile("./wasinn_whisper_fixtures/test.wav");
+  const auto Samples = readWAVSamples(Mono);
+  ASSERT_FALSE(Samples.empty());
+  std::vector<int16_t> StereoSamples;
+  StereoSamples.reserve(Samples.size() * 2);
+  for (const auto Sample : Samples) {
+    StereoSamples.push_back(Sample);
+    StereoSamples.push_back(Sample);
+  }
+  const auto Stereo = makeWAV(2, StereoSamples);
+  uint32_t Ctx = 0;
+  ASSERT_TRUE(H.initContext(Ctx));
+
+  EXPECT_EQ(H.setInput(Ctx, 0, Stereo), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.setMetadata(Ctx, "{\"diarize\":true}"sv),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.compute(Ctx), static_cast<int32_t>(ErrNo::Success));
+  const auto StereoOutput = H.getOutput(Ctx);
+  EXPECT_NE(StereoOutput.find("(speaker"sv), std::string::npos) << StereoOutput;
+
+  EXPECT_EQ(H.setInput(Ctx, 0, Mono), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.compute(Ctx), static_cast<int32_t>(ErrNo::Success));
+  const auto MonoOutput = H.getOutput(Ctx);
+  EXPECT_FALSE(MonoOutput.empty());
+  EXPECT_EQ(MonoOutput.find("(speaker"sv), std::string::npos) << MonoOutput;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 

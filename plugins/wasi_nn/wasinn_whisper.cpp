@@ -46,11 +46,11 @@ std::string toTimestamp(int64_t T, bool Comma) {
   return std::string(Buf);
 }
 
-std::string
-estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
-                           int64_t T0, int64_t T1, bool IdOnly = false) {
+std::string estimateDiarizationSpeaker(Span<const int16_t> StereoPCM16,
+                                       int64_t T0, int64_t T1,
+                                       bool IdOnly = false) {
   std::string Speaker = "";
-  const int64_t NSamples = PCMF32s[0].size();
+  const int64_t NSamples = static_cast<int64_t>(StereoPCM16.size() / 2);
 
   const int64_t Is0 = timestampToSample(T0, NSamples, WHISPER_SAMPLE_RATE);
   const int64_t Is1 = timestampToSample(T1, NSamples, WHISPER_SAMPLE_RATE);
@@ -59,8 +59,8 @@ estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
   double Energy1 = 0.0f;
 
   for (int64_t I = Is0; I < Is1; I++) {
-    Energy0 += fabs(PCMF32s[0][I]);
-    Energy1 += fabs(PCMF32s[1][I]);
+    Energy0 += std::abs(static_cast<int32_t>(StereoPCM16[2 * I]));
+    Energy1 += std::abs(static_cast<int32_t>(StereoPCM16[2 * I + 1]));
   }
 
   if (Energy0 > 1.1 * Energy1) {
@@ -93,7 +93,7 @@ bool writeText(Host::File &File, const std::string &Fname,
 
 bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
                const std::string &Fname, const Config &Params,
-               const std::vector<std::vector<float>> &PCMF32s) {
+               Span<const int16_t> StereoPCM16) {
   auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
                            __WASI_RIGHTS_FD_WRITE);
   if (!File) {
@@ -112,8 +112,8 @@ bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
     const int64_t T1 = whisper_full_get_segment_t1(Ctx, I);
     std::string Speaker = "";
 
-    if (Params.Diarize && PCMF32s.size() == 2) {
-      Speaker = estimateDiarizationSpeaker(PCMF32s, T0, T1);
+    if (Params.Diarize && !StereoPCM16.empty()) {
+      Speaker = estimateDiarizationSpeaker(StereoPCM16, T0, T1);
     }
 
     Fout << I + 1 + Params.OffsetN << "\n";
@@ -125,7 +125,7 @@ bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
 
 static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
                       const std::string &Fname, const Config &Params,
-                      const std::vector<std::vector<float>> &PCMF32s) {
+                      Span<const int16_t> StereoPCM16) {
   auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
                            __WASI_RIGHTS_FD_WRITE);
   if (!File) {
@@ -156,10 +156,10 @@ static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
     std::string TimestampLrc = std::string(Buf);
     std::string Speaker = "";
 
-    if (Params.Diarize && PCMF32s.size() == 2) {
+    if (Params.Diarize && !StereoPCM16.empty()) {
       const int64_t t0 = whisper_full_get_segment_t0(Ctx, I);
       const int64_t t1 = whisper_full_get_segment_t1(Ctx, I);
-      Speaker = estimateDiarizationSpeaker(PCMF32s, t0, t1);
+      Speaker = estimateDiarizationSpeaker(StereoPCM16, t0, t1);
     }
 
     Fout << '[' << TimestampLrc << ']' << Speaker << text << "\n";
@@ -181,7 +181,7 @@ std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
 
 bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
                 const std::string &Fname, const Config &Params,
-                const std::vector<std::vector<float>> &PCMF32s, bool Full) {
+                Span<const int16_t> StereoPCM16, bool Full) {
   auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
                            __WASI_RIGHTS_FD_WRITE);
   std::ostringstream Fout;
@@ -331,8 +331,8 @@ bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
       EndArr(!Params.Diarize && !Params.TinyDiarize);
     }
 
-    if (Params.Diarize && PCMF32s.size() == 2) {
-      ValueS("speaker", estimateDiarizationSpeaker(PCMF32s, T0, T1, true),
+    if (Params.Diarize && !StereoPCM16.empty()) {
+      ValueS("speaker", estimateDiarizationSpeaker(StereoPCM16, T0, T1, true),
              true);
     }
 
@@ -363,7 +363,7 @@ bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
 }
 
 bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
-             std::vector<std::vector<float>> &PCMF32s, bool Stereo) {
+             std::vector<int16_t> &StereoPCM16) {
   // Do not use the helper function from whisper.cpp examples to avoid copying.
   drwav WAV;
   const uint32_t ConstSampleRate = 16000;
@@ -393,7 +393,11 @@ bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
   }
 
   const uint32_t N = WAV.totalPCMFrameCount;
-  std::vector<int16_t> PCM16(N * WAV.channels);
+  // Keep the interleaved samples of a stereo input for diarization. A mono
+  // input needs them only for the conversion.
+  std::vector<int16_t> MonoPCM16;
+  std::vector<int16_t> &PCM16 = WAV.channels == 2 ? StereoPCM16 : MonoPCM16;
+  PCM16.resize(static_cast<size_t>(N) * WAV.channels);
   drwav_read_pcm_frames_s16(&WAV, N, PCM16.data());
   drwav_uninit(&WAV);
 
@@ -402,20 +406,11 @@ bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
     for (uint64_t I = 0; I < N; I++) {
       PCMF32[I] = static_cast<float>(PCM16[I]) / 32768.0f;
     }
+    StereoPCM16.clear();
   } else {
     for (uint64_t I = 0; I < N; I++) {
       PCMF32[I] =
           static_cast<float>(PCM16[2 * I] + PCM16[2 * I + 1]) / 65536.0f;
-    }
-  }
-  if (Stereo) {
-    PCMF32s.resize(2);
-
-    PCMF32s[0].resize(N);
-    PCMF32s[1].resize(N);
-    for (uint64_t I = 0; I < N; I++) {
-      PCMF32s[0][I] = float(PCM16[2 * I]) / 32768.0f;
-      PCMF32s[1][I] = float(PCM16[2 * I + 1]) / 32768.0f;
     }
   }
   return true;
@@ -457,8 +452,8 @@ void WhisperOutputSegmentCallback(struct whisper_context *WhisperCtx,
       CxtRef.Outputs += toTimestamp(T1, false);
       CxtRef.Outputs += "] ";
     }
-    if (CxtRef.WhisperConfig.Diarize && CxtRef.InputPCMs.size() == 2) {
-      Speaker = estimateDiarizationSpeaker(CxtRef.InputPCMs, T0, T1);
+    if (CxtRef.WhisperConfig.Diarize && !CxtRef.InputStereoPCM16.empty()) {
+      Speaker = estimateDiarizationSpeaker(CxtRef.InputStereoPCM16, T0, T1);
     }
     CxtRef.Outputs += Speaker + whisper_full_get_segment_text(WhisperCtx, I);
     if (!CxtRef.WhisperConfig.NoTimestamps || CxtRef.WhisperConfig.Diarize) {
@@ -1007,8 +1002,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
     spdlog::error("[WASI-NN] Only WAV format supported now."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  if (!loadWAV(Tensor.Tensor, CxtRef.InputPCM, CxtRef.InputPCMs,
-               CxtRef.WhisperConfig.Diarize)) {
+  if (!loadWAV(Tensor.Tensor, CxtRef.InputPCM, CxtRef.InputStereoPCM16)) {
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -1047,19 +1041,19 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, WASINN::Graph &G,
   if (CxtRef.WhisperConfig.OutputSrt) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".srt";
     outputSrt(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
-              CxtRef.InputPCMs);
+              CxtRef.InputStereoPCM16);
   }
 
   if (CxtRef.WhisperConfig.OutputLrc) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".lrc";
     outputLrc(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
-              CxtRef.InputPCMs);
+              CxtRef.InputStereoPCM16);
   }
 
   if (CxtRef.WhisperConfig.OutputJson) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".json";
     outputJson(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
-               CxtRef.InputPCMs, CxtRef.WhisperConfig.OutputJsonFull);
+               CxtRef.InputStereoPCM16, CxtRef.WhisperConfig.OutputJsonFull);
   }
 
   return ErrNo::Success;

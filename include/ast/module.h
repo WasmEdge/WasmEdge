@@ -16,6 +16,7 @@
 
 #include "ast/section.h"
 
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -24,6 +25,49 @@ namespace AST {
 /// AST Module node.
 class Module {
 public:
+  Module() = default;
+
+  /// Copy constructor. The tag types of the copy point to its own types.
+  Module(const Module &Mod)
+      : Magic(Mod.Magic), Version(Mod.Version), CustomSecs(Mod.CustomSecs),
+        TypeSec(Mod.TypeSec), ImportSec(Mod.ImportSec),
+        FunctionSec(Mod.FunctionSec), TableSec(Mod.TableSec),
+        MemorySec(Mod.MemorySec), GlobalSec(Mod.GlobalSec),
+        ExportSec(Mod.ExportSec), StartSec(Mod.StartSec),
+        ElementSec(Mod.ElementSec), CodeSec(Mod.CodeSec), DataSec(Mod.DataSec),
+        DataCountSec(Mod.DataCountSec), TagSec(Mod.TagSec), AOTSec(Mod.AOTSec),
+        IntrSymbol(Mod.IntrSymbol), IsValidated(Mod.IsValidated) {
+    auto &TypeVec = TypeSec.getContent();
+    for (auto &TgType : TagSec.getContent()) {
+      if (TgType.getTypeIdx() < TypeVec.size()) {
+        TgType.setDefType(&TypeVec[TgType.getTypeIdx()]);
+      }
+    }
+    for (auto &Desc : ImportSec.getContent()) {
+      if (Desc.getExternalType() == ExternalType::Tag) {
+        auto &TgType = Desc.getExternalTagType();
+        if (TgType.getTypeIdx() < TypeVec.size()) {
+          TgType.setDefType(&TypeVec[TgType.getTypeIdx()]);
+        }
+      }
+    }
+  }
+
+  /// Move constructor.
+  Module(Module &&Mod) = default;
+
+  /// Copy assignment.
+  Module &operator=(const Module &Mod) {
+    if (this != &Mod) {
+      Module Tmp(Mod);
+      *this = std::move(Tmp);
+    }
+    return *this;
+  }
+
+  /// Move assignment.
+  Module &operator=(Module &&Mod) = default;
+
   /// Getter for magic vector.
   const std::vector<Byte> &getMagic() const noexcept { return Magic; }
   std::vector<Byte> &getMagic() noexcept { return Magic; }

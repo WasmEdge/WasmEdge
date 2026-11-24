@@ -367,13 +367,6 @@ private:
   }
   /// @}
 
-  /// \name Helper function to set the function type for tag
-  /// @{
-  void setTagFunctionType(AST::TagSection &TagSec,
-                          AST::ImportSection &ImportSec,
-                          AST::TypeSection &TypeSec);
-  /// @}
-
   /// \name Load AST nodes functions
   /// @{
   Expect<void> loadSection(AST::CustomSection &Sec);

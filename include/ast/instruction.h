@@ -352,5 +352,32 @@ private:
 using InstrVec = std::vector<Instruction>;
 using InstrView = Span<const Instruction>;
 
+/// Close the block, the loop, the if, or the try_table at BlockPos with the
+/// End instruction at the back of Instrs. The function writes the jump offsets
+/// of the block, of its else, and of its end, and the flags of the End
+/// instruction. The binary loader and the text format converter share this
+/// rule, so the two front ends make the same metadata.
+inline void closeBlock(InstrVec &Instrs, uint32_t BlockPos) noexcept {
+  const auto EndPos = static_cast<uint32_t>(Instrs.size() - 1);
+  auto &Block = Instrs[BlockPos];
+  Instrs.back().setExprLast(false);
+  if (Block.getOpCode() == OpCode::Try_table) {
+    Instrs.back().setTryBlockLast(true);
+    Block.getTryCatch().JumpEnd = EndPos - BlockPos;
+    return;
+  }
+  Instrs.back().setTryBlockLast(false);
+  Block.setJumpEnd(EndPos - BlockPos);
+  if (Block.getOpCode() == OpCode::If) {
+    if (Block.getJumpElse() == 0) {
+      // An if block without an else branch jumps to its end.
+      Block.setJumpElse(EndPos - BlockPos);
+    } else {
+      const uint32_t ElsePos = BlockPos + Block.getJumpElse();
+      Instrs[ElsePos].setJumpEnd(EndPos - ElsePos);
+    }
+  }
+}
+
 } // namespace AST
 } // namespace WasmEdge

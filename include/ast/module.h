@@ -175,5 +175,26 @@ private:
   /// @}
 };
 
+/// Set the DefType pointer of each tag type in the tag section and in the
+/// import section of Mod. A type index that is out of range leaves the pointer
+/// unset, and the validator reports the index. The binary loader and the text
+/// format converter share this rule.
+inline void linkTagTypes(Module &Mod) noexcept {
+  auto &TypeVec = Mod.getTypeSection().getContent();
+  const auto Link = [&TypeVec](TagType &TgType) {
+    if (const auto TypeIdx = TgType.getTypeIdx(); TypeIdx < TypeVec.size()) {
+      TgType.setDefType(&TypeVec[TypeIdx]);
+    }
+  };
+  for (auto &TgType : Mod.getTagSection().getContent()) {
+    Link(TgType);
+  }
+  for (auto &Desc : Mod.getImportSection().getContent()) {
+    if (Desc.getExternalType() == ExternalType::Tag) {
+      Link(Desc.getExternalTagType());
+    }
+  }
+}
+
 } // namespace AST
 } // namespace WasmEdge

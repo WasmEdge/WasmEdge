@@ -738,6 +738,9 @@ protected:
     for (auto &Worker : Workers) {
       Worker.wait();
     }
+    if (SyncCall.valid()) {
+      SyncCall.wait();
+    }
   }
 
   WasmEdge::Runtime::Instance::MemoryInstance &
@@ -898,6 +901,11 @@ protected:
   std::promise<void> Open;
   bool GateOpened = false;
   std::future<WasmEdge::Expect<void>> Locker;
+  /// A synchronous call on another thread. TearDown() stops the VM before it
+  /// waits for the call, so a call that spins also ends after a failure.
+  std::future<decltype(std::declval<WasmEdge::VM::VM &>().execute(
+      std::string_view{}))>
+      SyncCall;
 };
 
 TEST_F(StopTest, StopDoesNotInterruptNextRun) {
@@ -952,6 +960,25 @@ TEST_F(StopTest, StopReachesRunBeforeItStarts) {
   EXPECT_TRUE(Registered ||
               Registered.error() == WasmEdge::ErrCode::Value::Interrupted);
   expectInterrupted(Spinner);
+}
+
+TEST_F(StopTest, StopReachesCallThatWaitsForTheLock) {
+  ASSERT_TRUE(closeGate());
+  SyncCall = std::async(std::launch::async,
+                        [this]() { return VM->execute("spin"sv); });
+  const auto Until = std::chrono::steady_clock::now() + 500ms;
+  while (std::chrono::steady_clock::now() < Until) {
+    VM->stop();
+    std::this_thread::sleep_for(1ms);
+  }
+  auto Registered = openGate();
+  EXPECT_TRUE(Registered ||
+              Registered.error() == WasmEdge::ErrCode::Value::Interrupted);
+  EXPECT_TRUE(VM->execute("release"sv));
+  ASSERT_EQ(SyncCall.wait_for(Bound), std::future_status::ready);
+  auto Result = SyncCall.get();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
 }
 
 TEST_F(StopTest, CancelReachesRunBeforeItStarts) {

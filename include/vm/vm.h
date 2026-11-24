@@ -66,16 +66,16 @@ public:
   /// Register wasm modules and host modules.
   Expect<void> registerModule(std::string_view Name,
                               const std::filesystem::path &Path) {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeRegisterModule(Name, Path);
   }
   Expect<void> registerModule(std::string_view Name, Span<const Byte> Code) {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeRegisterModule(Name, Code);
   }
   Expect<void> registerModule(std::string_view Name,
                               const AST::Module &Module) {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeRegisterModule(Name, Module);
   }
   Expect<void>
@@ -110,21 +110,21 @@ public:
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {}) {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeRunWasmFile(Path, Func, Params, ParamTypes);
   }
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(Span<const Byte> Code, std::string_view Func,
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {}) {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeRunWasmFile(Code, Func, Params, ParamTypes);
   }
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const AST::Module &Module, std::string_view Func,
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {}) {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeRunWasmFile(Module, Func, Params, ParamTypes);
   }
 
@@ -189,7 +189,7 @@ public:
   /// ======= Functions can be called after the validated stage. =======
   /// Instantiate validated wasm module.
   Expect<void> instantiate() {
-    std::unique_lock Lock(Mutex);
+    RunLock<std::unique_lock> Lock(*this);
     return unsafeInstantiate();
   }
 
@@ -198,7 +198,7 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view Func, Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {}) {
-    std::shared_lock Lock(Mutex);
+    RunLock<std::shared_lock> Lock(*this);
     return unsafeExecute(Func, Params, ParamTypes);
   }
 
@@ -207,7 +207,7 @@ public:
   execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {}) {
-    std::shared_lock Lock(Mutex);
+    RunLock<std::shared_lock> Lock(*this);
     return unsafeExecute(ModName, Func, Params, ParamTypes);
   }
 
@@ -216,7 +216,7 @@ public:
   executeComponent(std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
                    Span<const ComponentValType> ParamTypes = {}) {
-    std::shared_lock Lock(Mutex);
+    RunLock<std::shared_lock> Lock(*this);
     return unsafeExecuteComponent(Func, Params, ParamTypes);
   }
 
@@ -225,7 +225,7 @@ public:
   executeComponent(std::string_view CompName, std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
                    Span<const ComponentValType> ParamTypes = {}) {
-    std::shared_lock Lock(Mutex);
+    RunLock<std::shared_lock> Lock(*this);
     return unsafeExecuteComponent(CompName, Func, Params, ParamTypes);
   }
 
@@ -261,6 +261,8 @@ public:
   /// Without them, a stop still reaches compiled code when it calls a function
   /// through the runtime or waits in memory.atomic.wait. A run that ends before
   /// its next checkpoint ends normally.
+  ///
+  /// A stop also reaches a synchronous call that waits for the VM lock.
   void stop() noexcept { ExecutorEngine.stop(); }
 
   /// Snapshot VM-owned core modules at an invocation boundary. An empty path
@@ -341,6 +343,17 @@ private:
   std::shared_ptr<Executor::Executor::StopState> startRun() {
     return ExecutorEngine.startRun();
   }
+
+  /// Start a run, and then lock the VM. The run ends after the lock is
+  /// released, so a stop request reaches a call that waits for the lock.
+  template <template <typename> class LockT> class RunLock {
+  public:
+    explicit RunLock(VM &V) : Run(V.ExecutorEngine), Lock(V.Mutex) {}
+
+  private:
+    Executor::Executor::RunScope Run;
+    LockT<std::shared_mutex> Lock;
+  };
 
   std::vector<Runtime::Instance::ModuleInstance *> collectModuleInstances();
 

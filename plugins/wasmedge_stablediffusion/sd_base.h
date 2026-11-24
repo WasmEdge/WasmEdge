@@ -3,10 +3,12 @@
 
 #pragma once
 
+#include "sd_abi.h"
 #include "sd_env.h"
 
-#include "common/errcode.h"
 #include "runtime/hostfunc.h"
+
+#include <cstdint>
 
 namespace WasmEdge {
 namespace Host {
@@ -14,13 +16,14 @@ namespace StableDiffusion {
 
 template <typename T> class Func : public Runtime::HostFunction<T> {
 public:
-  Func(SDEnviornment &HostEnv) : Runtime::HostFunction<T>(0), Env(HostEnv) {}
+  explicit Func(SDEnvironment &HostEnv)
+      : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  static constexpr uint32_t castErrNo(StableDiffusion::ErrNo E) noexcept {
+  static constexpr uint32_t castErrNo(ErrNo E) noexcept {
     return static_cast<uint32_t>(E);
   }
-  SDEnviornment &Env;
+  SDEnvironment &Env;
 };
 
 } // namespace StableDiffusion

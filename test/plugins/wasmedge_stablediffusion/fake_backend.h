@@ -53,7 +53,9 @@ public:
                                                      const GenerationInputs &)>
       OnGenerate;
   std::atomic<int> LiveContexts{0}, Opens{0}, Generates{0};
+  SessionConfig LastSessionConfig;
   SessionFiles LastSessionFiles;
+  GenerationRequest LastGenerationRequest;
   RequestFiles LastRequestFiles;
   Expected<std::unique_ptr<BackendContext>, ErrNo>
   open(const SessionConfig &, const SessionFiles &) noexcept override;
@@ -73,6 +75,7 @@ public:
   generate(const GenerationRequest &Req, const RequestFiles &Files,
            const GenerationInputs &Inputs) noexcept override {
     ++Owner.Generates;
+    Owner.LastGenerationRequest = Req;
     Owner.LastRequestFiles = Files;
     if (Owner.OnGenerate) {
       return Owner.OnGenerate(Req, Files, Inputs);
@@ -86,8 +89,10 @@ private:
 };
 
 inline Expected<std::unique_ptr<BackendContext>, ErrNo>
-FakeBackend::open(const SessionConfig &, const SessionFiles &Files) noexcept {
+FakeBackend::open(const SessionConfig &Config,
+                  const SessionFiles &Files) noexcept {
   ++Opens;
+  LastSessionConfig = Config;
   LastSessionFiles = Files;
   if (OpenError) {
     return Unexpected<ErrNo>(*OpenError);

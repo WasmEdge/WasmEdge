@@ -406,6 +406,9 @@ public:
   const SubType &getDefType() const noexcept { return *Type; }
   void setDefType(const SubType *DefType) noexcept { Type = DefType; }
 
+  // Check whether the Defined Type is set.
+  bool hasDefType() const noexcept { return Type != nullptr; }
+
   // Getter for the size of the value associated with the tag.
   uint32_t getAssocValSize() const noexcept {
     if (Type && Type->getCompositeType().isFunc()) {

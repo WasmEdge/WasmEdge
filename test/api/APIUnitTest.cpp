@@ -185,6 +185,10 @@ std::vector<uint8_t> ReexportedImportedTagWasm = {
     0x60, 0x01, 0x7f, 0x00, 0x02, 0x08, 0x01, 0x01, 0x6d, 0x01, 0x74,
     0x04, 0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
 
+std::vector<uint8_t> UnknownTypeImportedTagWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02,
+    0x08, 0x01, 0x01, 0x6d, 0x01, 0x74, 0x04, 0x00, 0x05};
+
 std::vector<uint8_t> FibonacciWasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x6,  0x1,
     0x60, 0x1,  0x7f, 0x1,  0x7f, 0x3,  0x2,  0x1,  0x0,  0x7,  0x7,
@@ -1234,6 +1238,25 @@ TEST(APICoreTest, ImportType) {
   EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
                 WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7])),
             WasmEdge_Mutability_Const);
+
+  // Test retrieving the type of an imported tag with an unknown type index.
+  WasmEdge_ASTModuleDelete(Mod);
+  Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(
+          UnknownTypeImportedTagWasm.data(),
+          static_cast<uint32_t>(UnknownTypeImportedTagWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  const WasmEdge_ImportTypeContext *UnknownTypeTagImport = nullptr;
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(Mod), 1U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, &UnknownTypeTagImport, 1), 1U);
+  ASSERT_NE(UnknownTypeTagImport, nullptr);
+  const WasmEdge_TagTypeContext *UnknownTypeTagType =
+      WasmEdge_ImportTypeGetTagType(Mod, UnknownTypeTagImport);
+  ASSERT_NE(UnknownTypeTagType, nullptr);
+  EXPECT_EQ(WasmEdge_TagTypeGetFunctionType(UnknownTypeTagType), nullptr);
 
   WasmEdge_LoaderDelete(Loader);
   WasmEdge_ASTModuleDelete(Mod);

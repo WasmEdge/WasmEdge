@@ -19,18 +19,22 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <numeric>
 #include <set>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -117,6 +121,32 @@ void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                      uint32_t PtrVal, uint32_t PtrSize, uint32_t &Ptr) {
   writeUInt32(MemInst, PtrVal, Ptr);
   writeUInt32(MemInst, PtrSize, Ptr);
+}
+
+// Writes a set_input tensor descriptor at Ptr. The dimensions start at DimPtr
+// and the data follows the dimensions.
+[[maybe_unused]] void
+writeTensorDescriptor(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+                      uint32_t DimPtr, uint32_t DimCount, TensorType Type,
+                      uint32_t DataLength, uint32_t &Ptr) {
+  writeFatPointer(MemInst, DimPtr, DimCount, Ptr);
+  writeUInt32(MemInst, static_cast<uint32_t>(Type), Ptr);
+  writeFatPointer(MemInst, DimPtr + DimCount * 4, DataLength, Ptr);
+}
+
+[[maybe_unused]] ErrNo
+runHostFunc(WasmEdge::Host::WasiNNModule &NNMod,
+            const WasmEdge::Runtime::CallingFrame &CallFrame,
+            std::string_view Name,
+            std::initializer_list<WasmEdge::ValVariant> Args) {
+  auto *FuncInst = NNMod.findFuncExports(Name);
+  EXPECT_NE(FuncInst, nullptr);
+  if (FuncInst == nullptr) {
+    return ErrNo::NotFound;
+  }
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+  EXPECT_TRUE(FuncInst->getHostFunc().run(CallFrame, Args, Errno));
+  return static_cast<ErrNo>(Errno[0].get<uint32_t>());
 }
 
 #if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
@@ -846,6 +876,37 @@ TEST(WasiNNTest, PyTorchBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
+  // Test: set_input -- input index at the uint32_t maximum.
+  BuilderPtr = SetInputEntryPtr;
+  writeTensorDescriptor(
+      MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+      TensorType::F32, static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(HostFuncSetInput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0xFFFFFFFF), SetInputEntryPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: set_input -- tensor data shorter than the dimensions.
+  BuilderPtr = SetInputEntryPtr;
+  writeTensorDescriptor(
+      MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+      TensorType::F32, static_cast<uint32_t>(TensorData.size() - 4),
+      BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
@@ -949,6 +1010,77 @@ TEST(WasiNNTest, PyTorchBackend) {
       EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
     }
   }
+}
+
+TEST(WasiNNTest, PyTorchBackendContextState) {
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(2)));
+  auto &MemInst = *Mod.findMemoryExports("memory");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto Run = [&](std::string_view Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    return runHostFunc(*NNMod, CallFrame, Name, Args);
+  };
+
+  // Memory layout: result ids at 0, a graph builder at 16, a tensor
+  // descriptor at 32, the dimensions at 64, the output at 256, and the model
+  // at 1024.
+  const uint32_t ResultPtr = 0;
+  const uint32_t BuilderPtr = 16;
+  const uint32_t TensorPtr = 32;
+  const uint32_t DimPtr = 64;
+  const uint32_t OutputPtr = 256;
+  const uint32_t ModelPtr = 1024;
+  auto LoadModel = [&](const std::string &Source) {
+    torch::jit::Module Model("Model");
+    Model.define(Source);
+    std::ostringstream Stream;
+    Model.save(Stream);
+    const std::string Bytes = Stream.str();
+    writeBinaries<uint8_t>(
+        MemInst, std::vector<uint8_t>(Bytes.begin(), Bytes.end()), ModelPtr);
+    uint32_t Ptr = BuilderPtr;
+    writeFatPointer(MemInst, ModelPtr, static_cast<uint32_t>(Bytes.size()),
+                    Ptr);
+    EXPECT_EQ(Run("load", {BuilderPtr, UINT32_C(1),
+                           static_cast<uint32_t>(Backend::PyTorch),
+                           static_cast<uint32_t>(Device::CPU), ResultPtr}),
+              ErrNo::Success);
+    const uint32_t GraphId = *MemInst.getPointer<uint32_t *>(ResultPtr);
+    EXPECT_EQ(Run("init_execution_context", {GraphId, ResultPtr}),
+              ErrNo::Success);
+    return *MemInst.getPointer<uint32_t *>(ResultPtr);
+  };
+  auto SetInput = [&](uint32_t ContextId, uint32_t Index, float Value,
+                      uint32_t DataLength) {
+    writeBinaries<uint32_t>(MemInst, std::vector<uint32_t>{1}, DimPtr);
+    writeBinaries<float>(MemInst, std::vector<float>{Value}, DimPtr + 4);
+    uint32_t Ptr = TensorPtr;
+    writeTensorDescriptor(MemInst, DimPtr, 1, TensorType::F32, DataLength, Ptr);
+    return Run("set_input", {ContextId, Index, TensorPtr});
+  };
+  auto GetOutput = [&](uint32_t ContextId, uint32_t Index) {
+    return Run("get_output",
+               {ContextId, Index, OutputPtr, UINT32_C(64), ResultPtr});
+  };
+  auto Output = [&]() { return *MemInst.getPointer<float *>(OutputPtr); };
+
+  const uint32_t Context = LoadModel(R"(
+def forward(self, x):
+    assert bool((x >= 0.0).all())
+    return x * 2.0
+)");
+  EXPECT_EQ(SetInput(Context, 1, 1.0f, 4), ErrNo::InvalidArgument);
+  EXPECT_EQ(SetInput(Context, 0, 1.0f, 4), ErrNo::Success);
+  EXPECT_EQ(SetInput(Context, 0, 5.0f, 0), ErrNo::InvalidArgument);
+  EXPECT_EQ(Run("compute", {Context}), ErrNo::Success);
+  EXPECT_EQ(GetOutput(Context, 0), ErrNo::Success);
+  EXPECT_EQ(Output(), 2.0f);
+
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 

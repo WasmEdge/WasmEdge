@@ -35,6 +35,7 @@ Expect<ErrNo> TorchScript::loadFromBinary(std::istream &In, Device Device) {
     return Err;
   }
   TorchModel = torch::jit::load(In);
+  setInputCount();
   return ErrNo::Success;
 }
 
@@ -44,7 +45,15 @@ Expect<ErrNo> TorchScript::loadFromPath(const std::string &Path,
     return Err;
   }
   TorchModel = torch::jit::load(Path);
+  setInputCount();
   return ErrNo::Success;
+}
+
+void TorchScript::setInputCount() {
+  // The first argument of forward is the module itself.
+  const auto &Arguments =
+      TorchModel.get_method("forward").function().getSchema().arguments();
+  InputCount = Arguments.empty() ? 0 : Arguments.size() - 1;
 }
 
 Expect<ErrNo> TorchScript::run(std::vector<at::Tensor> In,
@@ -109,6 +118,7 @@ Expect<ErrNo> AOTInductor::loadFromPath(const std::string &Path,
   if (auto Err = setDevice(Device); Err != ErrNo::Success) {
     return Err;
   }
+  InputCount = AOTInductorMaxInputCount;
   if (TorchDevice == at::kCPU) {
     TorchModel = new torch::inductor::AOTIModelContainerRunnerCpu(Path.c_str());
   } else if (TorchDevice == at::kCUDA) {
@@ -217,26 +227,41 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
                        const TensorData &Tensor) noexcept {
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
-  if (Index >= CxtRef.TorchInputs.size()) {
-    CxtRef.TorchInputs.resize(Index + 1);
+  if (Index >= GraphRef.Model->inputCount()) {
+    spdlog::error(
+        "[WASI-NN] Torch: The input index {} exceeds the inputs number {}."sv,
+        Index, GraphRef.Model->inputCount());
+    return ErrNo::InvalidArgument;
   }
   if (Tensor.RType != TensorType::F32) {
     spdlog::error(
         "[WASI-NN] Torch: Only F32 inputs and outputs are supported for now."sv);
     return ErrNo::InvalidArgument;
   }
-  auto Options =
-      torch::TensorOptions().dtype(torch::kFloat32).requires_grad(false);
-  std::vector<int64_t> Dims;
-  for (size_t I = 0; I < Tensor.Dimension.size(); I++) {
-    Dims.push_back(static_cast<int64_t>(Tensor.Dimension[I]));
+  if (!isDenseTensorSize(Tensor.Dimension, tensorElementSize(TensorType::F32),
+                         Tensor.Tensor.size())) {
+    spdlog::error("[WASI-NN] Torch: The tensor data size {} does not match "
+                  "the dimensions."sv,
+                  Tensor.Tensor.size());
+    return ErrNo::InvalidArgument;
   }
-  torch::Tensor InTensor =
-      torch::from_blob(reinterpret_cast<float *>(Tensor.Tensor.data()), Dims,
-                       Options)
-          .to(GraphRef.Model->getDevice());
-
-  CxtRef.TorchInputs[Index] = InTensor.clone();
+  try {
+    const std::vector<int64_t> Dims(Tensor.Dimension.begin(),
+                                    Tensor.Dimension.end());
+    torch::Tensor InTensor = torch::empty(
+        Dims,
+        torch::TensorOptions().dtype(torch::kFloat32).requires_grad(false));
+    std::copy_n(Tensor.Tensor.data(), Tensor.Tensor.size(),
+                static_cast<uint8_t *>(InTensor.data_ptr()));
+    InTensor = InTensor.to(GraphRef.Model->getDevice());
+    if (Index >= CxtRef.TorchInputs.size()) {
+      CxtRef.TorchInputs.resize(static_cast<size_t>(Index) + 1);
+    }
+    CxtRef.TorchInputs[Index] = std::move(InTensor);
+  } catch (const std::exception &EX) {
+    spdlog::error("[WASI-NN] Torch: Failed to set the input: {}"sv, EX.what());
+    return ErrNo::RuntimeError;
+  }
   return ErrNo::Success;
 }
 
@@ -259,7 +284,7 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &,
   for (auto I : OutTensor.sizes()) {
     BlobSize *= I;
   }
-  const size_t RequiredSize = BlobSize * 4;
+  const size_t RequiredSize = BlobSize * tensorElementSize(TensorType::F32);
   BytesWritten = static_cast<uint32_t>(RequiredSize);
   if (OutBuffer.size() < RequiredSize) {
     spdlog::error("[WASI-NN] Torch backend: output buffer too small, "
@@ -287,7 +312,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
       return ErrNo::InvalidArgument;
     }
   }
-  return GraphRef.Model->run(CxtRef.TorchInputs, CxtRef.TorchOutputs);
+  try {
+    return GraphRef.Model->run(CxtRef.TorchInputs, CxtRef.TorchOutputs);
+  } catch (const std::exception &EX) {
+    spdlog::error("[WASI-NN] Torch: Failed to run the model: {}"sv, EX.what());
+    return ErrNo::RuntimeError;
+  }
 }
 
 #else

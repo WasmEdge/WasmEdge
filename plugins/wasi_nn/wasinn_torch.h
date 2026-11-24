@@ -38,13 +38,16 @@ public:
                             std::vector<at::Tensor> &Out) = 0;
 
   torch::DeviceType getDevice() const { return TorchDevice; }
+  std::size_t inputCount() const { return InputCount; }
 
 protected:
   torch::DeviceType TorchDevice = at::kCPU;
+  std::size_t InputCount = 0;
 };
 
 class TorchScript : public PyBaseModule {
   Expect<ErrNo> setDevice(Device Device) override;
+  void setInputCount();
 
 public:
   Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
@@ -75,6 +78,10 @@ public:
 };
 
 enum class PyModelBackend { TorchScript, AOTInductor, UNKNOWN };
+
+// The AOTInductor runner does not report the number of model inputs, so the
+// backend accepts at most this many inputs for an AOTInductor model.
+inline constexpr std::size_t AOTInductorMaxInputCount = 1024;
 
 struct Graph {
   std::unique_ptr<PyBaseModule> Model;

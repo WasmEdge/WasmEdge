@@ -188,6 +188,8 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       PO::Description("Enable Wide Arithmetic proposal"sv));
   PO::Option<PO::Toggle> PropComponent(PO::Description(
       "Enable Component Model proposal, this is experimental"sv));
+  PO::Option<PO::Toggle> EnableWAT(
+      PO::Description("Enable WAT text format input, this is experimental"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description(
       "Enable all features. The disable options still apply."sv));
 
@@ -246,6 +248,7 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       .add_option("enable-threads"sv, PropThreads)
       .add_option("enable-wide-arithmetic"sv, PropWideArithmetic)
       .add_option("enable-component"sv, PropComponent)
+      .add_option("enable-wat"sv, EnableWAT)
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)
       .add_option("gas-limit"sv, GasLim)

@@ -1157,7 +1157,8 @@ void Value::setNoTailCall() noexcept {
 }
 
 static inline Message getDefaultTargetTriple() noexcept {
-  return LLVMGetDefaultTargetTriple();
+  Message Triple(LLVMGetDefaultTargetTriple());
+  return LLVMNormalizeTargetTriple(Triple.string_view().data());
 }
 static inline Message getHostCPUName() noexcept { return LLVMGetHostCPUName(); }
 static inline Message getHostCPUFeatures() noexcept {

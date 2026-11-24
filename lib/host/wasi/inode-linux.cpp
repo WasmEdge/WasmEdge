@@ -1989,17 +1989,11 @@ void Poller::wait() noexcept {
       if (EPollEvent.events & EPOLLHUP) {
         Event.fd_readwrite.flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
       }
-      bool UnknownNBytes = false;
       int ReadBufUsed = 0;
-      if (auto Res = ::ioctl(EPollEvent.data.fd, FIONREAD, &ReadBufUsed);
-          unlikely(Res == 0)) {
-        UnknownNBytes = true;
-      }
-      if (UnknownNBytes) {
-        Event.fd_readwrite.nbytes = 1;
-      } else {
-        Event.fd_readwrite.nbytes = ReadBufUsed;
-      }
+      Event.fd_readwrite.nbytes =
+          ::ioctl(EPollEvent.data.fd, FIONREAD, &ReadBufUsed) == 0
+              ? static_cast<__wasi_filesize_t>(ReadBufUsed)
+              : 1;
       break;
     }
     case __WASI_EVENTTYPE_FD_WRITE: {

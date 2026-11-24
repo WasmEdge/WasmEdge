@@ -27,6 +27,7 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <vector>
 #if !WASMEDGE_OS_WINDOWS
 #include <pthread.h>
 #include <signal.h>
@@ -5408,6 +5409,169 @@ TEST(WasiTest, CustomFds) {
     EXPECT_FALSE(InitResult.has_value())
         << "Should fail to initialize with invalid stderr fd";
   }
+}
+
+namespace {
+// A WASI environment with a guest memory for the poll_oneoff tests that also
+// run on Windows. It polls a list of subscriptions, and it opens a pair of
+// connected TCP sockets.
+class PollFixture {
+public:
+  PollFixture() : Mod(""), CallFrame(nullptr, &Mod) {
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1)));
+    MemInst = Mod.findMemoryExports("memory");
+    Env.init({}, "test"s, {}, {});
+  }
+  ~PollFixture() { Env.fini(); }
+
+  static __wasi_subscription_t read(__wasi_fd_t Fd,
+                                    __wasi_userdata_t UserData) {
+    __wasi_subscription_t Subscription{};
+    Subscription.userdata = WasmEdge::EndianValue(UserData).le();
+    Subscription.u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subscription.u.u.fd_read.file_descriptor = WasmEdge::EndianValue(Fd).le();
+    return Subscription;
+  }
+
+  static __wasi_subscription_t clock(std::chrono::nanoseconds Timeout,
+                                     __wasi_userdata_t UserData) {
+    __wasi_subscription_t Subscription{};
+    Subscription.userdata = WasmEdge::EndianValue(UserData).le();
+    Subscription.u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscription.u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscription.u.u.clock.timeout =
+        WasmEdge::EndianValue(static_cast<__wasi_timestamp_t>(Timeout.count()))
+            .le();
+    Subscription.u.u.clock.precision =
+        WasmEdge::EndianValue<__wasi_timestamp_t>(1).le();
+    return Subscription;
+  }
+
+  /// Runs poll_oneoff and returns the error of the call and the events.
+  std::pair<int32_t, std::vector<__wasi_event_t>>
+  poll(const std::vector<__wasi_subscription_t> &Subscriptions) {
+    const uint32_t NEventsPtr = 0;
+    const uint32_t InPtr = 64;
+    const uint32_t Count = static_cast<uint32_t>(Subscriptions.size());
+    const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
+    std::copy(Subscriptions.begin(), Subscriptions.end(),
+              MemInst->getPointer<__wasi_subscription_t *>(InPtr));
+    std::array<WasmEdge::ValVariant, 1> Errno;
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    __wasi_size_t NEvents = 0;
+    EXPECT_TRUE(MemInst->loadValue(NEvents, NEventsPtr));
+    const auto *Events = MemInst->getPointer<const __wasi_event_t *>(OutPtr);
+    return {Errno[0].get<int32_t>(),
+            std::vector<__wasi_event_t>(Events, Events + NEvents)};
+  }
+
+  /// Listens on Port, connects a client socket to it, and accepts the
+  /// connection.
+  bool connect(uint32_t Port, int32_t &ClientFd, int32_t &ServerFd) {
+    const std::array<uint8_t, 4> Address{127, 0, 0, 1};
+    const uint32_t FdPtr = 0;
+    const uint32_t AddressPtr = 4;
+    const uint32_t OptionPtr = 64;
+    int32_t ListenFd = -1;
+    const uint32_t One = 1;
+    MemInst->storeValue(One, OptionPtr);
+    writeAddress(*MemInst, Address, AddressPtr);
+    if (!call(WasiSockOpen,
+              {static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+               static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr}) ||
+        !MemInst->loadValue(ListenFd, FdPtr) ||
+        !call(WasiSockSetOpt,
+              {ListenFd,
+               static_cast<uint32_t>(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET),
+               static_cast<uint32_t>(__WASI_SOCK_OPT_SO_REUSEADDR), OptionPtr,
+               static_cast<uint32_t>(sizeof(One))}) ||
+        !call(WasiSockBind, {ListenFd, AddressPtr, Port}) ||
+        !call(WasiSockListen, {ListenFd, INT32_C(1)}) ||
+        !call(WasiSockOpen,
+              {static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+               static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr}) ||
+        !MemInst->loadValue(ClientFd, FdPtr) ||
+        !call(WasiSockConnect, {ClientFd, AddressPtr, Port}) ||
+        !call(WasiSockAccept, {ListenFd, FdPtr}) ||
+        !MemInst->loadValue(ServerFd, FdPtr)) {
+      return false;
+    }
+    close(ListenFd);
+    return true;
+  }
+
+  bool send(int32_t Fd, std::string_view Data) {
+    const uint32_t NWrittenPtr = 0;
+    const uint32_t IOVecPtr = 8;
+    const uint32_t DataPtr = 64;
+    writeString(*MemInst, Data, DataPtr);
+    auto IOVec = MemInst->getSpan<__wasi_ciovec_t>(IOVecPtr, 1);
+    IOVec[0].buf = WasmEdge::EndianValue(DataPtr).le();
+    IOVec[0].buf_len =
+        WasmEdge::EndianValue(static_cast<__wasi_size_t>(Data.size())).le();
+    __wasi_size_t NWritten = 0;
+    return call(WasiSockSend,
+                {Fd, IOVecPtr, UINT32_C(1), UINT32_C(0), NWrittenPtr}) &&
+           MemInst->loadValue(NWritten, NWrittenPtr) && NWritten == Data.size();
+  }
+
+  void close(int32_t Fd) { EXPECT_TRUE(call(WasiFdClose, {Fd})); }
+
+private:
+  template <typename FuncT>
+  bool call(FuncT &Func, std::initializer_list<WasmEdge::ValVariant> Args) {
+    std::array<WasmEdge::ValVariant, 1> Errno;
+    EXPECT_TRUE(Func.run(CallFrame, Args, Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    return Errno[0].get<int32_t>() == __WASI_ERRNO_SUCCESS;
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod;
+  WasmEdge::Runtime::CallingFrame CallFrame;
+  WasmEdge::Runtime::Instance::MemoryInstance *MemInst = nullptr;
+  WasmEdge::Host::WasiFdClose WasiFdClose{Env};
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff{Env};
+  WasmEdge::Host::WasiSockAcceptV1 WasiSockAccept{Env};
+  WasmEdge::Host::WasiSockBindV1 WasiSockBind{Env};
+  WasmEdge::Host::WasiSockConnectV1 WasiSockConnect{Env};
+  WasmEdge::Host::WasiSockListenV1 WasiSockListen{Env};
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen{Env};
+  WasmEdge::Host::WasiSockSendV1 WasiSockSend{Env};
+  WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt{Env};
+};
+} // namespace
+
+TEST(WasiTest, PollOneoffReadReportsAvailableBytes) {
+  PollFixture F;
+  int32_t ClientFd = -1;
+  int32_t ServerFd = -1;
+  ASSERT_TRUE(F.connect(18009, ClientFd, ServerFd));
+  ASSERT_TRUE(F.send(ServerFd, "12345"sv));
+
+  // poll a socket that holds 5 bytes, with a 5 seconds clock as a deadline,
+  // expect 5 bytes available
+  const auto [Errno, Events] =
+      F.poll({PollFixture::read(ClientFd, 1), PollFixture::clock(5s, 2)});
+  EXPECT_EQ(Errno, __WASI_ERRNO_SUCCESS);
+  ASSERT_EQ(Events.size(), 1U);
+  EXPECT_EQ(Events[0].userdata,
+            WasmEdge::EndianValue<__wasi_userdata_t>(1).le());
+  EXPECT_EQ(Events[0].type,
+            WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+  EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Events[0].fd_readwrite.nbytes,
+            WasmEdge::EndianValue<__wasi_filesize_t>(5).le());
+
+  F.close(ClientFd);
+  F.close(ServerFd);
 }
 
 #if !WASMEDGE_OS_WINDOWS

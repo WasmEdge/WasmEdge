@@ -2509,17 +2509,11 @@ void Poller::wait() noexcept {
       Event.Valid = true;
       Event.error = __WASI_ERRNO_SUCCESS;
 
-      bool UnknownNBytes = false;
       u_long ReadBufUsed = 0;
-      if (auto Res = ioctlsocket(Socket, FIONREAD, &ReadBufUsed);
-          unlikely(Res == 0)) {
-        UnknownNBytes = true;
-      }
-      if (UnknownNBytes) {
-        Event.fd_readwrite.nbytes = 1;
-      } else {
-        Event.fd_readwrite.nbytes = ReadBufUsed;
-      }
+      Event.fd_readwrite.nbytes =
+          ioctlsocket(Socket, FIONREAD, &ReadBufUsed) == 0
+              ? static_cast<__wasi_filesize_t>(ReadBufUsed)
+              : 1;
     }
     for (const auto Socket :
          Span<const SOCKET_>(WriteFds.fd_array, WriteFds.fd_count)) {

@@ -2399,6 +2399,98 @@ TEST(ExecutorRegression, RegisterComponentNameConflict) {
   EXPECT_EQ(Store.findComponent("dup"), First->get());
 }
 
+/// Host function that stops the executor that calls it.
+class StopExecutor : public Runtime::HostFunction<StopExecutor> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &Frame) {
+    Frame.getExecutor()->stop();
+    return {};
+  }
+};
+
+/// Host function that calls the "inner" and then the "probe" export of the
+/// calling module, and handles the errors of both calls.
+class CallInnerAndProbe : public Runtime::HostFunction<CallInnerAndProbe> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &Frame) {
+    auto *Executor = Frame.getExecutor();
+    const auto *Module = Frame.getModule();
+    auto Inner = Executor->invoke(Module->findFuncExports("inner"), {}, {});
+    InnerInterrupted = !Inner && Inner.error() == ErrCode::Value::Interrupted;
+    auto Probe = Executor->invoke(Module->findFuncExports("probe"), {}, {});
+    ProbeInterrupted = !Probe && Probe.error() == ErrCode::Value::Interrupted;
+    return {};
+  }
+  bool InnerInterrupted = false;
+  bool ProbeInterrupted = false;
+};
+
+/// Module "host" with the host functions of the stop tests.
+class StopHostModule : public Runtime::Instance::ModuleInstance {
+public:
+  StopHostModule() : ModuleInstance("host") {
+    addHostFunc("stop", std::make_unique<StopExecutor>());
+    auto CP = std::make_unique<CallInnerAndProbe>();
+    C = CP.get();
+    addHostFunc("call_inner_and_probe", std::move(CP));
+  }
+  const CallInnerAndProbe &callback() const noexcept { return *C; }
+
+private:
+  CallInnerAndProbe *C = nullptr;
+};
+
+void checkNestedCallKeepsStop(Configure Conf) {
+  // (module
+  //   (import "host" "stop" (func $stop))
+  //   (import "host" "call_inner_and_probe" (func $cb))
+  //   (func $inner (export "inner") (call $stop) (block (br 0)))
+  //   (func $probe (export "probe") (block))
+  //   (func (export "outer") (call $cb) (call $probe)))
+  std::array<WasmEdge::Byte, 116> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x29, 0x02, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x04, 0x73,
+      0x74, 0x6f, 0x70, 0x00, 0x00, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x14, 0x63,
+      0x61, 0x6c, 0x6c, 0x5f, 0x69, 0x6e, 0x6e, 0x65, 0x72, 0x5f, 0x61, 0x6e,
+      0x64, 0x5f, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x00, 0x03, 0x04, 0x03,
+      0x00, 0x00, 0x00, 0x07, 0x19, 0x03, 0x05, 0x69, 0x6e, 0x6e, 0x65, 0x72,
+      0x00, 0x02, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x03, 0x05, 0x6f,
+      0x75, 0x74, 0x65, 0x72, 0x00, 0x04, 0x0a, 0x18, 0x03, 0x09, 0x00, 0x10,
+      0x00, 0x02, 0x40, 0x0c, 0x00, 0x0b, 0x0b, 0x05, 0x00, 0x02, 0x40, 0x0b,
+      0x0b, 0x06, 0x00, 0x10, 0x01, 0x10, 0x03, 0x0b};
+  StopHostModule HostMod;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.registerModule(HostMod));
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  ASSERT_EQ(
+      VM.getActiveModule()->findFuncExports("inner")->isCompiledFunction(),
+      Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT);
+  auto Res = VM.execute("outer");
+  EXPECT_TRUE(HostMod.callback().InnerInterrupted);
+  EXPECT_TRUE(HostMod.callback().ProbeInterrupted);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::Interrupted);
+  EXPECT_TRUE(VM.execute("probe"));
+}
+
+/// A stop request stays set for the whole run. A nested call that a
+/// checkpoint inside the function interrupts does not clear it, so the next
+/// nested call and the caller see it too.
+TEST(ExecutorRegression, NestedCallKeepsStop) {
+  checkNestedCallKeepsStop(Configure());
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, NestedCallKeepsStopJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  Conf.getCompilerConfigure().setInterruptible(true);
+  checkNestedCallKeepsStop(Conf);
+}
+#endif
+
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();
   testing::InitGoogleTest(&argc, argv);

@@ -14,6 +14,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "aot/version.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/spdlog.h"
@@ -30,10 +31,13 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -2780,6 +2784,75 @@ TEST(AOTAtomicRMW, IdempotentOutOfBoundsTraps) {
     EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds) << Name;
   }
   VM.cleanup();
+}
+
+/// Universal WASM keeps its AOT code only when its AOT section has the
+/// current binary version. Code of version 3 clears the stop token at each
+/// checkpoint, so it runs in the interpreter instead.
+TEST(AOTVersion, Version3UniversalSectionFallsBackToInterpreter) {
+  // (module (func (export "f") (result i32) (i32.const 42)))
+  std::array<Byte, 34> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
+      0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x2a, 0x0b};
+  Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Wasm);
+  Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+  const ScopedTempFile Artifact("AOTVersionTest", ".wasm"sv);
+  const auto &Path = Artifact.get();
+  {
+    Loader::Loader Loader(Conf);
+    Validator::Validator Validator(Conf);
+    LLVM::Compiler Compiler(Conf);
+    LLVM::CodeGen CodeGen(Conf);
+    auto Mod = Loader.parseModule(Wasm);
+    ASSERT_TRUE(Mod);
+    ASSERT_TRUE(Validator.validate(**Mod));
+    auto Data = Compiler.compile(**Mod);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+  }
+  std::vector<Byte> Universal;
+  {
+    std::ifstream File(Path, std::ios::binary);
+    Universal.assign(std::istreambuf_iterator<char>(File),
+                     std::istreambuf_iterator<char>());
+  }
+
+  // The AOT section starts with its name and then the binary version.
+  const std::array<Byte, 9> Name{0x08, 'w', 'a', 's', 'm', 'e', 'd', 'g', 'e'};
+  auto It =
+      std::search(Universal.begin(), Universal.end(), Name.begin(), Name.end());
+  ASSERT_NE(It, Universal.end());
+  auto VersionIt = It + Name.size();
+  ASSERT_NE(VersionIt, Universal.end());
+  ASSERT_EQ(*VersionIt, AOT::kBinaryVersion);
+
+  // The result of "f", and whether "f" runs as compiled code.
+  auto Run =
+      [&Conf](Span<const Byte> Code) -> Expect<std::pair<uint32_t, bool>> {
+    VM::VM VM(Conf);
+    EXPECTED_TRY(VM.loadWasm(Code));
+    EXPECTED_TRY(VM.validate());
+    EXPECTED_TRY(VM.instantiate());
+    EXPECTED_TRY(auto Res, VM.execute("f"sv));
+    if (Res.size() != 1) {
+      return Unexpect(ErrCode::Value::FuncSigMismatch);
+    }
+    const auto *Func = VM.getActiveModule()->findFuncExports("f"sv);
+    return std::pair(Res[0].first.get<uint32_t>(),
+                     Func != nullptr && Func->isCompiledFunction());
+  };
+  auto Current = Run(Universal);
+  ASSERT_TRUE(Current);
+  EXPECT_EQ(Current->first, 42U);
+  EXPECT_TRUE(Current->second);
+  *VersionIt = 3;
+  auto Old = Run(Universal);
+  ASSERT_TRUE(Old);
+  EXPECT_EQ(Old->first, 42U);
+  EXPECT_FALSE(Old->second);
 }
 
 } // namespace

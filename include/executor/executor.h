@@ -317,7 +317,13 @@ private:
     Executor &Ex;
     /// List of registered runs that holds this run.
     RunList &List;
-    /// Set by a stop request. Interpreted and compiled code read it.
+    /// Set by a stop request, and kept set until the run ends. Interpreted and
+    /// compiled code read it. Compiled code reads it with an LLVM atomic i32
+    /// load, so it needs a std::atomic_uint32_t that has the object
+    /// representation of a uint32_t. The standard libraries of GCC, Clang,
+    /// and MSVC meet this need. function_compiler.cpp checks the size, the
+    /// alignment, and the lock-free property, but these checks do not prove
+    /// the representation.
     std::atomic_uint32_t StopToken = 0;
     /// Guards Waiter and the stores to StopToken.
     std::mutex Mutex;

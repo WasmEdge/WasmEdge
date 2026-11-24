@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <limits>
 
 using namespace std::literals;
@@ -2131,18 +2133,21 @@ FunctionCompiler::Control FunctionCompiler::leaveBlock() noexcept {
   return Entry;
 }
 
+static_assert(sizeof(std::atomic_uint32_t) == sizeof(uint32_t) &&
+                  alignof(std::atomic_uint32_t) >= alignof(uint32_t),
+              "compiled code reads the stop token as a plain i32");
+static_assert(std::atomic_uint32_t::is_always_lock_free,
+              "compiled code reads the stop token without a lock");
+
 void FunctionCompiler::checkStop() noexcept {
   if (!Interruptible) {
     return;
   }
   auto NotStopBB = LLVM::BasicBlock::create(LLContext, F.Fn, "NotStop");
-  auto StopToken = Builder.createAtomicRMW(
-      LLVMAtomicRMWBinOpXchg, Context.getStopToken(Builder, ExecCtx),
-      LLContext.getInt32(0), LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR < 13
-#else
-  StopToken.setAlignment(32);
-#endif
+  auto StopToken = Builder.createLoad(Context.Int32Ty,
+                                      Context.getStopToken(Builder, ExecCtx));
+  StopToken.setAlignment(alignof(uint32_t));
+  StopToken.setOrdering(LLVMAtomicOrderingMonotonic);
   auto NotStop = Builder.createLikely(
       Builder.createICmpEQ(StopToken, LLContext.getInt32(0)));
   Builder.createCondBr(NotStop, NotStopBB,

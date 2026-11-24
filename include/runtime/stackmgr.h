@@ -72,10 +72,10 @@ public:
     return std::exchange(StopToken, Token);
   }
 
-  /// True when a stop request reached the run that uses this stack. The call
-  /// clears the request.
-  bool stopRequested() noexcept {
-    return getStopToken().exchange(0, std::memory_order_relaxed) != 0;
+  /// True when a stop request reached the run that uses this stack. The token
+  /// stays set until the run ends, so nested calls of the run all see it.
+  bool stopRequested() const noexcept {
+    return getStopToken().load(std::memory_order_relaxed) != 0;
   }
 
   /// Getter for stack size.

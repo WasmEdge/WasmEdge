@@ -403,9 +403,12 @@ Executor::StopState::Scope::Scope(StopState &R) noexcept
 Executor::StopState::Scope::~Scope() noexcept { CurrentScope = Saved; }
 
 Executor::StopState *Executor::enclosingRun() const noexcept {
-  return CurrentScope != nullptr && &CurrentScope->Run.Ex == this
-             ? &CurrentScope->Run
-             : nullptr;
+  for (auto *S = CurrentScope; S != nullptr; S = S->Saved) {
+    if (&S->Run.Ex == this) {
+      return &S->Run;
+    }
+  }
+  return nullptr;
 }
 
 Executor::RunScope::RunScope(Executor &Ex) noexcept

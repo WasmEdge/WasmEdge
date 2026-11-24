@@ -2491,6 +2491,95 @@ TEST(ExecutorRegression, NestedCallKeepsStopJIT) {
 }
 #endif
 
+/// Host function that calls an exported function on another executor.
+class CallOther : public Runtime::HostFunction<CallOther> {
+public:
+  CallOther(Executor::Executor &E) : Exec(E) {}
+  Expect<void> body(const Runtime::CallingFrame &) {
+    return Exec.invoke(Func, {}, {}).map([](auto &&) {});
+  }
+  Executor::Executor &Exec;
+  const Runtime::Instance::FunctionInstance *Func = nullptr;
+};
+
+/// Host function that stops another executor, calls an exported function on
+/// it, and handles the error of that call.
+class StopOtherAndCall : public Runtime::HostFunction<StopOtherAndCall> {
+public:
+  StopOtherAndCall(Executor::Executor &E) : Exec(E) {}
+  Expect<void> body(const Runtime::CallingFrame &) {
+    Exec.stop();
+    auto Res = Exec.invoke(Func, {}, {});
+    NestedInterrupted = !Res && Res.error() == ErrCode::Value::Interrupted;
+    return {};
+  }
+  Executor::Executor &Exec;
+  const Runtime::Instance::FunctionInstance *Func = nullptr;
+  bool NestedInterrupted = false;
+};
+
+/// A call of executor A, through executor B, back into A joins the run of
+/// the outer call of A, so a stop of A reaches it.
+TEST(ExecutorRegression, ReentryThroughOtherExecutorSharesRun) {
+  // (module
+  //   (import "host" "call_b" (func $call_b))
+  //   (func $probe (export "probe") (block))
+  //   (func (export "outer") (call $call_b) (call $probe)))
+  std::array<WasmEdge::Byte, 71> WasmA{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x0f, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x06, 0x63,
+      0x61, 0x6c, 0x6c, 0x5f, 0x62, 0x00, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00,
+      0x07, 0x11, 0x02, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x01, 0x05,
+      0x6f, 0x75, 0x74, 0x65, 0x72, 0x00, 0x02, 0x0a, 0x0e, 0x02, 0x05, 0x00,
+      0x02, 0x40, 0x0b, 0x0b, 0x06, 0x00, 0x10, 0x00, 0x10, 0x01, 0x0b};
+  // (module
+  //   (import "host" "stop_a_and_probe" (func $f))
+  //   (func (export "run") (call $f)))
+  std::array<WasmEdge::Byte, 62> WasmB{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+      0x60, 0x00, 0x00, 0x02, 0x19, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74,
+      0x10, 0x73, 0x74, 0x6f, 0x70, 0x5f, 0x61, 0x5f, 0x61, 0x6e, 0x64,
+      0x5f, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x00, 0x03, 0x02, 0x01,
+      0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01, 0x0a,
+      0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b};
+  Configure Conf;
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  Executor::Executor ExecA(Conf);
+  Executor::Executor ExecB(Conf);
+  Runtime::StoreManager StoreA;
+  Runtime::StoreManager StoreB;
+
+  auto CallBP = std::make_unique<CallOther>(ExecB);
+  auto &CallB = *CallBP;
+  Runtime::Instance::ModuleInstance HostA("host");
+  HostA.addHostFunc("call_b", std::move(CallBP));
+  ASSERT_TRUE(ExecA.registerModule(StoreA, HostA));
+  auto StopAP = std::make_unique<StopOtherAndCall>(ExecA);
+  auto &StopA = *StopAP;
+  Runtime::Instance::ModuleInstance HostB("host");
+  HostB.addHostFunc("stop_a_and_probe", std::move(StopAP));
+  ASSERT_TRUE(ExecB.registerModule(StoreB, HostB));
+
+  auto ModA = Loader.parseModule(WasmA);
+  ASSERT_TRUE(ModA);
+  ASSERT_TRUE(Validator.validate(**ModA));
+  auto InstA = ExecA.instantiateModule(StoreA, **ModA);
+  ASSERT_TRUE(InstA);
+  auto ModB = Loader.parseModule(WasmB);
+  ASSERT_TRUE(ModB);
+  ASSERT_TRUE(Validator.validate(**ModB));
+  auto InstB = ExecB.instantiateModule(StoreB, **ModB);
+  ASSERT_TRUE(InstB);
+  CallB.Func = (*InstB)->findFuncExports("run");
+  StopA.Func = (*InstA)->findFuncExports("probe");
+
+  auto Res = ExecA.invoke((*InstA)->findFuncExports("outer"), {}, {});
+  EXPECT_TRUE(StopA.NestedInterrupted);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::Interrupted);
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();
   testing::InitGoogleTest(&argc, argv);

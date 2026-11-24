@@ -265,10 +265,10 @@ private:
   };
 
   /// Stop state of one run. A run is one operation from the host, together
-  /// with the nested invocations of the same executor on the same thread.
-  /// Executor::stop() reaches every registered run, and
-  /// StopState::requestStop() reaches only this run. The executor must outlive
-  /// its runs.
+  /// with the nested invocations of the same executor on the same thread, also
+  /// through another executor. Executor::stop() reaches every registered run,
+  /// and StopState::requestStop() reaches only this run. The executor must
+  /// outlive its runs.
   class StopState {
   public:
     explicit StopState(Executor &Target) noexcept;
@@ -336,10 +336,10 @@ private:
     bool Registered = true;
   };
 
-  /// Joins the run of the current thread when it is a run of this executor,
-  /// or starts a new run for its lifetime. A host operation that calls into
-  /// the executor more than once holds one, so that a stop request reaches
-  /// every call.
+  /// Joins the nearest enclosing run of this executor on the current thread, or
+  /// starts a new run for its lifetime. A host operation that calls into the
+  /// executor more than once holds one, so that a stop request reaches every
+  /// call.
   class RunScope {
   public:
     explicit RunScope(Executor &Ex) noexcept;
@@ -377,7 +377,8 @@ private:
     return std::make_shared<StopState>(*this);
   }
 
-  /// The run of this executor that is current on this thread, if any.
+  /// The innermost run of this executor on this thread, if any. A call of
+  /// another executor between them does not hide it.
   StopState *enclosingRun() const noexcept;
 
   /// Run Wasm bytecode expression for initialization.

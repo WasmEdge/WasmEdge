@@ -206,13 +206,13 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
                               WASINN::Context &C) noexcept {
   auto &GraphRef = G.get<Graph>();
   auto &CxtRef = C.get<Context>();
+  CxtRef.StringOutput.clear();
   try {
-    GraphRef.OpenVINOGenAI->Generate(CxtRef);
+    return GraphRef.OpenVINOGenAI->Generate(CxtRef);
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Infer Request Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;
   }
-  return WASINN::ErrNo::Success;
 }
 #else
 namespace {

@@ -13,6 +13,7 @@
 #endif
 #include <chrono>
 #include <time.h>
+#include <utility>
 #endif
 
 namespace WasmEdge::Host::WASINN::ChatTTS {
@@ -23,6 +24,53 @@ HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
 #else
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 #endif
+
+namespace {
+// An owned reference to a Python object. Use it only with the GIL held.
+class PyRef {
+public:
+  PyRef() noexcept = default;
+  explicit PyRef(PyObject *Object) noexcept : Object(Object) {}
+  PyRef(PyRef &&Other) noexcept : Object(Other.release()) {}
+  PyRef &operator=(PyRef &&Other) noexcept {
+    Py_XDECREF(Object);
+    Object = Other.release();
+    return *this;
+  }
+  PyRef(const PyRef &) = delete;
+  PyRef &operator=(const PyRef &) = delete;
+  ~PyRef() noexcept { Py_XDECREF(Object); }
+  PyObject *get() const noexcept { return Object; }
+  PyObject *release() noexcept { return std::exchange(Object, nullptr); }
+  explicit operator bool() const noexcept { return Object != nullptr; }
+
+private:
+  PyObject *Object = nullptr;
+};
+
+// Logs and clears the pending Python exception. PyErr_Print is not used
+// because it exits the process when the exception is SystemExit.
+void logPythonError() noexcept {
+  PyObject *Type = nullptr;
+  PyObject *Value = nullptr;
+  PyObject *Traceback = nullptr;
+  PyErr_Fetch(&Type, &Value, &Traceback);
+  if (Type == nullptr) {
+    return;
+  }
+  PyErr_NormalizeException(&Type, &Value, &Traceback);
+  PyRef TypeRef(Type);
+  PyRef ValueRef(Value);
+  PyRef TracebackRef(Traceback);
+  PyRef Text(ValueRef ? PyObject_Str(ValueRef.get()) : nullptr);
+  const char *Message = Text ? PyUnicode_AsUTF8(Text.get()) : nullptr;
+  spdlog::error("[WASI-NN] ChatTTS backend: Python error {}: {}"sv,
+                ValueRef ? Py_TYPE(ValueRef.get())->tp_name : "unknown",
+                Message != nullptr ? Message : "");
+  PyErr_Clear();
+}
+} // namespace
+
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
                            Span<const Span<uint8_t>>, WASINN::Device) noexcept {
   auto &GraphRef = G.get<Graph>();
@@ -44,6 +92,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     if (GraphRef.ChatTTSModule == nullptr) {
       spdlog::error(
           "[WASI-NN] ChatTTS backend: Can not find ChatTTS library."sv);
+      logPythonError();
       return WASINN::ErrNo::RuntimeError;
     }
   }
@@ -53,17 +102,20 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     if (ChatFunction == nullptr || !PyCallable_Check(ChatFunction)) {
       spdlog::error(
           "[WASI-NN] ChatTTS backend: Can not find Chat class in ChatTTS."sv);
+      logPythonError();
       return WASINN::ErrNo::RuntimeError;
     }
     GraphRef.Chat = PyObject_CallObject(ChatFunction, nullptr);
     Py_XDECREF(ChatFunction);
     if (GraphRef.Chat == nullptr) {
       spdlog::error("[WASI-NN] ChatTTS backend: Can not create chat."sv);
+      logPythonError();
       return WASINN::ErrNo::RuntimeError;
     }
     PyObject *LoadMethod = PyObject_GetAttrString(GraphRef.Chat, "load");
     if (LoadMethod == nullptr || !PyCallable_Check(LoadMethod)) {
       spdlog::error("[WASI-NN] ChatTTS backend: Can not load chat."sv);
+      logPythonError();
       return WASINN::ErrNo::RuntimeError;
     }
     PyObject *Value = PyObject_CallObject(LoadMethod, nullptr);
@@ -261,7 +313,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
   if (InferMethod == nullptr || !PyCallable_Check(InferMethod)) {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Can not find infer method in Chat."sv);
-    PyErr_Print();
+    logPythonError();
     Py_XDECREF(InferMethod);
     return WASINN::ErrNo::RuntimeError;
   }
@@ -299,6 +351,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
   } else {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Can not get output from infer method."sv);
+    logPythonError();
     Py_XDECREF(InputStr);
     Py_XDECREF(InferMethod);
     return WASINN::ErrNo::RuntimeError;

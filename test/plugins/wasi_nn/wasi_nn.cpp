@@ -5028,6 +5028,134 @@ TEST(WasiNNTest, ChatTTSBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 }
+
+namespace {
+// A Python module named ChatTTS that stands in for the real one. infer
+// returns the text and the parameters it received, so the test can read the
+// state of a context from its output.
+constexpr const char *FakeChatTTSModule = R"(
+import sys, types
+
+class _Params:
+    def __init__(self, **kwargs):
+        if kwargs.get("prompt") == "exit":
+            raise SystemExit(3)
+        if kwargs.get("top_P", 0.0) > 1.0:
+            raise ValueError("top_P")
+        self.kwargs = kwargs
+
+    def __repr__(self):
+        return repr(sorted(self.kwargs.items()))
+
+class Chat:
+    RefineTextParams = type("RefineTextParams", (_Params,), {})
+    InferCodeParams = type("InferCodeParams", (_Params,), {})
+    exit_on_infer_lookup = False
+
+    def load(self):
+        return True
+
+    def sample_random_speaker(self):
+        return "speaker"
+
+    @property
+    def infer(self):
+        if Chat.exit_on_infer_lookup:
+            raise SystemExit(4)
+        return self._infer
+
+    def _infer(self, text, params_refine_text=None, params_infer_code=None):
+        result = repr((text, params_refine_text, params_infer_code))
+        return [memoryview(result.encode())]
+
+_wasmedge_saved_chattts = sys.modules.pop("ChatTTS", None)
+_fake = types.ModuleType("ChatTTS")
+_fake.Chat = Chat
+sys.modules["ChatTTS"] = _fake
+)";
+
+constexpr const char *RestoreChatTTSModule = R"(
+import sys
+sys.modules.pop("ChatTTS", None)
+if _wasmedge_saved_chattts is not None:
+    sys.modules["ChatTTS"] = _wasmedge_saved_chattts
+)";
+
+void runPython(const char *Code) {
+  if (!Py_IsInitialized()) {
+    Py_Initialize();
+    PyEval_SaveThread();
+  }
+  const PyGILState_STATE State = PyGILState_Ensure();
+  EXPECT_EQ(PyRun_SimpleString(Code), 0);
+  PyGILState_Release(State);
+}
+} // namespace
+
+TEST(WasiNNTest, ChatTTSBackendContextState) {
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto &MemInst = *Mod.findMemoryExports("memory");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto Run = [&](std::string_view Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    return runHostFunc(*NNMod, CallFrame, Name, Args);
+  };
+  runPython(FakeChatTTSModule);
+
+  // Memory layout: result ids at 0, a graph builder at 16, a tensor
+  // descriptor at 32, the dimensions at 64, the data at 68, and the output at
+  // 1024.
+  const uint32_t ResultPtr = 0;
+  const uint32_t BuilderPtr = 16;
+  const uint32_t TensorPtr = 32;
+  const uint32_t DimPtr = 64;
+  const uint32_t OutputPtr = 1024;
+  uint32_t Ptr = BuilderPtr;
+  writeFatPointer(MemInst, OutputPtr, 0, Ptr);
+  ASSERT_EQ(Run("load", {BuilderPtr, UINT32_C(1),
+                         static_cast<uint32_t>(Backend::ChatTTS), UINT32_C(0),
+                         ResultPtr}),
+            ErrNo::Success);
+  const uint32_t GraphId = *MemInst.getPointer<uint32_t *>(ResultPtr);
+  auto InitContext = [&]() {
+    EXPECT_EQ(Run("init_execution_context", {GraphId, ResultPtr}),
+              ErrNo::Success);
+    return *MemInst.getPointer<uint32_t *>(ResultPtr);
+  };
+  auto SetInput = [&](uint32_t ContextId, uint32_t Index,
+                      std::string_view Data) {
+    writeBinaries<uint32_t>(MemInst, std::vector<uint32_t>{1}, DimPtr);
+    writeBinaries<uint8_t>(
+        MemInst, std::vector<uint8_t>(Data.begin(), Data.end()), DimPtr + 4);
+    uint32_t DescPtr = TensorPtr;
+    writeTensorDescriptor(MemInst, DimPtr, 1, TensorType::U8,
+                          static_cast<uint32_t>(Data.size()), DescPtr);
+    return Run("set_input", {ContextId, Index, TensorPtr});
+  };
+  auto Output = [&](uint32_t ContextId) {
+    EXPECT_EQ(Run("compute", {ContextId}), ErrNo::Success);
+    EXPECT_EQ(Run("get_output", {ContextId, UINT32_C(0), OutputPtr,
+                                 UINT32_C(1024), ResultPtr}),
+              ErrNo::Success);
+    return std::string(MemInst.getPointer<const char *>(OutputPtr),
+                       *MemInst.getPointer<uint32_t *>(ResultPtr));
+  };
+
+  const uint32_t Context = InitContext();
+  EXPECT_EQ(SetInput(Context, 0, "hello"), ErrNo::Success);
+  EXPECT_EQ(Output(Context), "('hello', None, None)");
+  runPython("sys.modules['ChatTTS'].Chat.exit_on_infer_lookup = True");
+  EXPECT_EQ(Run("compute", {Context}), ErrNo::RuntimeError);
+  runPython("sys.modules['ChatTTS'].Chat.exit_on_infer_lookup = False");
+  EXPECT_EQ(Output(Context), "('hello', None, None)");
+
+  runPython(RestoreChatTTSModule);
+}
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 
 TEST(WasiNNTest, DenseTensorSize) {

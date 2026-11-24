@@ -1581,7 +1581,7 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) noexcept {
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt) noexcept {
-  if (Cxt) {
+  if (Cxt && fromTagTypeCxt(Cxt)->hasDefType()) {
     const auto &CompType = fromTagTypeCxt(Cxt)->getDefType().getCompositeType();
     if (CompType.isFunc()) {
       return toFuncTypeCxt(&CompType.getFuncType());

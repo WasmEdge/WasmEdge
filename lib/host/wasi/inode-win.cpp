@@ -2248,15 +2248,20 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
       Event.error = Res.error();
       return;
     }
-    if (Timeout < Now) {
+    if (Timeout <= Now) {
       // already expired
       Event.Valid = true;
       Event.error = __WASI_ERRNO_SUCCESS;
       return;
     }
     Timeout -= Now;
+  } else if (Timeout == 0) {
+    Event.Valid = true;
+    Event.error = __WASI_ERRNO_SUCCESS;
+    return;
   }
-  const auto Micros = std::chrono::duration_cast<std::chrono::microseconds>(
+  // Round up, so that a pending clock never gets a zero wait time.
+  const auto Micros = std::chrono::ceil<std::chrono::microseconds>(
       std::chrono::nanoseconds(Timeout));
   const auto Secs = std::chrono::duration_cast<std::chrono::seconds>(Micros);
 
@@ -2427,10 +2432,18 @@ void Poller::wait() noexcept {
     TimeoutEvent = nullptr;
     return;
   }
+  // When an event already has a result, only probe the I/O without waiting,
+  // and do not report the pending clock: its time has not come yet.
+  const bool HasResult =
+      std::any_of(Events.begin(), Events.end(),
+                  [](const OptionalEvent &Event) { return Event.Valid; });
+  const bool ReportTimeout = TimeoutEvent != nullptr && !HasResult;
   if (!ConsoleReadEvent.empty()) {
     assuming(ReadFds.fd_count == 0 && WriteFds.fd_count == 0);
     DWORD_ Timeout = INFINITE_;
-    if (TimeoutEvent != nullptr) {
+    if (HasResult) {
+      Timeout = 0;
+    } else if (TimeoutEvent != nullptr) {
       const auto MilliSecs = std::chrono::ceil<std::chrono::milliseconds>(
           std::chrono::seconds(MinimumTimeout.tv_sec) +
           std::chrono::microseconds(MinimumTimeout.tv_usec));
@@ -2455,7 +2468,7 @@ void Poller::wait() noexcept {
     } else {
       switch (Result) {
       case WAIT_TIMEOUT_:
-        if (likely(TimeoutEvent)) {
+        if (ReportTimeout) {
           TimeoutEvent->Valid = true;
           TimeoutEvent->error = __WASI_ERRNO_SUCCESS;
         }
@@ -2476,8 +2489,9 @@ void Poller::wait() noexcept {
     TimeoutEvent = nullptr;
     return;
   }
+  const TIMEVAL_ ZeroTimeout = {0, 0};
   if (ReadFds.fd_count == 0 && WriteFds.fd_count == 0) {
-    if (TimeoutEvent) {
+    if (ReportTimeout) {
       std::this_thread::sleep_for(
           std::chrono::seconds(MinimumTimeout.tv_sec) +
           std::chrono::microseconds(MinimumTimeout.tv_usec));
@@ -2486,15 +2500,19 @@ void Poller::wait() noexcept {
     }
   } else if (const int Count =
                  select(0, &ReadFds, &WriteFds, nullptr,
-                        TimeoutEvent != nullptr ? &MinimumTimeout : nullptr);
+                        HasResult ? &ZeroTimeout
+                                  : (TimeoutEvent != nullptr ? &MinimumTimeout
+                                                             : nullptr));
              unlikely(Count == SOCKET_ERROR_)) {
     const auto Error = detail::fromWSALastError();
     for (auto &Event : Events) {
-      Event.Valid = true;
-      Event.error = Error;
+      if (!Event.Valid && Event.type != __WASI_EVENTTYPE_CLOCK) {
+        Event.Valid = true;
+        Event.error = Error;
+      }
     }
   } else if (Count == 0) {
-    if (TimeoutEvent) {
+    if (ReportTimeout) {
       TimeoutEvent->Valid = true;
       TimeoutEvent->error = __WASI_ERRNO_SUCCESS;
     }

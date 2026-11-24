@@ -5550,6 +5550,53 @@ private:
 };
 } // namespace
 
+TEST(WasiTest, PollOneoffBadFdDoesNotWaitForClock) {
+  PollFixture F;
+  int32_t ClientFd = -1;
+  int32_t ServerFd = -1;
+  ASSERT_TRUE(F.connect(18007, ClientFd, ServerFd));
+
+  // poll a bad fd, an idle socket, and a 5 seconds clock, expect only the
+  // fd error, without waiting for the clock
+  const auto Start = std::chrono::steady_clock::now();
+  const auto [Errno, Events] =
+      F.poll({PollFixture::read(100, 1), PollFixture::read(ClientFd, 2),
+              PollFixture::clock(5s, 3)});
+  EXPECT_LT(std::chrono::steady_clock::now() - Start, 4s);
+  EXPECT_EQ(Errno, __WASI_ERRNO_SUCCESS);
+  ASSERT_EQ(Events.size(), 1U);
+  EXPECT_EQ(Events[0].userdata,
+            WasmEdge::EndianValue<__wasi_userdata_t>(1).le());
+  EXPECT_EQ(Events[0].error, __WASI_ERRNO_BADF);
+
+  F.close(ClientFd);
+  F.close(ServerFd);
+}
+
+TEST(WasiTest, PollOneoffZeroClockDoesNotWait) {
+  PollFixture F;
+  int32_t ClientFd = -1;
+  int32_t ServerFd = -1;
+  ASSERT_TRUE(F.connect(18008, ClientFd, ServerFd));
+
+  // poll an idle socket, a zero clock, and a 5 seconds clock, expect only the
+  // zero clock
+  const auto Start = std::chrono::steady_clock::now();
+  const auto [Errno, Events] =
+      F.poll({PollFixture::read(ClientFd, 1), PollFixture::clock(0s, 2),
+              PollFixture::clock(5s, 3)});
+  EXPECT_LT(std::chrono::steady_clock::now() - Start, 4s);
+  EXPECT_EQ(Errno, __WASI_ERRNO_SUCCESS);
+  ASSERT_EQ(Events.size(), 1U);
+  EXPECT_EQ(Events[0].userdata,
+            WasmEdge::EndianValue<__wasi_userdata_t>(2).le());
+  EXPECT_EQ(Events[0].type, WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+  EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+
+  F.close(ClientFd);
+  F.close(ServerFd);
+}
+
 TEST(WasiTest, PollOneoffReadReportsAvailableBytes) {
   PollFixture F;
   int32_t ClientFd = -1;

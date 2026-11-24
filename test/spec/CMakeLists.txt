@@ -51,11 +51,15 @@ endforeach()
 
 wasmedge_add_library(wasmedgeTestSpec
   spectest.cpp
+  wast_parser.cpp
+  json_parser.cpp
 )
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
   simdjson::simdjson
+  wasmedgeWat
+  wasmedgeLoader
   PUBLIC
   std::filesystem
   wasmedgeCommon

@@ -108,4 +108,25 @@ std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
   return CVals;
 }
 
+Expect<void> registerAlias(WasmEdge_ExecutorContext *ExecCxt,
+                           WasmEdge_StoreContext *StoreCxt,
+                           const std::string &ModName,
+                           const std::string &Alias) {
+  WasmEdge_String ModStr = WasmEdge_StringWrap(
+      ModName.data(), static_cast<uint32_t>(ModName.length()));
+  const WasmEdge_ModuleInstanceContext *ModCxt =
+      WasmEdge_StoreFindModule(StoreCxt, ModStr);
+  if (ModCxt == nullptr) {
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
+  }
+  WasmEdge_String AliasStr =
+      WasmEdge_StringWrap(Alias.data(), static_cast<uint32_t>(Alias.length()));
+  WasmEdge_Result Res = WasmEdge_ExecutorRegisterImportWithAlias(
+      ExecCxt, StoreCxt, ModCxt, AliasStr);
+  if (!WasmEdge_ResultOK(Res)) {
+    return Unexpect(convResult(Res));
+  }
+  return {};
+}
+
 } // namespace WasmEdge

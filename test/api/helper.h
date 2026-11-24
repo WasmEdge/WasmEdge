@@ -18,6 +18,7 @@
 #include "../spec/spectest.h"
 #include "common/int128.h"
 #include "wasmedge/wasmedge.h"
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,14 @@ WasmEdge_Value convFromVal(const ValVariant &Val, const ValType &Type);
 
 std::vector<std::pair<ValVariant, ValType>>
 convToValVec(const std::vector<WasmEdge_Value> &CVals);
+
+/// Give the module instance ModName of the store StoreCxt the extra name
+/// Alias. The executor ExecCxt adds the name, and the instance keeps its
+/// owner.
+Expect<void> registerAlias(WasmEdge_ExecutorContext *ExecCxt,
+                           WasmEdge_StoreContext *StoreCxt,
+                           const std::string &ModName,
+                           const std::string &Alias);
 
 std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
                                            const std::vector<ValType> &Types);

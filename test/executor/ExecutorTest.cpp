@@ -11,6 +11,7 @@
 /// This file contains tests of Wasm test suites extracted by wast2json.
 /// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
+/// The WastCoreTest suite runs the same tests directly from the .wast files.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -18,12 +19,16 @@
 #include "common/spdlog.h"
 #include "executor/coredump.h"
 #include "executor/restore.h"
+#include "loader/loader.h"
 #include "loader/serialize.h"
+#include "validator/validator.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
+#include "../spec/vmcallback.h"
 
+#include <gtest/gtest-spi.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -36,6 +41,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <random>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -49,152 +55,111 @@ using namespace std::literals;
 using namespace WasmEdge;
 static SpecTest T(u8path("../spec/testSuites"sv));
 
-// Parameterized testing class.
-class CoreTest : public testing::TestWithParam<std::string> {};
-
-TEST_P(CoreTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  const auto &ConfRef = Conf;
-
+// Set the callbacks of the spec test S for a VM with the configuration
+// ConfRef. The JSON suite and the WAST suite share these callbacks. The
+// configuration must live until the run ends.
+void setVMCallbacks(SpecTest &S, const WasmEdge::Configure &ConfRef) {
   // Define context structure
   struct TestContext {
+    // A component instance keeps references into its AST, so the ASTs are
+    // destroyed after the VM and the instances.
+    std::vector<std::unique_ptr<AST::Component::Component>> CompASTs;
     WasmEdge::SpecTestModule SpecTestMod;
     WasmEdge::VM::VM VM;
+    // Keep the component instances alive for the full test. The VM pipeline
+    // does not support the Component Model yet. As a result, this structure
+    // owns the instances, and VM.ActiveCompInst does not control their
+    // lifetime.
+    std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+        CompInsts;
     TestContext(const WasmEdge::Configure &C) : VM(C) {
       VM.registerModule(SpecTestMod);
     }
   };
 
-  T.onInit = [&ConfRef](SpecTest::ContextHandle Parent,
+  S.onInit = [&ConfRef](SpecTest::ContextHandle Parent,
                         const std::vector<std::pair<std::string, std::string>>
                             &SharedModules) -> SpecTest::ContextHandle {
     // Always create VM with own Store to avoid module name conflicts
     // from built-in host modules being re-registered in a shared Store.
     auto *Ctx = new TestContext(ConfRef);
-    if (Parent != nullptr && !SharedModules.empty()) {
-      auto *P = static_cast<TestContext *>(Parent);
-      for (const auto &[ParentName, AliasName] : SharedModules) {
-        const auto *ModInst = P->VM.getStoreManager().findModule(ParentName);
-        if (ModInst != nullptr) {
-          // Register the shared module under the alias name so that
-          // the thread's wasm modules can import it by the expected name.
-          Ctx->VM.registerModule(AliasName, *ModInst);
-        }
-      }
+    if (Parent != nullptr) {
+      SpecTestVM::shareModules(Ctx->VM, static_cast<TestContext *>(Parent)->VM,
+                               SharedModules);
     }
     return Ctx;
   };
 
-  T.onFini = [](SpecTest::ContextHandle Ctx) {
+  S.onFini = [](SpecTest::ContextHandle Ctx) {
     delete static_cast<TestContext *>(Ctx);
   };
 
-  T.onModule = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
-                  const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    if (!ModName.empty()) {
-      // registerModule only supports core wasm modules. If it fails (e.g.
-      // because the file is a component), fall back to
-      // load/validate/instantiate.
-      if (auto Res = VM.registerModule(ModName, FileName); Res) {
-        return {};
-      }
+  S.onParse = [](SpecTest::ContextHandle, std::string_view Source,
+                 Wast::ModuleType Type, const WasmEdge::Configure &Conf) {
+    return SpecTestVM::parse(Source, Type, Conf);
+  };
+
+  S.onValidate = [](SpecTest::ContextHandle Ctx,
+                    SpecTest::WasmUnit &Unit) -> Expect<void> {
+    return SpecTestVM::validate(static_cast<TestContext *>(Ctx)->VM, Unit);
+  };
+
+  S.onInstantiate = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                       SpecTest::WasmUnit &Unit) -> Expect<void> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto &VM = TC->VM;
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(Unit)) {
+      return SpecTestVM::instantiate(
+          VM, ModName, *std::get<std::unique_ptr<AST::Module>>(Unit));
     }
-    if (T.SkipComponentValidation) {
-      // For component-model tests where validation is not yet supported,
-      // skip validation by force-setting the stage as validated.
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.forceValidateForComponent(); })
-          .and_then([&VM]() { return VM.instantiate(); });
-    } else {
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.validate(); })
-          .and_then([&VM]() { return VM.instantiate(); });
+    // This is the component path. The VM has no loadWasm(Component)
+    // overload, because a copy of an AST::Component::Component is not
+    // possible. A ComponentSection owns a unique_ptr<Component>. As a result,
+    // this code calls the Executor directly.
+    auto &CompPtr = std::get<std::unique_ptr<AST::Component::Component>>(Unit);
+    auto &ASTComp = *CompPtr;
+    if (SpecTest::SkipComponentValidation) {
+      // This code does the same as VM::forceValidateForComponent. It sets
+      // the validated flag, so that the instantiation continues on input
+      // that no validator examined.
+      ASTComp.setIsValidated();
     }
-  };
-  T.onLoad = [](SpecTest::ContextHandle Ctx,
-                const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName);
-  };
-  T.onValidate = [](SpecTest::ContextHandle Ctx,
-                    const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
-  };
-  T.onModuleDefine =
-      [](SpecTest::ContextHandle Ctx,
-         const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    Loader::Loader &Loader = VM.getLoader();
-    Validator::Validator &Validator = VM.getValidator();
-    EXPECTED_TRY(auto ASTUnit, Loader.parseWasmUnit(FileName));
-    if (std::holds_alternative<std::unique_ptr<AST::Module>>(ASTUnit)) {
-      auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(ASTUnit);
-      EXPECTED_TRY(Validator.validate(*ASTMod.get()));
-    } else if (!T.SkipComponentValidation) {
-      auto &ASTComp =
-          std::get<std::unique_ptr<AST::Component::Component>>(ASTUnit);
-      EXPECTED_TRY(Validator.validate(*ASTComp.get()));
+    auto &Exec = VM.getExecutor();
+    auto &Store = VM.getStoreManager();
+    auto Res = ModName.empty()
+                   ? Exec.instantiateComponent(Store, ASTComp)
+                   : Exec.registerComponent(Store, ASTComp, ModName);
+    if (!Res) {
+      return Unexpect(Res.error());
     }
-    return ASTUnit;
+    TC->CompInsts.push_back(std::move(*Res));
+    TC->CompASTs.push_back(std::move(CompPtr));
+    return {};
   };
-  T.onInstanceFromDef = [](SpecTest::ContextHandle Ctx,
-                           const std::string &ModName,
-                           const AST::Module &ASTMod) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.registerModule(ModName, ASTMod);
-  };
-  T.onInstantiate = [](SpecTest::ContextHandle Ctx,
-                       const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName)
-        .and_then([&VM]() { return VM.validate(); })
-        .and_then([&VM]() { return VM.instantiate(); });
-  };
-  // Helper function to call functions.
-  T.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+  S.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
                   const std::string &Field,
                   const std::vector<ValVariant> &Params,
-                  const std::vector<ValType> &ParamTypes)
-      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    if (!ModName.empty()) {
-      // Invoke function of named module. Named modules are registered in Store
-      // Manager.
-      return VM.execute(ModName, Field, Params, ParamTypes);
-    } else {
-      // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in the VM.
-      return VM.execute(Field, Params, ParamTypes);
-    }
+                  const std::vector<ValType> &ParamTypes) {
+    return SpecTestVM::invoke(static_cast<TestContext *>(Ctx)->VM, ModName,
+                              Field, Params, ParamTypes);
   };
-  // Helper function to get values.
-  T.onGet =
-      [](SpecTest::ContextHandle Ctx, const std::string &ModName,
-         const std::string &Field) -> Expect<std::pair<ValVariant, ValType>> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    // Get module instance.
-    const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
-    if (ModName.empty()) {
-      ModInst = VM.getActiveModule();
-    } else {
-      ModInst = VM.getStoreManager().findModule(ModName);
-    }
-    if (ModInst == nullptr) {
-      return Unexpect(ErrCode::Value::WrongInstanceAddress);
-    }
-
-    // Get global instance.
-    WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
-        ModInst->findGlobalExports(Field);
-    if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::Value::WrongInstanceAddress);
-    }
-    return std::make_pair(GlobInst->getValue(),
-                          GlobInst->getGlobalType().getValType());
+  S.onRegister = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                    const std::string &Alias) {
+    return SpecTestVM::registerAlias(static_cast<TestContext *>(Ctx)->VM,
+                                     ModName, Alias);
   };
+  S.onGet = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+               const std::string &Field) {
+    return SpecTestVM::get(static_cast<TestContext *>(Ctx)->VM, ModName, Field);
+  };
+}
 
+// Parameterized testing class.
+class CoreTest : public testing::TestWithParam<std::string> {};
+
+TEST_P(CoreTest, TestSuites) {
+  const auto [Proposal, Config, UnitName] = T.resolve(GetParam());
+  setVMCallbacks(T, Config);
   T.run(Proposal, UnitName);
 }
 
@@ -599,6 +564,568 @@ TEST(WideArithmetic, MulWideU) {
     EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
     EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
   }
+}
+
+// This suite runs the same spec tests directly from the .wast files. It uses
+// the WAST parser of tree-sitter, and the interpreter of the VM.
+static SpecTest TWast(u8path("../spec/testSuites"sv),
+                      SpecTest::ParserMode::Wast);
+
+class WastCoreTest : public testing::TestWithParam<std::string> {};
+
+TEST_P(WastCoreTest, TestSuites) {
+  const auto [Proposal, Config, UnitName] = TWast.resolve(GetParam());
+  setVMCallbacks(TWast, Config);
+  TWast.run(Proposal, UnitName);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TestUnit, WastCoreTest,
+    testing::ValuesIn(TWast.enumerate(SpecTest::TestMode::Interpreter, false)));
+
+// A directory with a unique name in the temporary directory. Two test runs at
+// the same time get different directories, so the files in it can have fixed
+// names. The destructor removes the directory and its content, also when the
+// test fails or throws. If no directory can be made, path() is empty.
+class ScratchDir {
+public:
+  explicit ScratchDir(std::string_view Prefix) {
+    std::error_code EC;
+    const auto Base = std::filesystem::temp_directory_path(EC);
+    if (EC) {
+      return;
+    }
+    std::random_device Device;
+    for (int Try = 0; Try < 16; ++Try) {
+      auto Candidate =
+          Base / (std::string(Prefix) + '-' + std::to_string(Device()) + '-' +
+                  std::to_string(Device()));
+      if (std::filesystem::create_directory(Candidate, EC)) {
+        Path = std::move(Candidate);
+        return;
+      }
+    }
+  }
+  ~ScratchDir() {
+    if (!Path.empty()) {
+      std::error_code EC;
+      std::filesystem::remove_all(Path, EC);
+    }
+  }
+  ScratchDir(const ScratchDir &) = delete;
+  ScratchDir &operator=(const ScratchDir &) = delete;
+  const std::filesystem::path &path() const noexcept { return Path; }
+
+private:
+  std::filesystem::path Path;
+};
+
+// Run the WAST script Script through the WAST runner of the interpreter. The
+// script goes to the file Name.wast in a new scratch directory.
+void runWastScript(std::string_view Name, std::string_view Script) {
+  ScratchDir Dir("wasmedgeWast");
+  ASSERT_FALSE(Dir.path().empty());
+  const auto Path = Dir.path() / (std::string(Name) + ".wast");
+  {
+    std::ofstream Fout(Path, std::ios::out | std::ios::binary);
+    ASSERT_TRUE(Fout);
+    Fout << Script;
+  }
+  WasmEdge::Configure Conf;
+  Conf.setEnableWAT(true);
+  setVMCallbacks(TWast, Conf);
+  TWast.runFile(Path, Conf);
+}
+
+// A register command adds its name when it runs. A module can take more than
+// one name, an anonymous module can take a name, and an import before the
+// register command does not see the name.
+TEST(WastRunnerTest, RegisterNames) {
+  runWastScript(
+      "wasmedgeWastRegisterNames",
+      R"wast((module $m (func (export "f") (result i32) (i32.const 7)))
+(register "a" $m)
+(register "b" $m)
+(module
+  (import "a" "f" (func $a (result i32)))
+  (import "b" "f" (func $b (result i32)))
+  (func (export "g") (result i32) (i32.add (call $a) (call $b))))
+(assert_return (invoke "g") (i32.const 14))
+(module $n (func (export "h")))
+(assert_unlinkable (module (import "n" "h" (func))) "unknown import")
+(register "n" $n)
+(module (import "n" "h" (func)))
+(module (func (export "k") (result i32) (i32.const 9)))
+(register "c")
+(register "d")
+(module
+  (import "c" "k" (func $c (result i32)))
+  (import "d" "k" (func $d (result i32)))
+  (func (export "g") (result i32) (i32.add (call $c) (call $d))))
+(assert_return (invoke "g") (i32.const 18))
+)wast");
+}
+
+// Two anonymous modules on one line are two modules. A register name that
+// looks like a script id does not reach the module with that id.
+TEST(WastRunnerTest, RegisterNameIdentity) {
+  runWastScript(
+      "wasmedgeWastRegisterIdentity",
+      R"wast((module (func (export "f") (result i32) (i32.const 1))) (register "a") (module (func (export "f") (result i32) (i32.const 2))) (register "b")
+(module
+  (import "a" "f" (func $a (result i32)))
+  (import "b" "f" (func $b (result i32)))
+  (func (export "g") (result i32) (i32.sub (call $b) (call $a))))
+(assert_return (invoke "g") (i32.const 1))
+(module $n (func (export "h")))
+(register "$n" $n)
+(register "n" $n)
+(module (import "$n" "h" (func)) (import "n" "h" (func)))
+)wast");
+}
+
+// A register command with a name that is already registered replaces the
+// registration, as in the reference interpreter. A new import sees the new
+// instance, and an instance that already imports the name keeps its imports.
+TEST(WastRunnerTest, RegisterNameRebinding) {
+  runWastScript(
+      "wasmedgeWastRegisterNameRebinding",
+      R"wast((module $a (func (export "f") (result i32) (i32.const 1)))
+(register "alias" $a)
+(module $u
+  (import "alias" "f" (func $f (result i32)))
+  (func (export "g") (result i32) (call $f)))
+(module $b (func (export "f") (result i32) (i32.const 2)))
+(register "alias" $b)
+(module $v
+  (import "alias" "f" (func $f (result i32)))
+  (func (export "g") (result i32) (call $f)))
+(assert_return (invoke $u "g") (i32.const 1))
+(assert_return (invoke $v "g") (i32.const 2))
+)wast");
+}
+
+// A module with an id that is already bound binds the id again. A register
+// name stays on the instance that it named, also after its id binds again.
+TEST(WastRunnerTest, ModuleIdRebinding) {
+  runWastScript(
+      "wasmedgeWastModuleIdRebinding",
+      R"wast((module $m (func (export "run") (result i32) (i32.const 1)))
+(assert_return (invoke $m "run") (i32.const 1))
+(register "a" $m)
+(module $m (func (export "run") (result i32) (i32.const 2)))
+(assert_return (invoke $m "run") (i32.const 2))
+(module
+  (import "a" "run" (func $a (result i32)))
+  (func (export "g") (result i32) (call $a)))
+(assert_return (invoke "g") (i32.const 1))
+(module definition $d (func (export "run") (result i32) (i32.const 3)))
+(module instance $m $d)
+(assert_return (invoke $m "run") (i32.const 3))
+)wast");
+}
+
+// The runner parses a module in the format that the script declares. Binary
+// bytes that look like text are not WAT, and text that looks like a binary is
+// not a binary.
+TEST(WastRunnerTest, DeclaredModuleFormat) {
+  runWastScript(
+      "wasmedgeWastDeclaredFormat",
+      R"wast((assert_malformed (module binary "(module)") "magic header not detected")
+(assert_malformed (module binary " (module)") "magic header not detected")
+(assert_malformed (module quote "\00asm\01\00\00\00") "illegal character")
+(module binary "\00asm\01\00\00\00")
+(module quote "")
+)wast");
+}
+
+// A module instance takes the instance id and the definition id, only the
+// definition id, or no id for the latest definition. A plain module with an id
+// is also a definition with that id.
+TEST(WastRunnerTest, ModuleInstanceForms) {
+  runWastScript(
+      "wasmedgeWastModuleInstance",
+      R"wast((module definition (func (export "f") (result i32) (i32.const 1)))
+(module instance)
+(assert_return (invoke "f") (i32.const 1))
+(module definition $d (func (export "f") (result i32) (i32.const 2)))
+(module definition (func (export "f") (result i32) (i32.const 4)))
+(module instance $d)
+(assert_return (invoke "f") (i32.const 2))
+(module instance)
+(assert_return (invoke "f") (i32.const 4))
+(module $m (func (export "f") (result i32) (i32.const 3)))
+(module instance $new $m)
+(assert_return (invoke $new "f") (i32.const 3))
+(module instance)
+(assert_return (invoke "f") (i32.const 3))
+)wast");
+}
+
+// A get reads a global, so it never satisfies a trap assertion, also when a
+// function with the same name traps.
+TEST(WastRunnerTest, GetIsNotAnInvoke) {
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastGetTrap",
+                    R"wast((module (func (export "f") unreachable))
+(assert_trap (get "f") "unreachable")
+)wast"),
+      "get failed");
+}
+
+// The header of the module in an assertion is a part of the script. A damaged
+// header fails the script, and it does not reach the loader. Only an assertion
+// that instantiates a module takes a module instance, and it cannot take a
+// module definition.
+TEST(WastRunnerTest, DamagedModuleHeader) {
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript(
+          "wasmedgeWastBinaryHeader",
+          R"wast((assert_malformed (module binary garbage "\00\00\00\00") "magic header not detected")
+)wast"),
+      "Failed to parse WAST");
+  EXPECT_NONFATAL_FAILURE(runWastScript("wasmedgeWastInstanceHeader",
+                                        R"wast((module definition (func))
+(assert_invalid (module instance) "type mismatch")
+)wast"),
+                          "Failed to parse WAST");
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript(
+          "wasmedgeWastDefinitionOperand",
+          R"wast((assert_unlinkable (module definition (import "x" "f" (func))) "unknown import")
+)wast"),
+      "Failed to parse WAST");
+}
+
+// The source of a script must be valid UTF-8, also in a comment outside a
+// module. An escape in a binary string can give any byte.
+TEST(WastRunnerTest, SourceEncoding) {
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastRawByte", ";; \xFF\n(module)\n"),
+      "Failed to parse WAST");
+  runWastScript("wasmedgeWastEscapedByte",
+                R"wast((module binary "\00asm\01\00\00\00" "\00\03\01a\ff")
+)wast");
+}
+
+// The text between the commands follows the lexical rules of WAT. A form feed
+// is not whitespace, an annotation needs an id, and two strings need
+// whitespace between them. The text of a quoted module is a string, so it can
+// be malformed.
+TEST(WastRunnerTest, TextBetweenCommands) {
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastFormFeed", "(module (func))\f(module)\n"),
+      "Failed to parse WAST");
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastEmptyAnnotation", "(module)\n(@)\n(module)\n"),
+      "Failed to parse WAST");
+  EXPECT_NONFATAL_FAILURE(runWastScript("wasmedgeWastEmptyQuotedAnnotation",
+                                        "(module)\n(@\"\" x)\n(module)\n"),
+                          "Failed to parse WAST");
+  EXPECT_NONFATAL_FAILURE(runWastScript("wasmedgeWastAdjacentStrings",
+                                        "(module quote \"(mod\"\"ule)\")\n"),
+                          "Failed to parse WAST");
+  runWastScript("wasmedgeWastSpacedStrings",
+                "(module quote \"(mod\" \"ule)\")\n");
+  runWastScript(
+      "wasmedgeWastLexicalSeparators",
+      "(module)\t(@a \"s\" (@b))\r\n(module)\n"
+      "(assert_malformed (module quote \"(@)\") \"empty annotation id\")\n");
+}
+
+// An assert_unlinkable and the module form of an assert_trap can instantiate a
+// definition by its id, or the latest definition.
+TEST(WastRunnerTest, InstanceOperand) {
+  runWastScript("wasmedgeWastInstanceOperand",
+                R"wast((module definition $d (import "x" "f" (func)))
+(module definition (func unreachable) (start 0))
+(assert_unlinkable (module instance $d) "unknown import")
+(assert_unlinkable (module instance $i $d) "unknown import")
+(assert_trap (module instance) "unreachable")
+)wast");
+}
+
+// The inline module of an instantiation assertion is also the latest
+// definition, as in the script grammar of the spec. It does not change the
+// latest instance of the unnamed actions.
+TEST(WastRunnerTest, InlineAssertionDefinition) {
+  runWastScript("wasmedgeWastInlineAssertionDefinition",
+                R"wast((module (func (export "f") (result i32) (i32.const 7)))
+(assert_trap (module (func $start unreachable) (start $start)) "unreachable")
+(assert_trap (module instance) "unreachable")
+(assert_unlinkable (module (import "x" "f" (func))) "unknown import")
+(assert_unlinkable (module instance) "unknown import")
+(assert_return (invoke "f") (i32.const 7))
+)wast");
+}
+
+// A canonical NaN has the canonical bits apart from the sign. An arithmetic NaN
+// has the top payload bit, so a quiet NaN with any other payload matches it,
+// but a signaling NaN does not. The same rules apply to the lanes of a vector.
+TEST(WastRunnerTest, NaNPatterns) {
+  const std::string Module = R"wast((module
+  (func (export "f32") (param i32) (result f32) (f32.reinterpret_i32 (local.get 0)))
+  (func (export "f64") (param i64) (result f64) (f64.reinterpret_i64 (local.get 0)))
+  (func (export "v32") (param i32) (result v128)
+    (i32x4.splat (local.get 0)))
+  (func (export "v64") (param i64) (result v128)
+    (i64x2.splat (local.get 0))))
+)wast";
+  runWastScript("wasmedgeWastNaNPatterns", Module + R"wast(
+(assert_return (invoke "f32" (i32.const 0x7fc00000)) (f32.const nan:canonical))
+(assert_return (invoke "f32" (i32.const 0xffc00000)) (f32.const nan:canonical))
+(assert_return (invoke "f32" (i32.const 0x7fc00000)) (f32.const nan:arithmetic))
+(assert_return (invoke "f32" (i32.const 0xffc00001)) (f32.const nan:arithmetic))
+(assert_return (invoke "f64" (i64.const 0x7ff8000000000000)) (f64.const nan:canonical))
+(assert_return (invoke "f64" (i64.const 0x7ff8000000000001)) (f64.const nan:arithmetic))
+(assert_return (invoke "v32" (i32.const 0x7fc00001))
+  (v128.const f32x4 nan:arithmetic nan:arithmetic nan:arithmetic nan:arithmetic))
+(assert_return (invoke "v64" (i64.const 0x7ff8000000000000))
+  (v128.const f64x2 nan:canonical nan:canonical))
+)wast");
+  const std::pair<const char *, const char *> Bad[] = {
+      {"wasmedgeWastNaNSignalingF32",
+       R"((assert_return (invoke "f32" (i32.const 0x7f800001)) (f32.const nan:arithmetic)))"},
+      {"wasmedgeWastNaNPayloadF32",
+       R"((assert_return (invoke "f32" (i32.const 0x7fc00001)) (f32.const nan:canonical)))"},
+      {"wasmedgeWastNaNSignalingF64",
+       R"((assert_return (invoke "f64" (i64.const 0x7ff0000000000001)) (f64.const nan:arithmetic)))"},
+      {"wasmedgeWastNaNPayloadF64",
+       R"((assert_return (invoke "f64" (i64.const 0x7ff8000000000001)) (f64.const nan:canonical)))"},
+      {"wasmedgeWastNaNSignalingF32x4",
+       R"((assert_return (invoke "v32" (i32.const 0x7f800001)) (v128.const f32x4 nan:arithmetic nan:arithmetic nan:arithmetic nan:arithmetic)))"},
+      {"wasmedgeWastNaNPayloadF64x2",
+       R"((assert_return (invoke "v64" (i64.const 0x7ff8000000000001)) (v128.const f64x2 nan:canonical nan:canonical)))"},
+  };
+  for (const auto &[Name, Command] : Bad) {
+    EXPECT_NONFATAL_FAILURE(runWastScript(Name, Module + Command + "\n"),
+                            "compareResults");
+  }
+}
+
+// Each assertion that instantiates a module takes the errors of one phase. A
+// link error does not satisfy a trap assertion, and a trap does not satisfy
+// assert_unlinkable, also when the message matches.
+TEST(WastRunnerTest, InstantiationPhases) {
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript(
+          "wasmedgeWastLinkErrorAsTrap",
+          R"wast((assert_trap (module (import "x" "f" (func))) "unknown import")
+)wast"),
+      "wrong phase");
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript(
+          "wasmedgeWastTrapAsLinkError",
+          R"wast((assert_unlinkable (module (func unreachable) (start 0)) "unreachable")
+)wast"),
+      "wrong phase");
+}
+
+// A bare (ref) matches a reference of the any hierarchy that is not null. A
+// function or an external reference does not match it.
+TEST(WastRunnerTest, BareRefResult) {
+  runWastScript("wasmedgeWastBareRef",
+                R"wast((module
+  (type $s (struct))
+  (func $f)
+  (elem declare func $f)
+  (func (export "i31") (result anyref) (ref.i31 (i32.const 1)))
+  (func (export "struct") (result (ref $s)) (struct.new $s))
+  (func (export "func") (result funcref) (ref.func $f))
+  (func (export "extern") (param externref) (result externref) (local.get 0)))
+(assert_return (invoke "i31") (ref))
+(assert_return (invoke "struct") (ref))
+(assert_return (invoke "func") (either (ref) (ref.func)))
+(assert_return (invoke "extern" (ref.extern 1)) (either (ref) (ref.extern)))
+)wast");
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastBareRefFunc",
+                    R"wast((module (func $f) (elem declare func $f)
+  (func (export "f") (result funcref) (ref.func $f)))
+(assert_return (invoke "f") (ref))
+)wast"),
+      "compareResults");
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastBareRefTypedFunc",
+                    R"wast((module (type $t (func)) (func $f (type $t))
+  (elem declare func $f)
+  (func (export "f") (result (ref $t)) (ref.func $f)))
+(assert_return (invoke "f") (ref))
+)wast"),
+      "compareResults");
+  EXPECT_NONFATAL_FAILURE(runWastScript("wasmedgeWastBareRefExtern",
+                                        R"wast((module
+  (func (export "f") (param externref) (result externref) (local.get 0)))
+(assert_return (invoke "f" (ref.extern 1)) (ref))
+)wast"),
+                          "compareResults");
+}
+
+// A reference result matches by the hierarchy and the runtime heap type of the
+// value, for get and for invoke. The declared type of an indexed global or
+// result does not decide the kind. A null matches a null of its own hierarchy
+// only.
+TEST(WastRunnerTest, RefKindResult) {
+  const std::string Module = R"wast((module
+  (type $s (struct))
+  (type $a (array i8))
+  (type $t (func))
+  (func $f (type $t))
+  (elem declare func $f)
+  (global (export "struct") (ref $s) (struct.new $s))
+  (global (export "array") (ref $a) (array.new_default $a (i32.const 1)))
+  (global (export "func") (ref $t) (ref.func $f))
+  (global (export "null-struct") (ref null $s) (ref.null $s))
+  (global (export "null-func") (ref null $t) (ref.null $t))
+  (func (export "make-struct") (result (ref $s)) (struct.new $s))
+  (func (export "make-func") (result (ref $t)) (ref.func $f))
+  (func (export "make-i31") (result anyref) (ref.i31 (i32.const 1))))
+)wast";
+  runWastScript("wasmedgeWastRefKind", Module + R"wast(
+(assert_return (get "struct") (ref.struct))
+(assert_return (get "struct") (ref.eq))
+(assert_return (get "struct") (ref))
+(assert_return (get "array") (ref.array))
+(assert_return (get "func") (ref.func))
+(assert_return (get "null-struct") (ref.null any))
+(assert_return (get "null-struct") (ref.null struct))
+(assert_return (get "null-func") (ref.null func))
+(assert_return (invoke "make-struct") (ref.struct))
+(assert_return (invoke "make-func") (ref.func))
+(assert_return (invoke "make-i31") (ref.i31))
+)wast");
+  const std::pair<const char *, const char *> Bad[] = {
+      {"wasmedgeWastRefKindStructAsFunc",
+       R"((assert_return (get "struct") (ref.func)))"},
+      {"wasmedgeWastRefKindStructAsArray",
+       R"((assert_return (get "struct") (ref.array)))"},
+      {"wasmedgeWastRefKindFuncAsStruct",
+       R"((assert_return (get "func") (ref.struct)))"},
+      {"wasmedgeWastRefKindInvokeStructAsFunc",
+       R"((assert_return (invoke "make-struct") (ref.func)))"},
+      {"wasmedgeWastRefKindInvokeFuncAsStruct",
+       R"((assert_return (invoke "make-func") (ref.struct)))"},
+      {"wasmedgeWastRefKindI31AsStruct",
+       R"((assert_return (invoke "make-i31") (ref.struct)))"},
+      {"wasmedgeWastRefKindNullFuncAsAny",
+       R"((assert_return (get "null-func") (ref.null any)))"},
+      {"wasmedgeWastRefKindNullStructAsFunc",
+       R"((assert_return (get "null-struct") (ref.null func)))"},
+      {"wasmedgeWastRefKindNullStructAsExtern",
+       R"((assert_return (get "null-struct") (ref.null extern)))"},
+  };
+  for (const auto &[Name, Command] : Bad) {
+    EXPECT_NONFATAL_FAILURE(runWastScript(Name, Module + Command + "\n"),
+                            "compareResults");
+  }
+}
+
+// A ref.null argument needs an abstract heap type, and a bare ref.null is only
+// a result. A ref.null with an indexed heap type and a reference result with
+// an extra operand fail the script.
+TEST(WastRunnerTest, RefOperands) {
+  runWastScript("wasmedgeWastRefNull",
+                R"wast((module
+  (func (export "f") (param funcref) (result funcref) (local.get 0)))
+(assert_return (invoke "f" (ref.null func)) (ref.null))
+(assert_return (invoke "f" (ref.null func)) (ref.null func))
+)wast");
+  const std::pair<const char *, const char *> Bad[] = {
+      {"wasmedgeWastRefNullArg", R"((invoke "f" (ref.null)))"},
+      {"wasmedgeWastRefNullIndexArg", R"((invoke "f" (ref.null 0)))"},
+      {"wasmedgeWastRefNullIdArg", R"((invoke "f" (ref.null $t)))"},
+      {"wasmedgeWastRefNullIndexResult",
+       R"((assert_return (invoke "f" (ref.null func)) (ref.null 0)))"},
+      {"wasmedgeWastRefNullExtraResult",
+       R"((assert_return (invoke "f" (ref.null func)) (ref.null func 0)))"},
+      {"wasmedgeWastRefFuncExtraResult",
+       R"((assert_return (invoke "f" (ref.null func)) (ref.func ignored)))"},
+      {"wasmedgeWastRefStructExtraResult",
+       R"((assert_return (invoke "f" (ref.null func)) (ref.struct 0)))"},
+      {"wasmedgeWastRefExtraResult",
+       R"((assert_return (invoke "f" (ref.null func)) (ref 0)))"},
+  };
+  for (const auto &[Name, Command] : Bad) {
+    EXPECT_NONFATAL_FAILURE(
+        runWastScript(
+            Name, std::string("(module (func (export \"f\") (param funcref) "
+                              "(result funcref) (local.get 0)))\n") +
+                      Command + "\n"),
+        "Failed to parse WAST");
+  }
+}
+
+// The operand of an assertion is a module, an invoke, or a get. Any other
+// sexpr fails the script, also when the loader gives the expected message for
+// it. The same text in a quoted module reaches the loader.
+TEST(WastRunnerTest, AssertionOperand) {
+  EXPECT_NONFATAL_FAILURE(
+      runWastScript("wasmedgeWastBadOperand",
+                    R"wast((assert_malformed (typo) "unexpected token")
+)wast"),
+      "Failed to parse WAST");
+  runWastScript(
+      "wasmedgeWastQuotedOperand",
+      R"wast((assert_malformed (module quote "(typo)") "unexpected token")
+)wast");
+}
+
+// A text fixture that the harness cannot read is an error of the fixture, and
+// not an empty module. A fixture of zero bytes that is present is an empty
+// module.
+TEST(JsonRunnerTest, TextFixtureFiles) {
+  ScratchDir Scratch("wasmedgeJsonFixtures");
+  ASSERT_FALSE(Scratch.path().empty());
+  const auto &Dir = Scratch.path();
+  const auto Present = Dir / "present.json";
+  const auto Missing = Dir / "missing.json";
+  const auto Commented = Dir / "commented.json";
+  const auto TextBytes = Dir / "text-bytes.json";
+  const auto MissingMalformed = Dir / "missing-malformed.json";
+  const auto Utf8Name = Dir / "utf8-name.json";
+  static WasmEdge::Configure Conf;
+  const auto WriteFile = [](const std::filesystem::path &Path,
+                            std::string_view Bytes) {
+    std::ofstream Fout(Path, std::ios::out | std::ios::binary);
+    Fout << Bytes;
+    return static_cast<bool>(Fout);
+  };
+  ASSERT_TRUE(WriteFile(Dir / "empty.wat", ""));
+  ASSERT_TRUE(WriteFile(Dir / "commented.wat", ";; text\n(module)\n"));
+  ASSERT_TRUE(WriteFile(Dir / "text.wasm", "(module)"));
+  ASSERT_TRUE(WriteFile(Dir / u8path("\xC3\xA9t\xC3\xA9.wat"), "(module)"));
+  const auto WriteScript = [](const std::filesystem::path &Path,
+                              std::string_view Command) {
+    std::ofstream Fout(Path, std::ios::out | std::ios::binary);
+    Fout << R"({"source_filename": "fixture.wast", "commands": [)" << Command
+         << "]}";
+  };
+  WriteScript(Present, R"({"type": "module", "line": 1, )"
+                       R"("filename": "empty.wat", "module_type": "text"})");
+  WriteScript(Missing, R"({"type": "module", "line": 1, )"
+                       R"("filename": "missing.wat", "module_type": "text"})");
+  WriteScript(Commented,
+              R"({"type": "module", "line": 1, )"
+              R"("filename": "commented.wat", "module_type": "text"})");
+  WriteScript(TextBytes, R"({"type": "assert_malformed", "line": 1, )"
+                         R"("filename": "text.wasm", "module_type": "binary", )"
+                         R"("text": "magic header not detected"})");
+  WriteScript(Utf8Name, R"({"type": "module", "line": 1, )"
+                        "\"filename\": \"\xC3\xA9t\xC3\xA9.wat\", "
+                        R"("module_type": "text"})");
+  WriteScript(MissingMalformed,
+              R"({"type": "assert_malformed", "line": 1, )"
+              R"("filename": "missing.wasm", "module_type": "binary", )"
+              R"("text": ""})");
+  Conf.setEnableWAT(true);
+  setVMCallbacks(T, Conf);
+  T.runFile(Present, Conf);
+  EXPECT_NONFATAL_FAILURE(T.runFile(Missing, Conf), "invalid path");
+  T.runFile(Commented, Conf);
+  T.runFile(TextBytes, Conf);
+  T.runFile(Utf8Name, Conf);
+  EXPECT_NONFATAL_FAILURE(T.runFile(MissingMalformed, Conf),
+                          "cannot read its module fixture");
 }
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{

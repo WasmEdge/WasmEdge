@@ -4198,6 +4198,28 @@ TEST(WasiNNTest, WhisperBackendPreloadMarkerFromGuest) {
   EXPECT_EQ(Errno[0].get<int32_t>(),
             static_cast<uint32_t>(ErrNo::InvalidArgument));
 }
+
+TEST(WasiNNTest, WhisperBackendFailedMetadataKeepsConfig) {
+  WhisperHarness H;
+  ASSERT_TRUE(H.load());
+  const auto Audio = readEntireFile("./wasinn_whisper_fixtures/test.wav");
+  ASSERT_FALSE(Audio.empty());
+  uint32_t Ctx = 0;
+  ASSERT_TRUE(H.initContext(Ctx));
+
+  EXPECT_EQ(
+      H.setMetadata(Ctx, "{\"prompt\":\"" + std::string(100, 'a') + "\"}"),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.setMetadata(Ctx, "{\"prompt\":\"" + std::string(300, 'b') +
+                                   "\",\"no-timestamps\":true,"
+                                   "\"diarize\":\"x\"}"),
+            static_cast<int32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(H.setInput(Ctx, 0, Audio), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.compute(Ctx), static_cast<int32_t>(ErrNo::Success));
+  const auto Output = H.getOutput(Ctx);
+  ASSERT_FALSE(Output.empty());
+  EXPECT_EQ(Output.front(), '[') << Output;
+}
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER

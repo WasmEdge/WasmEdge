@@ -961,23 +961,24 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
       spdlog::info(
           "[WASI-NN][Debug] Whisper backend: found Metadata, processing"sv);
     }
-    // Set the whisper config of this context as the graph default first.
-    // This will reset the config and inherit settings from the graph metadata.
-    CxtRef.WhisperConfig = GraphRef.WhisperConfig;
+    // Start from the graph default config, and replace the config of this
+    // context only on success: WhisperParams points into its strings.
+    Config NewConfig = GraphRef.WhisperConfig;
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
-    auto Res = parseMetadata(CxtRef.WhisperConfig, Metadata);
+    auto Res = parseMetadata(NewConfig, Metadata);
     if (Res != ErrNo::Success) {
       spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
       return Res;
     }
-    // Reconcile this graph's whisper log gate with the reparsed EnableLog.
-    installWhisperLog(GraphRef, CxtRef.WhisperConfig.EnableLog);
-    Res = handleTranslationConfig(GraphRef.WhisperCtx, CxtRef.WhisperConfig);
+    Res = handleTranslationConfig(GraphRef.WhisperCtx, NewConfig);
     if (Res != ErrNo::Success) {
       return Res;
     }
+    CxtRef.WhisperConfig = std::move(NewConfig);
     setWhisperParams(CxtRef);
+    // Reconcile this graph's whisper log gate with the reparsed EnableLog.
+    installWhisperLog(GraphRef, CxtRef.WhisperConfig.EnableLog);
     if (CxtRef.WhisperConfig.EnableDebugLog) {
       spdlog::info("[WASI-NN][Debug] Whisper backend: found Metadata, "
                    "processing...Done"sv);

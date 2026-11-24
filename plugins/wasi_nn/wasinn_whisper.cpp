@@ -298,6 +298,7 @@ void outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
   EndObj(false);
   StartArr("transcription");
 
+  const bool HasSpeaker = Params.Diarize && !StereoPCM16.empty();
   const int NSegments = whisper_full_n_segments(Ctx);
   for (int I = 0; I < NSegments; ++I) {
     const std::string &Text = whisper_full_get_segment_text(Ctx, I);
@@ -307,7 +308,7 @@ void outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
 
     StartObj(nullptr);
     TimesO(T0, T1, false);
-    ValueS("text", Text, !Params.Diarize && !Params.TinyDiarize && !Full);
+    ValueS("text", Text, !HasSpeaker && !Params.TinyDiarize && !Full);
 
     if (Full) {
       StartArr("tokens");
@@ -325,12 +326,12 @@ void outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
         ValueF("t_dtw", token.t_dtw, true);
         EndObj(j == (n - 1));
       }
-      EndArr(!Params.Diarize && !Params.TinyDiarize);
+      EndArr(!HasSpeaker && !Params.TinyDiarize);
     }
 
-    if (Params.Diarize && !StereoPCM16.empty()) {
+    if (HasSpeaker) {
       ValueS("speaker", estimateDiarizationSpeaker(StereoPCM16, T0, T1, true),
-             true);
+             !Params.TinyDiarize);
     }
 
     if (Params.TinyDiarize) {

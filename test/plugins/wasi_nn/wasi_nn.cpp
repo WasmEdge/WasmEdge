@@ -33,6 +33,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <regex>
 #include <set>
 #include <string>
 #include <string_view>
@@ -4389,6 +4390,35 @@ TEST(WasiNNTest, WhisperBackendOutputFilesFollowContext) {
   ASSERT_FALSE(FirstSegment.empty()) << Output;
   EXPECT_NE(SrtText.find(FirstSegment), std::string::npos)
       << "srt: " << SrtText << "\noutput: " << Output;
+}
+
+TEST(WasiNNTest, WhisperBackendJsonWithoutSpeaker) {
+  const ScopedTempDir Dir;
+  WhisperHarness H;
+  H.wireWASIModule(Dir.wasi());
+  ASSERT_TRUE(H.load());
+  const auto Speech = readEntireFile("./wasinn_whisper_fixtures/test.wav");
+  ASSERT_FALSE(Speech.empty());
+  const std::string FileName = ScopedTempDir::guestFile("output");
+  uint32_t Ctx = 0;
+  ASSERT_TRUE(H.initContext(Ctx));
+
+  for (const auto Full : {"false"sv, "true"sv}) {
+    SCOPED_TRACE(Full);
+    EXPECT_EQ(H.setMetadata(Ctx, "{\"diarize\":true,\"output-json\":true,"
+                                 "\"output-json-full\":" +
+                                     std::string(Full) + ",\"output-file\":\"" +
+                                     FileName + "\"}"),
+              static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(H.setInput(Ctx, 0, Speech), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(H.compute(Ctx), static_cast<int32_t>(ErrNo::Success));
+    const auto Json = readEntireFile(Dir.file("output.json"));
+    const std::string JsonText(Json.begin(), Json.end());
+    ASSERT_NE(JsonText.find("\"text\""sv), std::string::npos) << JsonText;
+    EXPECT_EQ(JsonText.find("\"speaker\""sv), std::string::npos) << JsonText;
+    EXPECT_FALSE(std::regex_search(JsonText, std::regex(",\\s*[}\\]]")))
+        << JsonText;
+  }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 

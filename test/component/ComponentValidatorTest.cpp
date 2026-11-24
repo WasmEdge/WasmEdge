@@ -3,12 +3,13 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
-#include "loader/loader.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
 
 #include <gtest/gtest.h>
+
+#include <array>
 
 namespace {
 
@@ -21,1245 +22,1376 @@ Configure Conf = []() {
   return C;
 }();
 
-TEST(ComponentValidatorTest, MissingArgument) {
-  AST::Component::Component Comp;
-  // Add both sections first, then access by index to avoid invalidation.
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
+TEST(ComponentValidatorTest, InstantiateArgMismatch) {
+  // Test mismatched instantiation arguments.
+  //
+  //   1.  Missing argument.
+  //   2.  Type mismatch.
+  //   3.  Imported component missing argument.
 
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+  // Missing argument.
+  {
+    AST::Component::Component Comp;
+    // Add both sections first, then access by index to avoid invalidation.
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+    auto &CompSec =
+        std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
+    auto &InstSec =
+        std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
 
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
-  Arg.getName() = "g";
-  Arg.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  Arg.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
+    CompSec.getContent() = std::make_unique<AST::Component::Component>();
+    CompSec.getContent()->getSections().emplace_back();
+    CompSec.getContent()
+        ->getSections()
+        .back()
+        .emplace<AST::Component::ImportSection>();
+    auto &ImpSec = std::get<AST::Component::ImportSection>(
+        CompSec.getContent()->getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "f";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+    InstSec.getContent().emplace_back();
+    AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
+    Arg.getName() = "g";
+    Arg.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+    Arg.getIndex().setIdx(0);
+    InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Type mismatch.
+  {
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+    auto &CompSec =
+        std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
+    auto &InstSec =
+        std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
+
+    CompSec.getContent() = std::make_unique<AST::Component::Component>();
+    CompSec.getContent()->getSections().emplace_back();
+    CompSec.getContent()
+        ->getSections()
+        .back()
+        .emplace<AST::Component::ImportSection>();
+    auto &ImpSec = std::get<AST::Component::ImportSection>(
+        CompSec.getContent()->getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "f";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    InstSec.getContent().emplace_back();
+    AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
+    Arg.getName() = "f";
+    Arg.getIndex().getSort().setSortType(
+        AST::Component::Sort::SortType::Component);
+    Arg.getIndex().setIdx(0);
+    InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // type 0: (component (import "x" (value bool)))
+    // import "C" (component (type 0))   ;; component 0 — imported, no raw AST
+    // instance (instantiate 0)          ;; FAIL — no arg supplied for "x"
+    // The value bound avoids type indices in the inner component-type scope.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+
+    // type 0: ComponentType `(component (import "x" (value bool)))`.
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+    std::vector<AST::Component::ComponentDecl> Decls;
+    AST::Component::ImportDecl ImpDecl;
+    ImpDecl.getName() = "x";
+    ImpDecl.getExternDesc().setValueBound(
+        ComponentValType{ComponentTypeCode::Bool});
+    AST::Component::ComponentDecl CD;
+    CD.setImport(std::move(ImpDecl));
+    Decls.push_back(std::move(CD));
+    AST::Component::ComponentType CT;
+    CT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setComponentType(std::move(CT));
+
+    // import "C" (component (type 0)) — gives component 0.
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "C";
+    ImpSec.getContent().back().getDesc().setComponentTypeIdx(0);
+
+    // instance (instantiate 0) — no args supplied.
+    auto &InstSec =
+        std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
+    InstSec.getContent().emplace_back();
+    InstSec.getContent().back().setInstantiateArgs(
+        0U, AST::Component::Instance::InstantiateArgs{});
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, TypeMismatch) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
-
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
-  Arg.getName() = "f";
-  Arg.getIndex().getSort().setSortType(
-      AST::Component::Sort::SortType::Component);
-  Arg.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-// =============================================================================
 // DefValType validation tests
-// =============================================================================
 
-TEST(ComponentValidatorTest, OwnMustReferenceResourceType) {
-  // type 0 = FuncType, type 1 = own(0) -> FAIL (own must refer to resource)
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+TEST(ComponentValidatorTest, OwnBorrowType) {
+  // Test own and borrow types.
+  //
+  //   1.  Own must reference resource type.
+  //   2.  Own with valid resource.
+  //   3.  Borrow must reference resource type.
+  //   4.  Own out of bounds.
 
-  // type 0: FuncType (not a resource)
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-
-  // type 1: own(0) -- index 0 is a FuncType, not a resource
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setOwn(AST::Component::OwnTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, OwnWithValidResource) {
-  // type 0 = ResourceType, type 1 = own(0) -> PASS
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  // type 0: ResourceType
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
-
-  // type 1: own(0) -- index 0 is a resource
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setOwn(AST::Component::OwnTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, BorrowMustReferenceResourceType) {
-  // type 0 = FuncType, type 1 = borrow(0) -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  // type 0: FuncType (not a resource)
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-
-  // type 1: borrow(0) -- index 0 is a FuncType, not a resource
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setBorrow(AST::Component::BorrowTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, OwnOutOfBounds) {
-  // type 0 = own(99) with no preceding types -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setOwn(AST::Component::OwnTy{99});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EmptyRecordRejected) {
-  // record with empty LabelTypes -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setRecord(AST::Component::RecordTy{});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EmptyVariantRejected) {
-  // variant with empty Cases -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setVariant(AST::Component::VariantTy{});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EmptyTupleRejected) {
-  // tuple with empty Types -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setTuple(AST::Component::TupleTy{});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EmptyFlagsRejected) {
-  // flags with empty Labels -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setFlags(AST::Component::FlagsTy{});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, FlagsTooManyRejected) {
-  // flags with 33 labels -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  AST::Component::FlagsTy F;
-  for (int I = 0; I < 33; ++I) {
-    F.Labels.push_back("flag-" + std::to_string(I));
-  }
-  DVT.setFlags(std::move(F));
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EmptyEnumRejected) {
-  // enum with empty Labels -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setEnum(AST::Component::EnumTy{});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, DuplicateRecordFieldRejected) {
-  // record with two fields named "x" -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  AST::Component::RecordTy Rec;
-  Rec.LabelTypes.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
-  Rec.LabelTypes.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
-  DVT.setRecord(std::move(Rec));
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, FuncTypeDuplicateParamName) {
-  // (type (func (param "x" u32) (param "x" u64)))  -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  std::vector<AST::Component::LabelValType> Params;
-  Params.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
-  Params.emplace_back("x"s, ComponentValType(ComponentTypeCode::U64));
-  FT.setParamList(std::move(Params));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, FuncTypeParamNotKebabCase) {
-  // (type (func (param "NOT_KEBAB" u32)))  -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  std::vector<AST::Component::LabelValType> Params;
-  Params.emplace_back("NOT_KEBAB"s, ComponentValType(ComponentTypeCode::U32));
-  FT.setParamList(std::move(Params));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, FuncTypeBorrowInResultRejected) {
-  // (type (resource))        ;; type 0
-  // (type (func (result (borrow 0))))  -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  // Type 0: resource
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
-
-  // Type 1: (borrow 0)
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType BorrowDVT;
-  BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
-
-  // Type 2: func with borrow in result
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setResult(ComponentValType(1));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, FuncTypeValidParams) {
-  // (type (func (param "name" u32) (param "age" u64) (result u32)))  -> PASS
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  std::vector<AST::Component::LabelValType> Params;
-  Params.emplace_back("name"s, ComponentValType(ComponentTypeCode::U32));
-  Params.emplace_back("age"s, ComponentValType(ComponentTypeCode::U64));
-  FT.setParamList(std::move(Params));
-  FT.setResult(ComponentValType(ComponentTypeCode::U32));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ResourceDestructorOutOfBounds) {
-  // (type (resource (dtor (func 99))))  -- no core funcs defined -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  AST::Component::ResourceType RT;
-  RT.getDestructor() = 99;
-  TypeSec.getContent().back().setResourceType(std::move(RT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ResourceNoDestructorValid) {
-  // (type (resource))  -- no destructor -> PASS
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, SubResourceImportIsResourceType) {
-  // (component
-  //   (import "r" (type (sub resource)))   ;; type 0 = abstract resource
-  //   (type (own 0))                        ;; VALID: own refs resource
-  // )
-  AST::Component::Component Comp;
-
-  // Import section with (sub resource) type bound
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent()
-      .back()
-      .getDesc()
-      .setTypeBound(); // sub resource (Eq=false)
-
-  // Type section with own(0)
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setOwn(AST::Component::OwnTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EqTypeBoundOutOfBounds) {
-  // (import "t" (type (eq 99)))   ;; no type 99 -> FAIL
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "t";
-  ImpSec.getContent().back().getDesc().setTypeBound(99); // eq 99
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, EqTypeBoundPropagatesResource) {
-  // (component
-  //   (type (resource))                 ;; type 0 = resource
-  //   (import "r" (type (eq 0)))        ;; type 1 = alias of resource
-  //   (type (own 1))                    ;; VALID: own refs aliased resource
-  // )
-
-  // Type section first: define resource
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
-
-  // Import section: eq alias to type 0
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent().back().getDesc().setTypeBound(0); // eq 0
-
-  // Another type section: own(1) -- the aliased resource
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec2 =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec2.getContent().emplace_back();
-  AST::Component::DefValType DVT;
-  DVT.setOwn(AST::Component::OwnTy{1});
-  TypeSec2.getContent().back().setDefValType(std::move(DVT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// =============================================================================
-// Declaration validation tests (DECL-1 through DECL-4)
-// =============================================================================
-
-TEST(ComponentValidatorTest, InstanceTypeExportSubResourceValid) {
-  // (type (instance
-  //   (export "r" (type (sub resource)))   ;; type 0 = resource
-  //   (type (borrow 0))                    ;; PASS: borrow refs resource
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
-
-  // export "r" (type (sub resource))
-  AST::Component::ExportDecl Exp;
-  Exp.getName() = "r";
-  Exp.getExternDesc().setTypeBound(); // sub resource
-  AST::Component::InstanceDecl D0;
-  D0.setExport(std::move(Exp));
-  Decls.push_back(std::move(D0));
-
-  // type (borrow 0) — references the resource from export
-  auto DT = std::make_unique<AST::Component::DefType>();
-  AST::Component::DefValType DVT;
-  DVT.setBorrow(AST::Component::BorrowTy{0});
-  DT->setDefValType(std::move(DVT));
-  AST::Component::InstanceDecl D1;
-  D1.setType(std::move(DT));
-  Decls.push_back(std::move(D1));
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, InstanceTypeExportEqResourcePropagates) {
-  // (type (instance
-  //   (export "r" (type (sub resource))) ;; type 0 = resource
-  //   (export "s" (type (eq 0)))         ;; type 1 = eq resource
-  //   (type (own 1))                     ;; PASS: own refs propagated resource
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
-
-  // export "r" (type (sub resource))
-  AST::Component::ExportDecl Exp0;
-  Exp0.getName() = "r";
-  Exp0.getExternDesc().setTypeBound(); // sub resource
-  AST::Component::InstanceDecl D0;
-  D0.setExport(std::move(Exp0));
-  Decls.push_back(std::move(D0));
-
-  // export "s" (type (eq 0))
-  AST::Component::ExportDecl Exp1;
-  Exp1.getName() = "s";
-  Exp1.getExternDesc().setTypeBound(0); // eq 0
-  AST::Component::InstanceDecl D1;
-  D1.setExport(std::move(Exp1));
-  Decls.push_back(std::move(D1));
-
-  // type (own 1)
-  auto OwnDT = std::make_unique<AST::Component::DefType>();
-  AST::Component::DefValType DVT;
-  DVT.setOwn(AST::Component::OwnTy{1});
-  OwnDT->setDefValType(std::move(DVT));
-  AST::Component::InstanceDecl D2;
-  D2.setType(std::move(OwnDT));
-  Decls.push_back(std::move(D2));
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, InstanceTypeDuplicateExportName) {
-  // (type (instance
-  //   (export "x" (func))
-  //   (export "x" (func))   ;; FAIL: duplicate export name
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
-  for (int I = 0; I < 2; ++I) {
-    AST::Component::ExportDecl Exp;
-    Exp.getName() = "x";
-    Exp.getExternDesc().setFuncTypeIdx(0);
-    AST::Component::InstanceDecl D;
-    D.setExport(std::move(Exp));
-    Decls.push_back(std::move(D));
-  }
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, InstanceTypeExportCaseFoldConflict) {
-  // (type (instance
-  //   (export "foo" (func))
-  //   (export "foo-BAR" (func))  ;; OK: distinct
-  //   (export "FOO" (func))       ;; FAIL: case-folds to existing "foo"
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
-  for (const auto *N : {"foo", "foo-BAR", "FOO"}) {
-    AST::Component::ExportDecl Exp;
-    Exp.getName() = N;
-    Exp.getExternDesc().setFuncTypeIdx(0);
-    AST::Component::InstanceDecl D;
-    D.setExport(std::move(Exp));
-    Decls.push_back(std::move(D));
-  }
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
-  // (type (instance
-  //   (export "foo" (type (sub resource)))       ;; local type 0
-  //   (type (own 0))                             ;; local type 1
-  //   (type (func (result (own 0))))             ;; local type 2
-  //   (export "[constructor]foo" (func (type 2))) ;; OK: strongly-unique pair
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
   {
-    AST::Component::ExportDecl Exp;
-    Exp.getName() = "foo";
-    Exp.getExternDesc().setTypeBound();
-    AST::Component::InstanceDecl D;
-    D.setExport(std::move(Exp));
-    Decls.push_back(std::move(D));
+    // type 0 = FuncType, type 1 = own(0) -> FAIL (own must refer to resource)
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    // type 0: FuncType (not a resource)
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+    // type 1: own(0) -- index 0 is a FuncType, not a resource
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setOwn(AST::Component::OwnTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
+
   {
-    auto DT = std::make_unique<AST::Component::DefType>();
-    AST::Component::DefValType OwnDVT;
-    OwnDVT.setOwn(AST::Component::OwnTy{0});
-    DT->setDefValType(std::move(OwnDVT));
-    AST::Component::InstanceDecl D;
-    D.setType(std::move(DT));
-    Decls.push_back(std::move(D));
+    // type 0 = ResourceType, type 1 = own(0) -> PASS
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    // type 0: ResourceType
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
+
+    // type 1: own(0) -- index 0 is a resource
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setOwn(AST::Component::OwnTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
   }
+
   {
-    auto DT = std::make_unique<AST::Component::DefType>();
+    // type 0 = FuncType, type 1 = borrow(0) -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    // type 0: FuncType (not a resource)
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+    // type 1: borrow(0) -- index 0 is a FuncType, not a resource
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setBorrow(AST::Component::BorrowTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // type 0 = own(99) with no preceding types -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setOwn(AST::Component::OwnTy{99});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+}
+
+TEST(ComponentValidatorTest, MalformedDefValTypeRejected) {
+  // Test malformed defined value types.
+  //
+  //   1.  Empty record rejected.
+  //   2.  Empty variant rejected.
+  //   3.  Empty tuple rejected.
+  //   4.  Empty flags rejected.
+  //   5.  Flags too many rejected.
+  //   6.  Empty enum rejected.
+  //   7.  Duplicate record field rejected.
+
+  {
+    // record with empty LabelTypes -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setRecord(AST::Component::RecordTy{});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // variant with empty Cases -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setVariant(AST::Component::VariantTy{});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // tuple with empty Types -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setTuple(AST::Component::TupleTy{});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // flags with empty Labels -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setFlags(AST::Component::FlagsTy{});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // flags with 33 labels -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    AST::Component::FlagsTy F;
+    for (int I = 0; I < 33; ++I) {
+      F.Labels.push_back("flag-" + std::to_string(I));
+    }
+    DVT.setFlags(std::move(F));
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // enum with empty Labels -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setEnum(AST::Component::EnumTy{});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // record with two fields named "x" -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    AST::Component::RecordTy Rec;
+    Rec.LabelTypes.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
+    Rec.LabelTypes.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
+    DVT.setRecord(std::move(Rec));
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+}
+
+TEST(ComponentValidatorTest, FuncType) {
+  // Test function types.
+  //
+  //   1.  Duplicate param name.
+  //   2.  Param not kebab case.
+  //   3.  Borrow in result rejected.
+  //   4.  Valid params.
+
+  {
+    // (type (func (param "x" u32) (param "x" u64)))  -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType FT;
+    std::vector<AST::Component::LabelValType> Params;
+    Params.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
+    Params.emplace_back("x"s, ComponentValType(ComponentTypeCode::U64));
+    FT.setParamList(std::move(Params));
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (type (func (param "NOT_KEBAB" u32)))  -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType FT;
+    std::vector<AST::Component::LabelValType> Params;
+    Params.emplace_back("NOT_KEBAB"s, ComponentValType(ComponentTypeCode::U32));
+    FT.setParamList(std::move(Params));
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (type (resource))        ;; type 0
+    // (type (func (result (borrow 0))))  -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    // Type 0: resource
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
+
+    // Type 1: (borrow 0)
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType BorrowDVT;
+    BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
+
+    // Type 2: func with borrow in result
+    TypeSec.getContent().emplace_back();
     AST::Component::FuncType FT;
     FT.setResult(ComponentValType(1));
-    DT->setFuncType(std::move(FT));
-    AST::Component::InstanceDecl D;
-    D.setType(std::move(DT));
-    Decls.push_back(std::move(D));
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
+
   {
+    // (type (func (param "name" u32) (param "age" u64) (result u32)))  -> PASS
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType FT;
+    std::vector<AST::Component::LabelValType> Params;
+    Params.emplace_back("name"s, ComponentValType(ComponentTypeCode::U32));
+    Params.emplace_back("age"s, ComponentValType(ComponentTypeCode::U64));
+    FT.setParamList(std::move(Params));
+    FT.setResult(ComponentValType(ComponentTypeCode::U32));
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+}
+
+TEST(ComponentValidatorTest, TypeBounds) {
+  // Test type bounds.
+  //
+  //   1.  Sub resource import is resource type.
+  //   2.  Eq type bound out of bounds.
+  //   3.  Eq type bound propagates resource.
+
+  {
+    // (component
+    //   (import "r" (type (sub resource)))   ;; type 0 = abstract resource
+    //   (type (own 0))                        ;; VALID: own refs resource
+    // )
+    AST::Component::Component Comp;
+
+    // Import section with (sub resource) type bound
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "r";
+    ImpSec.getContent()
+        .back()
+        .getDesc()
+        .setTypeBound(); // sub resource (Eq=false)
+
+    // Type section with own(0)
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setOwn(AST::Component::OwnTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // (import "t" (type (eq 99)))   ;; no type 99 -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "t";
+    ImpSec.getContent().back().getDesc().setTypeBound(99); // eq 99
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (component
+    //   (type (resource))                 ;; type 0 = resource
+    //   (import "r" (type (eq 0)))        ;; type 1 = alias of resource
+    //   (type (own 1))                    ;; VALID: own refs aliased resource
+    // )
+
+    // Type section first: define resource
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
+
+    // Import section: eq alias to type 0
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "r";
+    ImpSec.getContent().back().getDesc().setTypeBound(0); // eq 0
+
+    // Another type section: own(1) -- the aliased resource
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec2 =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec2.getContent().emplace_back();
+    AST::Component::DefValType DVT;
+    DVT.setOwn(AST::Component::OwnTy{1});
+    TypeSec2.getContent().back().setDefValType(std::move(DVT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+}
+
+// Declaration validation tests
+
+TEST(ComponentValidatorTest, InstanceTypeExports) {
+  // Test the exports of instance types.
+  //
+  //   1.  Instance type export sub resource valid.
+  //   2.  Instance type export eq resource propagates.
+  //   3.  Instance type duplicate export name.
+  //   4.  Instance type export case fold conflict.
+  //   5.  Instance type export constructor allowed.
+  //   6.  Instance type method name conflict.
+  //   7.  Instance type export func type out of bounds.
+
+  {
+    // (type (instance
+    //   (export "r" (type (sub resource)))   ;; type 0 = resource
+    //   (type (borrow 0))                    ;; PASS: borrow refs resource
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+
+    // export "r" (type (sub resource))
     AST::Component::ExportDecl Exp;
-    Exp.getName() = "[constructor]foo";
-    Exp.getExternDesc().setFuncTypeIdx(2);
+    Exp.getName() = "r";
+    Exp.getExternDesc().setTypeBound(); // sub resource
+    AST::Component::InstanceDecl D0;
+    D0.setExport(std::move(Exp));
+    Decls.push_back(std::move(D0));
+
+    // type (borrow 0) — references the resource from export
+    auto DT = std::make_unique<AST::Component::DefType>();
+    AST::Component::DefValType DVT;
+    DVT.setBorrow(AST::Component::BorrowTy{0});
+    DT->setDefValType(std::move(DVT));
+    AST::Component::InstanceDecl D1;
+    D1.setType(std::move(DT));
+    Decls.push_back(std::move(D1));
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // (type (instance
+    //   (export "r" (type (sub resource))) ;; type 0 = resource
+    //   (export "s" (type (eq 0)))         ;; type 1 = eq resource
+    //   (type (own 1))                     ;; PASS: own refs propagated
+    //   resource
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+
+    // export "r" (type (sub resource))
+    AST::Component::ExportDecl Exp0;
+    Exp0.getName() = "r";
+    Exp0.getExternDesc().setTypeBound(); // sub resource
+    AST::Component::InstanceDecl D0;
+    D0.setExport(std::move(Exp0));
+    Decls.push_back(std::move(D0));
+
+    // export "s" (type (eq 0))
+    AST::Component::ExportDecl Exp1;
+    Exp1.getName() = "s";
+    Exp1.getExternDesc().setTypeBound(0); // eq 0
+    AST::Component::InstanceDecl D1;
+    D1.setExport(std::move(Exp1));
+    Decls.push_back(std::move(D1));
+
+    // type (own 1)
+    auto OwnDT = std::make_unique<AST::Component::DefType>();
+    AST::Component::DefValType DVT;
+    DVT.setOwn(AST::Component::OwnTy{1});
+    OwnDT->setDefValType(std::move(DVT));
+    AST::Component::InstanceDecl D2;
+    D2.setType(std::move(OwnDT));
+    Decls.push_back(std::move(D2));
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // (type (instance
+    //   (export "x" (func))
+    //   (export "x" (func))   ;; FAIL: duplicate export name
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+    for (int I = 0; I < 2; ++I) {
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = "x";
+      Exp.getExternDesc().setFuncTypeIdx(0);
+      AST::Component::InstanceDecl D;
+      D.setExport(std::move(Exp));
+      Decls.push_back(std::move(D));
+    }
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (type (instance
+    //   (export "foo" (func))
+    //   (export "foo-BAR" (func))  ;; OK: distinct
+    //   (export "FOO" (func))       ;; FAIL: case-folds to existing "foo"
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+    for (const auto *N : {"foo", "foo-BAR", "FOO"}) {
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = N;
+      Exp.getExternDesc().setFuncTypeIdx(0);
+      AST::Component::InstanceDecl D;
+      D.setExport(std::move(Exp));
+      Decls.push_back(std::move(D));
+    }
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (type (instance
+    //   (export "foo" (type (sub resource)))       ;; local type 0
+    //   (type (own 0))                             ;; local type 1
+    //   (type (func (result (own 0))))             ;; local type 2
+    //   (export "[constructor]foo" (func (type 2))) ;; OK: strongly-unique pair
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+    {
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = "foo";
+      Exp.getExternDesc().setTypeBound();
+      AST::Component::InstanceDecl D;
+      D.setExport(std::move(Exp));
+      Decls.push_back(std::move(D));
+    }
+    {
+      auto DT = std::make_unique<AST::Component::DefType>();
+      AST::Component::DefValType OwnDVT;
+      OwnDVT.setOwn(AST::Component::OwnTy{0});
+      DT->setDefValType(std::move(OwnDVT));
+      AST::Component::InstanceDecl D;
+      D.setType(std::move(DT));
+      Decls.push_back(std::move(D));
+    }
+    {
+      auto DT = std::make_unique<AST::Component::DefType>();
+      AST::Component::FuncType FT;
+      FT.setResult(ComponentValType(1));
+      DT->setFuncType(std::move(FT));
+      AST::Component::InstanceDecl D;
+      D.setType(std::move(DT));
+      Decls.push_back(std::move(D));
+    }
+    {
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = "[constructor]foo";
+      Exp.getExternDesc().setFuncTypeIdx(2);
+      AST::Component::InstanceDecl D;
+      D.setExport(std::move(Exp));
+      Decls.push_back(std::move(D));
+    }
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // (type (instance
+    //   (export "foo" (func))
+    //   (export "[method]foo.foo" (func))   ;; FAIL: L and [*]L.L conflict
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+    for (const auto *N : {"foo", "[method]foo.foo"}) {
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = N;
+      Exp.getExternDesc().setFuncTypeIdx(0);
+      AST::Component::InstanceDecl D;
+      D.setExport(std::move(Exp));
+      Decls.push_back(std::move(D));
+    }
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (type (instance
+    //   (export "f" (func (type 99))) ;; FAIL: no type 99 in instance scope
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::InstanceDecl> Decls;
+    AST::Component::ExportDecl ExpDecl;
+    ExpDecl.getName() = "f";
+    ExpDecl.getExternDesc().setFuncTypeIdx(99);
     AST::Component::InstanceDecl D;
-    D.setExport(std::move(Exp));
+    D.setExport(std::move(ExpDecl));
     Decls.push_back(std::move(D));
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, InstanceTypeExportMethodSelfDotConflict) {
-  // (type (instance
-  //   (export "foo" (func))
-  //   (export "[method]foo.foo" (func))   ;; FAIL: L and [*]L.L conflict
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+TEST(ComponentValidatorTest, TopLevelExportNames) {
+  // Test top-level export names.
+  //
+  //   1.  Top level duplicate export name.
+  //   2.  Top level export case fold conflict.
 
-  std::vector<AST::Component::InstanceDecl> Decls;
-  for (const auto *N : {"foo", "[method]foo.foo"}) {
-    AST::Component::ExportDecl Exp;
-    Exp.getName() = N;
-    Exp.getExternDesc().setFuncTypeIdx(0);
-    AST::Component::InstanceDecl D;
-    D.setExport(std::move(Exp));
-    Decls.push_back(std::move(D));
+  {
+    // (component
+    //   (import "i0" (func (type 0)))
+    //   (export "foo" (func 0))
+    //   (export "foo" (func 0))     ;; FAIL: duplicate
+    // )
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "i0";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ExportSection>();
+    auto &ExpSec =
+        std::get<AST::Component::ExportSection>(Comp.getSections().back());
+    for (int I = 0; I < 2; ++I) {
+      AST::Component::Export Ex;
+      Ex.getName() = "foo";
+      Ex.getSortIndex().getSort().setIsCore(false);
+      Ex.getSortIndex().getSort().setSortType(
+          AST::Component::Sort::SortType::Func);
+      Ex.getSortIndex().setIdx(0);
+      ExpSec.getContent().push_back(std::move(Ex));
+    }
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
 
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
+  {
+    // (component
+    //   (import "i0" (func (type 0)))
+    //   (export "foo" (func 0))
+    //   (export "FOO" (func 0))   ;; FAIL: case-folds to existing "foo"
+    // )
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "i0";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ExportSection>();
+    auto &ExpSec =
+        std::get<AST::Component::ExportSection>(Comp.getSections().back());
+    for (const auto *N : {"foo", "FOO"}) {
+      AST::Component::Export Ex;
+      Ex.getName() = N;
+      Ex.getSortIndex().getSort().setIsCore(false);
+      Ex.getSortIndex().getSort().setSortType(
+          AST::Component::Sort::SortType::Func);
+      Ex.getSortIndex().setIdx(0);
+      ExpSec.getContent().push_back(std::move(Ex));
+    }
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, ComponentTopLevelDuplicateExportName) {
-  // (component
-  //   (import "i0" (func (type 0)))
-  //   (export "foo" (func 0))
-  //   (export "foo" (func 0))     ;; FAIL: duplicate
-  // )
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "i0";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+TEST(ComponentValidatorTest, ComponentTypeImports) {
+  // Test the imports of component types.
+  //
+  //   1.  Component type duplicate import name.
+  //   2.  Component type annotated name needs func.
 
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ExportSection>();
-  auto &ExpSec =
-      std::get<AST::Component::ExportSection>(Comp.getSections().back());
-  for (int I = 0; I < 2; ++I) {
-    AST::Component::Export Ex;
-    Ex.getName() = "foo";
-    Ex.getSortIndex().getSort().setIsCore(false);
-    Ex.getSortIndex().getSort().setSortType(
-        AST::Component::Sort::SortType::Func);
-    Ex.getSortIndex().setIdx(0);
-    ExpSec.getContent().push_back(std::move(Ex));
+  {
+    // (type (component
+    //   (import "f" (func))
+    //   (import "f" (func))   ;; FAIL: duplicate import name
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::ComponentDecl> Decls;
+    for (int I = 0; I < 2; ++I) {
+      AST::Component::ImportDecl Imp;
+      Imp.getName() = "f";
+      Imp.getExternDesc().setFuncTypeIdx(0);
+      AST::Component::ComponentDecl CD;
+      CD.setImport(std::move(Imp));
+      Decls.push_back(std::move(CD));
+    }
+
+    AST::Component::ComponentType CT;
+    CT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setComponentType(std::move(CT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
+  {
+    // (type (component
+    //   (import "[method]r.m" (instance))   ;; FAIL: annotated name on non-func
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
-TEST(ComponentValidatorTest, ComponentTopLevelExportCaseFoldConflict) {
-  // (component
-  //   (import "i0" (func (type 0)))
-  //   (export "foo" (func 0))
-  //   (export "FOO" (func 0))   ;; FAIL: case-folds to existing "foo"
-  // )
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "i0";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ExportSection>();
-  auto &ExpSec =
-      std::get<AST::Component::ExportSection>(Comp.getSections().back());
-  for (const auto *N : {"foo", "FOO"}) {
-    AST::Component::Export Ex;
-    Ex.getName() = N;
-    Ex.getSortIndex().getSort().setIsCore(false);
-    Ex.getSortIndex().getSort().setSortType(
-        AST::Component::Sort::SortType::Func);
-    Ex.getSortIndex().setIdx(0);
-    ExpSec.getContent().push_back(std::move(Ex));
-  }
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ComponentTypeDuplicateImportName) {
-  // (type (component
-  //   (import "f" (func))
-  //   (import "f" (func))   ;; FAIL: duplicate import name
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::ComponentDecl> Decls;
-  for (int I = 0; I < 2; ++I) {
+    std::vector<AST::Component::ComponentDecl> Decls;
     AST::Component::ImportDecl Imp;
-    Imp.getName() = "f";
-    Imp.getExternDesc().setFuncTypeIdx(0);
+    Imp.getName() = "[method]r.m";
+    Imp.getExternDesc().setInstanceTypeIdx(0);
     AST::Component::ComponentDecl CD;
     CD.setImport(std::move(Imp));
     Decls.push_back(std::move(CD));
+
+    AST::Component::ComponentType CT;
+    CT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setComponentType(std::move(CT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
-
-  AST::Component::ComponentType CT;
-  CT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setComponentType(std::move(CT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, ComponentTypeImportAnnotatedNameRequiresFunc) {
-  // (type (component
-  //   (import "[method]r.m" (instance))   ;; FAIL: annotated name on non-func
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::ComponentDecl> Decls;
-  AST::Component::ImportDecl Imp;
-  Imp.getName() = "[method]r.m";
-  Imp.getExternDesc().setInstanceTypeIdx(0);
-  AST::Component::ComponentDecl CD;
-  CD.setImport(std::move(Imp));
-  Decls.push_back(std::move(CD));
-
-  AST::Component::ComponentType CT;
-  CT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setComponentType(std::move(CT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ComponentTypeExportedInstanceAliasResolves) {
-  // Regression for wit-smith–generated fuzz case: an `alias export` inside a
-  // ComponentType body must see the sub-exports declared by an earlier
-  // ExportDecl of an inline instance type.
+TEST(ComponentValidatorTest, TypeAliasExport) {
+  // Test type aliases of exports.
   //
-  // (type (component
-  //   (type (;0;) (instance (export "xx" (type (sub resource)))))
-  //   (export "x" (instance (type 0)))
-  //   (alias export 0 "xx" (type (;1;)))    ;; needs instance 0 to expose "xx"
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  //   1.  Component type alias export resolves.
+  //   2.  Instance type alias export resolves.
+  //   3.  Component type alias export missing.
 
-  std::vector<AST::Component::ComponentDecl> Decls;
-
-  // type 0: (instance (export "xx" (type (sub resource))))
-  auto InnerDT = std::make_unique<AST::Component::DefType>();
   {
-    AST::Component::ExportDecl InnerExp;
-    InnerExp.getName() = "xx";
-    InnerExp.getExternDesc().setTypeBound(); // sub resource
-    AST::Component::InstanceDecl InnerD;
-    InnerD.setExport(std::move(InnerExp));
-    std::vector<AST::Component::InstanceDecl> InnerDecls;
-    InnerDecls.push_back(std::move(InnerD));
-    AST::Component::InstanceType InnerIT;
-    InnerIT.setDecl(std::move(InnerDecls));
-    InnerDT->setInstanceType(std::move(InnerIT));
+    // An alias export in a component type body sees the sub-exports of an
+    // earlier exported instance.
+    // (type (component
+    //   (type (;0;) (instance (export "xx" (type (sub resource)))))
+    //   (export "x" (instance (type 0)))
+    //   (alias export 0 "xx" (type (;1;)))    ;; needs instance 0 to expose
+    //   "xx"
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::ComponentDecl> Decls;
+
+    // type 0: (instance (export "xx" (type (sub resource))))
+    auto InnerDT = std::make_unique<AST::Component::DefType>();
+    {
+      AST::Component::ExportDecl InnerExp;
+      InnerExp.getName() = "xx";
+      InnerExp.getExternDesc().setTypeBound(); // sub resource
+      AST::Component::InstanceDecl InnerD;
+      InnerD.setExport(std::move(InnerExp));
+      std::vector<AST::Component::InstanceDecl> InnerDecls;
+      InnerDecls.push_back(std::move(InnerD));
+      AST::Component::InstanceType InnerIT;
+      InnerIT.setDecl(std::move(InnerDecls));
+      InnerDT->setInstanceType(std::move(InnerIT));
+    }
+    AST::Component::InstanceDecl D0;
+    D0.setType(std::move(InnerDT));
+    AST::Component::ComponentDecl CD0;
+    CD0.setInstance(std::move(D0));
+    Decls.push_back(std::move(CD0));
+
+    // export "x" (instance (type 0))  — instance 0
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = "x";
+    Exp.getExternDesc().setInstanceTypeIdx(0);
+    AST::Component::InstanceDecl D1;
+    D1.setExport(std::move(Exp));
+    AST::Component::ComponentDecl CD1;
+    CD1.setInstance(std::move(D1));
+    Decls.push_back(std::move(CD1));
+
+    // alias export 0 "xx" (type) — consumes "xx" from instance 0
+    AST::Component::Alias A;
+    A.setTargetType(AST::Component::Alias::TargetType::Export);
+    A.getSort().setIsCore(false);
+    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+    A.setExport(0, "xx");
+    AST::Component::InstanceDecl D2;
+    D2.setAlias(std::move(A));
+    AST::Component::ComponentDecl CD2;
+    CD2.setInstance(std::move(D2));
+    Decls.push_back(std::move(CD2));
+
+    AST::Component::ComponentType CT;
+    CT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setComponentType(std::move(CT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
   }
-  AST::Component::InstanceDecl D0;
-  D0.setType(std::move(InnerDT));
-  AST::Component::ComponentDecl CD0;
-  CD0.setInstance(std::move(D0));
-  Decls.push_back(std::move(CD0));
 
-  // export "x" (instance (type 0))  — instance 0
-  AST::Component::ExportDecl Exp;
-  Exp.getName() = "x";
-  Exp.getExternDesc().setInstanceTypeIdx(0);
-  AST::Component::InstanceDecl D1;
-  D1.setExport(std::move(Exp));
-  AST::Component::ComponentDecl CD1;
-  CD1.setInstance(std::move(D1));
-  Decls.push_back(std::move(CD1));
+  {
+    // The same alias inside an instance type body.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
-  // alias export 0 "xx" (type) — consumes "xx" from instance 0
-  AST::Component::Alias A;
-  A.setTargetType(AST::Component::Alias::TargetType::Export);
-  A.getSort().setIsCore(false);
-  A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-  A.setExport(0, "xx");
-  AST::Component::InstanceDecl D2;
-  D2.setAlias(std::move(A));
-  AST::Component::ComponentDecl CD2;
-  CD2.setInstance(std::move(D2));
-  Decls.push_back(std::move(CD2));
+    std::vector<AST::Component::InstanceDecl> Decls;
 
-  AST::Component::ComponentType CT;
-  CT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setComponentType(std::move(CT));
+    // type 0: (instance (export "xx" (type (sub resource))))
+    auto InnerDT = std::make_unique<AST::Component::DefType>();
+    {
+      AST::Component::ExportDecl InnerExp;
+      InnerExp.getName() = "xx";
+      InnerExp.getExternDesc().setTypeBound();
+      AST::Component::InstanceDecl InnerD;
+      InnerD.setExport(std::move(InnerExp));
+      std::vector<AST::Component::InstanceDecl> InnerDecls;
+      InnerDecls.push_back(std::move(InnerD));
+      AST::Component::InstanceType InnerIT;
+      InnerIT.setDecl(std::move(InnerDecls));
+      InnerDT->setInstanceType(std::move(InnerIT));
+    }
+    AST::Component::InstanceDecl D0;
+    D0.setType(std::move(InnerDT));
+    Decls.push_back(std::move(D0));
 
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
+    // export "x" (instance (type 0))
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = "x";
+    Exp.getExternDesc().setInstanceTypeIdx(0);
+    AST::Component::InstanceDecl D1;
+    D1.setExport(std::move(Exp));
+    Decls.push_back(std::move(D1));
+
+    // alias export 0 "xx" (type)
+    AST::Component::Alias A;
+    A.setTargetType(AST::Component::Alias::TargetType::Export);
+    A.getSort().setIsCore(false);
+    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+    A.setExport(0, "xx");
+    AST::Component::InstanceDecl D2;
+    D2.setAlias(std::move(A));
+    Decls.push_back(std::move(D2));
+
+    AST::Component::InstanceType IT;
+    IT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // Aliasing an export that the exported instance does not expose fails.
+    // (type (component
+    //   (type (;0;) (instance (export "xx" (type (sub resource)))))
+    //   (export "x" (instance (type 0)))
+    //   (alias export 0 "yy" (type))   ;; FAIL: instance 0 has "xx", not "yy"
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::ComponentDecl> Decls;
+
+    auto InnerDT = std::make_unique<AST::Component::DefType>();
+    {
+      AST::Component::ExportDecl InnerExp;
+      InnerExp.getName() = "xx";
+      InnerExp.getExternDesc().setTypeBound();
+      AST::Component::InstanceDecl InnerD;
+      InnerD.setExport(std::move(InnerExp));
+      std::vector<AST::Component::InstanceDecl> InnerDecls;
+      InnerDecls.push_back(std::move(InnerD));
+      AST::Component::InstanceType InnerIT;
+      InnerIT.setDecl(std::move(InnerDecls));
+      InnerDT->setInstanceType(std::move(InnerIT));
+    }
+    AST::Component::InstanceDecl D0;
+    D0.setType(std::move(InnerDT));
+    AST::Component::ComponentDecl CD0;
+    CD0.setInstance(std::move(D0));
+    Decls.push_back(std::move(CD0));
+
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = "x";
+    Exp.getExternDesc().setInstanceTypeIdx(0);
+    AST::Component::InstanceDecl D1;
+    D1.setExport(std::move(Exp));
+    AST::Component::ComponentDecl CD1;
+    CD1.setInstance(std::move(D1));
+    Decls.push_back(std::move(CD1));
+
+    AST::Component::Alias A;
+    A.setTargetType(AST::Component::Alias::TargetType::Export);
+    A.getSort().setIsCore(false);
+    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+    A.setExport(0, "yy");
+    AST::Component::InstanceDecl D2;
+    D2.setAlias(std::move(A));
+    AST::Component::ComponentDecl CD2;
+    CD2.setInstance(std::move(D2));
+    Decls.push_back(std::move(CD2));
+
+    AST::Component::ComponentType CT;
+    CT.setDecl(std::move(Decls));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setComponentType(std::move(CT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, InstanceTypeExportedInstanceAliasResolves) {
-  // Same as ComponentTypeExportedInstanceAliasResolves but inside an
-  // InstanceType body — the ExportDecl-populate fix must apply on both
-  // componenttype and instancetype scopes.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
-
-  // type 0: (instance (export "xx" (type (sub resource))))
-  auto InnerDT = std::make_unique<AST::Component::DefType>();
-  {
-    AST::Component::ExportDecl InnerExp;
-    InnerExp.getName() = "xx";
-    InnerExp.getExternDesc().setTypeBound();
-    AST::Component::InstanceDecl InnerD;
-    InnerD.setExport(std::move(InnerExp));
-    std::vector<AST::Component::InstanceDecl> InnerDecls;
-    InnerDecls.push_back(std::move(InnerD));
-    AST::Component::InstanceType InnerIT;
-    InnerIT.setDecl(std::move(InnerDecls));
-    InnerDT->setInstanceType(std::move(InnerIT));
-  }
-  AST::Component::InstanceDecl D0;
-  D0.setType(std::move(InnerDT));
-  Decls.push_back(std::move(D0));
-
-  // export "x" (instance (type 0))
-  AST::Component::ExportDecl Exp;
-  Exp.getName() = "x";
-  Exp.getExternDesc().setInstanceTypeIdx(0);
-  AST::Component::InstanceDecl D1;
-  D1.setExport(std::move(Exp));
-  Decls.push_back(std::move(D1));
-
-  // alias export 0 "xx" (type)
-  AST::Component::Alias A;
-  A.setTargetType(AST::Component::Alias::TargetType::Export);
-  A.getSort().setIsCore(false);
-  A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-  A.setExport(0, "xx");
-  AST::Component::InstanceDecl D2;
-  D2.setAlias(std::move(A));
-  Decls.push_back(std::move(D2));
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ComponentTypeExportedInstanceAliasMissingExport) {
-  // Negative: aliasing an export that the exported instance does not expose
-  // must still fail after the populate fix.
+TEST(ComponentValidatorTest, CoreModuleType) {
+  // Test core module types.
   //
-  // (type (component
-  //   (type (;0;) (instance (export "xx" (type (sub resource)))))
-  //   (export "x" (instance (type 0)))
-  //   (alias export 0 "yy" (type))   ;; FAIL: instance 0 has "xx", not "yy"
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  //   1.  Func type out of bounds.
+  //   2.  Valid import export.
 
-  std::vector<AST::Component::ComponentDecl> Decls;
-
-  auto InnerDT = std::make_unique<AST::Component::DefType>();
   {
-    AST::Component::ExportDecl InnerExp;
-    InnerExp.getName() = "xx";
-    InnerExp.getExternDesc().setTypeBound();
-    AST::Component::InstanceDecl InnerD;
-    InnerD.setExport(std::move(InnerExp));
-    std::vector<AST::Component::InstanceDecl> InnerDecls;
-    InnerDecls.push_back(std::move(InnerD));
-    AST::Component::InstanceType InnerIT;
-    InnerIT.setDecl(std::move(InnerDecls));
-    InnerDT->setInstanceType(std::move(InnerIT));
+    // (type (module
+    //   (import "m" "f" (func (type 99)))   ;; FAIL: no core type 99
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    auto &CoreTypeSec =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+    std::vector<AST::Component::CoreModuleDecl> ModDecls;
+    AST::Component::CoreImportDecl CImp;
+    CImp.getModuleName() = "m";
+    CImp.getName() = "f";
+    CImp.getImportDesc().setTypeIndex(99);
+    AST::Component::CoreModuleDecl MD;
+    MD.setImport(std::move(CImp));
+    ModDecls.push_back(std::move(MD));
+
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setModuleType(std::move(ModDecls));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
   }
-  AST::Component::InstanceDecl D0;
-  D0.setType(std::move(InnerDT));
-  AST::Component::ComponentDecl CD0;
-  CD0.setInstance(std::move(D0));
-  Decls.push_back(std::move(CD0));
 
-  AST::Component::ExportDecl Exp;
-  Exp.getName() = "x";
-  Exp.getExternDesc().setInstanceTypeIdx(0);
-  AST::Component::InstanceDecl D1;
-  D1.setExport(std::move(Exp));
-  AST::Component::ComponentDecl CD1;
-  CD1.setInstance(std::move(D1));
-  Decls.push_back(std::move(CD1));
+  {
+    // (type (module
+    //   (type (func))                       ;; core type 0
+    //   (import "m" "f" (func (type 0)))    ;; core func 0
+    //   (export "g" (func (type 0)))        ;; core func 1
+    // ))
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    auto &CoreTypeSec =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
 
-  AST::Component::Alias A;
-  A.setTargetType(AST::Component::Alias::TargetType::Export);
-  A.getSort().setIsCore(false);
-  A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-  A.setExport(0, "yy");
-  AST::Component::InstanceDecl D2;
-  D2.setAlias(std::move(A));
-  AST::Component::ComponentDecl CD2;
-  CD2.setInstance(std::move(D2));
-  Decls.push_back(std::move(CD2));
+    std::vector<AST::Component::CoreModuleDecl> ModDecls;
 
-  AST::Component::ComponentType CT;
-  CT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setComponentType(std::move(CT));
+    // core type (func)
+    auto CDT = std::make_unique<AST::Component::CoreDefType>();
+    std::vector<AST::SubType> STs;
+    STs.emplace_back();
+    STs.back().getCompositeType().setFunctionType(AST::FunctionType());
+    CDT->setSubTypes(std::move(STs));
+    AST::Component::CoreModuleDecl D0;
+    D0.setType(std::move(CDT));
+    ModDecls.push_back(std::move(D0));
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+    // import "m" "f" (func (type 0))
+    AST::Component::CoreImportDecl CImp;
+    CImp.getModuleName() = "m";
+    CImp.getName() = "f";
+    CImp.getImportDesc().setTypeIndex(0);
+    AST::Component::CoreModuleDecl D1;
+    D1.setImport(std::move(CImp));
+    ModDecls.push_back(std::move(D1));
+
+    // export "g" (func (type 0))
+    AST::Component::CoreExportDecl CExp;
+    CExp.getName() = "g";
+    CExp.getImportDesc().setTypeIndex(0);
+    AST::Component::CoreModuleDecl D2;
+    D2.setExport(std::move(CExp));
+    ModDecls.push_back(std::move(D2));
+
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setModuleType(std::move(ModDecls));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CoreModuleTypeFuncTypeOutOfBounds) {
-  // (type (module
-  //   (import "m" "f" (func (type 99)))   ;; FAIL: no core type 99
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  auto &CoreTypeSec =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::CoreModuleDecl> ModDecls;
-  AST::Component::CoreImportDecl CImp;
-  CImp.getModuleName() = "m";
-  CImp.getName() = "f";
-  CImp.getImportDesc().setTypeIndex(99);
-  AST::Component::CoreModuleDecl MD;
-  MD.setImport(std::move(CImp));
-  ModDecls.push_back(std::move(MD));
-
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setModuleType(std::move(ModDecls));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreModuleTypeValidImportExport) {
-  // (type (module
-  //   (type (func))                       ;; core type 0
-  //   (import "m" "f" (func (type 0)))    ;; core func 0
-  //   (export "g" (func (type 0)))        ;; core func 1
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  auto &CoreTypeSec =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::CoreModuleDecl> ModDecls;
-
-  // core type (func)
-  auto CDT = std::make_unique<AST::Component::CoreDefType>();
-  std::vector<AST::SubType> STs;
-  STs.emplace_back();
-  STs.back().getCompositeType().setFunctionType(AST::FunctionType());
-  CDT->setSubTypes(std::move(STs));
-  AST::Component::CoreModuleDecl D0;
-  D0.setType(std::move(CDT));
-  ModDecls.push_back(std::move(D0));
-
-  // import "m" "f" (func (type 0))
-  AST::Component::CoreImportDecl CImp;
-  CImp.getModuleName() = "m";
-  CImp.getName() = "f";
-  CImp.getImportDesc().setTypeIndex(0);
-  AST::Component::CoreModuleDecl D1;
-  D1.setImport(std::move(CImp));
-  ModDecls.push_back(std::move(D1));
-
-  // export "g" (func (type 0))
-  AST::Component::CoreExportDecl CExp;
-  CExp.getName() = "g";
-  CExp.getImportDesc().setTypeIndex(0);
-  AST::Component::CoreModuleDecl D2;
-  D2.setExport(std::move(CExp));
-  ModDecls.push_back(std::move(D2));
-
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setModuleType(std::move(ModDecls));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// =============================================================================
 // Duplicate-name validation tests for instances/instantiate
-// =============================================================================
 
-TEST(ComponentValidatorTest, CoreInstanceInstantiateDuplicateArgName) {
-  // (core module $M)    ;; empty core module
-  // (core instance (instantiate $M (with "m" (instance 0))
-  //                                (with "m" (instance 0))))  ;; FAIL: dup arg
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
-  auto &CoreInstSec =
-      std::get<AST::Component::CoreInstanceSection>(Comp.getSections()[1]);
+TEST(ComponentValidatorTest, InstanceDuplicateNames) {
+  // Test duplicate names in instances.
+  //
+  //   1.  Core instantiate duplicate arg name.
+  //   2.  Instantiate duplicate arg name.
+  //   3.  Instance inline export duplicate name.
 
-  CoreInstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<uint32_t> Arg1;
-  Arg1.getName() = "m";
-  Arg1.getIndex() = 0;
-  AST::Component::InstantiateArg<uint32_t> Arg2;
-  Arg2.getName() = "m";
-  Arg2.getIndex() = 0;
-  CoreInstSec.getContent().back().setInstantiateArgs(
-      0U, {std::move(Arg1), std::move(Arg2)});
+  {
+    // (core module $M)    ;; empty core module
+    // (core instance (instantiate $M (with "m" (instance 0))
+    //                                (with "m" (instance 0))))  ;; FAIL: dup
+    //                                arg
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+    auto &CoreInstSec =
+        std::get<AST::Component::CoreInstanceSection>(Comp.getSections()[1]);
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+    CoreInstSec.getContent().emplace_back();
+    AST::Component::InstantiateArg<uint32_t> Arg1;
+    Arg1.getName() = "m";
+    Arg1.getIndex() = 0;
+    AST::Component::InstantiateArg<uint32_t> Arg2;
+    Arg2.getName() = "m";
+    Arg2.getIndex() = 0;
+    CoreInstSec.getContent().back().setInstantiateArgs(
+        0U, {std::move(Arg1), std::move(Arg2)});
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (component $C (import "f" (func)))
+    // (import "g" (func))
+    // (instance (instantiate $C (with "f" (func 0))
+    //                           (with "f" (func 0))))  ;; FAIL: dup arg
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+    auto &CompSec =
+        std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+    auto &InstSec =
+        std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
+
+    // Inner component with `(import "f" (func))`.
+    CompSec.getContent() = std::make_unique<AST::Component::Component>();
+    CompSec.getContent()->getSections().emplace_back();
+    CompSec.getContent()
+        ->getSections()
+        .back()
+        .emplace<AST::Component::ImportSection>();
+    auto &InnerImpSec = std::get<AST::Component::ImportSection>(
+        CompSec.getContent()->getSections().back());
+    InnerImpSec.getContent().emplace_back();
+    InnerImpSec.getContent().back().getName() = "f";
+    InnerImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    // Outer `(import "g" (func))` -> func 0.
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "g";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    // Instantiate component 0 with two args named "f".
+    InstSec.getContent().emplace_back();
+    AST::Component::InstantiateArg<AST::Component::SortIndex> Arg1;
+    Arg1.getName() = "f";
+    Arg1.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+    Arg1.getIndex().setIdx(0);
+    AST::Component::InstantiateArg<AST::Component::SortIndex> Arg2;
+    Arg2.getName() = "f";
+    Arg2.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+    Arg2.getIndex().setIdx(0);
+    InstSec.getContent().back().setInstantiateArgs(
+        0U, {std::move(Arg1), std::move(Arg2)});
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (import "g" (func))                       ;; func 0
+    // (instance (export "x" (func 0))
+    //           (export "x" (func 0)))           ;; FAIL: duplicate export name
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+    auto &InstSec =
+        std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
+
+    // import "g" (func) -> func 0
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "g";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    // Inline-export instance with two exports both named "x".
+    AST::Component::InlineExport E1;
+    E1.getName() = "x";
+    E1.getSortIdx().getSort().setSortType(AST::Component::Sort::SortType::Func);
+    E1.getSortIdx().setIdx(0);
+    AST::Component::InlineExport E2;
+    E2.getName() = "x";
+    E2.getSortIdx().getSort().setSortType(AST::Component::Sort::SortType::Func);
+    E2.getSortIdx().setIdx(0);
+    InstSec.getContent().emplace_back();
+    InstSec.getContent().back().setInlineExports(
+        {std::move(E1), std::move(E2)});
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, InstanceInstantiateDuplicateArgName) {
-  // (component $C (import "f" (func)))
-  // (import "g" (func))
-  // (instance (instantiate $C (with "f" (func 0))
-  //                           (with "f" (func 0))))  ;; FAIL: dup arg
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
-
-  // Inner component with `(import "f" (func))`.
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &InnerImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  InnerImpSec.getContent().emplace_back();
-  InnerImpSec.getContent().back().getName() = "f";
-  InnerImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  // Outer `(import "g" (func))` -> func 0.
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "g";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  // Instantiate component 0 with two args named "f".
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg1;
-  Arg1.getName() = "f";
-  Arg1.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  Arg1.getIndex().setIdx(0);
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg2;
-  Arg2.getName() = "f";
-  Arg2.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  Arg2.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(
-      0U, {std::move(Arg1), std::move(Arg2)});
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, InstanceInlineExportDuplicateName) {
-  // (import "g" (func))                       ;; func 0
-  // (instance (export "x" (func 0))
-  //           (export "x" (func 0)))           ;; FAIL: duplicate export name
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
-
-  // import "g" (func) -> func 0
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "g";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  // Inline-export instance with two exports both named "x".
-  AST::Component::InlineExport E1;
-  E1.getName() = "x";
-  E1.getSortIdx().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  E1.getSortIdx().setIdx(0);
-  AST::Component::InlineExport E2;
-  E2.getName() = "x";
-  E2.getSortIdx().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  E2.getSortIdx().setIdx(0);
-  InstSec.getContent().emplace_back();
-  InstSec.getContent().back().setInlineExports({std::move(E1), std::move(E2)});
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-// =============================================================================
-// Canonical built-in validation tests (GAP-C-1 .. GAP-C-5)
-// =============================================================================
+// Canonical built-in validation tests
 
 // Helper: build a Component with a single ResourceType in type index 0.
 inline AST::Component::Component makeCompWithLocalResource() {
@@ -1321,10 +1453,8 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   // Type 0: ResourceType (local).
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
-  // Type 1: FuncType (param "p" u32) (result u32). Its lift flattening
-  // (flatten_functype($opts, $ft, 'lift'), CanonicalABI.md) is
-  // [i32] -> [i32], matching the resource.new core func used as the lift
-  // $callee below.
+  // Type 1: (func (param "p" u32) (result u32)), which lift-flattens to
+  // [i32] -> [i32] like the resource.new core func below.
   AST::Component::FuncType FT;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("p", ComponentValType(ComponentTypeCode::U32));
@@ -1344,605 +1474,693 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_OnLocalResource_Passes) {
-  auto Comp = makeCompWithLocalResource();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__new);
-  C.setIndex(0); // type index 0 = local resource
-  CanonSec.getContent().emplace_back(std::move(C));
+TEST(ComponentValidatorTest, CanonResourceNew) {
+  // Test canon resource.new.
+  //
+  //   1.  Local passes.
+  //   2.  Type index OOB fails.
+  //   3.  Non resource fails.
+  //   4.  Imported fails.
+  //   5.  Rejects options.
 
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
+  // Local passes.
+  {
+    auto Comp = makeCompWithLocalResource();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__new);
+    C.setIndex(0); // type index 0 = local resource
+    CanonSec.getContent().emplace_back(std::move(C));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  // Type index OOB fails.
+  {
+    AST::Component::Component Comp;
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__new);
+    C.setIndex(0); // no type section → index 0 is out of bounds
+    CanonSec.getContent().emplace_back(std::move(C));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Non resource fails.
+  {
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    // Type 0: FuncType, not a resource.
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__new);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // resource.new requires a LOCAL resource; imported resources are rejected.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "r";
+    ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__new);
+    C.setIndex(0); // imported resource at type 0
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Rejects options.
+  {
+    auto Comp = makeCompWithLocalResource();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__new);
+    C.setIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::Encode_UTF8)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_TypeIndexOutOfBounds_Fails) {
-  AST::Component::Component Comp;
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__new);
-  C.setIndex(0); // no type section → index 0 is out of bounds
-  CanonSec.getContent().emplace_back(std::move(C));
+TEST(ComponentValidatorTest, CanonResourceRep) {
+  // Test canon resource.rep.
+  //
+  //   1.  Local passes.
+  //   2.  Type index OOB fails.
+  //   3.  Non resource fails.
+  //   4.  Imported fails.
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+  // Local passes.
+  {
+    auto Comp = makeCompWithLocalResource();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__rep);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  // Type index OOB fails.
+  {
+    AST::Component::Component Comp;
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__rep);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Non resource fails.
+  {
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__rep);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // resource.rep requires a LOCAL resource; imported resources are rejected.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "r";
+    ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__rep);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_TypeIsNotResource_Fails) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  // Type 0: FuncType, not a resource.
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+TEST(ComponentValidatorTest, CanonResourceDrop) {
+  // Test canon resource.drop.
+  //
+  //   1.  Local passes.
+  //   2.  Imported passes.
+  //   3.  Non resource fails.
+  //   4.  Type index OOB fails.
+  //   5.  Rejects options.
 
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__new);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
+  // Local passes.
+  {
+    auto Comp = makeCompWithLocalResource();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__drop);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+  {
+    // Import a resource via a type import bound to (sub resource).
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "r";
+    ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__drop);
+    C.setIndex(0); // the imported type now occupies type index 0
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  // Non resource fails.
+  {
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__drop);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Type index OOB fails.
+  {
+    AST::Component::Component Comp;
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__drop);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Rejects options.
+  {
+    auto Comp = makeCompWithLocalResource();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Resource__drop);
+    C.setIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::Memory, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_OnImportedResource_Fails) {
-  // resource.new requires a LOCAL resource; imported resources are rejected.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__new);
-  C.setIndex(0); // imported resource at type 0
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+TEST(ComponentValidatorTest, CanonLower) {
+  // Test canon lower.
+  //
+  //   1.  Valid func index passes.
+  //   2.  Func index out of bounds fails.
+  //   3.  Rejects post return.
+  //   4.  Rejects callback.
+  //   5.  Realloc without memory fails.
+
+  // Valid func index passes.
+  {
+    auto Comp = makeCompWithImportedFunc();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0); // component func 0 exists
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  // Func index out of bounds fails.
+  {
+    AST::Component::Component Comp;
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Rejects post return.
+  {
+    auto Comp = makeCompWithImportedFunc();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::PostReturn, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Rejects callback.
+  {
+    auto Comp = makeCompWithImportedFunc();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0);
+    // Async included to satisfy structural rule;
+    // site-whitelist should still reject callback on Lower.
+    C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                  mkOpt(ComponentCanonOptCode::Callback, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Realloc without memory fails.
+  {
+    auto Comp = makeCompWithImportedFunc();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::Realloc, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_OnLocalResource_Passes) {
-  auto Comp = makeCompWithLocalResource();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__rep);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
+TEST(ComponentValidatorTest, CanonLift) {
+  // Test canon lift.
+  //
+  //   1.  Core func index out of bounds fails.
+  //   2.  Type index out of bounds fails.
+  //   3.  Non func type fails.
+  //   4.  Valid passes.
+  //   5.  With post return passes.
+
+  {
+    // No core funcs; index 0 is out of bounds.
+    AST::Component::Component Comp;
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lift);
+    C.setIndex(0);
+    C.setTargetIndex(0);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Fixture provides core func 0 and types 0 (resource), 1 (func). Target
+    // index 2 is out of bounds.
+    auto Comp = makeCompWithCoreFuncAndFuncType();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Lift;
+    Lift.setOpCode(ComponentCanonOpCode::Lift);
+    Lift.setIndex(0);       // core func 0 exists
+    Lift.setTargetIndex(2); // no type at index 2
+    CanonSec.getContent().emplace_back(std::move(Lift));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Target type 0 is a ResourceType, not a FuncType.
+    auto Comp = makeCompWithCoreFuncAndFuncType();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Lift;
+    Lift.setOpCode(ComponentCanonOpCode::Lift);
+    Lift.setIndex(0);
+    Lift.setTargetIndex(0); // type 0 is ResourceType
+    CanonSec.getContent().emplace_back(std::move(Lift));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Happy path: core func 0 + FuncType at type 1.
+    auto Comp = makeCompWithCoreFuncAndFuncType();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Lift;
+    Lift.setOpCode(ComponentCanonOpCode::Lift);
+    Lift.setIndex(0);
+    Lift.setTargetIndex(1); // type 1 is FuncType
+    CanonSec.getContent().emplace_back(std::move(Lift));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // Type 1 lift-flattens to [i32] -> [i32], so post-return must be
+    // [i32] -> [], which the resource.drop core func 1 is.
+    auto Comp = makeCompWithCoreFuncAndFuncType();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Drop;
+    Drop.setOpCode(ComponentCanonOpCode::Resource__drop);
+    Drop.setIndex(0); // resource at type 0 -> core func 1, sig [i32] -> []
+    CanonSec.getContent().emplace_back(std::move(Drop));
+    AST::Component::Canonical Lift;
+    Lift.setOpCode(ComponentCanonOpCode::Lift);
+    Lift.setIndex(
+        0); // $callee = core func 0 (resource.new), sig [i32] -> [i32]
+    Lift.setTargetIndex(1);
+    Lift.setOptions({mkOpt(ComponentCanonOptCode::PostReturn, 1)});
+    CanonSec.getContent().emplace_back(std::move(Lift));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_TypeIndexOutOfBounds_Fails) {
-  AST::Component::Component Comp;
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__rep);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+// Start section validation
+
+TEST(ComponentValidatorTest, Start) {
+  // Test the start section.
+  //
+  //   1.  Func index out of bounds rejected.
+  //   2.  Arg arity mismatch rejected.
+  //   3.  Valid empty func passes.
+
+  {
+    // start (func 99) ;; FAIL — no func at index 99
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::StartSection>();
+    auto &StartSec =
+        std::get<AST::Component::StartSection>(Comp.getSections().back());
+    StartSec.getContent().getFunctionIndex() = 99;
+    StartSec.getContent().getResult() = 0;
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // type 0: FuncType ([] -> [])
+    // import "f" (func (type 0))   ;; func 0
+    // start (func 0) (arg 0) result=0   ;; FAIL — func has 0 params but 1 arg
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::StartSection>();
+
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "f";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    auto &StartSec =
+        std::get<AST::Component::StartSection>(Comp.getSections()[2]);
+    StartSec.getContent().getFunctionIndex() = 0;
+    StartSec.getContent().getArguments().push_back(0U);
+    StartSec.getContent().getResult() = 0;
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // type 0: FuncType ([] -> [])
+    // import "f" (func (type 0))   ;; func 0
+    // start (func 0) result=0   ;; PASS
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::StartSection>();
+
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "f";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    auto &StartSec =
+        std::get<AST::Component::StartSection>(Comp.getSections()[2]);
+    StartSec.getContent().getFunctionIndex() = 0;
+    StartSec.getContent().getResult() = 0;
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_TypeIsNotResource_Fails) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__rep);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+// Annotated-name resource in scope
+
+TEST(ComponentValidatorTest, AnnotatedNameResource) {
+  // Test annotated resource names.
+  //
+  //   1.  Annotated name missing resource rejected.
+  //   2.  In scope passes.
+
+  {
+    // type 0: FuncType
+    // import "[constructor]missing" (func (type 0))   ;; FAIL — no "missing"
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "[constructor]missing";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // import "r" (type (sub resource))          ;; resource "r" → type 0
+    // type 1: (borrow 0)
+    // type 2: (func (param "self" (borrow 0)))
+    // import "[method]r.f" (func (type 2))      ;; PASS — proper method shape
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+    auto &ImpSec0 =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+    ImpSec0.getContent().emplace_back();
+    ImpSec0.getContent().back().getName() = "r";
+    ImpSec0.getContent().back().getDesc().setTypeBound();
+
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[1]);
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType BorrowDVT;
+    BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType MethodFT;
+    std::vector<AST::Component::LabelValType> Params;
+    Params.emplace_back("self"s, ComponentValType(1));
+    MethodFT.setParamList(std::move(Params));
+    TypeSec.getContent().back().setFuncType(std::move(MethodFT));
+
+    auto &ImpSec1 =
+        std::get<AST::Component::ImportSection>(Comp.getSections()[2]);
+    ImpSec1.getContent().emplace_back();
+    ImpSec1.getContent().back().getName() = "[method]r.f";
+    ImpSec1.getContent().back().getDesc().setFuncTypeIdx(2);
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_OnImportedResource_Fails) {
-  // resource.rep requires a LOCAL resource; imported resources are rejected.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__rep);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+// Resource destructor signature
+
+TEST(ComponentValidatorTest, ResourceDestructor) {
+  // Test resource destructors.
+  //
+  //   1.  Out of bounds.
+  //   2.  Resource no destructor valid.
+  //   3.  Signature wrong shape.
+  //   4.  Signature correct.
+
+  {
+    // (type (resource (dtor (func 99))))  -- no core funcs defined -> FAIL
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    AST::Component::ResourceType RT;
+    RT.getDestructor() = 99;
+    TypeSec.getContent().back().setResourceType(std::move(RT));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (type (resource))  -- no destructor -> PASS
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // type 0: resource (no dtor)
+    // canon resource.rep 0  -> core:func 0 with signature [i32] -> [i32]
+    // type 1: resource (dtor = core:func 0)  ;; FAIL — dtor must be [i32] -> []
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec0 =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    // type 0: resource (no dtor)
+    TypeSec0.getContent().emplace_back();
+    TypeSec0.getContent().back().setResourceType(
+        AST::Component::ResourceType{});
+
+    // canon resource.rep on type 0 -> core:func 0, signature [i32] -> [i32].
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CanonSection>();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Rep;
+    Rep.setOpCode(ComponentCanonOpCode::Resource__rep);
+    Rep.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(Rep));
+
+    // type 1: resource with dtor = core:func 0.
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec1 =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    AST::Component::ResourceType BadDtor;
+    BadDtor.getDestructor() = 0U;
+    TypeSec1.getContent().emplace_back();
+    TypeSec1.getContent().back().setResourceType(std::move(BadDtor));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // type 0: resource (no dtor)
+    // canon resource.drop 0  -> core:func 0 with signature [i32] -> []
+    // type 1: resource (dtor = core:func 0)  ;; PASS — dtor signature matches
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec0 =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec0.getContent().emplace_back();
+    TypeSec0.getContent().back().setResourceType(
+        AST::Component::ResourceType{});
+
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CanonSection>();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Drop;
+    Drop.setOpCode(ComponentCanonOpCode::Resource__drop);
+    Drop.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(Drop));
+
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec1 =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    AST::Component::ResourceType GoodDtor;
+    GoodDtor.getDestructor() = 0U;
+    TypeSec1.getContent().emplace_back();
+    TypeSec1.getContent().back().setResourceType(std::move(GoodDtor));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonResourceDrop_OnLocalResource_Passes) {
-  auto Comp = makeCompWithLocalResource();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__drop);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonResourceDrop_OnImportedResource_Passes) {
-  // Import a resource via a type import bound to (sub resource).
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__drop);
-  C.setIndex(0); // the imported type now occupies type index 0
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonResourceDrop_TypeIsNotResource_Fails) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__drop);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonResourceDrop_TypeIndexOutOfBounds_Fails) {
-  AST::Component::Component Comp;
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__drop);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonResourceNew_RejectsOptions) {
-  auto Comp = makeCompWithLocalResource();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__new);
-  C.setIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::Encode_UTF8)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonResourceDrop_RejectsOptions) {
-  auto Comp = makeCompWithLocalResource();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__drop);
-  C.setIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::Memory, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLower_ValidFuncIndex_Passes) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0); // component func 0 exists
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLower_FuncIndexOutOfBounds_Fails) {
-  AST::Component::Component Comp;
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLower_RejectsPostReturn) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::PostReturn, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLower_RejectsCallback) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  // Async included to satisfy structural rule;
-  // site-whitelist should still reject callback on Lower.
-  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
-                mkOpt(ComponentCanonOptCode::Callback, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLower_ReallocWithoutMemory_Fails) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::Realloc, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLift_CoreFuncIndexOutOfBounds_Fails) {
-  // No core funcs; index 0 is out of bounds.
-  AST::Component::Component Comp;
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lift);
-  C.setIndex(0);
-  C.setTargetIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLift_TypeIndexOutOfBounds_Fails) {
-  // Fixture provides core func 0 and types 0 (resource), 1 (func). Target
-  // index 2 is out of bounds.
-  auto Comp = makeCompWithCoreFuncAndFuncType();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Lift;
-  Lift.setOpCode(ComponentCanonOpCode::Lift);
-  Lift.setIndex(0);       // core func 0 exists
-  Lift.setTargetIndex(2); // no type at index 2
-  CanonSec.getContent().emplace_back(std::move(Lift));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLift_TargetIsNotFuncType_Fails) {
-  // Target type 0 is a ResourceType, not a FuncType.
-  auto Comp = makeCompWithCoreFuncAndFuncType();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Lift;
-  Lift.setOpCode(ComponentCanonOpCode::Lift);
-  Lift.setIndex(0);
-  Lift.setTargetIndex(0); // type 0 is ResourceType
-  CanonSec.getContent().emplace_back(std::move(Lift));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
-  // Happy path: core func 0 + FuncType at type 1.
-  auto Comp = makeCompWithCoreFuncAndFuncType();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Lift;
-  Lift.setOpCode(ComponentCanonOpCode::Lift);
-  Lift.setIndex(0);
-  Lift.setTargetIndex(1); // type 1 is FuncType
-  CanonSec.getContent().emplace_back(std::move(Lift));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
-  // post-return is a Lift-only option; exercise the happy path. Target type 1
-  // lift-flattens to [i32] -> [i32], so spec requires post-return to have
-  // type (func (param i32)), i.e. [i32] -> []. resource.drop 0 produces exactly
-  // such a core func at index 1.
-  auto Comp = makeCompWithCoreFuncAndFuncType();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Drop;
-  Drop.setOpCode(ComponentCanonOpCode::Resource__drop);
-  Drop.setIndex(0); // resource at type 0 -> core func 1, sig [i32] -> []
-  CanonSec.getContent().emplace_back(std::move(Drop));
-  AST::Component::Canonical Lift;
-  Lift.setOpCode(ComponentCanonOpCode::Lift);
-  Lift.setIndex(0); // $callee = core func 0 (resource.new), sig [i32] -> [i32]
-  Lift.setTargetIndex(1);
-  Lift.setOptions({mkOpt(ComponentCanonOptCode::PostReturn, 1)});
-  CanonSec.getContent().emplace_back(std::move(Lift));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// =============================================================================
-// ExportDecl ExternDesc bounds (GAP-DECL-ED)
-// =============================================================================
-
-TEST(ComponentValidatorTest,
-     InstanceTypeExportDeclFuncTypeOutOfBoundsRejected) {
-  // (type (instance
-  //   (export "f" (func (type 99))) ;; FAIL: no type 99 in instance scope
-  // ))
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  std::vector<AST::Component::InstanceDecl> Decls;
-  AST::Component::ExportDecl ExpDecl;
-  ExpDecl.getName() = "f";
-  ExpDecl.getExternDesc().setFuncTypeIdx(99);
-  AST::Component::InstanceDecl D;
-  D.setExport(std::move(ExpDecl));
-  Decls.push_back(std::move(D));
-
-  AST::Component::InstanceType IT;
-  IT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(std::move(IT));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-// =============================================================================
-// Start section validation (GAP-S-1)
-// =============================================================================
-
-TEST(ComponentValidatorTest, StartFuncIndexOutOfBoundsRejected) {
-  // start (func 99) ;; FAIL — no func at index 99
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::StartSection>();
-  auto &StartSec =
-      std::get<AST::Component::StartSection>(Comp.getSections().back());
-  StartSec.getContent().getFunctionIndex() = 99;
-  StartSec.getContent().getResult() = 0;
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, StartArgArityMismatchRejected) {
-  // type 0: FuncType ([] -> [])
-  // import "f" (func (type 0))   ;; func 0
-  // start (func 0) (arg 0) result=0   ;; FAIL — func has 0 params but 1 arg
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::StartSection>();
-
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  auto &StartSec =
-      std::get<AST::Component::StartSection>(Comp.getSections()[2]);
-  StartSec.getContent().getFunctionIndex() = 0;
-  StartSec.getContent().getArguments().push_back(0U);
-  StartSec.getContent().getResult() = 0;
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, StartValidEmptyFuncPasses) {
-  // type 0: FuncType ([] -> [])
-  // import "f" (func (type 0))   ;; func 0
-  // start (func 0) result=0   ;; PASS
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::StartSection>();
-
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  auto &StartSec =
-      std::get<AST::Component::StartSection>(Comp.getSections()[2]);
-  StartSec.getContent().getFunctionIndex() = 0;
-  StartSec.getContent().getResult() = 0;
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// =============================================================================
-// Annotated-name resource-in-scope (GAP-T-3b)
-// =============================================================================
-
-TEST(ComponentValidatorTest, AnnotatedNameMissingResourceRejected) {
-  // type 0: FuncType
-  // import "[constructor]missing" (func (type 0))   ;; FAIL — no resource
-  // "missing"
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
-
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "[constructor]missing";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, AnnotatedNameResourceInScopePasses) {
-  // import "r" (type (sub resource))          ;; resource "r" → type 0
-  // type 1: (borrow 0)
-  // type 2: (func (param "self" (borrow 0)))
-  // import "[method]r.f" (func (type 2))      ;; PASS — proper method shape
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-
-  auto &ImpSec0 =
-      std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
-  ImpSec0.getContent().emplace_back();
-  ImpSec0.getContent().back().getName() = "r";
-  ImpSec0.getContent().back().getDesc().setTypeBound();
-
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[1]);
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType BorrowDVT;
-  BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType MethodFT;
-  std::vector<AST::Component::LabelValType> Params;
-  Params.emplace_back("self"s, ComponentValType(1));
-  MethodFT.setParamList(std::move(Params));
-  TypeSec.getContent().back().setFuncType(std::move(MethodFT));
-
-  auto &ImpSec1 =
-      std::get<AST::Component::ImportSection>(Comp.getSections()[2]);
-  ImpSec1.getContent().emplace_back();
-  ImpSec1.getContent().back().getName() = "[method]r.f";
-  ImpSec1.getContent().back().getDesc().setFuncTypeIdx(2);
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// =============================================================================
-// Resource destructor signature (GAP-T-5b)
-// =============================================================================
-
-TEST(ComponentValidatorTest, ResourceDestructorSignatureWrongShape) {
-  // type 0: resource (no dtor)
-  // canon resource.rep 0  -> core:func 0 with signature [i32] -> [i32]
-  // type 1: resource (dtor = core:func 0)  ;; FAIL — dtor must be [i32] -> []
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec0 =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  // type 0: resource (no dtor)
-  TypeSec0.getContent().emplace_back();
-  TypeSec0.getContent().back().setResourceType(AST::Component::ResourceType{});
-
-  // canon resource.rep on type 0 -> core:func 0, signature [i32] -> [i32].
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CanonSection>();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Rep;
-  Rep.setOpCode(ComponentCanonOpCode::Resource__rep);
-  Rep.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(Rep));
-
-  // type 1: resource with dtor = core:func 0.
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec1 =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  AST::Component::ResourceType BadDtor;
-  BadDtor.getDestructor() = 0U;
-  TypeSec1.getContent().emplace_back();
-  TypeSec1.getContent().back().setResourceType(std::move(BadDtor));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ResourceDestructorSignatureCorrect) {
-  // type 0: resource (no dtor)
-  // canon resource.drop 0  -> core:func 0 with signature [i32] -> []
-  // type 1: resource (dtor = core:func 0)  ;; PASS — dtor signature matches
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec0 =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec0.getContent().emplace_back();
-  TypeSec0.getContent().back().setResourceType(AST::Component::ResourceType{});
-
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CanonSection>();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Drop;
-  Drop.setOpCode(ComponentCanonOpCode::Resource__drop);
-  Drop.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(Drop));
-
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec1 =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  AST::Component::ResourceType GoodDtor;
-  GoodDtor.getDestructor() = 0U;
-  TypeSec1.getContent().emplace_back();
-  TypeSec1.getContent().back().setResourceType(std::move(GoodDtor));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// =============================================================================
-// Core-export alias tag support (GAP-A-2)
-// =============================================================================
+// Core-export alias tag support
 
 TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   // (core module $M
@@ -1950,10 +2168,9 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   //   (tag (type 0))
   //   (export "t" (tag 0)))
   // (core instance $i (instantiate $M))
-  // (alias core export $i "t" (core tag $t))   ;; FAIL pre-fix, PASS post-fix
+  // (alias core export $i "t" (core tag $t))   ;; PASS
   Configure ConfTag;
   ConfTag.addProposal(Proposal::Component);
-  ConfTag.addProposal(Proposal::ExceptionHandling);
 
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2003,66 +2220,8 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// Imported component instantiation arg-checking (GAP-I-1)
-// =============================================================================
+// Core instance memory index-type checking on instantiation
 
-TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
-  // type 0: (component (import "x" (value bool)))
-  // import "C" (component (type 0))   ;; component 0 — imported, no raw AST
-  // instance (instantiate 0)          ;; FAIL — no arg supplied for "x"
-  //
-  // The (value ...) bound is used because it does not reference any type
-  // index in the inner component-type scope (which would otherwise need
-  // cross-scope resolution to validate). The point of this test is to
-  // exercise GAP-I-1: an instantiate of an imported component should
-  // surface the missing-argument diagnostic from the ComponentType-derived
-  // import list.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-
-  // type 0: ComponentType `(component (import "x" (value bool)))`.
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  std::vector<AST::Component::ComponentDecl> Decls;
-  AST::Component::ImportDecl ImpDecl;
-  ImpDecl.getName() = "x";
-  ImpDecl.getExternDesc().setValueBound(
-      ComponentValType{ComponentTypeCode::Bool});
-  AST::Component::ComponentDecl CD;
-  CD.setImport(std::move(ImpDecl));
-  Decls.push_back(std::move(CD));
-  AST::Component::ComponentType CT;
-  CT.setDecl(std::move(Decls));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setComponentType(std::move(CT));
-
-  // import "C" (component (type 0)) — gives component 0.
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "C";
-  ImpSec.getContent().back().getDesc().setComponentTypeIdx(0);
-
-  // instance (instantiate 0) — no args supplied.
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
-  InstSec.getContent().emplace_back();
-  InstSec.getContent().back().setInstantiateArgs(
-      0U, AST::Component::Instance::InstantiateArgs{});
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-// =============================================================================
-// Core instance memory index-type checking on instantiation (GAP-CI-1)
-// =============================================================================
-
-namespace {
 // Builds:
 //   (core module $A (import "" "" (memory 1)))   ;; imports a 32-bit memory
 //   (core module $B (memory (export "") <mem>))  ;; exports `Mem`
@@ -2114,25 +2273,9 @@ AST::Component::Component buildMemoryLinkComponent(const AST::MemoryType &Mem) {
   CoreInstSec.getContent().back().setInstantiateArgs(0U, {Arg});
   return Comp;
 }
-} // namespace
 
-TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMismatchRejected) {
-  // Provide a 64-bit memory where a 32-bit memory is imported -> reject.
-  auto Comp = buildMemoryLinkComponent(AST::MemoryType(AST::Limit(1, true)));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMatchAccepted) {
-  // Provide a 32-bit memory matching the 32-bit import -> accept.
-  auto Comp = buildMemoryLinkComponent(AST::MemoryType(AST::Limit(1)));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-// Helper: build a Component whose type 1 is `(func (param "s" string))` —
-// triggers the spec's `lift(T)` and `lower(T)` realloc/memory rules
-// (CanonicalABI.md).
+// Helper: build a Component whose type 1 is `(func (param "s" string))`,
+// which needs realloc when lifted and memory when lowered.
 inline AST::Component::Component makeCompWithStringParamFunc() {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2162,213 +2305,222 @@ inline AST::Component::Component makeCompWithStringParamFunc() {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonLift_StringParamRequiresRealloc_Fails) {
-  // spec: `lift(param)` for a list/string-containing T requires
-  // 'realloc'. The lift below omits realloc and so must be rejected by the
-  // validator (previously only caught at instantiate time).
-  auto Comp = makeCompWithStringParamFunc();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical Lift;
-  Lift.setOpCode(ComponentCanonOpCode::Lift);
-  Lift.setIndex(0);
-  Lift.setTargetIndex(1);
-  CanonSec.getContent().emplace_back(std::move(Lift));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+TEST(ComponentValidatorTest, CanonStringParamOptions) {
+  // Test the options of canon functions with string parameters.
+  //
+  //   1.  Canon lift string param needs realloc.
+  //   2.  Canon lower string param needs memory.
+
+  {
+    // Lifting a string param requires 'realloc', which the lift omits.
+    auto Comp = makeCompWithStringParamFunc();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical Lift;
+    Lift.setOpCode(ComponentCanonOpCode::Lift);
+    Lift.setIndex(0);
+    Lift.setTargetIndex(1);
+    CanonSec.getContent().emplace_back(std::move(Lift));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Lowering a string param requires 'memory', which the lower omits.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    AST::Component::FuncType FT;
+    std::vector<AST::Component::LabelValType> Params;
+    Params.emplace_back("s", ComponentValType(ComponentTypeCode::String));
+    FT.setParamList(std::move(Params));
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+    // Import the func at index 0 so getFunc(0) returns the FuncType.
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "f";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical Lower;
+    Lower.setOpCode(ComponentCanonOpCode::Lower);
+    Lower.setIndex(0);
+    CanonSec.getContent().emplace_back(std::move(Lower));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
-  // spec: `lower(param)` for a list/string-containing T requires
-  // 'memory'. Set up an imported component func with a string param and
-  // canon-lower it without supplying 'memory'.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  AST::Component::FuncType FT;
-  std::vector<AST::Component::LabelValType> Params;
-  Params.emplace_back("s", ComponentValType(ComponentTypeCode::String));
-  FT.setParamList(std::move(Params));
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-  // Import the func at index 0 so getFunc(0) returns the FuncType.
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+// End-to-end canon-lift option checks through the loader and the validator.
 
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical Lower;
-  Lower.setOpCode(ComponentCanonOpCode::Lower);
-  Lower.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(Lower));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
+TEST(ComponentValidatorTest, EndToEndCanonLiftOptions) {
+  // Test canon lift options from binaries.
+  //
+  //   1.  End to end canon lift no memory rejected.
+  //   2.  End to end canon lift no realloc rejected.
 
-// =============================================================================
-// End-to-end coverage tests for the validator's canon-lift option checks.
-// Existing AST-based tests above hit the validator logic directly; these
-// load real binaries through the loader so the loader→validator integration
-// is exercised as well. .wat sources embedded as comments.
+  {
+    // The tuple result spills into the return area, but the lift omits
+    // 'memory'. (component
+    //   (core module $m
+    //     (memory (export "mem") 1)
+    //     (func (export "g") (result i32) i32.const 16)
+    //     (func (export "realloc") (param i32 i32 i32 i32) (result i32)
+    //       i32.const 256))
+    //   (core instance $i (instantiate $m))
+    //   (alias core export $i "realloc" (core func $r))
+    //   (alias core export $i "g" (core func $g))
+    //   (type $tup (tuple u32 u32))
+    //   (type $ft (func (result $tup)))
+    //   (func (export "g") (type $ft)
+    //     (canon lift (core func $g) (realloc $r))))
+    std::array<WasmEdge::Byte, 205> Wasm{
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x51, 0x00, 0x61,
+        0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
+        0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02,
+        0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x15, 0x03, 0x03, 0x6d,
+        0x65, 0x6d, 0x02, 0x00, 0x01, 0x67, 0x00, 0x00, 0x07, 0x72, 0x65, 0x61,
+        0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x04, 0x00, 0x41,
+        0x10, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02, 0x0b, 0x00, 0x09, 0x04, 0x6e,
+        0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d, 0x02, 0x04, 0x01, 0x00, 0x00,
+        0x00, 0x06, 0x13, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x72, 0x65, 0x61,
+        0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x07, 0x09,
+        0x02, 0x6f, 0x02, 0x79, 0x79, 0x40, 0x00, 0x00, 0x00, 0x08, 0x08, 0x01,
+        0x00, 0x00, 0x01, 0x01, 0x04, 0x00, 0x01, 0x0b, 0x07, 0x01, 0x00, 0x01,
+        0x67, 0x01, 0x00, 0x00, 0x00, 0x37, 0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f,
+        0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x09, 0x00,
+        0x00, 0x02, 0x00, 0x01, 0x72, 0x01, 0x01, 0x67, 0x01, 0x06, 0x00, 0x11,
+        0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01, 0x69,
+        0x01, 0x0b, 0x03, 0x02, 0x00, 0x03, 0x74, 0x75, 0x70, 0x01, 0x02, 0x66,
+        0x74};
 
-// === canon lift result spills but no memory ===
-// (component
-//   ;; (canon lift) with a result type that needs memory (tuple of two u32 →
-//   ;; indirect-return) but the lift omits the `(memory ...)` option. The
-//   ;; validator's flatten-derived check in component_validator.cpp must
-//   ;; reject this with InvalidCanonOption.
-//   (core module $m
-//     (memory (export "mem") 1)
-//     (func (export "g") (result i32) i32.const 16)
-//     (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const
-//     256))
-//   (core instance $i (instantiate $m))
-//   (alias core export $i "realloc" (core func $r))
-//   (alias core export $i "g" (core func $g))
-//   (type $tup (tuple u32 u32))
-//   (type $ft (func (result $tup)))
-//   (func (export "g") (type $ft)
-//     (canon lift (core func $g) (realloc $r))))
-static const std::vector<uint8_t> validator_no_memory_wasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x51, 0x00, 0x61,
-    0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
-    0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02,
-    0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x15, 0x03, 0x03, 0x6d,
-    0x65, 0x6d, 0x02, 0x00, 0x01, 0x67, 0x00, 0x00, 0x07, 0x72, 0x65, 0x61,
-    0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x04, 0x00, 0x41,
-    0x10, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02, 0x0b, 0x00, 0x09, 0x04, 0x6e,
-    0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d, 0x02, 0x04, 0x01, 0x00, 0x00,
-    0x00, 0x06, 0x13, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x72, 0x65, 0x61,
-    0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x07, 0x09,
-    0x02, 0x6f, 0x02, 0x79, 0x79, 0x40, 0x00, 0x00, 0x00, 0x08, 0x08, 0x01,
-    0x00, 0x00, 0x01, 0x01, 0x04, 0x00, 0x01, 0x0b, 0x07, 0x01, 0x00, 0x01,
-    0x67, 0x01, 0x00, 0x00, 0x00, 0x37, 0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f,
-    0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x09, 0x00,
-    0x00, 0x02, 0x00, 0x01, 0x72, 0x01, 0x01, 0x67, 0x01, 0x06, 0x00, 0x11,
-    0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01, 0x69,
-    0x01, 0x0b, 0x03, 0x02, 0x00, 0x03, 0x74, 0x75, 0x70, 0x01, 0x02, 0x66,
-    0x74,
-};
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Wasm));
+    EXPECT_FALSE(VM.validate());
+  }
 
-// === canon lift string param but no realloc ===
-// (component
-//   ;; Symmetric to validator_no_memory.wat — a (canon lift) whose param
-//   ;; type contains a string (forcing the spill to realloc) but omits the
-//   ;; `(realloc ...)` option. Should be rejected with InvalidCanonOption.
-//   (core module $m
-//     (memory (export "mem") 1)
-//     (func (export "sink") (param i32 i32) (result i32) local.get 1)
-//     (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const
-//     256))
-//   (core instance $i (instantiate $m))
-//   (alias core export $i "mem" (core memory $mem))
-//   (alias core export $i "sink" (core func $g))
-//   (type $ft (func (param "s" string) (result u32)))
-//   (func (export "sink") (type $ft)
-//     (canon lift (core func $g) (memory $mem))))
-static const std::vector<uint8_t> validator_no_realloc_wasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x56, 0x00, 0x61,
-    0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x02, 0x60, 0x02, 0x7f,
-    0x7f, 0x01, 0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03,
-    0x03, 0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x18, 0x03,
-    0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x00,
-    0x00, 0x07, 0x72, 0x65, 0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a,
-    0x0c, 0x02, 0x04, 0x00, 0x20, 0x01, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02,
-    0x0b, 0x00, 0x09, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d,
-    0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x06, 0x12, 0x02, 0x00, 0x02, 0x01,
-    0x00, 0x03, 0x6d, 0x65, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x04, 0x73, 0x69,
-    0x6e, 0x6b, 0x07, 0x08, 0x01, 0x40, 0x01, 0x01, 0x73, 0x73, 0x00, 0x79,
-    0x08, 0x08, 0x01, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x0b, 0x0a,
-    0x01, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x01, 0x00, 0x00, 0x00, 0x39,
-    0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
-    0x61, 0x6d, 0x65, 0x01, 0x06, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x01,
-    0x08, 0x00, 0x02, 0x01, 0x00, 0x03, 0x6d, 0x65, 0x6d, 0x01, 0x06, 0x00,
-    0x11, 0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01,
-    0x69, 0x01, 0x06, 0x03, 0x01, 0x00, 0x02, 0x66, 0x74,
-};
+  {
+    // The string param needs 'realloc', but the lift omits it.
+    // (component
+    //   (core module $m
+    //     (memory (export "mem") 1)
+    //     (func (export "sink") (param i32 i32) (result i32) local.get 1)
+    //     (func (export "realloc") (param i32 i32 i32 i32) (result i32)
+    //       i32.const 256))
+    //   (core instance $i (instantiate $m))
+    //   (alias core export $i "mem" (core memory $mem))
+    //   (alias core export $i "sink" (core func $g))
+    //   (type $ft (func (param "s" string) (result u32)))
+    //   (func (export "sink") (type $ft)
+    //     (canon lift (core func $g) (memory $mem))))
+    std::array<WasmEdge::Byte, 213> Wasm{
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x56, 0x00, 0x61,
+        0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x02, 0x60, 0x02, 0x7f,
+        0x7f, 0x01, 0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03,
+        0x03, 0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x18, 0x03,
+        0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x00,
+        0x00, 0x07, 0x72, 0x65, 0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a,
+        0x0c, 0x02, 0x04, 0x00, 0x20, 0x01, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02,
+        0x0b, 0x00, 0x09, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d,
+        0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x06, 0x12, 0x02, 0x00, 0x02, 0x01,
+        0x00, 0x03, 0x6d, 0x65, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x04, 0x73, 0x69,
+        0x6e, 0x6b, 0x07, 0x08, 0x01, 0x40, 0x01, 0x01, 0x73, 0x73, 0x00, 0x79,
+        0x08, 0x08, 0x01, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x0b, 0x0a,
+        0x01, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x01, 0x00, 0x00, 0x00, 0x39,
+        0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x06, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x01,
+        0x08, 0x00, 0x02, 0x01, 0x00, 0x03, 0x6d, 0x65, 0x6d, 0x01, 0x06, 0x00,
+        0x11, 0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01,
+        0x69, 0x01, 0x06, 0x03, 0x01, 0x00, 0x02, 0x66, 0x74};
 
-// canon lift whose result spills into the return area but omits 'memory'.
-// The validator must reject this end-to-end.
-TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
-  EXPECT_FALSE(VM.validate());
-}
-
-// canon lift whose string param forces a realloc but omits 'realloc'.
-TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
-  EXPECT_FALSE(VM.validate());
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Wasm));
+    EXPECT_FALSE(VM.validate());
+  }
 }
 
 // A value definition whose type transitively contains a handle is rejected
 // even when its payload carries none.
-TEST(ComponentValidatorTest, EndToEnd_ValueHandleTypeRejected) {
+TEST(ComponentValidatorTest, EndToEndValueHandleTypeRejected) {
   // (component
   //   (type $s (stream u8))
   //   (type $t (option $s))
   //   (value $v $t none)
   //   (export "v" (value $v)))
-  const std::vector<uint8_t> StreamInOption = {
+  std::array<WasmEdge::Byte, 31> StreamInOptionWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x06, 0x02,
       0x66, 0x01, 0x7d, 0x6b, 0x00, 0x0c, 0x04, 0x01, 0x01, 0x01, 0x00,
       0x0b, 0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
-  // (component
-  //   (type $t (option error-context))
-  //   (value $v $t none)
-  //   (export "v" (value $v)))
-  const std::vector<uint8_t> ErrorContextInOption = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x03,
-      0x01, 0x6b, 0x64, 0x0c, 0x04, 0x01, 0x00, 0x01, 0x00, 0x0b,
-      0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
-  // (component
-  //   (value $v error-context <empty payload>)
-  //   (export "v" (value $v)))
-  const std::vector<uint8_t> ErrorContext = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x0c, 0x03, 0x01,
-      0x64, 0x00, 0x0b, 0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
-  for (const auto &[Name, Wasm] :
-       {std::make_pair("stream in option", &StreamInOption),
-        std::make_pair("error-context in option", &ErrorContextInOption),
-        std::make_pair("error-context", &ErrorContext)}) {
-    SCOPED_TRACE(Name);
+  {
     VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(*Wasm));
+    ASSERT_TRUE(VM.loadWasm(StreamInOptionWasm));
     auto Res = VM.validate();
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueHandleType);
   }
+
+  // (component
+  //   (type $t (option error-context))
+  //   (value $v $t none)
+  //   (export "v" (value $v)))
+  std::array<WasmEdge::Byte, 28> ErrorContextInOptionWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x03,
+      0x01, 0x6b, 0x64, 0x0c, 0x04, 0x01, 0x00, 0x01, 0x00, 0x0b,
+      0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
+  {
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(ErrorContextInOptionWasm));
+    auto Res = VM.validate();
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueHandleType);
+  }
+
+  // (component
+  //   (value $v error-context <empty payload>)
+  //   (export "v" (value $v)))
+  std::array<WasmEdge::Byte, 22> ErrorContextWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x0c, 0x03, 0x01,
+      0x64, 0x00, 0x0b, 0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(ErrorContextWasm));
+  auto Res = VM.validate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueHandleType);
 }
 
 // The result of task.return cannot transitively contain a borrow.
-TEST(ComponentValidatorTest, EndToEnd_TaskReturnBorrowRejected) {
+TEST(ComponentValidatorTest, EndToEndTaskReturnBorrowRejected) {
   // (component
   //   (type $r (resource (rep i32)))
   //   (core func (canon task.return (result (borrow $r)))))
-  const std::vector<uint8_t> Borrow = {
+  std::array<WasmEdge::Byte, 23> BorrowWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x06, 0x02, 0x3f,
       0x7f, 0x00, 0x68, 0x00, 0x08, 0x05, 0x01, 0x09, 0x00, 0x01, 0x00};
+  {
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(BorrowWasm));
+    auto Res = VM.validate();
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonTaskReturnBorrow);
+  }
+
   // (component
   //   (type $r (resource (rep i32)))
   //   (type $t (tuple u32 (borrow $r)))
   //   (core func (canon task.return (result $t))))
-  const std::vector<uint8_t> BorrowInTuple = {
+  std::array<WasmEdge::Byte, 27> BorrowInTupleWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07,
       0x0a, 0x03, 0x3f, 0x7f, 0x00, 0x68, 0x00, 0x6f, 0x02,
       0x79, 0x01, 0x08, 0x05, 0x01, 0x09, 0x00, 0x02, 0x00};
-  for (const auto &[Name, Wasm] :
-       {std::make_pair("borrow", &Borrow),
-        std::make_pair("borrow in tuple", &BorrowInTuple)}) {
-    SCOPED_TRACE(Name);
+  {
     VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(*Wasm));
+    ASSERT_TRUE(VM.loadWasm(BorrowInTupleWasm));
     auto Res = VM.validate();
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::CanonTaskReturnBorrow);
@@ -2377,23 +2529,23 @@ TEST(ComponentValidatorTest, EndToEnd_TaskReturnBorrowRejected) {
   // (component
   //   (type $r (resource (rep i32)))
   //   (core func (canon task.return (result (own $r)))))
-  const std::vector<uint8_t> Own = {
+  std::array<WasmEdge::Byte, 23> OwnWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x06, 0x02, 0x3f,
       0x7f, 0x00, 0x69, 0x00, 0x08, 0x05, 0x01, 0x09, 0x00, 0x01, 0x00};
   VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Own));
+  ASSERT_TRUE(VM.loadWasm(OwnWasm));
   EXPECT_TRUE(VM.validate());
 }
 
 // The table of thread.new-indirect must be exactly `funcref`.
-TEST(ComponentValidatorTest, EndToEnd_ThreadNewIndirectTableType) {
+TEST(ComponentValidatorTest, EndToEndThreadNewIndirectTableType) {
   // (component
   //   (core type $start (func (param i32)))
   //   (core module $m (table (export "t") 1 funcref))
   //   (core instance $i (instantiate $m))
   //   (alias core export $i "t" (core table $t))
   //   (core func (canon thread.new-indirect $start (table $t))))
-  const std::vector<uint8_t> FuncRef = {
+  std::array<WasmEdge::Byte, 59> FuncRefWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x03, 0x05, 0x01, 0x60,
       0x01, 0x7f, 0x00, 0x01, 0x15, 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
       0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x05, 0x01, 0x01, 0x74,
@@ -2401,7 +2553,7 @@ TEST(ComponentValidatorTest, EndToEnd_ThreadNewIndirectTableType) {
       0x01, 0x01, 0x00, 0x01, 0x74, 0x08, 0x04, 0x01, 0x27, 0x00, 0x00};
   {
     VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(FuncRef));
+    ASSERT_TRUE(VM.loadWasm(FuncRefWasm));
     EXPECT_TRUE(VM.validate());
   }
 
@@ -2409,7 +2561,7 @@ TEST(ComponentValidatorTest, EndToEnd_ThreadNewIndirectTableType) {
   //   (core module $m
   //     (func $f)
   //     (table (export "t") 1 (ref func) (ref.func $f)))
-  const std::vector<uint8_t> NonNullFuncRef = {
+  std::array<WasmEdge::Byte, 81> NonNullFuncRefWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x03, 0x05, 0x01, 0x60,
       0x01, 0x7f, 0x00, 0x01, 0x2b, 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
       0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04,
@@ -2418,20 +2570,15 @@ TEST(ComponentValidatorTest, EndToEnd_ThreadNewIndirectTableType) {
       0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x06, 0x07, 0x01, 0x00, 0x01, 0x01,
       0x00, 0x01, 0x74, 0x08, 0x04, 0x01, 0x27, 0x00, 0x00};
   VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(NonNullFuncRef));
+  ASSERT_TRUE(VM.loadWasm(NonNullFuncRefWasm));
   auto Res = VM.validate();
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonThreadTableType);
 }
 
-// =============================================================================
-// Core instance global/table/memory checking via an imported core MODULE TYPE
-// (GAP-CI-1). Unlike the raw-module tests above, these drive the imported
-// module-type subtype path: the instantiated module's core externs come from a
-// CoreModuleType (not an inline AST::Module).
-// =============================================================================
+// Core instance extern checking where the instantiated module is an imported
+// core module type rather than an inline module.
 
-namespace {
 // Builds a component that links two imported core modules by type:
 //   (core type (module (export "g" <ExpDesc>)))      ;; core:type 0 (provider)
 //   (core type (module (import "provider" "g" <ImpDesc>)))  ;; core:type 1
@@ -2525,293 +2672,325 @@ AST::Component::CoreImportDesc mkMemoryDesc(const AST::Limit &L) {
   D.setMemoryType(AST::MemoryType(L));
   return D;
 }
-} // namespace
 
-TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMismatchRejected) {
-  // Provider exports (global (mut i64)); consumer imports (global (mut i32)).
-  auto Comp =
-      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
-                                   mkGlobalDesc(TypeCode::I32, ValMut::Var));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+TEST(ComponentValidatorTest, CoreImportTypeMatch) {
+  // Test matching the types of core imports.
+  //
+  //   1.  Core import memory32 rejects memory64.
+  //   2.  Core import memory32 accepts memory32.
+  //   3.  Core import global type mismatch.
+  //   4.  Core import global mutability mismatch.
+  //   5.  Core import global type match.
+  //   6.  Core import table elem type mismatch.
+  //   7.  Core import table limits mismatch.
+  //   8.  Core import table type match.
+  //   9.  Core import memory64 rejects memory32.
+
+  {
+    // Provide a 64-bit memory where a 32-bit memory is imported -> reject.
+    auto Comp = buildMemoryLinkComponent(AST::MemoryType(AST::Limit(1, true)));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Provide a 32-bit memory matching the 32-bit import -> accept.
+    auto Comp = buildMemoryLinkComponent(AST::MemoryType(AST::Limit(1)));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // Provider exports (global (mut i64)); consumer imports (global (mut i32)).
+    auto Comp =
+        buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
+                                     mkGlobalDesc(TypeCode::I32, ValMut::Var));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Same value type but mutability differs (var vs const) -> reject.
+    auto Comp =
+        buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I32, ValMut::Const),
+                                     mkGlobalDesc(TypeCode::I32, ValMut::Var));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Provider and consumer agree on (global (mut i64)) -> accept.
+    auto Comp =
+        buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
+                                     mkGlobalDesc(TypeCode::I64, ValMut::Var));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // Provider exports a funcref table; consumer imports an externref table.
+    auto Comp = buildCoreModuleLinkComponent(
+        mkTableDesc(TypeCode::FuncRef, 1), mkTableDesc(TypeCode::ExternRef, 1));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Consumer requires min 5; provider only offers min 1 -> reject.
+    auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
+                                             mkTableDesc(TypeCode::FuncRef, 5));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Provider offers min 5 where consumer requires min 1 -> accept.
+    auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 5),
+                                             mkTableDesc(TypeCode::FuncRef, 1));
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // Provider exports a 32-bit memory; consumer imports a 64-bit memory.
+    auto Comp = buildCoreModuleLinkComponent(mkMemoryDesc(AST::Limit(1)),
+                                             mkMemoryDesc(AST::Limit(1, true)));
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest,
-     CoreInstanceImportGlobalMutabilityMismatchRejected) {
-  // Same value type but mutability differs (var vs const) -> reject.
-  auto Comp =
-      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I32, ValMut::Const),
-                                   mkGlobalDesc(TypeCode::I32, ValMut::Var));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+TEST(ComponentValidatorTest, ValueConsumption) {
+  // Test the consumption of values.
+  //
+  //   1.  Value not consumed at end of component.
+  //   2.  Value consumed exactly once by export.
+  //   3.  Export consumes same value twice.
+  //   4.  Value consumed exactly once by start.
+  //   5.  Start consumes same value twice.
+  //   6.  Start argument value index out of bounds.
+
+  {
+    // Import a value, never consume it -> reject
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "val0";
+    ImpSec.getContent().back().getDesc().setValueBound(
+        ComponentValType(ComponentTypeCode::U32));
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueNotConsumed);
+  }
+
+  {
+    // Import a value, export it once -> accept
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "val0";
+    ImpSec.getContent().back().getDesc().setValueBound(
+        ComponentValType(ComponentTypeCode::U32));
+
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ExportSection>();
+    auto &ExpSec =
+        std::get<AST::Component::ExportSection>(Comp.getSections().back());
+    ExpSec.getContent().emplace_back();
+    ExpSec.getContent().back().getName() = "exp0";
+    ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+    ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+        AST::Component::Sort::SortType::Value);
+    ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_TRUE(Res);
+  }
+
+  {
+    // Import a value, export it twice -> reject
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "val0";
+    ImpSec.getContent().back().getDesc().setValueBound(
+        ComponentValType(ComponentTypeCode::U32));
+
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ExportSection>();
+    auto &ExpSec =
+        std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+    ExpSec.getContent().emplace_back();
+    ExpSec.getContent().back().getName() = "exp0";
+    ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+    ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+        AST::Component::Sort::SortType::Value);
+    ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+    ExpSec.getContent().emplace_back();
+    ExpSec.getContent().back().getName() = "exp1";
+    ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+    ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+        AST::Component::Sort::SortType::Value);
+    ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
+  }
+
+  {
+    // Import a value, call a start function with that value -> accept
+    AST::Component::Component Comp;
+
+    // 1. Define a function type (param: u32, result: none)
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType FT;
+    FT.setParamList({AST::Component::LabelValType(
+        "arg0"s, ComponentValType(ComponentTypeCode::U32))});
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    // 2. Import section: first import the value, then the function using type 0
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "val0";
+    ImpSec.getContent().back().getDesc().setValueBound(
+        ComponentValType(ComponentTypeCode::U32));
+
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "func0";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    // 3. Start section calling func0 (funcidx 0) with val0 (valueidx 0)
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::StartSection>();
+    auto &StartSec =
+        std::get<AST::Component::StartSection>(Comp.getSections().back());
+    StartSec.getContent().getFunctionIndex() = 0;
+    StartSec.getContent().getArguments() = {0};
+    StartSec.getContent().getResult() = 0;
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_TRUE(Res);
+  }
+
+  {
+    // Import a value, pass it twice to a start function -> reject
+    AST::Component::Component Comp;
+
+    // 1. Define a function type (param: u32, u32, result: none)
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType FT;
+    FT.setParamList({AST::Component::LabelValType(
+                         "arg0"s, ComponentValType(ComponentTypeCode::U32)),
+                     AST::Component::LabelValType(
+                         "arg1"s, ComponentValType(ComponentTypeCode::U32))});
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    // 2. Import section: first import the value, then the function using type 0
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "val0";
+    ImpSec.getContent().back().getDesc().setValueBound(
+        ComponentValType(ComponentTypeCode::U32));
+
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "func0";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    // 3. Start section calling func0 (funcidx 0) with args {0, 0}
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::StartSection>();
+    auto &StartSec =
+        std::get<AST::Component::StartSection>(Comp.getSections().back());
+    StartSec.getContent().getFunctionIndex() = 0;
+    StartSec.getContent().getArguments() = {0, 0};
+    StartSec.getContent().getResult() = 0;
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
+  }
+
+  {
+    // Call a start function whose argument references a value index that does
+    // not exist in the (empty) value index space -> reject with InvalidIndex.
+    AST::Component::Component Comp;
+
+    // 1. Define a function type (param: u32, result: none).
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+    TypeSec.getContent().emplace_back();
+    AST::Component::FuncType FT;
+    FT.setParamList({AST::Component::LabelValType(
+        "arg0"s, ComponentValType(ComponentTypeCode::U32))});
+    TypeSec.getContent().back().setFuncType(std::move(FT));
+
+    // 2. Import only the function (no value is imported, so the value index
+    // space stays empty).
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ImportSection>();
+    auto &ImpSec =
+        std::get<AST::Component::ImportSection>(Comp.getSections().back());
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = "func0";
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+    // 3. Start section calling func0 with value index 0, which is out of
+    //    bounds.
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::StartSection>();
+    auto &StartSec =
+        std::get<AST::Component::StartSection>(Comp.getSections().back());
+    StartSec.getContent().getFunctionIndex() = 0;
+    StartSec.getContent().getArguments() = {0};
+    StartSec.getContent().getResult() = 0;
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::InvalidIndex);
+  }
 }
 
-TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMatchAccepted) {
-  // Provider and consumer agree on (global (mut i64)) -> accept.
-  auto Comp =
-      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
-                                   mkGlobalDesc(TypeCode::I64, ValMut::Var));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreInstanceImportTableElemTypeMismatchRejected) {
-  // Provider exports a funcref table; consumer imports an externref table.
-  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
-                                           mkTableDesc(TypeCode::ExternRef, 1));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreInstanceImportTableLimitsMismatchRejected) {
-  // Consumer requires min 5; provider only offers min 1 -> reject.
-  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
-                                           mkTableDesc(TypeCode::FuncRef, 5));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreInstanceImportTableTypeMatchAccepted) {
-  // Provider offers min 5 where consumer requires min 1 -> accept.
-  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 5),
-                                           mkTableDesc(TypeCode::FuncRef, 1));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest,
-     CoreInstanceImportMemoryIndexTypeMismatchRejected) {
-  // Provider exports a 32-bit memory; consumer imports a 64-bit memory.
-  auto Comp = buildCoreModuleLinkComponent(mkMemoryDesc(AST::Limit(1)),
-                                           mkMemoryDesc(AST::Limit(1, true)));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, ValueNotConsumedAtEndOfComponent) {
-  // Import a value, never consume it -> reject
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "val0";
-  ImpSec.getContent().back().getDesc().setValueBound(
-      ComponentValType(ComponentTypeCode::U32));
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueNotConsumed);
-}
-
-TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByExport) {
-  // Import a value, export it once -> accept
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "val0";
-  ImpSec.getContent().back().getDesc().setValueBound(
-      ComponentValType(ComponentTypeCode::U32));
-
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ExportSection>();
-  auto &ExpSec =
-      std::get<AST::Component::ExportSection>(Comp.getSections().back());
-  ExpSec.getContent().emplace_back();
-  ExpSec.getContent().back().getName() = "exp0";
-  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
-  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
-      AST::Component::Sort::SortType::Value);
-  ExpSec.getContent().back().getSortIndex().setIdx(0);
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_TRUE(Res);
-}
-
-TEST(ComponentValidatorTest, ExportConsumesSameValueTwice) {
-  // Import a value, export it twice -> reject
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "val0";
-  ImpSec.getContent().back().getDesc().setValueBound(
-      ComponentValType(ComponentTypeCode::U32));
-
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ExportSection>();
-  auto &ExpSec =
-      std::get<AST::Component::ExportSection>(Comp.getSections().back());
-
-  ExpSec.getContent().emplace_back();
-  ExpSec.getContent().back().getName() = "exp0";
-  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
-  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
-      AST::Component::Sort::SortType::Value);
-  ExpSec.getContent().back().getSortIndex().setIdx(0);
-
-  ExpSec.getContent().emplace_back();
-  ExpSec.getContent().back().getName() = "exp1";
-  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
-  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
-      AST::Component::Sort::SortType::Value);
-  ExpSec.getContent().back().getSortIndex().setIdx(0);
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
-}
-
-TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByStart) {
-  // Import a value, call a start function with that value -> accept
-  AST::Component::Component Comp;
-
-  // 1. Define a function type (param: u32, result: none)
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setParamList({AST::Component::LabelValType(
-      "arg0"s, ComponentValType(ComponentTypeCode::U32))});
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  // 2. Import section: first import the value, then the function using type 0
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "val0";
-  ImpSec.getContent().back().getDesc().setValueBound(
-      ComponentValType(ComponentTypeCode::U32));
-
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "func0";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  // 3. Start section calling func0 (funcidx 0) with val0 (valueidx 0)
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::StartSection>();
-  auto &StartSec =
-      std::get<AST::Component::StartSection>(Comp.getSections().back());
-  StartSec.getContent().getFunctionIndex() = 0;
-  StartSec.getContent().getArguments() = {0};
-  StartSec.getContent().getResult() = 0;
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_TRUE(Res);
-}
-
-TEST(ComponentValidatorTest, StartConsumesSameValueTwice) {
-  // Import a value, call a start function with two params using same value
-  // twice
-  // -> reject
-  AST::Component::Component Comp;
-
-  // 1. Define a function type (param: u32, u32, result: none)
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setParamList({AST::Component::LabelValType(
-                       "arg0"s, ComponentValType(ComponentTypeCode::U32)),
-                   AST::Component::LabelValType(
-                       "arg1"s, ComponentValType(ComponentTypeCode::U32))});
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  // 2. Import section: first import the value, then the function using type 0
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "val0";
-  ImpSec.getContent().back().getDesc().setValueBound(
-      ComponentValType(ComponentTypeCode::U32));
-
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "func0";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  // 3. Start section calling func0 (funcidx 0) with args {0, 0}
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::StartSection>();
-  auto &StartSec =
-      std::get<AST::Component::StartSection>(Comp.getSections().back());
-  StartSec.getContent().getFunctionIndex() = 0;
-  StartSec.getContent().getArguments() = {0, 0};
-  StartSec.getContent().getResult() = 0;
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
-}
-
-TEST(ComponentValidatorTest, StartArgumentValueIndexOutOfBounds) {
-  // Call a start function whose argument references a value index that does not
-  // exist in the (empty) value index space -> reject with InvalidIndex.
-  AST::Component::Component Comp;
-
-  // 1. Define a function type (param: u32, result: none).
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setParamList({AST::Component::LabelValType(
-      "arg0"s, ComponentValType(ComponentTypeCode::U32))});
-  TypeSec.getContent().back().setFuncType(std::move(FT));
-
-  // 2. Import only the function (no value is imported, so the value index
-  // space stays empty).
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ImportSection>();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "func0";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  // 3. Start section calling func0 with value index 0, which is out of bounds.
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::StartSection>();
-  auto &StartSec =
-      std::get<AST::Component::StartSection>(Comp.getSections().back());
-  StartSec.getContent().getFunctionIndex() = 0;
-  StartSec.getContent().getArguments() = {0};
-  StartSec.getContent().getResult() = 0;
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::InvalidIndex);
-}
-
-// =============================================================================
 // Async canonical option rules
-// =============================================================================
 
 // Helper: build a Component whose core func 0 has the callback signature
-// [i32 i32 i32] -> [i32], obtained by lowering a (func (param u32 u32 u32)
-// (result u32)).
+// [i32 i32 i32] -> [i32], lowered from a three-u32-param func.
 inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2844,79 +3023,88 @@ inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonLower_CallbackRejectedBySiteRule) {
-  // `callback` is only allowed on `canon lift`, so the site rule must fire
-  // before the core function index is even resolved.
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
-                mkOpt(ComponentCanonOptCode::Callback, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
+TEST(ComponentValidatorTest, CanonAsyncOptions) {
+  // Test the async options of canon functions.
+  //
+  //   1.  Lower callback rejected by site rule.
+  //   2.  Lower duplicate async rejected.
+  //   3.  Lift duplicate callback rejected.
+  //   4.  Lift callback without async rejected.
+
+  {
+    // `callback` is only allowed on `canon lift`, so the site rule must fire
+    // before the core function index is even resolved.
+    auto Comp = makeCompWithImportedFunc();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                  mkOpt(ComponentCanonOptCode::Callback, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
+  }
+
+  // Lower duplicate async rejected.
+  {
+    auto Comp = makeCompWithImportedFunc();
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lower);
+    C.setIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                  mkOpt(ComponentCanonOptCode::Async)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncDuplicated);
+  }
+
+  // Lift duplicate callback rejected.
+  {
+    auto Comp = makeCompWithCallbackShapedCoreFunc();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lift);
+    C.setIndex(0);       // core func 0
+    C.setTargetIndex(0); // functype 0
+    C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                  mkOpt(ComponentCanonOptCode::Callback, 0),
+                  mkOpt(ComponentCanonOptCode::Callback, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackDuplicated);
+  }
+
+  // Lift callback without async rejected.
+  {
+    auto Comp = makeCompWithCallbackShapedCoreFunc();
+    auto &CanonSec =
+        std::get<AST::Component::CanonSection>(Comp.getSections().back());
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Lift);
+    C.setIndex(0);
+    C.setTargetIndex(0);
+    C.setOptions({mkOpt(ComponentCanonOptCode::Callback, 0)});
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackRequiresAsync);
+  }
 }
 
-TEST(ComponentValidatorTest, CanonLower_DuplicateAsyncRejected) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
-                mkOpt(ComponentCanonOptCode::Async)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncDuplicated);
-}
-
-TEST(ComponentValidatorTest, CanonLift_DuplicateCallbackRejected) {
-  auto Comp = makeCompWithCallbackShapedCoreFunc();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lift);
-  C.setIndex(0);       // core func 0
-  C.setTargetIndex(0); // functype 0
-  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
-                mkOpt(ComponentCanonOptCode::Callback, 0),
-                mkOpt(ComponentCanonOptCode::Callback, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackDuplicated);
-}
-
-TEST(ComponentValidatorTest, CanonLift_CallbackWithoutAsyncRejected) {
-  auto Comp = makeCompWithCallbackShapedCoreFunc();
-  auto &CanonSec =
-      std::get<AST::Component::CanonSection>(Comp.getSections().back());
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lift);
-  C.setIndex(0);
-  C.setTargetIndex(0);
-  C.setOptions({mkOpt(ComponentCanonOptCode::Callback, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackRequiresAsync);
-}
-
-// =============================================================================
 // context.get / context.set slot immediate
-// =============================================================================
 
-// Helper: append a `context.get`/`context.set` naming the given slot and
-// type. The loader stores the slot immediate as the constant value, not as
-// an index.
+// Helper: append a `context.get`/`context.set` naming the given slot and type.
+// The loader stores the slot immediate as the constant value.
 inline AST::Component::Component
 makeCompWithContextSlot(ComponentCanonOpCode C, uint32_t Slot,
                         ValType Ty = ValType(TypeCode::I32)) {
@@ -2948,77 +3136,95 @@ inline AST::Component::Component makeCompWithTwoContexts(ValType First,
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonContextGet_SlotInBounds_Passes) {
-  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 1);
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
+TEST(ComponentValidatorTest, CanonContextSlot) {
+  // Test the slots of canon context.get and context.set.
+  //
+  //   1.  Get slot in bounds passes.
+  //   2.  Get slot out of bounds fails.
+  //   3.  Set slot out of bounds fails.
+  //   4.  Get I64 type passes.
+  //   5.  Get I64 needs memory64.
+  //   6.  Set non integer type fails.
+  //   7.  Same type twice passes.
+  //   8.  Mixed types fail.
+
+  // Get slot in bounds passes.
+  {
+    auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 1);
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
+
+  // Get slot out of bounds fails.
+  {
+    auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 7);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
+  }
+
+  // Set slot out of bounds fails.
+  {
+    auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 2);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
+  }
+
+  // Get I64 type passes.
+  {
+    auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
+                                        ValType(TypeCode::I64));
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // A 64-bit slot is gated like a 64-bit resource rep. The default Configure
+    // enables Memory64, so this one has to turn it off explicitly.
+    Configure NoMemory64;
+    NoMemory64.addProposal(Proposal::Component);
+    NoMemory64.removeProposal(Proposal::Memory64);
+    auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
+                                        ValType(TypeCode::I64));
+    Validator::Validator V(NoMemory64);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
+  }
+
+  // Set non integer type fails.
+  {
+    auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 0,
+                                        ValType(TypeCode::F32));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
+  }
+
+  // Same type twice passes.
+  {
+    auto Comp =
+        makeCompWithTwoContexts(ValType(TypeCode::I64), ValType(TypeCode::I64));
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
+
+  // Mixed types fail.
+  {
+    auto Comp =
+        makeCompWithTwoContexts(ValType(TypeCode::I32), ValType(TypeCode::I64));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeMismatch);
+  }
 }
 
-TEST(ComponentValidatorTest, CanonContextGet_SlotOutOfBounds_Fails) {
-  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 7);
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
-}
-
-TEST(ComponentValidatorTest, CanonContextSet_SlotOutOfBounds_Fails) {
-  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 2);
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
-}
-
-TEST(ComponentValidatorTest, CanonContextGet_I64TypePasses) {
-  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
-                                      ValType(TypeCode::I64));
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonContextGet_I64NeedsMemory64) {
-  // A 64-bit slot is gated like a 64-bit resource rep. The default Configure
-  // enables Memory64, so this one has to turn it off explicitly.
-  Configure NoMemory64;
-  NoMemory64.addProposal(Proposal::Component);
-  NoMemory64.removeProposal(Proposal::Memory64);
-  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
-                                      ValType(TypeCode::I64));
-  Validator::Validator V(NoMemory64);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
-}
-
-TEST(ComponentValidatorTest, CanonContextSet_NonIntegerTypeFails) {
-  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 0,
-                                      ValType(TypeCode::F32));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
-}
-
-TEST(ComponentValidatorTest, CanonContext_SameTypeTwicePasses) {
-  auto Comp =
-      makeCompWithTwoContexts(ValType(TypeCode::I64), ValType(TypeCode::I64));
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonContext_MixedTypesFail) {
-  auto Comp =
-      makeCompWithTwoContexts(ValType(TypeCode::I32), ValType(TypeCode::I64));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeMismatch);
-}
-
-// =============================================================================
 // Import and export name attributes
-// =============================================================================
 
 // Helper: import a func named "f" carrying the given `external-id` values.
 inline AST::Component::Component
@@ -3060,63 +3266,73 @@ makeCompWithVersionSuffix(std::string Name, std::vector<std::string> Suffixes) {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, VersionSuffixRestoresCanonVersion) {
-  // `@1` is the canonical version the suffix puts back: 1 ++ .2.3 = 1.2.3.
-  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {".2.3"});
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
+TEST(ComponentValidatorTest, VersionSuffix) {
+  // Test version suffixes.
+  //
+  //   1.  Restores canon version.
+  //   2.  Must form semver.
+  //   3.  Needs canon version.
+  //   4.  Needs interface name.
+  //   5.  Needs interface version.
+  //   6.  Canon version needs version suffix.
+
+  {
+    // `@1` is the canonical version the suffix puts back: 1 ++ .2.3 = 1.2.3.
+    auto Comp = makeCompWithVersionSuffix("a:b/c@1", {".2.3"});
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // 1 ++ -alpha is not a semver, because the minor and patch are missing.
+    auto Comp = makeCompWithVersionSuffix("a:b/c@1", {"-alpha"});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::NameUnexpectedCharacter);
+  }
+
+  {
+    // 1.0.0-alpha has a pre-release, so its canonical version is itself.
+    auto Comp = makeCompWithVersionSuffix("a:b/c@1.0.0", {"-alpha"});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
+  }
+
+  // Needs interface name.
+  {
+    auto Comp = makeCompWithVersionSuffix("f", {".2.3"});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixName);
+  }
+
+  // Needs interface version.
+  {
+    auto Comp = makeCompWithVersionSuffix("a:b/c", {".2.3"});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixNoVersion);
+  }
+
+  {
+    // `@1` alone is not a semver.
+    auto Comp = makeCompWithVersionSuffix("a:b/c@1", {});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::NameUnexpectedEnd);
+  }
 }
 
-TEST(ComponentValidatorTest, VersionSuffixMustFormSemver) {
-  // 1 ++ -alpha is not a semver, because the minor and patch are missing.
-  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {"-alpha"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::NameUnexpectedCharacter);
-}
-
-TEST(ComponentValidatorTest, VersionSuffixNeedsCanonVersion) {
-  // 1.0.0-alpha has a pre-release, so its canonical version is itself.
-  auto Comp = makeCompWithVersionSuffix("a:b/c@1.0.0", {"-alpha"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
-}
-
-TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceName) {
-  auto Comp = makeCompWithVersionSuffix("f", {".2.3"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixName);
-}
-
-TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
-  auto Comp = makeCompWithVersionSuffix("a:b/c", {".2.3"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixNoVersion);
-}
-
-TEST(ComponentValidatorTest, CanonVersionNeedsVersionSuffix) {
-  // `@1` alone is not a semver.
-  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::NameUnexpectedEnd);
-}
-
-// =============================================================================
 // borrow inside a stream or future element type
-// =============================================================================
 
-// Helper: a resource at type 0, a borrow of it at type 1, and the element
-// wrapped in a stream or a future. Elem selects which type index the async
-// type carries, so a borrow can also be reached through a list.
+// Helper: a resource at type 0, a handle to it at type 1, optionally a list of
+// it at type 2, and the last one wrapped in a stream or a future.
 inline AST::Component::Component
 makeCompWithAsyncElem(bool IsFuture, bool ElemIsBorrow, bool ThroughList) {
   auto Comp = makeCompWithLocalResource();
@@ -3151,67 +3367,85 @@ makeCompWithAsyncElem(bool IsFuture, bool ElemIsBorrow, bool ThroughList) {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, FutureOfBorrowRejected) {
-  auto Comp = makeCompWithAsyncElem(true, true, false);
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+TEST(ComponentValidatorTest, StreamFutureElemBorrow) {
+  // Test borrows in stream and future elements.
+  //
+  //   1.  Future of borrow rejected.
+  //   2.  Stream of borrow rejected.
+  //   3.  Future of list of borrow rejected.
+  //   4.  Future of own passes.
+
+  // Future of borrow rejected.
+  {
+    auto Comp = makeCompWithAsyncElem(true, true, false);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+  }
+
+  // Stream of borrow rejected.
+  {
+    auto Comp = makeCompWithAsyncElem(false, true, false);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+  }
+
+  {
+    // The rule is transitive, so a borrow reached through a list still counts.
+    auto Comp = makeCompWithAsyncElem(true, true, true);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+  }
+
+  // Future of own passes.
+  {
+    auto Comp = makeCompWithAsyncElem(true, false, false);
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, StreamOfBorrowRejected) {
-  auto Comp = makeCompWithAsyncElem(false, true, false);
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+TEST(ComponentValidatorTest, StreamFutureBuiltinType) {
+  // Test the types of the stream and future built-ins.
+  //
+  //   1.  A stream built-in on a future type.
+  //   2.  A future built-in on a stream type.
+
+  // A stream built-in on a future type.
+  {
+    auto Comp = makeCompWithAsyncElem(true, false, false);
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Stream__drop_readable);
+    C.setIndex(2);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamTypeRequired);
+  }
+
+  // A future built-in on a stream type.
+  {
+    auto Comp = makeCompWithAsyncElem(false, false, false);
+    auto &CanonSec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Future__drop_readable);
+    C.setIndex(2);
+    CanonSec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentFutureTypeRequired);
+  }
 }
 
-TEST(ComponentValidatorTest, FutureOfListOfBorrowRejected) {
-  // The rule is transitive, so a borrow reached through a list still counts.
-  auto Comp = makeCompWithAsyncElem(true, true, true);
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
-}
-
-TEST(ComponentValidatorTest, FutureOfOwnPasses) {
-  auto Comp = makeCompWithAsyncElem(true, false, false);
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
-}
-
-// A stream built-in on a future type, and the other way round.
-TEST(ComponentValidatorTest, StreamBuiltinRequiresStreamType) {
-  auto Comp = makeCompWithAsyncElem(true, false, false);
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Stream__drop_readable);
-  C.setIndex(2);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamTypeRequired);
-}
-
-TEST(ComponentValidatorTest, FutureBuiltinRequiresFutureType) {
-  auto Comp = makeCompWithAsyncElem(false, false, false);
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Future__drop_readable);
-  C.setIndex(2);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentFutureTypeRequired);
-}
-
-// =============================================================================
 // Canonical ABI element size limit
-// =============================================================================
 
 // Helper: a component defining `(list u64 Len)`.
 inline AST::Component::Component makeCompWithFixedU64List(uint32_t Len) {
@@ -3228,25 +3462,61 @@ inline AST::Component::Component makeCompWithFixedU64List(uint32_t Len) {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, ElemSizeBelowLimitPasses) {
-  // 2^25 - 1 elements of 8 bytes stay below 2^28 bytes.
-  auto Comp = makeCompWithFixedU64List((1U << 25) - 1U);
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
+TEST(ComponentValidatorTest, ElemSizeLimit) {
+  // Test the element size limit.
+  //
+  //   1.  Elem size below limit passes.
+  //   2.  Elem size at limit fails.
+  //   3.  Elem size borrow counts eight bytes.
+
+  {
+    // 2^25 - 1 elements of 8 bytes stay below 2^28 bytes.
+    auto Comp = makeCompWithFixedU64List((1U << 25) - 1U);
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // 2^25 elements of 8 bytes reach 2^28 bytes.
+    auto Comp = makeCompWithFixedU64List(1U << 25);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
+  }
+
+  // A borrow is sized as the widest representation a resource can have, so a
+  // fixed-length list of 2^25 borrows reaches the element size limit.
+  {
+    // (component
+    //   (type $r (resource (rep i32)))
+    //   (type (list (borrow $r) 33554432)))
+    std::array<WasmEdge::Byte, 46> AtLimitWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
+        0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0x80, 0x80, 0x80, 0x10, 0x00, 0x16,
+        0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72};
+    {
+      VM::VM VM(Conf);
+      ASSERT_TRUE(VM.loadWasm(AtLimitWasm));
+      auto Res = VM.validate();
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
+    }
+
+    // The same list with one element fewer.
+    std::array<WasmEdge::Byte, 46> BelowLimitWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
+        0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x16,
+        0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72};
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(BelowLimitWasm));
+    EXPECT_TRUE(VM.validate());
+  }
 }
 
-TEST(ComponentValidatorTest, ElemSizeAtLimitFails) {
-  // 2^25 elements of 8 bytes reach 2^28 bytes.
-  auto Comp = makeCompWithFixedU64List(1U << 25);
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
-}
-
-// =============================================================================
 // Value payload decoding
-// =============================================================================
 
 // Helper: decode a `val(t)` payload for a primitive type. No type index can
 // appear in these payloads, so an empty scope resolves none.
@@ -3259,61 +3529,71 @@ inline Expect<ComponentValVariant> decodePrimValue(std::vector<Byte> Data,
   return Dec.decode(ComponentValType(Code));
 }
 
-TEST(ComponentValidatorTest, ValueDecodeSignedLEBRange) {
-  // The extremes of `s16` round-trip.
-  auto Min = decodePrimValue({0x80, 0x80, 0x7E}, ComponentTypeCode::S16);
-  ASSERT_TRUE(Min);
-  EXPECT_EQ(std::get<int16_t>(*Min), INT16_MIN);
-  auto Max = decodePrimValue({0xFF, 0xFF, 0x01}, ComponentTypeCode::S16);
-  ASSERT_TRUE(Max);
-  EXPECT_EQ(std::get<int16_t>(*Max), INT16_MAX);
-  // Out-of-range encodings are malformed instead of being truncated: this
-  // sequence decodes to -1048576, which truncates to 0 in `int16_t`.
-  EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x40}, ComponentTypeCode::S16));
-  // 32768 does not fit `s16` either.
-  EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x02}, ComponentTypeCode::S16));
-  // Too many bytes for the declared width.
-  EXPECT_FALSE(
-      decodePrimValue({0x80, 0x80, 0x80, 0x00}, ComponentTypeCode::S16));
-  // The same rules hold for `s32`.
-  auto S32 =
-      decodePrimValue({0xFF, 0xFF, 0xFF, 0xFF, 0x07}, ComponentTypeCode::S32);
-  ASSERT_TRUE(S32);
-  EXPECT_EQ(std::get<int32_t>(*S32), INT32_MAX);
-  EXPECT_FALSE(
-      decodePrimValue({0x80, 0x80, 0x80, 0x80, 0x40}, ComponentTypeCode::S32));
+TEST(ComponentValidatorTest, ValueDecode) {
+  // Test decoding values.
+  //
+  //   1.  Signed LEB range.
+  //   2.  Char rejects overlong.
+  //   3.  String requires utf8.
+
+  {
+    // The extremes of `s16` round-trip.
+    auto Min = decodePrimValue({0x80, 0x80, 0x7E}, ComponentTypeCode::S16);
+    ASSERT_TRUE(Min);
+    EXPECT_EQ(std::get<int16_t>(*Min), INT16_MIN);
+    auto Max = decodePrimValue({0xFF, 0xFF, 0x01}, ComponentTypeCode::S16);
+    ASSERT_TRUE(Max);
+    EXPECT_EQ(std::get<int16_t>(*Max), INT16_MAX);
+    // Out-of-range encodings are malformed instead of being truncated: this
+    // sequence decodes to -1048576, which truncates to 0 in `int16_t`.
+    EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x40}, ComponentTypeCode::S16));
+    // 32768 does not fit `s16` either.
+    EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x02}, ComponentTypeCode::S16));
+    // Too many bytes for the declared width.
+    EXPECT_FALSE(
+        decodePrimValue({0x80, 0x80, 0x80, 0x00}, ComponentTypeCode::S16));
+    // The same rules hold for `s32`.
+    auto S32 =
+        decodePrimValue({0xFF, 0xFF, 0xFF, 0xFF, 0x07}, ComponentTypeCode::S32);
+    ASSERT_TRUE(S32);
+    EXPECT_EQ(std::get<int32_t>(*S32), INT32_MAX);
+    EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x80, 0x80, 0x40},
+                                 ComponentTypeCode::S32));
+  }
+
+  // Char rejects overlong.
+  {
+    auto Ok = decodePrimValue({0xC2, 0x80}, ComponentTypeCode::Char);
+    ASSERT_TRUE(Ok);
+    EXPECT_EQ(std::get<uint32_t>(*Ok), UINT32_C(0x80));
+    // U+0000 encoded in two bytes, U+0000 in three, and U+0800 in four.
+    EXPECT_FALSE(decodePrimValue({0xC0, 0x80}, ComponentTypeCode::Char));
+    EXPECT_FALSE(decodePrimValue({0xE0, 0x80, 0x80}, ComponentTypeCode::Char));
+    EXPECT_FALSE(
+        decodePrimValue({0xF0, 0x80, 0xA0, 0x80}, ComponentTypeCode::Char));
+    // Surrogates and out-of-range scalars stay rejected.
+    EXPECT_FALSE(decodePrimValue({0xED, 0xA0, 0x80}, ComponentTypeCode::Char));
+    EXPECT_FALSE(
+        decodePrimValue({0xF7, 0xBF, 0xBF, 0xBF}, ComponentTypeCode::Char));
+  }
+
+  // String requires utf8.
+  {
+    auto Ok =
+        decodePrimValue({0x03, 0x61, 0xC2, 0x80}, ComponentTypeCode::String);
+    ASSERT_TRUE(Ok);
+    EXPECT_EQ(std::get<std::string>(*Ok), "a\xC2\x80"s);
+    // A lone continuation byte, an overlong sequence, and a sequence truncated
+    // by the declared length are all malformed.
+    EXPECT_FALSE(decodePrimValue({0x01, 0x80}, ComponentTypeCode::String));
+    EXPECT_FALSE(
+        decodePrimValue({0x02, 0xC0, 0x80}, ComponentTypeCode::String));
+    EXPECT_FALSE(
+        decodePrimValue({0x01, 0xC2, 0x80}, ComponentTypeCode::String));
+  }
 }
 
-TEST(ComponentValidatorTest, ValueDecodeCharRejectsOverlong) {
-  auto Ok = decodePrimValue({0xC2, 0x80}, ComponentTypeCode::Char);
-  ASSERT_TRUE(Ok);
-  EXPECT_EQ(std::get<uint32_t>(*Ok), UINT32_C(0x80));
-  // U+0000 encoded in two bytes, U+0000 in three, and U+0800 in four.
-  EXPECT_FALSE(decodePrimValue({0xC0, 0x80}, ComponentTypeCode::Char));
-  EXPECT_FALSE(decodePrimValue({0xE0, 0x80, 0x80}, ComponentTypeCode::Char));
-  EXPECT_FALSE(
-      decodePrimValue({0xF0, 0x80, 0xA0, 0x80}, ComponentTypeCode::Char));
-  // Surrogates and out-of-range scalars stay rejected.
-  EXPECT_FALSE(decodePrimValue({0xED, 0xA0, 0x80}, ComponentTypeCode::Char));
-  EXPECT_FALSE(
-      decodePrimValue({0xF7, 0xBF, 0xBF, 0xBF}, ComponentTypeCode::Char));
-}
-
-TEST(ComponentValidatorTest, ValueDecodeStringRequiresUtf8) {
-  auto Ok =
-      decodePrimValue({0x03, 0x61, 0xC2, 0x80}, ComponentTypeCode::String);
-  ASSERT_TRUE(Ok);
-  EXPECT_EQ(std::get<std::string>(*Ok), "a\xC2\x80"s);
-  // A lone continuation byte, an overlong sequence, and a sequence truncated
-  // by the declared length are all malformed.
-  EXPECT_FALSE(decodePrimValue({0x01, 0x80}, ComponentTypeCode::String));
-  EXPECT_FALSE(decodePrimValue({0x02, 0xC0, 0x80}, ComponentTypeCode::String));
-  EXPECT_FALSE(decodePrimValue({0x01, 0xC2, 0x80}, ComponentTypeCode::String));
-}
-
-// =============================================================================
 // Canonical options on the option-bearing built-ins
-// =============================================================================
 
 // Helper: append a canonical definition carrying the given options.
 inline AST::Component::Component &
@@ -3352,481 +3632,521 @@ makeCompWithPayloadType(bool WantStream,
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonTaskReturn_MemoryIndexOutOfBounds_Fails) {
-  AST::Component::Component Comp;
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
-                         {mkOpt(ComponentCanonOptCode::Memory, 0)});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
+TEST(ComponentValidatorTest, CanonBuiltinOptions) {
+  // Test the options of the canon built-ins.
+  //
+  //   1.  Task return memory index OOB fails.
+  //   2.  Task return rejects async.
+  //   3.  Task return rejects post return.
+  //   4.  Task return string needs memory.
+  //   5.  Stream read memory index OOB fails.
+  //   6.  Stream read payload needs memory.
+  //   7.  Stream write empty needs no memory.
+  //   8.  Future read rejects callback.
+  //   9.  Error context new needs memory.
+
+  // Task return memory index OOB fails.
+  {
+    AST::Component::Component Comp;
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
+                           {mkOpt(ComponentCanonOptCode::Memory, 0)});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
+  }
+
+  // Task return rejects async.
+  {
+    AST::Component::Component Comp;
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
+                           {mkOpt(ComponentCanonOptCode::Async)});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncOnBuiltin);
+  }
+
+  // Task return rejects post return.
+  {
+    AST::Component::Component Comp;
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
+                           {mkOpt(ComponentCanonOptCode::PostReturn, 0)});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonPostReturnOnLower);
+  }
+
+  // Task return string needs memory.
+  {
+    AST::Component::Component Comp;
+    auto &Sec = appendCanonSection(Comp);
+    AST::Component::Canonical C;
+    C.setOpCode(ComponentCanonOpCode::Task__return);
+    C.setResult(ComponentValType(ComponentTypeCode::String));
+    Sec.getContent().emplace_back(std::move(C));
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
+  }
+
+  // Stream read memory index OOB fails.
+  {
+    auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read,
+                           {mkOpt(ComponentCanonOptCode::Memory, 0)});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
+  }
+
+  // Stream read payload needs memory.
+  {
+    auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read, {});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
+  }
+
+  // Stream write empty needs no memory.
+  {
+    auto Comp = makeCompWithPayloadType(true, std::nullopt);
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__write, {});
+    Validator::Validator V(Conf);
+    EXPECT_TRUE(V.validate(Comp));
+  }
+
+  // Future read rejects callback.
+  {
+    auto Comp = makeCompWithPayloadType(false, std::nullopt);
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Future__read,
+                           {mkOpt(ComponentCanonOptCode::Callback, 0)});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
+  }
+
+  // Error context new needs memory.
+  {
+    AST::Component::Component Comp;
+    appendCanonWithOptions(Comp, ComponentCanonOpCode::Error_context__new, {});
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
+  }
 }
 
-TEST(ComponentValidatorTest, CanonTaskReturn_RejectsAsync) {
-  AST::Component::Component Comp;
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
-                         {mkOpt(ComponentCanonOptCode::Async)});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncOnBuiltin);
-}
-
-TEST(ComponentValidatorTest, CanonTaskReturn_RejectsPostReturn) {
-  AST::Component::Component Comp;
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
-                         {mkOpt(ComponentCanonOptCode::PostReturn, 0)});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonPostReturnOnLower);
-}
-
-TEST(ComponentValidatorTest, CanonTaskReturn_StringResultRequiresMemory) {
-  AST::Component::Component Comp;
-  auto &Sec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Task__return);
-  C.setResult(ComponentValType(ComponentTypeCode::String));
-  Sec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
-}
-
-TEST(ComponentValidatorTest, CanonStreamRead_MemoryIndexOutOfBounds_Fails) {
-  auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read,
-                         {mkOpt(ComponentCanonOptCode::Memory, 0)});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
-}
-
-TEST(ComponentValidatorTest, CanonStreamRead_PayloadRequiresMemory_Fails) {
-  auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read, {});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
-}
-
-TEST(ComponentValidatorTest, CanonStreamWrite_EmptyPayloadNeedsNoMemory) {
-  auto Comp = makeCompWithPayloadType(true, std::nullopt);
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__write, {});
-  Validator::Validator V(Conf);
-  EXPECT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonFutureRead_RejectsCallback) {
-  auto Comp = makeCompWithPayloadType(false, std::nullopt);
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Future__read,
-                         {mkOpt(ComponentCanonOptCode::Callback, 0)});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
-}
-
-TEST(ComponentValidatorTest, CanonErrorContextNew_RequiresMemory_Fails) {
-  AST::Component::Component Comp;
-  appendCanonWithOptions(Comp, ComponentCanonOpCode::Error_context__new, {});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
-}
-
-// =============================================================================
 // Component core:type rec groups validate in the component core:type space
-// =============================================================================
 
-TEST(ComponentValidatorTest, CoreTypeSubTypeWithRefStillChecksSuperType) {
-  // (core type (sub (func)))                          ;; core type 0
-  // (core type (sub 5 (func (param (ref null 0)))))   ;; FAIL: no core type 5
+TEST(ComponentValidatorTest, CoreTypeRecGroups) {
+  // Test core recursive type groups.
   //
-  // The concrete parameter reference must not exempt the subtype rules.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  auto &CoreTypeSec =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+  //   1.  Core type sub type with ref checks super.
+  //   2.  Core type super index in component space.
+  //   3.  Core type rec group forward reference.
+  //   4.  Core type sub type ref to module type rejected.
+  //   5.  Core type aliased super type index rejected.
 
-  std::vector<AST::SubType> ST0;
-  ST0.emplace_back();
-  ST0.back().setFinal(false);
-  ST0.back().getCompositeType().setFunctionType(AST::FunctionType());
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setSubTypes(std::move(ST0));
+  {
+    // (core type (sub (func)))                          ;; core type 0
+    // (core type (sub 5 (func (param (ref null 0)))))   ;; FAIL: no core type 5
+    // The concrete parameter reference must not exempt the subtype rules.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    auto &CoreTypeSec =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
 
-  std::vector<AST::SubType> ST1;
-  ST1.emplace_back();
-  ST1.back().getSuperTypeIndices().push_back(5);
-  AST::FunctionType FT;
-  FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
-  ST1.back().getCompositeType().setFunctionType(std::move(FT));
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setSubTypes(std::move(ST1));
+    std::vector<AST::SubType> ST0;
+    ST0.emplace_back();
+    ST0.back().setFinal(false);
+    ST0.back().getCompositeType().setFunctionType(AST::FunctionType());
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setSubTypes(std::move(ST0));
 
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
+    std::vector<AST::SubType> ST1;
+    ST1.emplace_back();
+    ST1.back().getSuperTypeIndices().push_back(5);
+    AST::FunctionType FT;
+    FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
+    ST1.back().getCompositeType().setFunctionType(std::move(FT));
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setSubTypes(std::move(ST1));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // (core type (sub (func)))     ;; core type 0, non-final
+    // (core type (sub 0 (func)))   ;; core type 1 -- PASS
+    // The super type index names the component core:type space, not whatever
+    // the core FormChecker happens to hold.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    auto &CoreTypeSec =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+    std::vector<AST::SubType> ST0;
+    ST0.emplace_back();
+    ST0.back().setFinal(false);
+    ST0.back().getCompositeType().setFunctionType(AST::FunctionType());
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setSubTypes(std::move(ST0));
+
+    std::vector<AST::SubType> ST1;
+    ST1.emplace_back();
+    ST1.back().getSuperTypeIndices().push_back(0);
+    ST1.back().getCompositeType().setFunctionType(AST::FunctionType());
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setSubTypes(std::move(ST1));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // (core type (rec
+    //   (type (func (param (ref null 1))))   ;; core type 0 -> core type 1
+    //   (type (func))))                      ;; core type 1
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    auto &CoreTypeSec =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+    std::vector<AST::SubType> STs;
+    STs.emplace_back();
+    AST::FunctionType FT;
+    FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 1U));
+    STs.back().getCompositeType().setFunctionType(std::move(FT));
+    STs.back().setRecursiveInfo(0, 2);
+    STs.emplace_back();
+    STs.back().getCompositeType().setFunctionType(AST::FunctionType());
+    STs.back().setRecursiveInfo(1, 2);
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setSubTypes(std::move(STs));
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
+
+  {
+    // (core type (module))                          ;; core type 0
+    // (core type (sub (func (param (ref null 0)))))  ;; FAIL: module type ref
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    auto &CoreTypeSec =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setModuleType(
+        std::vector<AST::Component::CoreModuleDecl>{});
+
+    std::vector<AST::SubType> STs;
+    STs.emplace_back();
+    AST::FunctionType FT;
+    FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
+    STs.back().getCompositeType().setFunctionType(std::move(FT));
+    CoreTypeSec.getContent().emplace_back();
+    CoreTypeSec.getContent().back().setSubTypes(std::move(STs));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  {
+    // Outer: (core type (sub (func)))        ;; core type 0, non-final
+    //        (core type (sub 0 (func)))      ;; core type 1, non-final
+    // Inner: (core type (module))            ;; core type 0 -- not a sub type
+    //        (alias outer 1 1 (core type))   ;; core type 1, super type index 0
+    //        (core type (sub 1 (func)))      ;; walks into the module-type slot
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+
+    auto &OuterTypes =
+        std::get<AST::Component::CoreTypeSection>(Comp.getSections()[0]);
+    std::vector<AST::SubType> OuterST0;
+    OuterST0.emplace_back();
+    OuterST0.back().setFinal(false);
+    OuterST0.back().getCompositeType().setFunctionType(AST::FunctionType());
+    OuterTypes.getContent().emplace_back();
+    OuterTypes.getContent().back().setSubTypes(std::move(OuterST0));
+    std::vector<AST::SubType> OuterST1;
+    OuterST1.emplace_back();
+    OuterST1.back().setFinal(false);
+    OuterST1.back().getSuperTypeIndices().push_back(0);
+    OuterST1.back().getCompositeType().setFunctionType(AST::FunctionType());
+    OuterTypes.getContent().emplace_back();
+    OuterTypes.getContent().back().setSubTypes(std::move(OuterST1));
+
+    auto &CompSec =
+        std::get<AST::Component::ComponentSection>(Comp.getSections()[1]);
+    CompSec.getContent() = std::make_unique<AST::Component::Component>();
+    auto &Inner = CompSec.getContent()->getSections();
+    Inner.emplace_back();
+    Inner.back().emplace<AST::Component::CoreTypeSection>();
+    Inner.emplace_back();
+    Inner.back().emplace<AST::Component::AliasSection>();
+    Inner.emplace_back();
+    Inner.back().emplace<AST::Component::CoreTypeSection>();
+
+    auto &InnerTypes0 = std::get<AST::Component::CoreTypeSection>(Inner[0]);
+    InnerTypes0.getContent().emplace_back();
+    InnerTypes0.getContent().back().setModuleType(
+        std::vector<AST::Component::CoreModuleDecl>{});
+
+    auto &AliasSec = std::get<AST::Component::AliasSection>(Inner[1]);
+    AliasSec.getContent().emplace_back();
+    auto &A = AliasSec.getContent().back();
+    A.setTargetType(AST::Component::Alias::TargetType::Outer);
+    A.getSort().setIsCore(true);
+    A.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Type);
+    A.setOuter(1U, 1U);
+
+    auto &InnerTypes2 = std::get<AST::Component::CoreTypeSection>(Inner[2]);
+    std::vector<AST::SubType> InnerST;
+    InnerST.emplace_back();
+    InnerST.back().getSuperTypeIndices().push_back(1);
+    InnerST.back().getCompositeType().setFunctionType(AST::FunctionType());
+    InnerTypes2.getContent().emplace_back();
+    InnerTypes2.getContent().back().setSubTypes(std::move(InnerST));
+
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 }
 
-TEST(ComponentValidatorTest, CoreTypeSubTypeResolvesInComponentCoreTypeSpace) {
-  // (core type (sub (func)))     ;; core type 0, non-final
-  // (core type (sub 0 (func)))   ;; core type 1 -- PASS
-  //
-  // The super type index names the component core:type space, not whatever
-  // the core FormChecker happens to hold.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  auto &CoreTypeSec =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
-
-  std::vector<AST::SubType> ST0;
-  ST0.emplace_back();
-  ST0.back().setFinal(false);
-  ST0.back().getCompositeType().setFunctionType(AST::FunctionType());
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setSubTypes(std::move(ST0));
-
-  std::vector<AST::SubType> ST1;
-  ST1.emplace_back();
-  ST1.back().getSuperTypeIndices().push_back(0);
-  ST1.back().getCompositeType().setFunctionType(AST::FunctionType());
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setSubTypes(std::move(ST1));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreTypeRecGroupResolvesForwardReference) {
-  // (core type (rec
-  //   (type (func (param (ref null 1))))   ;; core type 0 -> core type 1
-  //   (type (func))))                      ;; core type 1
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  auto &CoreTypeSec =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
-
-  std::vector<AST::SubType> STs;
-  STs.emplace_back();
-  AST::FunctionType FT;
-  FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 1U));
-  STs.back().getCompositeType().setFunctionType(std::move(FT));
-  STs.back().setRecursiveInfo(0, 2);
-  STs.emplace_back();
-  STs.back().getCompositeType().setFunctionType(AST::FunctionType());
-  STs.back().setRecursiveInfo(1, 2);
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setSubTypes(std::move(STs));
-
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CoreTypeSubTypeRefToModuleTypeRejected) {
-  // (core type (module))                          ;; core type 0
-  // (core type (sub (func (param (ref null 0)))))  ;; FAIL: module type ref
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  auto &CoreTypeSec =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
-
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setModuleType(
-      std::vector<AST::Component::CoreModuleDecl>{});
-
-  std::vector<AST::SubType> STs;
-  STs.emplace_back();
-  AST::FunctionType FT;
-  FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
-  STs.back().getCompositeType().setFunctionType(std::move(FT));
-  CoreTypeSec.getContent().emplace_back();
-  CoreTypeSec.getContent().back().setSubTypes(std::move(STs));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-// =============================================================================
 // Resource identities carried by stream/future payloads
-// =============================================================================
 
-TEST(ComponentValidatorTest, OuterAliasFutureOwnResourceLeakRejected) {
-  // (type (resource))     ;; type 0
-  // (type (own 0))        ;; type 1
-  // (type (future 1))     ;; type 2
-  // (component
-  //   (alias outer 1 2 (type)))   ;; FAIL: free resource identity
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+TEST(ComponentValidatorTest, OuterAliasOwnPayloadRejected) {
+  // Test outer aliases with an own payload.
+  //
+  //   1.  Outer alias future of own rejected.
+  //   2.  Outer alias stream of own rejected.
 
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType Own;
-  Own.setOwn(AST::Component::OwnTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(Own));
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType Fut;
-  Fut.setFuture(AST::Component::FutureTy{ComponentValType(1U)});
-  TypeSec.getContent().back().setDefValType(std::move(Fut));
+  {
+    // (type (resource))     ;; type 0
+    // (type (own 0))        ;; type 1
+    // (type (future 1))     ;; type 2
+    // (component
+    //   (alias outer 1 2 (type)))   ;; FAIL: free resource identity
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ComponentSection>();
 
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[1]);
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::AliasSection>();
-  auto &AliasSec = std::get<AST::Component::AliasSection>(
-      CompSec.getContent()->getSections().back());
-  AliasSec.getContent().emplace_back();
-  auto &A = AliasSec.getContent().back();
-  A.setTargetType(AST::Component::Alias::TargetType::Outer);
-  A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-  A.setOuter(1U, 2U);
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType Own;
+    Own.setOwn(AST::Component::OwnTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(Own));
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType Fut;
+    Fut.setFuture(AST::Component::FutureTy{ComponentValType(1U)});
+    TypeSec.getContent().back().setDefValType(std::move(Fut));
 
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentAliasResourceLeak);
+    auto &CompSec =
+        std::get<AST::Component::ComponentSection>(Comp.getSections()[1]);
+    CompSec.getContent() = std::make_unique<AST::Component::Component>();
+    CompSec.getContent()->getSections().emplace_back();
+    CompSec.getContent()
+        ->getSections()
+        .back()
+        .emplace<AST::Component::AliasSection>();
+    auto &AliasSec = std::get<AST::Component::AliasSection>(
+        CompSec.getContent()->getSections().back());
+    AliasSec.getContent().emplace_back();
+    auto &A = AliasSec.getContent().back();
+    A.setTargetType(AST::Component::Alias::TargetType::Outer);
+    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+    A.setOuter(1U, 2U);
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentAliasResourceLeak);
+  }
+
+  {
+    // Same as above with `(stream (own 0))` in place of the future.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType Own;
+    Own.setOwn(AST::Component::OwnTy{0});
+    TypeSec.getContent().back().setDefValType(std::move(Own));
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType Str;
+    Str.setStream(AST::Component::StreamTy{ComponentValType(1U)});
+    TypeSec.getContent().back().setDefValType(std::move(Str));
+
+    auto &CompSec =
+        std::get<AST::Component::ComponentSection>(Comp.getSections()[1]);
+    CompSec.getContent() = std::make_unique<AST::Component::Component>();
+    CompSec.getContent()->getSections().emplace_back();
+    CompSec.getContent()
+        ->getSections()
+        .back()
+        .emplace<AST::Component::AliasSection>();
+    auto &AliasSec = std::get<AST::Component::AliasSection>(
+        CompSec.getContent()->getSections().back());
+    AliasSec.getContent().emplace_back();
+    auto &A = AliasSec.getContent().back();
+    A.setTargetType(AST::Component::Alias::TargetType::Outer);
+    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+    A.setOuter(1U, 2U);
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentAliasResourceLeak);
+  }
 }
 
-TEST(ComponentValidatorTest, OuterAliasStreamOwnResourceLeakRejected) {
-  // Same as above with `(stream (own 0))` in place of the future.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType Own;
-  Own.setOwn(AST::Component::OwnTy{0});
-  TypeSec.getContent().back().setDefValType(std::move(Own));
-  TypeSec.getContent().emplace_back();
-  AST::Component::DefValType Str;
-  Str.setStream(AST::Component::StreamTy{ComponentValType(1U)});
-  TypeSec.getContent().back().setDefValType(std::move(Str));
-
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[1]);
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::AliasSection>();
-  auto &AliasSec = std::get<AST::Component::AliasSection>(
-      CompSec.getContent()->getSections().back());
-  AliasSec.getContent().emplace_back();
-  auto &A = AliasSec.getContent().back();
-  A.setTargetType(AST::Component::Alias::TargetType::Outer);
-  A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-  A.setOuter(1U, 2U);
-
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentAliasResourceLeak);
-}
-
-TEST(ComponentValidatorTest, CoreTypeAliasedSuperTypeIndexRejected) {
-  // Outer: (core type (sub (func)))        ;; core type 0, non-final
-  //        (core type (sub 0 (func)))      ;; core type 1, non-final
-  // Inner: (core type (module))            ;; core type 0 -- not a sub type
-  //        (alias outer 1 1 (core type))   ;; core type 1, super type index 0
-  //        (core type (sub 1 (func)))      ;; walks into the module-type slot
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-
-  auto &OuterTypes =
-      std::get<AST::Component::CoreTypeSection>(Comp.getSections()[0]);
-  std::vector<AST::SubType> OuterST0;
-  OuterST0.emplace_back();
-  OuterST0.back().setFinal(false);
-  OuterST0.back().getCompositeType().setFunctionType(AST::FunctionType());
-  OuterTypes.getContent().emplace_back();
-  OuterTypes.getContent().back().setSubTypes(std::move(OuterST0));
-  std::vector<AST::SubType> OuterST1;
-  OuterST1.emplace_back();
-  OuterST1.back().setFinal(false);
-  OuterST1.back().getSuperTypeIndices().push_back(0);
-  OuterST1.back().getCompositeType().setFunctionType(AST::FunctionType());
-  OuterTypes.getContent().emplace_back();
-  OuterTypes.getContent().back().setSubTypes(std::move(OuterST1));
-
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[1]);
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  auto &Inner = CompSec.getContent()->getSections();
-  Inner.emplace_back();
-  Inner.back().emplace<AST::Component::CoreTypeSection>();
-  Inner.emplace_back();
-  Inner.back().emplace<AST::Component::AliasSection>();
-  Inner.emplace_back();
-  Inner.back().emplace<AST::Component::CoreTypeSection>();
-
-  auto &InnerTypes0 = std::get<AST::Component::CoreTypeSection>(Inner[0]);
-  InnerTypes0.getContent().emplace_back();
-  InnerTypes0.getContent().back().setModuleType(
-      std::vector<AST::Component::CoreModuleDecl>{});
-
-  auto &AliasSec = std::get<AST::Component::AliasSection>(Inner[1]);
-  AliasSec.getContent().emplace_back();
-  auto &A = AliasSec.getContent().back();
-  A.setTargetType(AST::Component::Alias::TargetType::Outer);
-  A.getSort().setIsCore(true);
-  A.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Type);
-  A.setOuter(1U, 1U);
-
-  auto &InnerTypes2 = std::get<AST::Component::CoreTypeSection>(Inner[2]);
-  std::vector<AST::SubType> InnerST;
-  InnerST.emplace_back();
-  InnerST.back().getSuperTypeIndices().push_back(1);
-  InnerST.back().getCompositeType().setFunctionType(AST::FunctionType());
-  InnerTypes2.getContent().emplace_back();
-  InnerTypes2.getContent().back().setSubTypes(std::move(InnerST));
-
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-// =============================================================================
 // Shape nesting is bounded like value-type nesting
-// =============================================================================
 
-TEST(ComponentValidatorTest, NestedInstanceTypeChainExceedsDepthLimit) {
-  // type 0:   (instance)
-  // type k:   (instance (export "x" (instance (type k-1))))
-  // Each level nests one more shape, so the chain must hit the depth limit
-  // instead of recursing without bound.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+TEST(ComponentValidatorTest, InstanceChainDepthLimit) {
+  // Test the depth limit of instance chains.
+  //
+  //   1.  Instance type chain exceeds depth limit.
+  //   2.  Shallow instance type chain passes.
+  //   3.  Inline instance chain exceeds depth limit.
 
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(AST::Component::InstanceType());
-  for (uint32_t I = 1; I < 120; ++I) {
-    std::vector<AST::Component::InstanceDecl> Decls;
-    // alias outer 1 (I-1) (type) — the body's own type 0.
-    AST::Component::Alias A;
-    A.setTargetType(AST::Component::Alias::TargetType::Outer);
-    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-    A.setOuter(1U, I - 1);
-    AST::Component::InstanceDecl DA;
-    DA.setAlias(std::move(A));
-    Decls.push_back(std::move(DA));
-    // export "x" (instance (type 0))
-    AST::Component::ExportDecl Exp;
-    Exp.getName() = "x";
-    Exp.getExternDesc().setInstanceTypeIdx(0);
-    AST::Component::InstanceDecl DE;
-    DE.setExport(std::move(Exp));
-    Decls.push_back(std::move(DE));
-    AST::Component::InstanceType IT;
-    IT.setDecl(std::move(Decls));
+  {
+    // type 0:   (instance)
+    // type k:   (instance (export "x" (instance (type k-1))))
+    // Each level nests one more shape, so the chain must hit the depth limit
+    // instead of recursing without bound.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
     TypeSec.getContent().emplace_back();
-    TypeSec.getContent().back().setInstanceType(std::move(IT));
+    TypeSec.getContent().back().setInstanceType(AST::Component::InstanceType());
+    for (uint32_t I = 1; I < 120; ++I) {
+      std::vector<AST::Component::InstanceDecl> Decls;
+      // alias outer 1 (I-1) (type) — the body's own type 0.
+      AST::Component::Alias A;
+      A.setTargetType(AST::Component::Alias::TargetType::Outer);
+      A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+      A.setOuter(1U, I - 1);
+      AST::Component::InstanceDecl DA;
+      DA.setAlias(std::move(A));
+      Decls.push_back(std::move(DA));
+      // export "x" (instance (type 0))
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = "x";
+      Exp.getExternDesc().setInstanceTypeIdx(0);
+      AST::Component::InstanceDecl DE;
+      DE.setExport(std::move(Exp));
+      Decls.push_back(std::move(DE));
+      AST::Component::InstanceType IT;
+      IT.setDecl(std::move(Decls));
+      TypeSec.getContent().emplace_back();
+      TypeSec.getContent().back().setInstanceType(std::move(IT));
+    }
+
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentTypeNestingDepth);
   }
 
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentTypeNestingDepth);
-}
+  {
+    // The same chain, well inside the limit, still validates.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::TypeSection>();
+    auto &TypeSec =
+        std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
-TEST(ComponentValidatorTest, ShallowNestedInstanceTypeChainPasses) {
-  // The same chain, well inside the limit, still validates.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::TypeSection>();
-  auto &TypeSec =
-      std::get<AST::Component::TypeSection>(Comp.getSections().back());
-
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setInstanceType(AST::Component::InstanceType());
-  for (uint32_t I = 1; I < 40; ++I) {
-    std::vector<AST::Component::InstanceDecl> Decls;
-    // alias outer 1 (I-1) (type) — the body's own type 0.
-    AST::Component::Alias A;
-    A.setTargetType(AST::Component::Alias::TargetType::Outer);
-    A.getSort().setSortType(AST::Component::Sort::SortType::Type);
-    A.setOuter(1U, I - 1);
-    AST::Component::InstanceDecl DA;
-    DA.setAlias(std::move(A));
-    Decls.push_back(std::move(DA));
-    // export "x" (instance (type 0))
-    AST::Component::ExportDecl Exp;
-    Exp.getName() = "x";
-    Exp.getExternDesc().setInstanceTypeIdx(0);
-    AST::Component::InstanceDecl DE;
-    DE.setExport(std::move(Exp));
-    Decls.push_back(std::move(DE));
-    AST::Component::InstanceType IT;
-    IT.setDecl(std::move(Decls));
     TypeSec.getContent().emplace_back();
-    TypeSec.getContent().back().setInstanceType(std::move(IT));
+    TypeSec.getContent().back().setInstanceType(AST::Component::InstanceType());
+    for (uint32_t I = 1; I < 40; ++I) {
+      std::vector<AST::Component::InstanceDecl> Decls;
+      // alias outer 1 (I-1) (type) — the body's own type 0.
+      AST::Component::Alias A;
+      A.setTargetType(AST::Component::Alias::TargetType::Outer);
+      A.getSort().setSortType(AST::Component::Sort::SortType::Type);
+      A.setOuter(1U, I - 1);
+      AST::Component::InstanceDecl DA;
+      DA.setAlias(std::move(A));
+      Decls.push_back(std::move(DA));
+      // export "x" (instance (type 0))
+      AST::Component::ExportDecl Exp;
+      Exp.getName() = "x";
+      Exp.getExternDesc().setInstanceTypeIdx(0);
+      AST::Component::InstanceDecl DE;
+      DE.setExport(std::move(Exp));
+      Decls.push_back(std::move(DE));
+      AST::Component::InstanceType IT;
+      IT.setDecl(std::move(Decls));
+      TypeSec.getContent().emplace_back();
+      TypeSec.getContent().back().setInstanceType(std::move(IT));
+    }
+
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
   }
 
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
+  {
+    // instance 0: (instance)
+    // instance k: (instance (export "x" (instance k-1)))
+    // Inline instances mint shapes too, so they carry the same bound.
+    AST::Component::Component Comp;
+    Comp.getSections().emplace_back();
+    Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+    auto &InstSec =
+        std::get<AST::Component::InstanceSection>(Comp.getSections().back());
 
-TEST(ComponentValidatorTest, InlineInstanceChainExceedsDepthLimit) {
-  // instance 0: (instance)
-  // instance k: (instance (export "x" (instance k-1)))
-  // Inline instances mint shapes too, so they carry the same bound.
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections().back());
-
-  InstSec.getContent().emplace_back();
-  InstSec.getContent().back().setInlineExports({});
-  for (uint32_t I = 1; I < 120; ++I) {
-    AST::Component::InlineExport Exp;
-    Exp.getName() = "x";
-    Exp.getSortIdx().getSort().setIsCore(false);
-    Exp.getSortIdx().getSort().setSortType(
-        AST::Component::Sort::SortType::Instance);
-    Exp.getSortIdx().setIdx(I - 1);
     InstSec.getContent().emplace_back();
-    InstSec.getContent().back().setInlineExports({Exp});
-  }
+    InstSec.getContent().back().setInlineExports({});
+    for (uint32_t I = 1; I < 120; ++I) {
+      AST::Component::InlineExport Exp;
+      Exp.getName() = "x";
+      Exp.getSortIdx().getSort().setIsCore(false);
+      Exp.getSortIdx().getSort().setSortType(
+          AST::Component::Sort::SortType::Instance);
+      Exp.getSortIdx().setIdx(I - 1);
+      InstSec.getContent().emplace_back();
+      InstSec.getContent().back().setInlineExports({Exp});
+    }
 
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentTypeNestingDepth);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(Comp);
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentTypeNestingDepth);
+  }
 }
 
-// =============================================================================
 // Async and sync function types do not satisfy each other
-// =============================================================================
 
 // Builds `(component (type (func async?)) (import "g" (func (type 0)))
 //                    (component (type (func async?)) (import "f" (func 0)))
@@ -3883,22 +4203,33 @@ inline AST::Component::Component makeAsyncArgComponent(bool OuterAsync,
   return Comp;
 }
 
-TEST(ComponentValidatorTest, SyncFuncDoesNotSatisfyAsyncImport) {
-  auto Comp = makeAsyncArgComponent(false, true);
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
+TEST(ComponentValidatorTest, AsyncFuncImportMatch) {
+  // Test matching async function imports.
+  //
+  //   1.  Sync func mismatches async import.
+  //   2.  Async func mismatches sync import.
+  //   3.  Async func satisfies async import.
 
-TEST(ComponentValidatorTest, AsyncFuncDoesNotSatisfySyncImport) {
-  auto Comp = makeAsyncArgComponent(true, false);
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
+  // Sync func mismatches async import.
+  {
+    auto Comp = makeAsyncArgComponent(false, true);
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
 
-TEST(ComponentValidatorTest, AsyncFuncSatisfiesAsyncImport) {
-  auto Comp = makeAsyncArgComponent(true, true);
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
+  // Async func mismatches sync import.
+  {
+    auto Comp = makeAsyncArgComponent(true, false);
+    Validator::Validator V(Conf);
+    ASSERT_FALSE(V.validate(Comp));
+  }
+
+  // Async func satisfies async import.
+  {
+    auto Comp = makeAsyncArgComponent(true, true);
+    Validator::Validator V(Conf);
+    ASSERT_TRUE(V.validate(Comp));
+  }
 }
 
 TEST(ComponentValidatorTest, BuiltinCoreFuncTypeFollowsAddressType) {
@@ -3917,35 +4248,4 @@ TEST(ComponentValidatorTest, BuiltinCoreFuncTypeFollowsAddressType) {
   EXPECT_EQ(NewIndirect64.first, (std::vector<ValType>{I64, I32}));
 }
 
-// A borrow is sized as the widest representation a resource can have, so a
-// fixed-length list of 2^25 borrows reaches the element size limit.
-TEST(ComponentValidatorTest, BorrowCountsEightBytesTowardsTheSizeLimit) {
-  // (component
-  //   (type $r (resource (rep i32)))
-  //   (type (list (borrow $r) 33554432)))
-  const std::vector<uint8_t> AtLimit = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
-      0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0x80, 0x80, 0x80, 0x10, 0x00, 0x16,
-      0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
-      0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72,
-  };
-  // The same list with one element fewer.
-  const std::vector<uint8_t> BelowLimit = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
-      0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x16,
-      0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
-      0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72,
-  };
-  auto Validate = [](const std::vector<uint8_t> &Wasm) -> Expect<void> {
-    Loader::Loader Loader(Conf);
-    EXPECTED_TRY(auto Unit, Loader.parseWasmUnit(Wasm));
-    Validator::Validator V(Conf);
-    return V.validate(
-        *std::get<std::unique_ptr<AST::Component::Component>>(Unit));
-  };
-  auto Res = Validate(AtLimit);
-  ASSERT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
-  EXPECT_TRUE(Validate(BelowLimit));
-}
 } // namespace

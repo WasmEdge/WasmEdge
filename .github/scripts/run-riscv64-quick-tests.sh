@@ -55,28 +55,22 @@ fi
 # Core utilities, Loader, Validator, Runtime, API, AOT (Blake3).
 QUICK_TESTS="
   wasmedgeCommonTests
-  wasmedgeErrinfoTests
-  expectedTests
-  poTests
-  spanTests
-  wasmedgeLoaderFileMgrTests
-  wasmedgeLoaderASTTests
-  wasmedgeLoaderSerializerTests
-  wasmedgeValidatorRegressionTests
-  wasmedgeRuntimeInstanceTests
-  wasmedgeExternrefTests
-  wasmedgeHostMockTests
-  wasmedgeAPIUnitTests
-  wasmedgeAOTBlake3Tests
+  wasmedgePOTests
+  wasmedgeLoaderTests
+  wasmedgeValidatorTests
+  wasmedgeRuntimeTests
+  wasmedgeAPITests
+  wasmedgeAOTTests
 "
 
 # --- Group 2: Time-consuming (disabled) ---
-# wasmedgeExecutorCoreTests, wasmedgeAPIVMCoreTests, wasmedgeAPIStepsCoreTests,
-# wasmedgeAPIAOTCoreTests, wasmedgeAPIAOTNestedVMTests, wasmedgeLLVMCoreTests,
-# wasmedgeAOTCacheTests, wasmedgeMixcallTests, wasmedgeComponentRegressionTests
+# wasmedgeSpecInterpreterTests, wasmedgeSpecAOTTests, wasmedgeSpecJITTests,
+# wasmedgeSpecAPIVMTests, wasmedgeSpecAPIStepsTests, wasmedgeSpecAPIAOTTests,
+# wasmedgeExecutorTests, wasmedgeLLVMTests, wasmedgeAPIAOTTests,
+# wasmedgeComponentTests
 
 # --- Group 3: Expected-to-fail under QEMU (disabled) ---
-# wasmedgeThreadTests, wasiTests, wasiSocketTests
+# wasmedgeVMTests, wasmedgeHostWasiTests
 
 run_test() {
   local test_name="$1"

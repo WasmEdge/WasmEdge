@@ -1,0 +1,1915 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/test/llvm/LLVMRegressionTest.cpp - Regression tests ------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains regression tests of the AOT and JIT compilation.
+///
+//===----------------------------------------------------------------------===//
+
+#include "common/defines.h"
+#include "common/filesystem.h"
+#include "common/spdlog.h"
+#include "executor/executor.h"
+#include "loader/loader.h"
+#include "validator/validator.h"
+#include "vm/vm.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
+#include "llvm/jit.h"
+
+#include <gtest/gtest.h>
+
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+namespace {
+
+using namespace std::literals;
+using namespace WasmEdge;
+
+// (module
+//   (type $t (;0;) (func (result i32)))
+//   (memory (;0;) 5)
+//   (global $g (;0;) (mut i32) i32.const 187)
+//   (export "read" (func 0))
+//   (func (;0;) (type $t) (result i32)
+//     global.get $g
+//   )
+// )
+const std::array<WasmEdge::Byte, 70> CrossModuleCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x05,
+    0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xbb, 0x01, 0x0b, 0x07, 0x08, 0x01,
+    0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00,
+    0x23, 0x00, 0x0b, 0x00, 0x11, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04,
+    0x01, 0x00, 0x01, 0x74, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+// run_* compute read() * 10 + memory.grow(0): 1871 with separate contexts, 1875
+// when the callee's 5-page memory leaks into the caller.
+// (module
+//   (type $t (;0;) (func (result i32)))
+//   (import "callee" "read" (func $read (;0;) (type $t)))
+//   (table (;0;) 1 funcref)
+//   (memory (;0;) 1)
+//   (global $g (;0;) (mut i32) i32.const 170)
+//   (export "run_ref" (func 1))
+//   (export "run_direct" (func 2))
+//   (export "run_indirect" (func 3))
+//   (elem (;0;) (i32.const 0) func $read)
+//   (func (;1;) (type $t) (result i32)
+//     ref.func $read
+//     call_ref $t
+//     i32.const 10
+//     i32.mul
+//     i32.const 0
+//     memory.grow
+//     i32.add
+//   )
+//   (func (;2;) (type $t) (result i32)
+//     call $read
+//     i32.const 10
+//     i32.mul
+//     i32.const 0
+//     memory.grow
+//     i32.add
+//   )
+//   (func (;3;) (type $t) (result i32)
+//     i32.const 0
+//     call_indirect (type $t)
+//     i32.const 10
+//     i32.mul
+//     i32.const 0
+//     memory.grow
+//     i32.add
+//   )
+// )
+const std::array<WasmEdge::Byte, 183> CrossModuleCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x0f, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x03, 0x04, 0x03, 0x00,
+    0x00, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00,
+    0x01, 0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xaa, 0x01, 0x0b, 0x07, 0x27,
+    0x03, 0x07, 0x72, 0x75, 0x6e, 0x5f, 0x72, 0x65, 0x66, 0x00, 0x01, 0x0a,
+    0x72, 0x75, 0x6e, 0x5f, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x00, 0x02,
+    0x0c, 0x72, 0x75, 0x6e, 0x5f, 0x69, 0x6e, 0x64, 0x69, 0x72, 0x65, 0x63,
+    0x74, 0x00, 0x03, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00,
+    0x0a, 0x2d, 0x03, 0x0e, 0x00, 0xd2, 0x00, 0x14, 0x00, 0x41, 0x0a, 0x6c,
+    0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b, 0x0c, 0x00, 0x10, 0x00, 0x41, 0x0a,
+    0x6c, 0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b, 0x0f, 0x00, 0x41, 0x00, 0x11,
+    0x00, 0x00, 0x41, 0x0a, 0x6c, 0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b, 0x00,
+    0x1a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00, 0x04, 0x72,
+    0x65, 0x61, 0x64, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74, 0x07, 0x04, 0x01,
+    0x00, 0x01, 0x67};
+
+// Parses, validates, and JIT-compiles a module; the Loader needs the executor's
+// intrinsics table, or intrinsic calls jump through a null table.
+std::shared_ptr<AST::Module> compileToJIT(const Configure &Conf,
+                                          Span<const Byte> Bytes) {
+  Loader::Loader LoaderEngine(Conf, &Executor::Executor::Intrinsics);
+  Validator::Validator ValidatorEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseModule(Bytes);
+  if (!ModOrErr) {
+    return nullptr;
+  }
+  std::shared_ptr<AST::Module> Mod{std::move(*ModOrErr)};
+  if (!ValidatorEngine.validate(*Mod)) {
+    return nullptr;
+  }
+  LLVM::Compiler Compiler(Conf);
+  if (!Compiler.checkConfigure()) {
+    return nullptr;
+  }
+  auto Data = Compiler.compile(*Mod);
+  if (!Data) {
+    return nullptr;
+  }
+  LLVM::JIT JIT(Conf);
+  auto Exec = JIT.load(std::move(*Data));
+  if (!Exec) {
+    return nullptr;
+  }
+  if (!LoaderEngine.loadExecutable(*Mod, std::move(*Exec))) {
+    return nullptr;
+  }
+  return Mod;
+}
+
+// Host function returning the first i32 of the calling frame's memory 0.
+class CrossModuleReadMem0 : public Runtime::HostFunction<CrossModuleReadMem0> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame) {
+    auto *MemInst = Frame.getMemoryByIndex(0);
+    if (MemInst == nullptr) {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    const auto *Ptr = MemInst->getPointer<const uint32_t *>(0);
+    if (Ptr == nullptr) {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    return *Ptr;
+  }
+};
+
+class CrossModuleHostModule : public Runtime::Instance::ModuleInstance {
+public:
+  CrossModuleHostModule() : ModuleInstance("host") {
+    addHostFunc("read0", std::make_unique<CrossModuleReadMem0>());
+  }
+};
+
+// Owns a uniquely named file under the system temporary directory and removes
+// it when the scope exits, including when an assertion returns early.
+class ScopedTempFile {
+public:
+  explicit ScopedTempFile(std::string_view Stem,
+                          std::string_view Extension = ""sv)
+      : Path(std::filesystem::temp_directory_path() /
+             u8path(std::string(Stem) + "-" +
+                    std::to_string(std::hash<std::thread::id>{}(
+                        std::this_thread::get_id())) +
+                    std::string(Extension))) {}
+  ScopedTempFile(const ScopedTempFile &) = delete;
+  ScopedTempFile &operator=(const ScopedTempFile &) = delete;
+  ~ScopedTempFile() noexcept {
+    std::error_code EC;
+    std::filesystem::remove(Path, EC);
+  }
+
+  const std::filesystem::path &get() const noexcept { return Path; }
+
+private:
+  std::filesystem::path Path;
+};
+
+TEST(LLVMRegressionTest, CompilerCheckConfigure) {
+  {
+    WasmEdge::Configure Conf;
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    auto Result = Compiler.checkConfigure();
+    EXPECT_TRUE(Result);
+  }
+  {
+    WasmEdge::Configure Conf;
+    Conf.addProposal(Proposal::Annotations);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    auto Result = Compiler.checkConfigure();
+    EXPECT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidAOTConfigure);
+  }
+}
+
+TEST(LLVMRegressionTest, SharedLibraryRequiresAOTMode) {
+  // (module
+  //   (type (;0;) (func (result i32)))
+  //   (export "f" (func 0))
+  //   (func (;0;) (type 0) (result i32)
+  //     i32.const 42
+  //   )
+  // )
+  std::array<WasmEdge::Byte, 34> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
+      0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x2a, 0x0b};
+
+  const ScopedTempFile Artifact("NativeRunModeTest", WASMEDGE_LIB_EXTENSION);
+  const auto &Path = Artifact.get();
+
+  {
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+    auto Module = Loader.parseModule(Wasm);
+    ASSERT_TRUE(Module);
+    ASSERT_TRUE(ValidatorEngine.validate(**Module));
+    auto Data = Compiler.compile(**Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+  }
+
+  for (const auto Mode : {WasmEdge::RunMode::Interpreter,
+                          WasmEdge::RunMode::JIT, WasmEdge::RunMode::LazyJIT}) {
+    WasmEdge::Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    WasmEdge::VM::VM VM(Conf);
+    auto Res = VM.loadWasm(Path);
+    EXPECT_FALSE(Res);
+    if (!Res) {
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedMagic);
+    }
+    VM.cleanup();
+  }
+
+  {
+    WasmEdge::Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+    WasmEdge::VM::VM VM(Conf);
+    EXPECT_TRUE(VM.loadWasm(Path));
+    VM.cleanup();
+  }
+}
+
+TEST(LLVMRegressionTest, CrossModuleCalls) {
+  // Test calls across modules.
+  //
+  //   1.  Cross module call uses callee context.
+  //   2.  Cross module tail call uses callee context.
+  //   3.  Cross module return call constant space.
+  //   4.  Cross module two instances keep own state.
+  //   5.  Cross module host func sees callee memory.
+  //   6.  Cross module struct new owned by callee.
+  //   7.  Cross module throw uses callee tags.
+  //   8.  Cross module gas metering spans call.
+  //   9.  Cross module recursion shares stack limit.
+  //   10. Cross module interpreter trap attribution.
+
+  // Compiled and lazy JIT cross-module call_ref, call, and call_indirect must
+  // run the callee with its own context and restore the caller's on return.
+  {
+    const auto Names = {"run_ref"sv, "run_direct"sv, "run_indirect"sv};
+    {
+      Configure Conf;
+      // Declared before the instances that reference their compiled code.
+      auto CalleeMod = compileToJIT(Conf, CrossModuleCalleeWasm);
+      ASSERT_NE(CalleeMod, nullptr);
+      auto CallerMod = compileToJIT(Conf, CrossModuleCallerWasm);
+      ASSERT_NE(CallerMod, nullptr);
+
+      Executor::Executor ExecEngine(Conf);
+      Runtime::StoreManager Store;
+      // CalleeInst is declared first so the dependent caller tears down first.
+      auto CalleeInstOrErr =
+          ExecEngine.registerModule(Store, *CalleeMod, "callee");
+      ASSERT_TRUE(CalleeInstOrErr);
+      auto CalleeInst = std::move(*CalleeInstOrErr);
+      const auto *ReadFn = CalleeInst->findFuncExports("read");
+      ASSERT_NE(ReadFn, nullptr);
+      ASSERT_TRUE(ReadFn->isCompiledFunction());
+      auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+      ASSERT_TRUE(CallerInstOrErr);
+      auto CallerInst = std::move(*CallerInstOrErr);
+
+      for (const auto Name : Names) {
+        const auto *Run = CallerInst->findFuncExports(Name);
+        ASSERT_NE(Run, nullptr) << Name;
+        ASSERT_TRUE(Run->isCompiledFunction()) << Name;
+        auto R = ExecEngine.invoke(Run, {}, {});
+        ASSERT_TRUE(R) << Name;
+        ASSERT_EQ(R->size(), 1u) << Name;
+        EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1871u)
+            << Name << " did not keep the two modules' contexts apart";
+      }
+    }
+    // Lazy JIT resolves calls through its own per-function symbol cache.
+    {
+      Configure Conf;
+      Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+      VM::VM VM(Conf);
+      ASSERT_TRUE(VM.registerModule("callee"sv, CrossModuleCalleeWasm));
+      ASSERT_TRUE(VM.loadWasm(CrossModuleCallerWasm));
+      ASSERT_TRUE(VM.validate());
+      ASSERT_TRUE(VM.instantiate());
+      for (const auto Name : Names) {
+        auto R = VM.execute(Name);
+        ASSERT_TRUE(R) << Name;
+        ASSERT_EQ(R->size(), 1u) << Name;
+        EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1871u)
+            << Name << " did not keep the two modules' contexts apart";
+      }
+    }
+  }
+
+  // Cross-module return_call_ref and return_call_indirect must run the callee
+  // with its own context and give the caller's caller back its own.
+  {
+    // (module
+    //   (type $t (func (param i32) (result i32)))
+    //   (type $r (func (result i32)))
+    //   (memory 5)
+    //   (global $g (mut i32) i32.const 187)
+    //   (global $peer (export "peer") (mut (ref null $t)) ref.null $t)
+    //   (func (export "f") (type $t) (param i32) (result i32)
+    //     global.get $g
+    //     i32.const 187
+    //     i32.ne
+    //     if
+    //       i32.const 1
+    //       return
+    //     end
+    //     local.get 0
+    //     i32.eqz
+    //     if
+    //       i32.const 0
+    //       return
+    //     end
+    //     local.get 0
+    //     i32.const 1
+    //     i32.sub
+    //     global.get $peer
+    //     return_call_ref $t)
+    //   (func (export "c") (type $r)
+    //     global.get $g)
+    //   (func (export "probe") (type $r)
+    //     global.get $g
+    //     i32.const 10
+    //     i32.mul
+    //     i32.const 0
+    //     memory.grow
+    //     i32.add))
+    std::array<WasmEdge::Byte, 126> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+        0x01, 0x7f, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x04, 0x03, 0x00,
+        0x01, 0x01, 0x05, 0x03, 0x01, 0x00, 0x05, 0x06, 0x0d, 0x02, 0x7f, 0x01,
+        0x41, 0xbb, 0x01, 0x0b, 0x63, 0x00, 0x01, 0xd0, 0x00, 0x0b, 0x07, 0x18,
+        0x04, 0x04, 0x70, 0x65, 0x65, 0x72, 0x03, 0x01, 0x01, 0x66, 0x00, 0x00,
+        0x01, 0x63, 0x00, 0x01, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x02,
+        0x0a, 0x34, 0x03, 0x20, 0x00, 0x23, 0x00, 0x41, 0xbb, 0x01, 0x47, 0x04,
+        0x40, 0x41, 0x01, 0x0f, 0x0b, 0x20, 0x00, 0x45, 0x04, 0x40, 0x41, 0x00,
+        0x0f, 0x0b, 0x20, 0x00, 0x41, 0x01, 0x6b, 0x23, 0x01, 0x15, 0x00, 0x0b,
+        0x04, 0x00, 0x23, 0x00, 0x0b, 0x0c, 0x00, 0x23, 0x00, 0x41, 0x0a, 0x6c,
+        0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b};
+    // (module
+    //   (type $t (func (param i32) (result i32)))
+    //   (type $r (func (result i32)))
+    //   (import "callee" "f" (func $f (type $t)))
+    //   (import "callee" "peer" (global $peer (mut (ref null $t))))
+    //   (import "callee" "c" (func $c (type $r)))
+    //   (import "callee" "probe" (func $probe (type $r)))
+    //   (table 1 funcref)
+    //   (memory 1)
+    //   (global $g (mut i32) i32.const 170)
+    //   (elem (i32.const 0) func $probe)
+    //   (elem declare func $a $f $c)
+    //   (func $a (type $t) (param i32) (result i32)
+    //     global.get $g
+    //     i32.const 170
+    //     i32.ne
+    //     if
+    //       i32.const 2
+    //       return
+    //     end
+    //     local.get 0
+    //     i32.eqz
+    //     if
+    //       i32.const 0
+    //       return
+    //     end
+    //     local.get 0
+    //     i32.const 1
+    //     i32.sub
+    //     ref.func $f
+    //     return_call_ref $t)
+    //   (func (export "run_ref") (type $t) (param i32) (result i32)
+    //     ref.func $a
+    //     global.set $peer
+    //     local.get 0
+    //     ref.func $f
+    //     return_call_ref $t)
+    //   (func $b (type $r)
+    //     ref.func $c
+    //     return_call_ref $r)
+    //   (func (export "run_return") (type $r)
+    //     call $b
+    //     i32.const 10
+    //     i32.mul
+    //     i32.const 0
+    //     memory.grow
+    //     i32.add)
+    //   (func (export "run_indirect") (type $r)
+    //     i32.const 0
+    //     return_call_indirect (type $r)))
+    std::array<WasmEdge::Byte, 237> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+        0x01, 0x7f, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x36, 0x04, 0x06,
+        0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x01, 0x66, 0x00, 0x00, 0x06, 0x63,
+        0x61, 0x6c, 0x6c, 0x65, 0x65, 0x04, 0x70, 0x65, 0x65, 0x72, 0x03, 0x63,
+        0x00, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x01, 0x63, 0x00,
+        0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x05, 0x70, 0x72, 0x6f,
+        0x62, 0x65, 0x00, 0x01, 0x03, 0x06, 0x05, 0x00, 0x00, 0x01, 0x01, 0x01,
+        0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06,
+        0x07, 0x01, 0x7f, 0x01, 0x41, 0xaa, 0x01, 0x0b, 0x07, 0x27, 0x03, 0x07,
+        0x72, 0x75, 0x6e, 0x5f, 0x72, 0x65, 0x66, 0x00, 0x04, 0x0a, 0x72, 0x75,
+        0x6e, 0x5f, 0x72, 0x65, 0x74, 0x75, 0x72, 0x6e, 0x00, 0x06, 0x0c, 0x72,
+        0x75, 0x6e, 0x5f, 0x69, 0x6e, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x00,
+        0x07, 0x09, 0x0d, 0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x02, 0x03, 0x00,
+        0x03, 0x03, 0x00, 0x01, 0x0a, 0x4b, 0x05, 0x20, 0x00, 0x23, 0x01, 0x41,
+        0xaa, 0x01, 0x47, 0x04, 0x40, 0x41, 0x02, 0x0f, 0x0b, 0x20, 0x00, 0x45,
+        0x04, 0x40, 0x41, 0x00, 0x0f, 0x0b, 0x20, 0x00, 0x41, 0x01, 0x6b, 0xd2,
+        0x00, 0x15, 0x00, 0x0b, 0x0c, 0x00, 0xd2, 0x03, 0x24, 0x00, 0x20, 0x00,
+        0xd2, 0x00, 0x15, 0x00, 0x0b, 0x06, 0x00, 0xd2, 0x01, 0x15, 0x01, 0x0b,
+        0x0c, 0x00, 0x10, 0x05, 0x41, 0x0a, 0x6c, 0x41, 0x00, 0x40, 0x00, 0x6a,
+        0x0b, 0x07, 0x00, 0x41, 0x00, 0x13, 0x01, 0x00, 0x0b};
+
+    Configure Conf;
+    auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+    ASSERT_NE(CalleeMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    struct Case {
+      std::string_view Name;
+      std::vector<ValVariant> Args;
+      std::vector<ValType> ArgTypes;
+      uint32_t Expected;
+    };
+    // run_ref gives 0 with both globals kept apart, run_return 1871 with the
+    // caller's 1-page memory, and run_indirect 1875 with the callee's 5 pages.
+    const std::array<Case, 3> Cases{
+        Case{"run_ref"sv, {ValVariant(uint32_t(8U))}, {TypeCode::I32}, 0u},
+        Case{"run_return"sv, {}, {}, 1871u},
+        Case{"run_indirect"sv, {}, {}, 1875u}};
+    for (const auto &C : Cases) {
+      const auto *Func = CallerInst->findFuncExports(C.Name);
+      ASSERT_NE(Func, nullptr) << C.Name;
+      ASSERT_TRUE(Func->isCompiledFunction()) << C.Name;
+      auto R = ExecEngine.invoke(Func, C.Args, C.ArgTypes);
+      ASSERT_TRUE(R) << C.Name;
+      ASSERT_EQ(R->size(), 1u) << C.Name;
+      EXPECT_EQ((*R)[0].first.get<uint32_t>(), C.Expected) << C.Name;
+    }
+  }
+
+  // A return_call to an imported compiled function must run in constant space,
+  // under the JIT and under the lazy JIT.
+  {
+    // (module
+    //   (type $t (;0;) (func (param i32) (result i32)))
+    //   (table (;0;) 1 funcref)
+    //   (export "tab" (table 0))
+    //   (export "f" (func 0))
+    //   (func (;0;) (type $t) (param i32) (result i32)
+    //     local.get 0
+    //     i32.eqz
+    //     if (result i32) ;; label = @1
+    //       i32.const 42
+    //     else
+    //       local.get 0
+    //       i32.const 1
+    //       i32.sub
+    //       i32.const 0
+    //       return_call_indirect (type $t)
+    //     end
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 77> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+        0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+        0x01, 0x70, 0x00, 0x01, 0x07, 0x0b, 0x02, 0x03, 0x74, 0x61, 0x62,
+        0x01, 0x00, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x17, 0x01, 0x15, 0x00,
+        0x20, 0x00, 0x45, 0x04, 0x7f, 0x41, 0x2a, 0x05, 0x20, 0x00, 0x41,
+        0x01, 0x6b, 0x41, 0x00, 0x13, 0x00, 0x00, 0x0b, 0x0b, 0x00, 0x0b,
+        0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+    // (module
+    //   (type $t (;0;) (func (param i32) (result i32)))
+    //   (import "m" "f" (func $f (;0;) (type $t)))
+    //   (import "m" "tab" (table (;0;) 1 funcref))
+    //   (export "run" (func 2))
+    //   (elem (;0;) declare func $g)
+    //   (func $g (;1;) (type $t) (param i32) (result i32)
+    //     local.get 0
+    //     return_call $f
+    //   )
+    //   (func (;2;) (type $t) (param i32) (result i32)
+    //     i32.const 0
+    //     ref.func $g
+    //     table.set 0
+    //     local.get 0
+    //     call $g
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 101> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+        0x01, 0x7f, 0x01, 0x7f, 0x02, 0x11, 0x02, 0x01, 0x6d, 0x01, 0x66, 0x00,
+        0x00, 0x01, 0x6d, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x01, 0x03,
+        0x03, 0x02, 0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00,
+        0x02, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x01, 0x0a, 0x15, 0x02, 0x06,
+        0x00, 0x20, 0x00, 0x12, 0x00, 0x0b, 0x0c, 0x00, 0x41, 0x00, 0xd2, 0x01,
+        0x26, 0x00, 0x20, 0x00, 0x10, 0x01, 0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61,
+        0x6d, 0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x66, 0x01, 0x01, 0x67, 0x04,
+        0x04, 0x01, 0x00, 0x01, 0x74};
+    const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+    const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+    {
+      Configure Conf;
+      auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+      ASSERT_NE(CalleeMod, nullptr);
+      auto CallerMod = compileToJIT(Conf, CallerWasm);
+      ASSERT_NE(CallerMod, nullptr);
+
+      Executor::Executor ExecEngine(Conf);
+      Runtime::StoreManager Store;
+      auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "m");
+      ASSERT_TRUE(CalleeInstOrErr);
+      auto CalleeInst = std::move(*CalleeInstOrErr);
+      auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+      ASSERT_TRUE(CallerInstOrErr);
+      auto CallerInst = std::move(*CallerInstOrErr);
+
+      const auto *Run = CallerInst->findFuncExports("run");
+      ASSERT_NE(Run, nullptr);
+      ASSERT_TRUE(Run->isCompiledFunction());
+      auto R = ExecEngine.invoke(Run, Args, ArgTypes);
+      ASSERT_TRUE(R);
+      ASSERT_EQ(R->size(), 1u);
+      EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+    }
+    // The lazy JIT resolves the imported callee through its own symbol cache.
+    {
+      Configure Conf;
+      Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+      VM::VM VM(Conf);
+      ASSERT_TRUE(VM.registerModule("m"sv, CalleeWasm));
+      ASSERT_TRUE(VM.loadWasm(CallerWasm));
+      ASSERT_TRUE(VM.validate());
+      ASSERT_TRUE(VM.instantiate());
+      auto R = VM.execute("run"sv, Args, ArgTypes);
+      ASSERT_TRUE(R);
+      ASSERT_EQ(R->size(), 1u);
+      EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+    }
+  }
+
+  // Two instances of one compiled module, called through call_ref, must each
+  // read their own global.
+  {
+    // (module
+    //   (type (;0;) (func (result i32)))
+    //   (global $g (;0;) (mut i32) i32.const 0)
+    //   (export "g" (global $g))
+    //   (export "read" (func $read))
+    //   (func $read (;0;) (type 0) (result i32)
+    //     global.get $g
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 71> SharedWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+        0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x06, 0x06, 0x01, 0x7f, 0x01,
+        0x41, 0x00, 0x0b, 0x07, 0x0c, 0x02, 0x01, 0x67, 0x03, 0x00, 0x04, 0x72,
+        0x65, 0x61, 0x64, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x23, 0x00,
+        0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00,
+        0x04, 0x72, 0x65, 0x61, 0x64, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+    // (module
+    //   (type $t (;0;) (func (result i32)))
+    //   (import "inst_a" "read" (func $ra (;0;) (type $t)))
+    //   (import "inst_b" "read" (func $rb (;1;) (type $t)))
+    //   (export "run" (func $run))
+    //   (elem (;0;) declare func $ra $rb)
+    //   (func $run (;2;) (type $t) (result i32)
+    //     ref.func $ra
+    //     call_ref $t
+    //     i32.const 1000
+    //     i32.mul
+    //     ref.func $rb
+    //     call_ref $t
+    //     i32.add
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 115> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+        0x00, 0x01, 0x7f, 0x02, 0x1d, 0x02, 0x06, 0x69, 0x6e, 0x73, 0x74, 0x5f,
+        0x61, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x06, 0x69, 0x6e, 0x73,
+        0x74, 0x5f, 0x62, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x03, 0x02,
+        0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x09,
+        0x06, 0x01, 0x03, 0x00, 0x02, 0x00, 0x01, 0x0a, 0x11, 0x01, 0x0f, 0x00,
+        0xd2, 0x00, 0x14, 0x00, 0x41, 0xe8, 0x07, 0x6c, 0xd2, 0x01, 0x14, 0x00,
+        0x6a, 0x0b, 0x00, 0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0e, 0x03,
+        0x00, 0x02, 0x72, 0x61, 0x01, 0x02, 0x72, 0x62, 0x02, 0x03, 0x72, 0x75,
+        0x6e, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+    Configure Conf;
+
+    auto SharedMod = compileToJIT(Conf, SharedWasm);
+    ASSERT_NE(SharedMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+
+    auto InstAOrErr = ExecEngine.registerModule(Store, *SharedMod, "inst_a");
+    ASSERT_TRUE(InstAOrErr);
+    auto InstA = std::move(*InstAOrErr);
+    auto InstBOrErr = ExecEngine.registerModule(Store, *SharedMod, "inst_b");
+    ASSERT_TRUE(InstBOrErr);
+    auto InstB = std::move(*InstBOrErr);
+    ASSERT_NE(InstA.get(), InstB.get())
+        << "registering the same compiled module twice must produce two "
+           "distinct instances";
+
+    auto *GlobalA = InstA->findGlobalExports("g");
+    ASSERT_NE(GlobalA, nullptr);
+    GlobalA->setValue(ValVariant(uint32_t(111U)));
+    auto *GlobalB = InstB->findGlobalExports("g");
+    ASSERT_NE(GlobalB, nullptr);
+    GlobalB->setValue(ValVariant(uint32_t(222U)));
+
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *Run = CallerInst->findFuncExports("run");
+    ASSERT_NE(Run, nullptr);
+    ASSERT_TRUE(Run->isCompiledFunction());
+    auto R = ExecEngine.invoke(Run, {}, {});
+    ASSERT_TRUE(R);
+    ASSERT_EQ(R->size(), 1u);
+    EXPECT_EQ((*R)[0].first.get<uint32_t>(), 111222u)
+        << "the two instances of the identical compiled module did not keep "
+           "their own global state apart";
+  }
+
+  // A host function called by a compiled cross-module callee must see the
+  // callee's memory in its CallingFrame.
+  {
+    // (module
+    //   (type $t (;0;) (func (result i32)))
+    //   (import "host" "read0" (func $read0 (;0;) (type $t)))
+    //   (memory (;0;) 1)
+    //   (export "probe" (func $probe))
+    //   (func $probe (;1;) (type $t) (result i32)
+    //     call $read0
+    //   )
+    //   (data (;0;) (i32.const 0) "\22\22\22\00")
+    // )
+    std::array<WasmEdge::Byte, 101> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+        0x00, 0x01, 0x7f, 0x02, 0x0e, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x05,
+        0x72, 0x65, 0x61, 0x64, 0x30, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05,
+        0x03, 0x01, 0x00, 0x01, 0x07, 0x09, 0x01, 0x05, 0x70, 0x72, 0x6f, 0x62,
+        0x65, 0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x0b,
+        0x0a, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x04, 0x22, 0x22, 0x22, 0x00, 0x00,
+        0x1c, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0f, 0x02, 0x00, 0x05, 0x72,
+        0x65, 0x61, 0x64, 0x30, 0x01, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x04,
+        0x04, 0x01, 0x00, 0x01, 0x74};
+    // (module
+    //   (type $t (;0;) (func (result i32)))
+    //   (import "callee" "probe" (func $probe (;0;) (type $t)))
+    //   (memory (;0;) 1)
+    //   (export "run" (func $run))
+    //   (elem (;0;) declare func $probe)
+    //   (func $run (;1;) (type $t) (result i32)
+    //     ref.func $probe
+    //     call_ref $t
+    //   )
+    //   (data (;0;) (i32.const 0) "\11\11\11\00")
+    // )
+    std::array<WasmEdge::Byte, 108> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+        0x00, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+        0x65, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x00, 0x03, 0x02, 0x01,
+        0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75,
+        0x6e, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x08,
+        0x01, 0x06, 0x00, 0xd2, 0x00, 0x14, 0x00, 0x0b, 0x0b, 0x0a, 0x01, 0x00,
+        0x41, 0x00, 0x0b, 0x04, 0x11, 0x11, 0x11, 0x00, 0x00, 0x1a, 0x04, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x0d, 0x02, 0x00, 0x05, 0x70, 0x72, 0x6f, 0x62,
+        0x65, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+    Configure Conf;
+
+    auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+    ASSERT_NE(CalleeMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+
+    CrossModuleHostModule HostMod;
+    ASSERT_TRUE(ExecEngine.registerModule(Store, HostMod));
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *Run = CallerInst->findFuncExports("run");
+    ASSERT_NE(Run, nullptr);
+    ASSERT_TRUE(Run->isCompiledFunction());
+    auto R = ExecEngine.invoke(Run, {}, {});
+    ASSERT_TRUE(R);
+    ASSERT_EQ(R->size(), 1u);
+    EXPECT_EQ((*R)[0].first.get<uint32_t>(), 0x00222222U)
+        << "the host function saw the caller's memory instead of the callee's";
+  }
+
+  // A cross-module struct.new_default must use the callee's type section, where
+  // type 1 differs from the caller's, and be owned by the callee.
+  {
+    // (module
+    //   (type $T (;0;) (struct (field i32)))
+    //   (type $S (;1;)
+    //     (struct (field $tag (mut i32)) (field $next (ref null $T))))
+    //   (type $MkTy (;2;) (func (result (ref $S))))
+    //   (export "make" (func $make))
+    //   (func $make (;0;) (type $MkTy) (result (ref $S))
+    //     struct.new_default $S
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 97> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x11, 0x03,
+        0x5f, 0x01, 0x7f, 0x00, 0x5f, 0x02, 0x7f, 0x01, 0x63, 0x00, 0x00,
+        0x60, 0x00, 0x01, 0x64, 0x01, 0x03, 0x02, 0x01, 0x02, 0x07, 0x08,
+        0x01, 0x04, 0x6d, 0x61, 0x6b, 0x65, 0x00, 0x00, 0x0a, 0x07, 0x01,
+        0x05, 0x00, 0xfb, 0x01, 0x01, 0x0b, 0x00, 0x2d, 0x04, 0x6e, 0x61,
+        0x6d, 0x65, 0x01, 0x07, 0x01, 0x00, 0x04, 0x6d, 0x61, 0x6b, 0x65,
+        0x04, 0x0d, 0x03, 0x00, 0x01, 0x54, 0x01, 0x01, 0x53, 0x02, 0x04,
+        0x4d, 0x6b, 0x54, 0x79, 0x0a, 0x0e, 0x01, 0x01, 0x02, 0x00, 0x03,
+        0x74, 0x61, 0x67, 0x01, 0x04, 0x6e, 0x65, 0x78, 0x74};
+    // (module
+    //   (type $AFiller (;0;) (func))
+    //   (type $Collide (;1;) (struct (field (mut i32)) (field (mut i32))))
+    //   (type $T_caller (;2;) (struct (field i32)))
+    //   (type $S_caller (;3;)
+    //     (struct (field (mut i32)) (field (ref null $T_caller))))
+    //   (type $MkTy (;4;) (func (result (ref $S_caller))))
+    //   (import "callee" "make" (func $make (;0;) (type $MkTy)))
+    //   (table (;0;) 1 funcref)
+    //   (export "run" (func $run))
+    //   (elem (;0;) (i32.const 0) func $make)
+    //   (func $run (;1;) (type $MkTy) (result (ref $S_caller))
+    //     i32.const 0
+    //     call_indirect (type $MkTy)
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 160> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x05, 0x60,
+        0x00, 0x00, 0x5f, 0x02, 0x7f, 0x01, 0x7f, 0x01, 0x5f, 0x01, 0x7f, 0x00,
+        0x5f, 0x02, 0x7f, 0x01, 0x63, 0x02, 0x00, 0x60, 0x00, 0x01, 0x64, 0x03,
+        0x02, 0x0f, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x04, 0x6d,
+        0x61, 0x6b, 0x65, 0x00, 0x04, 0x03, 0x02, 0x01, 0x04, 0x04, 0x04, 0x01,
+        0x70, 0x00, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01,
+        0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x09, 0x01,
+        0x07, 0x00, 0x41, 0x00, 0x11, 0x04, 0x00, 0x0b, 0x00, 0x42, 0x04, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x0c, 0x02, 0x00, 0x04, 0x6d, 0x61, 0x6b, 0x65,
+        0x01, 0x03, 0x72, 0x75, 0x6e, 0x04, 0x2d, 0x05, 0x00, 0x07, 0x41, 0x46,
+        0x69, 0x6c, 0x6c, 0x65, 0x72, 0x01, 0x07, 0x43, 0x6f, 0x6c, 0x6c, 0x69,
+        0x64, 0x65, 0x02, 0x08, 0x54, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x72,
+        0x03, 0x08, 0x53, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x72, 0x04, 0x04,
+        0x4d, 0x6b, 0x54, 0x79};
+
+    Configure Conf;
+
+    auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+    ASSERT_NE(CalleeMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *Run = CallerInst->findFuncExports("run");
+    ASSERT_NE(Run, nullptr);
+    ASSERT_TRUE(Run->isCompiledFunction());
+    auto R = ExecEngine.invoke(Run, {}, {});
+    ASSERT_TRUE(R);
+    ASSERT_EQ(R->size(), 1u);
+
+    const auto *Inst = (*R)[0]
+                           .first.get<RefVariant>()
+                           .getPtr<Runtime::Instance::StructInstance>();
+    ASSERT_NE(Inst, nullptr);
+    EXPECT_EQ(Inst->getModule(), CalleeInst.get())
+        << "the struct created by the callee's struct.new_default is not "
+           "owned by the callee module";
+    EXPECT_NE(Inst->getModule(), CallerInst.get())
+        << "the struct is owned by the caller instead of the callee";
+    EXPECT_EQ(Inst->getField(0).get<uint32_t>(), 0u);
+    EXPECT_TRUE(Inst->getField(1).get<RefVariant>().isNull())
+        << "the default-initialized concrete reference field did not resolve "
+           "to a null bottom type through the callee's own type section";
+  }
+
+  // A compiled throw must resolve its tag in the throwing module: tag 1 is $b1
+  // in the callee but the caller's own $a1.
+  {
+    // (module
+    //   (type $v (;0;) (func))
+    //   (tag $b0 (;0;) (type $v))
+    //   (tag $b1 (;1;) (type $v))
+    //   (export "throw1" (func $throw1))
+    //   (export "b1" (tag 1))
+    //   (func $throw1 (;0;) (type $v)
+    //     throw $b1
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 85> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+        0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0d, 0x05, 0x02, 0x00,
+        0x00, 0x00, 0x00, 0x07, 0x0f, 0x02, 0x06, 0x74, 0x68, 0x72, 0x6f,
+        0x77, 0x31, 0x00, 0x00, 0x02, 0x62, 0x31, 0x04, 0x01, 0x0a, 0x06,
+        0x01, 0x04, 0x00, 0x08, 0x01, 0x0b, 0x00, 0x21, 0x04, 0x6e, 0x61,
+        0x6d, 0x65, 0x01, 0x09, 0x01, 0x00, 0x06, 0x74, 0x68, 0x72, 0x6f,
+        0x77, 0x31, 0x04, 0x04, 0x01, 0x00, 0x01, 0x76, 0x0b, 0x09, 0x02,
+        0x00, 0x02, 0x62, 0x30, 0x01, 0x02, 0x62, 0x31};
+    // (module
+    //   (type $v (;0;) (func))
+    //   (type (;1;) (func (result i32)))
+    //   (import "callee" "b1" (tag $ib1 (;0;) (type $v)))
+    //   (import "callee" "throw1" (func $throw1 (;0;) (type $v)))
+    //   (tag $a1 (;1;) (type $v))
+    //   (export "run" (func 1))
+    //   (elem (;0;) declare func $throw1)
+    //   (func (;1;) (type 1) (result i32)
+    //     block $on_b1
+    //       block $on_any
+    //         try_table (catch $ib1 $on_b1) (catch_all $on_any) ;; label = @3
+    //           ref.func $throw1
+    //           call_ref $v
+    //         end
+    //         i32.const 0
+    //         return
+    //       end
+    //       i32.const 2
+    //       return
+    //     end
+    //     i32.const 1
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 164> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+        0x00, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x1e, 0x02, 0x06, 0x63, 0x61,
+        0x6c, 0x6c, 0x65, 0x65, 0x02, 0x62, 0x31, 0x04, 0x00, 0x00, 0x06, 0x63,
+        0x61, 0x6c, 0x6c, 0x65, 0x65, 0x06, 0x74, 0x68, 0x72, 0x6f, 0x77, 0x31,
+        0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x0d, 0x03, 0x01, 0x00, 0x00, 0x07,
+        0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03,
+        0x00, 0x01, 0x00, 0x0a, 0x1f, 0x01, 0x1d, 0x00, 0x02, 0x40, 0x02, 0x40,
+        0x1f, 0x40, 0x02, 0x00, 0x00, 0x01, 0x02, 0x00, 0xd2, 0x00, 0x14, 0x00,
+        0x0b, 0x41, 0x00, 0x0f, 0x0b, 0x41, 0x02, 0x0f, 0x0b, 0x41, 0x01, 0x0b,
+        0x00, 0x36, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x09, 0x01, 0x00, 0x06,
+        0x74, 0x68, 0x72, 0x6f, 0x77, 0x31, 0x03, 0x12, 0x01, 0x01, 0x02, 0x00,
+        0x05, 0x6f, 0x6e, 0x5f, 0x62, 0x31, 0x01, 0x06, 0x6f, 0x6e, 0x5f, 0x61,
+        0x6e, 0x79, 0x04, 0x04, 0x01, 0x00, 0x01, 0x76, 0x0b, 0x0a, 0x02, 0x00,
+        0x03, 0x69, 0x62, 0x31, 0x01, 0x02, 0x61, 0x31};
+
+    Configure Conf;
+
+    auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+    ASSERT_NE(CalleeMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *Run = CallerInst->findFuncExports("run");
+    ASSERT_NE(Run, nullptr);
+    ASSERT_TRUE(Run->isCompiledFunction());
+    auto R = ExecEngine.invoke(Run, {}, {});
+    ASSERT_TRUE(R);
+    ASSERT_EQ(R->size(), 1u);
+    EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1u)
+        << "the callee's throw did not resolve its tag in the callee's module";
+  }
+
+  // The callee's instructions must charge the same gas budget as the caller's,
+  // so a limit one below the measured total must fail.
+  {
+    Configure Conf;
+    Conf.getStatisticsConfigure().setCostMeasuring(true);
+
+    auto CalleeMod = compileToJIT(Conf, CrossModuleCalleeWasm);
+    ASSERT_NE(CalleeMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CrossModuleCallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    uint64_t FullCost = 0;
+    {
+      Statistics::Statistics Stat;
+      Executor::Executor ExecEngine(Conf, &Stat);
+      Runtime::StoreManager Store;
+
+      auto CalleeInstOrErr =
+          ExecEngine.registerModule(Store, *CalleeMod, "callee");
+      ASSERT_TRUE(CalleeInstOrErr);
+      auto CalleeInst = std::move(*CalleeInstOrErr);
+      auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+      ASSERT_TRUE(CallerInstOrErr);
+      auto CallerInst = std::move(*CallerInstOrErr);
+
+      const auto *RunDirect = CallerInst->findFuncExports("run_direct");
+      ASSERT_NE(RunDirect, nullptr);
+      auto R = ExecEngine.invoke(RunDirect, {}, {});
+      ASSERT_TRUE(R);
+      ASSERT_EQ(R->size(), 1u);
+      EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1871u);
+
+      FullCost = Stat.getTotalCost();
+      EXPECT_GT(FullCost, 0u)
+          << "gas metering did not run across the cross-module call";
+    }
+
+    // Executor::Executor() re-seeds the cost limit from its Configure, so set
+    // the second run's limit here rather than on the Statistics constructor.
+    Conf.getStatisticsConfigure().setCostLimit(FullCost - 1);
+    {
+      Statistics::Statistics Stat;
+      Executor::Executor ExecEngine(Conf, &Stat);
+      Runtime::StoreManager Store;
+
+      auto CalleeInstOrErr =
+          ExecEngine.registerModule(Store, *CalleeMod, "callee");
+      ASSERT_TRUE(CalleeInstOrErr);
+      auto CalleeInst = std::move(*CalleeInstOrErr);
+      auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+      ASSERT_TRUE(CallerInstOrErr);
+      auto CallerInst = std::move(*CallerInstOrErr);
+
+      const auto *RunDirect = CallerInst->findFuncExports("run_direct");
+      ASSERT_NE(RunDirect, nullptr);
+      auto R = ExecEngine.invoke(RunDirect, {}, {});
+      ASSERT_FALSE(R) << "a cost limit one below the measured cross-module "
+                         "total should have been enforced";
+      EXPECT_EQ(R.error(), ErrCode::Value::CostLimitExceeded);
+    }
+  }
+
+  // Cross-module recursion shares one stack budget: 300 round trips exceed
+  // 256 KiB though each hop fits.
+  {
+    // (module
+    //   (type $t (;0;) (func (param i64) (result i64)))
+    //   (table (;0;) 1 funcref)
+    //   (export "tab" (table 0))
+    //   (export "g" (func 0))
+    //   (func (;0;) (type $t) (param i64) (result i64)
+    //     local.get 0
+    //     i32.const 0
+    //     call_indirect (type $t)
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 65> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+        0x60, 0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+        0x01, 0x70, 0x00, 0x01, 0x07, 0x0b, 0x02, 0x03, 0x74, 0x61, 0x62,
+        0x01, 0x00, 0x01, 0x67, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00,
+        0x20, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b, 0x00, 0x0b, 0x04,
+        0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+    // (module
+    //   (type $t (;0;) (func (param i64) (result i64)))
+    //   (import "callee" "g" (func $g (;0;) (type $t)))
+    //   (import "callee" "tab" (table (;0;) 1 funcref))
+    //   (export "f" (func $f))
+    //   (elem (;0;) (i32.const 0) func $f)
+    //   (func $f (;1;) (type $t) (param i64) (result i64)
+    //     local.get 0
+    //     i64.eqz
+    //     if (result i64) ;; label = @1
+    //       i64.const 0
+    //     else
+    //       local.get 0
+    //       i64.const 1
+    //       i64.sub
+    //       call $g
+    //       i64.const 1
+    //       i64.add
+    //     end
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 112> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+        0x01, 0x7e, 0x01, 0x7e, 0x02, 0x1b, 0x02, 0x06, 0x63, 0x61, 0x6c, 0x6c,
+        0x65, 0x65, 0x01, 0x67, 0x00, 0x00, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+        0x65, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x01, 0x03, 0x02, 0x01,
+        0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00,
+        0x41, 0x00, 0x0b, 0x01, 0x01, 0x0a, 0x17, 0x01, 0x15, 0x00, 0x20, 0x00,
+        0x50, 0x04, 0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10,
+        0x00, 0x42, 0x01, 0x7c, 0x0b, 0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d,
+        0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x67, 0x01, 0x01, 0x66, 0x04, 0x04,
+        0x01, 0x00, 0x01, 0x74};
+
+    Configure Conf;
+    Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(256) << 10);
+
+    auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+    ASSERT_NE(CalleeMod, nullptr);
+    auto CallerMod = compileToJIT(Conf, CallerWasm);
+    ASSERT_NE(CallerMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *F = CallerInst->findFuncExports("f");
+    ASSERT_NE(F, nullptr);
+    ASSERT_TRUE(F->isCompiledFunction());
+
+    const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I64)};
+    const std::array<ValVariant, 1> ShallowArgs{ValVariant(UINT64_C(5))};
+    auto Shallow = ExecEngine.invoke(F, ShallowArgs, ArgTypes);
+    ASSERT_TRUE(Shallow);
+    EXPECT_EQ((*Shallow)[0].first.get<uint64_t>(), UINT64_C(5));
+
+    const std::array<ValVariant, 1> DeepArgs{ValVariant(UINT64_C(300))};
+    auto Deep = ExecEngine.invoke(F, DeepArgs, ArgTypes);
+    ASSERT_FALSE(Deep);
+    EXPECT_EQ(Deep.error(), ErrCode::Value::CallStackExhausted);
+  }
+
+  // A cross-module interpreter stack trace must attribute each frame to its own
+  // module, not to the top (callee) module.
+  {
+    // (module
+    //   (type (;0;) (func (result i32)))
+    //   (export "f" (func $f))
+    //   (func $g (;0;) (type 0) (result i32)
+    //     unreachable
+    //   )
+    //   (func $f (;1;) (type 0) (result i32)
+    //     call $g
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 55> CalleeWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+        0x60, 0x00, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x05,
+        0x01, 0x01, 0x66, 0x00, 0x01, 0x0a, 0x0a, 0x02, 0x03, 0x00, 0x00,
+        0x0b, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x0e, 0x04, 0x6e, 0x61,
+        0x6d, 0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x67, 0x01, 0x01, 0x66};
+    // (module
+    //   (type (;0;) (func (result i32)))
+    //   (import "trapper2" "f" (func $f (;0;) (type 0)))
+    //   (export "run" (func 1))
+    //   (func (;1;) (type 0) (result i32)
+    //     call $f
+    //   )
+    // )
+    std::array<WasmEdge::Byte, 65> CallerWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+        0x60, 0x00, 0x01, 0x7f, 0x02, 0x0e, 0x01, 0x08, 0x74, 0x72, 0x61,
+        0x70, 0x70, 0x65, 0x72, 0x32, 0x01, 0x66, 0x00, 0x00, 0x03, 0x02,
+        0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01,
+        0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x0b, 0x04,
+        0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00, 0x01, 0x66};
+
+    Configure Conf;
+
+    // Parsed and validated without compiling, so both run interpreted.
+    Loader::Loader LoaderEngine(Conf);
+    Validator::Validator ValidatorEngine(Conf);
+    auto CalleeModOrErr = LoaderEngine.parseModule(CalleeWasm);
+    ASSERT_TRUE(CalleeModOrErr);
+    std::shared_ptr<AST::Module> CalleeMod{std::move(*CalleeModOrErr)};
+    ASSERT_TRUE(ValidatorEngine.validate(*CalleeMod));
+    auto CallerModOrErr = LoaderEngine.parseModule(CallerWasm);
+    ASSERT_TRUE(CallerModOrErr);
+    std::shared_ptr<AST::Module> CallerMod{std::move(*CallerModOrErr)};
+    ASSERT_TRUE(ValidatorEngine.validate(*CallerMod));
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "trapper2");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *Run = CallerInst->findFuncExports("run");
+    ASSERT_NE(Run, nullptr);
+
+    auto R = ExecEngine.invoke(Run, {}, {});
+    ASSERT_FALSE(R);
+
+    auto Trace = Executor::Executor::getRecordedStackTrace();
+    bool SawCaller = false;
+    bool SawCallee = false;
+    for (const auto &E : Trace) {
+      if (E.Module == CallerInst.get()) {
+        SawCaller = true;
+      }
+      if (E.Module == CalleeInst.get()) {
+        SawCallee = true;
+      }
+    }
+    EXPECT_TRUE(SawCaller)
+        << "cross-module interpreter frame was not attributed "
+           "to the caller module";
+    EXPECT_TRUE(SawCallee);
+  }
+}
+
+// A trap in a frameless cross-module compiled callee must be attributed to the
+// callee's module.
+TEST(LLVMRegressionTest, CrossModuleFramelessTrapAttribution) {
+  // (module
+  //   (type (;0;) (func (result i32)))
+  //   (export "boom" (func 0))
+  //   (func (;0;) (type 0) (result i32)
+  //     unreachable
+  //   )
+  // )
+  std::array<WasmEdge::Byte, 36> CalleeWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x62,
+      0x6f, 0x6f, 0x6d, 0x00, 0x00, 0x0a, 0x05, 0x01, 0x03, 0x00, 0x00, 0x0b};
+  // (module
+  //   (type $t (;0;) (func (result i32)))
+  //   (import "trapper" "boom" (func $boom (;0;) (type $t)))
+  //   (table (;0;) 1 funcref)
+  //   (export "run" (func 1))
+  //   (elem (;0;) (i32.const 0) func $boom)
+  //   (func (;1;) (type $t) (result i32)
+  //     i32.const 0
+  //     call_indirect (type $t)
+  //   )
+  // )
+  std::array<WasmEdge::Byte, 94> CallerWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x07, 0x74, 0x72, 0x61, 0x70, 0x70,
+      0x65, 0x72, 0x04, 0x62, 0x6f, 0x6f, 0x6d, 0x00, 0x00, 0x03, 0x02, 0x01,
+      0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72,
+      0x75, 0x6e, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01,
+      0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b,
+      0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00, 0x04,
+      0x62, 0x6f, 0x6f, 0x6d, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+  Configure Conf;
+
+  auto CalleeMod = compileToJIT(Conf, CalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr =
+      ExecEngine.registerModule(Store, *CalleeMod, "trapper");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+  const auto *Boom = CalleeInst->findFuncExports("boom");
+  ASSERT_NE(Boom, nullptr);
+  ASSERT_TRUE(Boom->isCompiledFunction());
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_FALSE(R);
+
+  auto Trace = Executor::Executor::getRecordedStackTrace();
+  if (Trace.empty()) {
+    // Walking a compiled frame needs unwind information that the generated
+    // code registers only on some platforms.
+    GTEST_SKIP() << "no compiled frame was walkable on this platform";
+  }
+  bool SawCallee = false;
+  for (const auto &E : Trace) {
+    if (E.Module == CalleeInst.get()) {
+      SawCallee = true;
+    }
+  }
+  EXPECT_TRUE(SawCallee)
+      << "frameless cross-module trap was not attributed to the callee module";
+}
+
+TEST(LLVMRegressionTest, TmpValuesLoopKeepsNativeStackFlat) {
+  // Temporaries of runtime calls in a loop must not grow the native stack per
+  // iteration (issue #4636); calls to the interpreted callee take the fallback.
+  // (module
+  //   (func (export "one") (result i32) (i32.const 1)))
+  std::array<WasmEdge::Byte, 36> CalleeWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x6f,
+      0x6e, 0x65, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x01, 0x0b};
+
+  // (module
+  //   (type $s (struct (field (mut i32)) (field (mut i64))))
+  //   (type $a (array (mut i32)))
+  //   (type $v (func (result i32)))
+  //   (import "callee" "one" (func $one (type $v)))
+  //   (table 1 funcref) (elem (i32.const 0) func $one) (elem declare func $one)
+  //   (tag $e (param i32))
+  //   (func (export "run") (param $n i32) (result i32)
+  //     (local $i i32) (local $sum i32)
+  //     (local $o (ref null $s)) (local $arr (ref null $a))
+  //     (loop $l
+  //       (local.set $o (struct.new $s (i32.const 0) (i64.const 0)))
+  //       (struct.set $s 0 (local.get $o) (i32.const 1))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (struct.get $s 0 (local.get $o))))
+  //       (local.set $arr (array.new_fixed $a 2 (i32.const 0) (i32.const 0)))
+  //       (array.set $a (local.get $arr) (i32.const 0) (i32.const 1))
+  //       (array.fill $a (local.get $arr) (i32.const 1) (i32.const 1)
+  //         (i32.const 1))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (array.get $a (local.get $arr) (i32.const 1))))
+  //       (drop (array.new $a (i32.const 0) (i32.const 1)))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (block $h (result i32)
+  //           (try_table (catch $e $h) (throw $e (i32.const 1)))
+  //           (i32.const 0))))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (call_indirect (type $v) (i32.const 0))))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (call_ref $v (ref.func $one))))
+  //       (br_if $l (i32.lt_u
+  //         (local.tee $i (i32.add (local.get $i) (i32.const 1)))
+  //         (local.get $n))))
+  //     (local.get $sum)))
+  std::array<WasmEdge::Byte, 237> CallerWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x17, 0x05, 0x5f,
+      0x02, 0x7f, 0x01, 0x7e, 0x01, 0x5e, 0x7f, 0x01, 0x60, 0x00, 0x01, 0x7f,
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x0e, 0x01,
+      0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x03, 0x6f, 0x6e, 0x65, 0x00,
+      0x02, 0x03, 0x02, 0x01, 0x04, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x0d,
+      0x03, 0x01, 0x00, 0x03, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00,
+      0x01, 0x09, 0x0b, 0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x03, 0x00,
+      0x01, 0x00, 0x0a, 0x94, 0x01, 0x01, 0x91, 0x01, 0x03, 0x02, 0x7f, 0x01,
+      0x63, 0x00, 0x01, 0x63, 0x01, 0x03, 0x40, 0x41, 0x00, 0x42, 0x00, 0xfb,
+      0x00, 0x00, 0x21, 0x03, 0x20, 0x03, 0x41, 0x01, 0xfb, 0x05, 0x00, 0x00,
+      0x20, 0x02, 0x20, 0x03, 0xfb, 0x02, 0x00, 0x00, 0x6a, 0x21, 0x02, 0x41,
+      0x00, 0x41, 0x00, 0xfb, 0x08, 0x01, 0x02, 0x21, 0x04, 0x20, 0x04, 0x41,
+      0x00, 0x41, 0x01, 0xfb, 0x0e, 0x01, 0x20, 0x04, 0x41, 0x01, 0x41, 0x01,
+      0x41, 0x01, 0xfb, 0x10, 0x01, 0x20, 0x02, 0x20, 0x04, 0x41, 0x01, 0xfb,
+      0x0b, 0x01, 0x6a, 0x21, 0x02, 0x41, 0x00, 0x41, 0x01, 0xfb, 0x06, 0x01,
+      0x1a, 0x20, 0x02, 0x02, 0x7f, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x41,
+      0x01, 0x08, 0x00, 0x0b, 0x41, 0x00, 0x0b, 0x6a, 0x21, 0x02, 0x20, 0x02,
+      0x41, 0x00, 0x11, 0x02, 0x00, 0x6a, 0x21, 0x02, 0x20, 0x02, 0xd2, 0x00,
+      0x14, 0x02, 0x6a, 0x21, 0x02, 0x20, 0x01, 0x41, 0x01, 0x6a, 0x22, 0x01,
+      0x20, 0x00, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x02, 0x0b};
+
+  Configure Conf;
+  // The callee is parsed and validated without compiling, so it runs
+  // interpreted.
+  Loader::Loader LoaderEngine(Conf);
+  Validator::Validator ValidatorEngine(Conf);
+  auto CalleeModOrErr = LoaderEngine.parseModule(CalleeWasm);
+  ASSERT_TRUE(CalleeModOrErr);
+  std::shared_ptr<AST::Module> CalleeMod{std::move(*CalleeModOrErr)};
+  ASSERT_TRUE(ValidatorEngine.validate(*CalleeMod));
+  auto CallerMod = compileToJIT(Conf, CallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+
+  // A leak of 240 bytes per iteration would need 24 MB of stack.
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = ExecEngine.invoke(Run, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 500000u);
+}
+
+TEST(LLVMRegressionTest, ReferenceInstruction) {
+  // The compiled code keeps the type of a reference in its value: a host
+  // reference, an externalized struct, and a function reference.
+  // (module
+  //   (type $s (struct (field i32)))
+  //   (table (export "tab") 2 externref)
+  //   (global (export "func") (mut funcref) (ref.null func))
+  //   (func $wrap (export "wrap") (result externref)
+  //     (extern.convert_any (struct.new $s (i32.const 42))))
+  //   (func (export "unwrap") (param externref) (result i32)
+  //     (struct.get $s 0
+  //       (ref.cast (ref $s) (any.convert_extern (local.get 0)))))
+  //   (func (export "test") (param i32) (result i32)
+  //     (ref.test (ref extern) (table.get 0 (local.get 0))))
+  //   (func (export "test_struct") (param i32) (result i32)
+  //     (ref.test (ref $s) (any.convert_extern (table.get 0 (local.get 0)))))
+  //   (func (export "set_func")
+  //     (global.set 0 (ref.func $wrap)))
+  //   (elem declare func $wrap))
+  std::array<WasmEdge::Byte, 203> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x16, 0x05, 0x5f,
+      0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x6f, 0x60, 0x01, 0x6f, 0x01, 0x7f,
+      0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x00, 0x00, 0x03, 0x06, 0x05, 0x01,
+      0x02, 0x03, 0x03, 0x04, 0x04, 0x04, 0x01, 0x6f, 0x00, 0x02, 0x06, 0x06,
+      0x01, 0x70, 0x01, 0xd0, 0x70, 0x0b, 0x07, 0x3e, 0x07, 0x03, 0x74, 0x61,
+      0x62, 0x01, 0x00, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x03, 0x00, 0x04, 0x77,
+      0x72, 0x61, 0x70, 0x00, 0x00, 0x06, 0x75, 0x6e, 0x77, 0x72, 0x61, 0x70,
+      0x00, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x02, 0x0b, 0x74, 0x65,
+      0x73, 0x74, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x03, 0x08,
+      0x73, 0x65, 0x74, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x04, 0x09, 0x05,
+      0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x36, 0x05, 0x09, 0x00, 0x41, 0x2a,
+      0xfb, 0x00, 0x00, 0xfb, 0x1b, 0x0b, 0x0d, 0x00, 0x20, 0x00, 0xfb, 0x1a,
+      0xfb, 0x16, 0x00, 0xfb, 0x02, 0x00, 0x00, 0x0b, 0x09, 0x00, 0x20, 0x00,
+      0x25, 0x00, 0xfb, 0x14, 0x6f, 0x0b, 0x0b, 0x00, 0x20, 0x00, 0x25, 0x00,
+      0xfb, 0x1a, 0xfb, 0x14, 0x00, 0x0b, 0x06, 0x00, 0xd2, 0x00, 0x24, 0x00,
+      0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00,
+      0x04, 0x77, 0x72, 0x61, 0x70, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
+
+  const ScopedTempFile Artifact("AOTRefValueTest", WASMEDGE_LIB_EXTENSION);
+  const auto &Path = Artifact.get();
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Module = Loader.parseModule(Wasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(ValidatorEngine.validate(**Module));
+  auto Data = Compiler.compile(**Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const auto *ModInst = VM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  const auto *WrapFn = ModInst->findFuncExports("wrap");
+  ASSERT_NE(WrapFn, nullptr);
+  ASSERT_TRUE(WrapFn->isCompiledFunction());
+  auto *TabInst = ModInst->findTableExports("tab");
+  ASSERT_NE(TabInst, nullptr);
+  const std::vector<WasmEdge::ValType> I32{
+      WasmEdge::ValType(WasmEdge::TypeCode::I32)};
+
+  // A host reference is non-null by its value, unlike the null reference of
+  // the other table entry, and internalizes to an any that is not the struct.
+  int Object = 0;
+  ASSERT_TRUE(TabInst->setRefAddr(0, WasmEdge::RefVariant(&Object)));
+  auto Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(0))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);
+  Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(1))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 0U);
+  Test = VM.execute("test_struct", {WasmEdge::ValVariant(UINT32_C(0))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 0U);
+
+  // An externalized struct is `(ref extern)` for the host, and unwraps to
+  // itself when the host hands it back as an argument or a table entry.
+  auto Wrapped = VM.execute("wrap");
+  ASSERT_TRUE(Wrapped);
+  ASSERT_EQ((*Wrapped).size(), 1U);
+  EXPECT_EQ((*Wrapped)[0].second,
+            WasmEdge::ValType(WasmEdge::TypeCode::Ref,
+                              WasmEdge::TypeCode::ExternRef));
+  auto Unwrapped =
+      VM.execute("unwrap", {(*Wrapped)[0].first}, {(*Wrapped)[0].second});
+  ASSERT_TRUE(Unwrapped);
+  EXPECT_EQ((*Unwrapped)[0].first.get<uint32_t>(), 42U);
+  ASSERT_TRUE(
+      TabInst->setRefAddr(1, (*Wrapped)[0].first.get<WasmEdge::RefVariant>()));
+  Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(1))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);
+  Test = VM.execute("test_struct", {WasmEdge::ValVariant(UINT32_C(1))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);
+
+  // A function reference refers to its function.
+  ASSERT_TRUE(VM.execute("set_func"));
+  auto *GlobInst = ModInst->findGlobalExports("func");
+  ASSERT_NE(GlobInst, nullptr);
+  EXPECT_EQ(WasmEdge::retrieveFuncRef(
+                GlobInst->getValue().get<WasmEdge::RefVariant>()),
+            WrapFn);
+
+  VM.cleanup();
+}
+
+TEST(LLVMRegressionTest, MemoryInstruction) {
+  // A far out-of-bounds memory64 index escapes the guard page and must trap.
+  // (module
+  //   (memory $m1 (export "mem1") i64 1)
+  //   (func (export "peek") (param i64) (result i64)
+  //     (i64.load $m1 (local.get 0)))
+  //   (func (export "poke") (param i64 i64)
+  //     (i64.store $m1 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 90> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x02, 0x60,
+      0x01, 0x7e, 0x01, 0x7e, 0x60, 0x02, 0x7e, 0x7e, 0x00, 0x03, 0x03, 0x02,
+      0x00, 0x01, 0x05, 0x03, 0x01, 0x04, 0x01, 0x07, 0x16, 0x03, 0x04, 0x6d,
+      0x65, 0x6d, 0x31, 0x02, 0x00, 0x04, 0x70, 0x65, 0x65, 0x6b, 0x00, 0x00,
+      0x04, 0x70, 0x6f, 0x6b, 0x65, 0x00, 0x01, 0x0a, 0x13, 0x02, 0x07, 0x00,
+      0x20, 0x00, 0x29, 0x03, 0x00, 0x0b, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01,
+      0x37, 0x03, 0x00, 0x0b, 0x00, 0x0c, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x06,
+      0x05, 0x01, 0x00, 0x02, 0x6d, 0x31};
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Path = std::filesystem::temp_directory_path() /
+              u8path("AOTMemory64Test" WASMEDGE_LIB_EXTENSION);
+
+  auto Module = *Loader.parseModule(Wasm);
+  ASSERT_TRUE(ValidatorEngine.validate(*Module));
+  auto Data = Compiler.compile(*Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<WasmEdge::ValType> I64{
+      WasmEdge::ValType(WasmEdge::TypeCode::I64)};
+  const std::vector<WasmEdge::ValType> I64x2{
+      WasmEdge::ValType(WasmEdge::TypeCode::I64),
+      WasmEdge::ValType(WasmEdge::TypeCode::I64)};
+
+  // In-bounds store then load round-trips.
+  ASSERT_TRUE(VM.execute("poke",
+                         {WasmEdge::ValVariant(UINT64_C(8)),
+                          WasmEdge::ValVariant(UINT64_C(0x1234))},
+                         I64x2));
+  auto InBounds = VM.execute("peek", {WasmEdge::ValVariant(UINT64_C(8))}, I64);
+  ASSERT_TRUE(InBounds);
+  EXPECT_EQ((*InBounds)[0].first.get<uint64_t>(), UINT64_C(0x1234));
+
+  // Aim the index at an in-process heap buffer: a fixed huge constant would
+  // only fault into unmapped space, which proves nothing.
+  const auto *ModInst = VM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  auto *MemInst = ModInst->findMemoryExports("mem1");
+  ASSERT_NE(MemInst, nullptr);
+  const uint8_t *Base = MemInst->getDataPtr();
+  auto Secret = std::make_unique<uint64_t>(UINT64_C(0xDEADBEEFCAFEBABE));
+  const uint64_t Off =
+      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(Secret.get()) -
+                            reinterpret_cast<uintptr_t>(Base));
+  auto OobLoad = VM.execute("peek", {WasmEdge::ValVariant(Off)}, I64);
+  ASSERT_FALSE(OobLoad);
+  EXPECT_EQ(OobLoad.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(*Secret, UINT64_C(0xDEADBEEFCAFEBABE));
+
+  auto OobStore = VM.execute(
+      "poke", {WasmEdge::ValVariant(Off), WasmEdge::ValVariant(UINT64_C(0))},
+      I64x2);
+  ASSERT_FALSE(OobStore);
+  EXPECT_EQ(OobStore.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(*Secret, UINT64_C(0xDEADBEEFCAFEBABE));
+
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+// f32x4.max must return the RHS NaN when both operands are NaN (issue #4257).
+TEST(LLVMRegressionTest, SIMDInstruction) {
+  // (module
+  //   (func (export "test_f32x4_max_nan") (result v128)
+  //     ;; LHS: v128.const with NaN values (0x7fc00001 in each lane)
+  //     v128.const i32x4 0x7fc00001 0x7fc00001 0x7fc00001 0x7fc00001
+  //     ;; RHS: v128.const with NaN values (0x7fc00000 in each lane)
+  //     v128.const i32x4 0x7fc00000 0x7fc00000 0x7fc00000 0x7fc00000
+  //     ;; f32x4.max should return RHS NaN (0x7fc00000) per spec
+  //     f32x4.max
+  //   )
+  // )
+  std::array<WasmEdge::Byte, 88> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+      0x60, 0x00, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x07, 0x16, 0x01,
+      0x12, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x66, 0x33, 0x32, 0x78, 0x34,
+      0x5f, 0x6d, 0x61, 0x78, 0x5f, 0x6e, 0x61, 0x6e, 0x00, 0x00, 0x0a,
+      0x2b, 0x01, 0x29, 0x00, 0xfd, 0x0c, 0x01, 0x00, 0xc0, 0x7f, 0x01,
+      0x00, 0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f,
+      0xfd, 0x0c, 0x00, 0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f, 0x00,
+      0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f, 0xfd, 0xe9, 0x01, 0x0b};
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Path = std::filesystem::temp_directory_path() /
+              u8path("SIMDNaNTest" WASMEDGE_LIB_EXTENSION);
+
+  auto Module = *Loader.parseModule(Wasm);
+  ASSERT_TRUE(ValidatorEngine.validate(*Module));
+  auto Data = Compiler.compile(*Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  auto Result = VM.execute("test_f32x4_max_nan");
+  ASSERT_TRUE(Result);
+  ASSERT_EQ((*Result).size(), 1U);
+
+  auto ResultVal = (*Result)[0].first.get<WasmEdge::uint128_t>();
+
+  uint32_t Lanes[4];
+  std::copy_n(reinterpret_cast<const uint32_t *>(&ResultVal), 4, Lanes);
+
+  // Per SIMD spec, f32x4.max with two NaN inputs should return RHS NaN
+  const uint32_t ExpectedNaN = 0x7fc00000;
+  EXPECT_EQ(Lanes[0], ExpectedNaN)
+      << "Lane 0: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[0];
+  EXPECT_EQ(Lanes[1], ExpectedNaN)
+      << "Lane 1: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[1];
+  EXPECT_EQ(Lanes[2], ExpectedNaN)
+      << "Lane 2: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[2];
+  EXPECT_EQ(Lanes[3], ExpectedNaN)
+      << "Lane 3: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[3];
+
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+TEST(LLVMRegressionTest, AtomicInstruction) {
+  // Test atomic instructions.
+  //
+  //   1.  An atomic store pops its address and its value and pushes nothing.
+  //   2.  An atomic RMW whose result is unused keeps its out-of-bounds trap.
+
+  {
+    // An atomic store consumes an address and a value and pushes nothing, so
+    // the compiled code must pop the address too, or it stays behind (issue
+    // #5559). (module
+    //   (memory 1 1 shared)
+    //   (func (export "i32_store") (result i32)
+    //     i32.const 10 i32.const 0 i32.const 1 i32.atomic.store i32.const 5
+    //     i32.add)
+    //   (func (export "i32_store8") (result i32)
+    //     i32.const 20 i32.const 0 i32.const 2 i32.atomic.store8 i32.const 5
+    //     i32.add)
+    //   (func (export "i32_store16") (result i32)
+    //     i32.const 30 i32.const 0 i32.const 3 i32.atomic.store16 i32.const 5
+    //     i32.add)
+    //   (func (export "i64_store") (result i64)
+    //     i64.const 40 i32.const 0 i64.const 4 i64.atomic.store i64.const 5
+    //     i64.add)
+    //   (func (export "i64_store8") (result i64)
+    //     i64.const 50 i32.const 0 i64.const 5 i64.atomic.store8 i64.const 5
+    //     i64.add)
+    //   (func (export "i64_store16") (result i64)
+    //     i64.const 60 i32.const 0 i64.const 6 i64.atomic.store16 i64.const 5
+    //     i64.add)
+    //   (func (export "i64_store32") (result i64)
+    //     i64.const 70 i32.const 0 i64.const 7 i64.atomic.store32 i64.const 5
+    //     i64.add)
+    //   (func (export "f32_store") (result f32)
+    //     f32.const 2.5 i32.const 0 i32.const 8 i32.atomic.store f32.const 1
+    //     f32.add))
+    std::array<WasmEdge::Byte, 286> Wasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60,
+        0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7e, 0x60, 0x00, 0x01, 0x7d, 0x03,
+        0x09, 0x08, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x02, 0x05, 0x04,
+        0x01, 0x03, 0x01, 0x01, 0x07, 0x69, 0x08, 0x09, 0x69, 0x33, 0x32, 0x5f,
+        0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x00, 0x0a, 0x69, 0x33, 0x32, 0x5f,
+        0x73, 0x74, 0x6f, 0x72, 0x65, 0x38, 0x00, 0x01, 0x0b, 0x69, 0x33, 0x32,
+        0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x31, 0x36, 0x00, 0x02, 0x09, 0x69,
+        0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x0a, 0x69,
+        0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x38, 0x00, 0x04, 0x0b,
+        0x69, 0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x31, 0x36, 0x00,
+        0x05, 0x0b, 0x69, 0x36, 0x34, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x33,
+        0x32, 0x00, 0x06, 0x09, 0x66, 0x33, 0x32, 0x5f, 0x73, 0x74, 0x6f, 0x72,
+        0x65, 0x00, 0x07, 0x0a, 0x88, 0x01, 0x08, 0x0f, 0x00, 0x41, 0x0a, 0x41,
+        0x00, 0x41, 0x01, 0xfe, 0x17, 0x02, 0x00, 0x41, 0x05, 0x6a, 0x0b, 0x0f,
+        0x00, 0x41, 0x14, 0x41, 0x00, 0x41, 0x02, 0xfe, 0x19, 0x00, 0x00, 0x41,
+        0x05, 0x6a, 0x0b, 0x0f, 0x00, 0x41, 0x1e, 0x41, 0x00, 0x41, 0x03, 0xfe,
+        0x1a, 0x01, 0x00, 0x41, 0x05, 0x6a, 0x0b, 0x0f, 0x00, 0x42, 0x28, 0x41,
+        0x00, 0x42, 0x04, 0xfe, 0x18, 0x03, 0x00, 0x42, 0x05, 0x7c, 0x0b, 0x0f,
+        0x00, 0x42, 0x32, 0x41, 0x00, 0x42, 0x05, 0xfe, 0x1b, 0x00, 0x00, 0x42,
+        0x05, 0x7c, 0x0b, 0x0f, 0x00, 0x42, 0x3c, 0x41, 0x00, 0x42, 0x06, 0xfe,
+        0x1c, 0x01, 0x00, 0x42, 0x05, 0x7c, 0x0b, 0x10, 0x00, 0x42, 0xc6, 0x00,
+        0x41, 0x00, 0x42, 0x07, 0xfe, 0x1d, 0x02, 0x00, 0x42, 0x05, 0x7c, 0x0b,
+        0x15, 0x00, 0x43, 0x00, 0x00, 0x20, 0x40, 0x41, 0x00, 0x41, 0x08, 0xfe,
+        0x17, 0x02, 0x00, 0x43, 0x00, 0x00, 0x80, 0x3f, 0x92, 0x0b};
+
+    Configure Conf;
+    Conf.addProposal(Proposal::Threads);
+
+    {
+      auto Mod = compileToJIT(Conf, Wasm);
+      ASSERT_NE(Mod, nullptr);
+
+      Executor::Executor ExecEngine(Conf);
+      Runtime::StoreManager Store;
+      auto InstOrErr = ExecEngine.instantiateModule(Store, *Mod);
+      ASSERT_TRUE(InstOrErr);
+      auto Inst = std::move(*InstOrErr);
+
+      auto CheckFuncI32 = [&](std::string_view Name, uint32_t Expected) {
+        const auto *Func = Inst->findFuncExports(Name);
+        ASSERT_NE(Func, nullptr);
+        ASSERT_TRUE(Func->isCompiledFunction());
+        auto Res = ExecEngine.invoke(Func, {}, {});
+        ASSERT_TRUE(Res);
+        ASSERT_EQ(Res->size(), 1u);
+        EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected) << Name;
+      };
+
+      auto CheckFuncI64 = [&](std::string_view Name, uint64_t Expected) {
+        const auto *Func = Inst->findFuncExports(Name);
+        ASSERT_NE(Func, nullptr);
+        ASSERT_TRUE(Func->isCompiledFunction());
+        auto Res = ExecEngine.invoke(Func, {}, {});
+        ASSERT_TRUE(Res);
+        ASSERT_EQ(Res->size(), 1u);
+        EXPECT_EQ((*Res)[0].first.get<uint64_t>(), Expected) << Name;
+      };
+
+      auto CheckFuncF32 = [&](std::string_view Name, float Expected) {
+        const auto *Func = Inst->findFuncExports(Name);
+        ASSERT_NE(Func, nullptr);
+        ASSERT_TRUE(Func->isCompiledFunction());
+        auto Res = ExecEngine.invoke(Func, {}, {});
+        ASSERT_TRUE(Res);
+        ASSERT_EQ(Res->size(), 1u);
+        EXPECT_FLOAT_EQ((*Res)[0].first.get<float>(), Expected) << Name;
+      };
+
+      CheckFuncI32("i32_store", 15u);
+      CheckFuncI32("i32_store8", 25u);
+      CheckFuncI32("i32_store16", 35u);
+      CheckFuncI64("i64_store", 45u);
+      CheckFuncI64("i64_store8", 55u);
+      CheckFuncI64("i64_store16", 65u);
+      CheckFuncI64("i64_store32", 75u);
+      CheckFuncF32("f32_store", 3.5f);
+    }
+
+    const ScopedTempFile Artifact("AOTAtomicStoreTest", WASMEDGE_LIB_EXTENSION);
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+    {
+      Loader::Loader LoaderEngine(Conf);
+      Validator::Validator ValidatorEngine(Conf);
+      LLVM::Compiler Compiler(Conf);
+      LLVM::CodeGen CodeGen(Conf);
+
+      auto Module = LoaderEngine.parseModule(Wasm);
+      ASSERT_TRUE(Module);
+      ASSERT_TRUE(ValidatorEngine.validate(**Module));
+      auto Data = Compiler.compile(**Module);
+      ASSERT_TRUE(Data);
+      ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Artifact.get()));
+    }
+
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Artifact.get()));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+
+    auto CheckAOTI32 = [&](std::string_view Name, uint32_t Expected) {
+      auto Res = VM.execute(Name);
+      ASSERT_TRUE(Res) << Name;
+      ASSERT_EQ(Res->size(), 1u);
+      EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected) << Name;
+    };
+    auto CheckAOTI64 = [&](std::string_view Name, uint64_t Expected) {
+      auto Res = VM.execute(Name);
+      ASSERT_TRUE(Res) << Name;
+      ASSERT_EQ(Res->size(), 1u);
+      EXPECT_EQ((*Res)[0].first.get<uint64_t>(), Expected) << Name;
+    };
+    auto CheckAOTF32 = [&](std::string_view Name, float Expected) {
+      auto Res = VM.execute(Name);
+      ASSERT_TRUE(Res) << Name;
+      ASSERT_EQ(Res->size(), 1u);
+      EXPECT_FLOAT_EQ((*Res)[0].first.get<float>(), Expected) << Name;
+    };
+
+    CheckAOTI32("i32_store", 15u);
+    CheckAOTI32("i32_store8", 25u);
+    CheckAOTI32("i32_store16", 35u);
+    CheckAOTI64("i64_store", 45u);
+    CheckAOTI64("i64_store8", 55u);
+    CheckAOTI64("i64_store16", 65u);
+    CheckAOTI64("i64_store32", 75u);
+    CheckAOTF32("f32_store", 3.5f);
+
+    VM.cleanup();
+  }
+
+  {
+    // An atomic RMW that leaves memory unchanged and whose result is unused
+    // must still trap on an out-of-bounds address in JIT and AOT (issue #5520).
+    // (module
+    //   (memory 1)
+    //   (func (export "or16") (result i32)
+    //     (drop
+    //       (i32.atomic.rmw16.or_u offset=1 (i32.const 65535) (i32.const 0)))
+    //     (i32.const 5))
+    //   (func (export "add32") (result i32)
+    //     (drop (i32.atomic.rmw.add offset=1 (i32.const 65535) (i32.const 0)))
+    //     (i32.const 5))
+    //   (func (export "sub8") (result i32)
+    //     (drop
+    //       (i32.atomic.rmw8.sub_u offset=1 (i32.const 65535) (i32.const 0)))
+    //     (i32.const 5))
+    //   (func (export "xor64") (result i32)
+    //     (drop (i64.atomic.rmw.xor offset=1 (i32.const 65535) (i64.const 0)))
+    //     (i32.const 5))
+    //   (func (export "and32u") (result i32)
+    //     (drop (i64.atomic.rmw32.and_u offset=1 (i32.const 65535)
+    //       (i64.const -1)))
+    //     (i32.const 5)))
+    std::array<WasmEdge::Byte, 153> Wasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+        0x00, 0x01, 0x7f, 0x03, 0x06, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+        0x03, 0x01, 0x00, 0x01, 0x07, 0x28, 0x05, 0x04, 0x6f, 0x72, 0x31, 0x36,
+        0x00, 0x00, 0x05, 0x61, 0x64, 0x64, 0x33, 0x32, 0x00, 0x01, 0x04, 0x73,
+        0x75, 0x62, 0x38, 0x00, 0x02, 0x05, 0x78, 0x6f, 0x72, 0x36, 0x34, 0x00,
+        0x03, 0x06, 0x61, 0x6e, 0x64, 0x33, 0x32, 0x75, 0x00, 0x04, 0x0a, 0x51,
+        0x05, 0x0f, 0x00, 0x41, 0xff, 0xff, 0x03, 0x41, 0x00, 0xfe, 0x36, 0x01,
+        0x01, 0x1a, 0x41, 0x05, 0x0b, 0x0f, 0x00, 0x41, 0xff, 0xff, 0x03, 0x41,
+        0x00, 0xfe, 0x1e, 0x02, 0x01, 0x1a, 0x41, 0x05, 0x0b, 0x0f, 0x00, 0x41,
+        0xff, 0xff, 0x03, 0x41, 0x00, 0xfe, 0x27, 0x00, 0x01, 0x1a, 0x41, 0x05,
+        0x0b, 0x0f, 0x00, 0x41, 0xff, 0xff, 0x03, 0x42, 0x00, 0xfe, 0x3b, 0x03,
+        0x01, 0x1a, 0x41, 0x05, 0x0b, 0x0f, 0x00, 0x41, 0xff, 0xff, 0x03, 0x42,
+        0x7f, 0xfe, 0x32, 0x02, 0x01, 0x1a, 0x41, 0x05, 0x0b};
+    const std::array<std::string_view, 5> Names{"or16"sv, "add32"sv, "sub8"sv,
+                                                "xor64"sv, "and32u"sv};
+
+    Configure Conf;
+    Conf.addProposal(Proposal::Threads);
+
+    {
+      auto Mod = compileToJIT(Conf, Wasm);
+      ASSERT_NE(Mod, nullptr);
+
+      Executor::Executor ExecEngine(Conf);
+      Runtime::StoreManager Store;
+      auto InstOrErr = ExecEngine.instantiateModule(Store, *Mod);
+      ASSERT_TRUE(InstOrErr);
+      auto Inst = std::move(*InstOrErr);
+
+      for (const auto Name : Names) {
+        const auto *Func = Inst->findFuncExports(Name);
+        ASSERT_NE(Func, nullptr);
+        ASSERT_TRUE(Func->isCompiledFunction());
+        auto Res = ExecEngine.invoke(Func, {}, {});
+        ASSERT_FALSE(Res) << Name << " returned instead of trapping in JIT";
+        EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds) << Name;
+      }
+    }
+
+    const ScopedTempFile Artifact("AOTAtomicRMWTest", WASMEDGE_LIB_EXTENSION);
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+    {
+      Loader::Loader LoaderEngine(Conf);
+      Validator::Validator ValidatorEngine(Conf);
+      LLVM::Compiler Compiler(Conf);
+      LLVM::CodeGen CodeGen(Conf);
+
+      auto Module = LoaderEngine.parseModule(Wasm);
+      ASSERT_TRUE(Module);
+      ASSERT_TRUE(ValidatorEngine.validate(**Module));
+      auto Data = Compiler.compile(**Module);
+      ASSERT_TRUE(Data);
+      ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Artifact.get()));
+    }
+
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Artifact.get()));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    for (const auto Name : Names) {
+      auto Res = VM.execute(Name);
+      ASSERT_FALSE(Res) << Name << " returned instead of trapping in AOT";
+      EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds) << Name;
+    }
+    VM.cleanup();
+  }
+}
+
+} // namespace

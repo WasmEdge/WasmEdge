@@ -14,9 +14,9 @@ ResourceTable<Context> NNContext --shared_ptr-->  Context  status, op mutex)
 ```
 
 - Guest-visible handles are opaque `uint32_t` keys into two `ResourceTable`s
-  (`resource_table.h`). Handles are allocated monotonically and **never
-  reused**: a stale handle stops resolving instead of aliasing a resource
-  created later.
+  (`include/plugin/resource_table.h`). Handles are allocated monotonically and
+  **never reused**: a stale handle stops resolving instead of aliasing a
+  resource created later.
 - Every host operation resolves its handle to a `shared_ptr` and holds it for
   the whole call. An in-flight operation therefore structurally cannot lose
   its graph or context to a concurrent `unload`/`finalize_execution_context`.

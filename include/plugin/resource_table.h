@@ -12,11 +12,10 @@
 #include <utility>
 
 namespace WasmEdge {
-namespace Host {
-namespace WASINN {
+namespace Plugin {
 
 // A thread-safe table of shared-ownership resources addressed by opaque
-// uint32_t handles, backing the WASI-NN graph and execution-context pools.
+// uint32_t handles that a plug-in hands to a guest.
 //
 // Contract:
 // - Handles are never reused: a stale handle stops resolving instead of
@@ -86,6 +85,5 @@ private:
   std::unordered_map<uint32_t, std::shared_ptr<T>> Map;
 };
 
-} // namespace WASINN
-} // namespace Host
+} // namespace Plugin
 } // namespace WasmEdge

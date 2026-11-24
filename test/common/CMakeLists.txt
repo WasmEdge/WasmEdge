@@ -12,6 +12,7 @@ wasmedge_add_executable(wasmedgeCommonTests
   denseEnumMapTest.cpp
   bitTest.cpp
   simdTest.cpp
+  utf8Test.cpp
 )
 
 add_test(wasmedgeCommonTests wasmedgeCommonTests)

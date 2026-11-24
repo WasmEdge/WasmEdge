@@ -1245,6 +1245,7 @@ public:
   using VPoller::clock;
   using VPoller::close;
   using VPoller::error;
+  using VPoller::ok;
   using VPoller::prepare;
   using VPoller::reset;
   using VPoller::result;
@@ -1318,6 +1319,9 @@ inline void Environ::close(std::shared_ptr<VINode> Node) noexcept {
 }
 
 inline void Environ::releasePoller(EVPoller &&Poller) noexcept {
+  if (unlikely(!Poller.ok())) {
+    return;
+  }
   std::unique_lock Lock(PollerMutex);
   PollerPool.push_back(std::move(Poller));
 }

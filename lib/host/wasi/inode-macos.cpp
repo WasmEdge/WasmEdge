@@ -1440,9 +1440,16 @@ WasiExpect<void> INode::updateStat() const noexcept {
   return {};
 }
 
-Poller::Poller(PollerContext &C) noexcept : FdHolder(::kqueue()), Ctx(&C) {}
+Poller::Poller(PollerContext &C) noexcept : Ctx(&C) {}
 
 WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
+  if (!ok()) {
+    if (auto NewFd = ::kqueue(); unlikely(NewFd < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    } else {
+      FdHolder::emplace(NewFd);
+    }
+  }
   WasiEvents = E;
   try {
     Events.reserve(E.size());

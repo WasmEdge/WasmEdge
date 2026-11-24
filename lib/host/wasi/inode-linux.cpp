@@ -1646,25 +1646,12 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
 }
 #endif
 
-Poller::Poller(PollerContext &C) noexcept
-    : FdHolder(
-#if __GLIBC_PREREQ(2, 9)
-          ::epoll_create1(EPOLL_CLOEXEC)
-#else
-          // Guessing a number that might be sufficient for linux before 2.6.8
-          ::epoll_create(32)
-#endif
-              ),
-      Ctx(&C) {
-#if !__GLIBC_PREREQ(2, 9)
-  if (auto Res = ::fcntl(Fd, F_SETFD, FD_CLOEXEC); unlikely(Res != 0)) {
-    FdHolder::reset();
-    return;
-  }
-#endif
-}
+Poller::Poller(PollerContext &C) noexcept : Ctx(&C) {}
 
 WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
+  if (!ok()) {
+    EXPECTED_TRY(rebuild());
+  }
   WasiEvents = E;
   try {
     Events.reserve(E.size());
@@ -1753,6 +1740,7 @@ WasiExpect<void> Poller::rebuild() noexcept {
 #if __GLIBC_PREREQ(2, 9)
   FdHolder NewFd(::epoll_create1(EPOLL_CLOEXEC));
 #else
+  // Guessing a number that might be sufficient for linux before 2.6.8
   FdHolder NewFd(::epoll_create(32));
   if (NewFd.ok() && ::fcntl(NewFd.Fd, F_SETFD, FD_CLOEXEC) != 0) {
     const auto Error = fromErrNo(errno);
@@ -2066,7 +2054,7 @@ void Poller::reset() noexcept {
   Events.clear();
 }
 
-bool Poller::ok() noexcept { return FdHolder::ok(); }
+bool Poller::ok() noexcept { return FdHolder::ok() && !NeedRebuild; }
 
 } // namespace WASI
 } // namespace Host

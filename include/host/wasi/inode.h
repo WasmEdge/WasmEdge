@@ -909,6 +909,8 @@ public:
   /// Reset all status
   void reset() noexcept;
 
+  /// Whether the poller has a working native instance, so it can go back
+  /// into the pool for another poll.
   bool ok() noexcept;
 
 protected:

@@ -31,6 +31,7 @@
 #if !WASMEDGE_OS_WINDOWS
 #include <pthread.h>
 #include <signal.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #endif
 
@@ -6076,6 +6077,39 @@ TEST(WasiTest, PollOneoffWriteReuseAfterFailedModify) {
   closeFd(PipeFds[1]);
   closeFd(OtherPipeFds[0]);
   closeFd(OtherPipeFds[1]);
+}
+
+TEST(WasiTest, PollOneoffPollerCreationFailure) {
+  PollFixture F;
+  struct rlimit OldLimit;
+  ASSERT_EQ(::getrlimit(RLIMIT_NOFILE, &OldLimit), 0);
+  // Restore the limit when the test ends, also after a failed assertion.
+  struct LimitGuard {
+    const struct rlimit &Limit;
+    ~LimitGuard() { EXPECT_EQ(::setrlimit(RLIMIT_NOFILE, &Limit), 0); }
+  };
+
+  // poll 10 milliseconds while no fd can be opened, expect the poller
+  // creation error
+  {
+    const LimitGuard Guard{OldLimit};
+    struct rlimit NoFdLimit = OldLimit;
+    NoFdLimit.rlim_cur = 0;
+    ASSERT_EQ(::setrlimit(RLIMIT_NOFILE, &NoFdLimit), 0);
+    const auto [Errno, Events] = F.poll({PollFixture::clock(10ms, 1)});
+    EXPECT_EQ(Errno, __WASI_ERRNO_MFILE);
+    ASSERT_EQ(Events.size(), 1U);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_MFILE);
+  }
+
+  // poll 10 milliseconds again after the limit is restored, expect timeout
+  const auto [Errno, Events] = F.poll({PollFixture::clock(10ms, 1)});
+  EXPECT_EQ(Errno, __WASI_ERRNO_SUCCESS);
+  ASSERT_EQ(Events.size(), 1U);
+  EXPECT_EQ(Events[0].type, WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+  EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
 }
 #endif
 

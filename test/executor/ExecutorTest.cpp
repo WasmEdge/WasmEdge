@@ -693,6 +693,28 @@ TEST(AsyncInvoke, InterruptTest) {
   }
 }
 
+std::array<WasmEdge::Byte, 31> ReturnWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+    0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+    0x66, 0x00, 0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+
+TEST(AsyncExecute, StaleStopTest) {
+  WasmEdge::Configure Conf;
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(ReturnWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  VM.stop();
+  EXPECT_TRUE(VM.execute("f"));
+  {
+    auto AsyncResult = VM.asyncExecute("f");
+    AsyncResult.wait();
+    AsyncResult.cancel();
+    EXPECT_TRUE(AsyncResult.get());
+  }
+  EXPECT_TRUE(VM.execute("f"));
+}
+
 TEST(VM, MultipleVM) {
   WasmEdge::Configure Conf;
   WasmEdge::VM::VM VM1(Conf);

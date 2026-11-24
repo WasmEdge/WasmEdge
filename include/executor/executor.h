@@ -30,6 +30,9 @@
 #include "runtime/storemgr.h"
 #include "system/stacktrace.h"
 
+#include <experimental/scope.hpp>
+
+#include <array>
 #include <atomic>
 #include <csignal>
 #include <cstddef>
@@ -45,6 +48,10 @@
 #include <vector>
 
 namespace WasmEdge {
+namespace VM {
+class VM;
+} // namespace VM
+
 namespace Executor {
 
 namespace {
@@ -234,13 +241,137 @@ public:
   asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
               Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
-  /// Stop execution
-  void stop() noexcept {
-    StopToken.store(1, std::memory_order_relaxed);
-    atomicNotifyAll();
-  }
+  /// Stop every run that is active on this executor. A run that starts while
+  /// stop() runs is not always stopped. A stopped run fails with Interrupted at
+  /// its next checkpoint, like a trap. A direct call of invoke() starts its run
+  /// after it checks its arguments, and a core module instantiation starts its
+  /// run when it calls the start function. A stop that comes before that does
+  /// not reach them.
+  void stop() noexcept;
 
 private:
+  friend class ::WasmEdge::VM::VM;
+  template <typename> friend class WasmEdge::Async;
+
+  class StopState;
+
+  /// One list of registered runs. A thread registers its runs in one list of
+  /// the executor, so that runs on different threads rarely share a lock.
+  struct alignas(64) RunList {
+    /// Guards Head and the links of the runs in this list.
+    std::mutex Mutex;
+    /// First run in this list.
+    StopState *Head = nullptr;
+  };
+
+  /// Stop state of one run. A run is one operation from the host, together
+  /// with the nested invocations of the same executor on the same thread.
+  /// Executor::stop() reaches every registered run, and
+  /// StopState::requestStop() reaches only this run. The executor must outlive
+  /// its runs.
+  class StopState {
+  public:
+    explicit StopState(Executor &Target) noexcept;
+    StopState(const StopState &) = delete;
+    StopState &operator=(const StopState &) = delete;
+    ~StopState() noexcept;
+
+    /// Stop this run.
+    void requestStop() noexcept;
+
+  private:
+    friend class Executor;
+    template <typename> friend class WasmEdge::Async;
+
+    /// Makes a run the current run of this thread, and restores the previous
+    /// one on destruction. A scope does not register or unregister its run.
+    class Scope {
+    public:
+      explicit Scope(StopState &Run) noexcept;
+      Scope(const Scope &) = delete;
+      Scope &operator=(const Scope &) = delete;
+      ~Scope() noexcept;
+
+    private:
+      friend class Executor;
+
+      StopState &Run;
+      Scope *Saved;
+    };
+
+    /// Call Func on the current thread as this run. The run leaves the
+    /// executor before the result returns to the caller, so a run is called
+    /// only once.
+    template <typename FuncT> std::invoke_result_t<FuncT> call(FuncT &&Func) {
+      assuming(Registered);
+      cxx20::scope_exit Unregister([this]() noexcept { unregister(); });
+      Scope Entered(*this);
+      return std::forward<FuncT>(Func)();
+    }
+
+    void unregister() noexcept;
+    void setWaiter(Runtime::Instance::MemoryInstance::Waiter *W) noexcept;
+
+    Executor &Ex;
+    /// List of registered runs that holds this run.
+    RunList &List;
+    /// Set by a stop request. Interpreted and compiled code read it.
+    std::atomic_uint32_t StopToken = 0;
+    /// Guards Waiter and the stores to StopToken.
+    std::mutex Mutex;
+    /// Waiter of the memory.atomic.wait that this run waits in, if any.
+    Runtime::Instance::MemoryInstance::Waiter *Waiter = nullptr;
+    /// Links in List. The mutex of List guards them.
+    StopState *Prev = nullptr;
+    StopState *Next = nullptr;
+    /// True while the executor lists this run. Only the run owner changes it.
+    bool Registered = true;
+  };
+
+  /// Joins the run of the current thread when it is a run of this executor,
+  /// or starts a new run for its lifetime. A host operation that calls into
+  /// the executor more than once holds one, so that a stop request reaches
+  /// every call.
+  class RunScope {
+  public:
+    explicit RunScope(Executor &Ex) noexcept;
+    RunScope(const RunScope &) = delete;
+    RunScope &operator=(const RunScope &) = delete;
+
+    StopState &getRun() const noexcept { return Run; }
+
+  private:
+    std::optional<StopState> LocalRun;
+    StopState &Run;
+    StopState::Scope Entered;
+  };
+
+  /// Binds the stop token of a run to a stack manager, and restores the
+  /// previous binding on destruction.
+  class StopTokenBinding {
+  public:
+    StopTokenBinding(Runtime::StackManager &S, StopState &Run) noexcept
+        : StackMgr(S), Saved(S.exchangeStopToken(&Run.StopToken)) {}
+    StopTokenBinding(const StopTokenBinding &) = delete;
+    StopTokenBinding &operator=(const StopTokenBinding &) = delete;
+    ~StopTokenBinding() noexcept { StackMgr.exchangeStopToken(Saved); }
+
+  private:
+    Runtime::StackManager &StackMgr;
+    std::atomic_uint32_t *Saved;
+  };
+
+  /// Create a run that Executor::stop() can stop before it starts. Async calls
+  /// the run once on its worker thread, and the run unregisters when that call
+  /// returns. If the worker never calls the run, the run unregisters when the
+  /// last reference to it is destroyed.
+  std::shared_ptr<StopState> startRun() {
+    return std::make_shared<StopState>(*this);
+  }
+
+  /// The run of this executor that is current on this thread, if any.
+  StopState *enclosingRun() const noexcept;
+
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StackManager &StackMgr,
                              AST::InstrView Instrs);
@@ -502,7 +633,6 @@ private:
                               int64_t Timeout) noexcept;
   Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
                                 uint64_t Address, uint64_t Count) noexcept;
-  void atomicNotifyAll() noexcept;
   /// @}
 
   /// \name Helper Functions for getting instances or types.
@@ -1218,6 +1348,7 @@ private:
     ~SavedThreadLocal() noexcept;
 
     Executor *SavedThis;
+    StopState::Scope *SavedScope;
     Runtime::StackManager *SavedCurrentStack;
     ExecutorContext SavedExecutionContext;
   };
@@ -1253,6 +1384,8 @@ private:
   static thread_local ExecutorContext ExecutionContext;
   /// Pending exception for compiled functions
   static thread_local PendingExnStruct PendingExn;
+  /// Innermost run scope of this thread
+  static thread_local StopState::Scope *CurrentScope;
   /// Record stack trace on error
   static thread_local std::array<StackTraceEntry, 256> StackTrace;
   static thread_local size_t StackTraceSize;
@@ -1261,10 +1394,8 @@ private:
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
-  /// Stop execution
-  std::atomic_uint32_t StopToken = 0;
-  /// Memory instance this Executor is currently waiting on (for stop()).
-  std::atomic<Runtime::Instance::MemoryInstance *> WaitingMemory = nullptr;
+  /// Runs that a stop request reaches.
+  std::array<RunList, 16> RunLists;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
   /// Callback for lazy function compilation

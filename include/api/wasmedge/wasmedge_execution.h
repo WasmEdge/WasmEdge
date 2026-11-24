@@ -454,6 +454,15 @@ WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
 
 /// Cancel a WasmEdge_Async execution.
 ///
+/// The cancel stops only the execution of this WasmEdge_Async. The execution
+/// fails with Interrupted at its next checkpoint. The cancel does not
+/// interrupt a host function, and it has no effect after the execution ends.
+/// AOT or JIT compiled code has checkpoints of its own only if
+/// WasmEdge_ConfigureCompilerSetInterruptible() enabled them when the code was
+/// compiled. Without them, the cancel still reaches compiled code when it calls
+/// a function through the runtime or waits in memory.atomic.wait. An execution
+/// that ends before its next checkpoint ends normally.
+///
 /// \param Cxt the WasmEdge_Async.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;

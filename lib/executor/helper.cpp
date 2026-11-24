@@ -32,9 +32,10 @@ Executor::SavedThreadLocal::SavedThreadLocal(
   // Prepare the execution context.
   SavedThis = This;
   This = &Ex;
+  SavedScope = CurrentScope;
 
   SavedExecutionContext = ExecutionContext;
-  ExecutionContext.StopToken = &Ex.StopToken;
+  ExecutionContext.StopToken = &StackMgr.getStopToken();
   ExecutionContext.PendingExnTagAddr =
       reinterpret_cast<void *const *>(&PendingExn.TagInst);
   if (Ex.Stat) {
@@ -87,6 +88,7 @@ Executor::SavedThreadLocal::~SavedThreadLocal() noexcept {
   CurrentStack = SavedCurrentStack;
   ExecutionContext = SavedExecutionContext;
   This = SavedThis;
+  CurrentScope = SavedScope;
 }
 
 Expect<AST::InstrView::iterator> Executor::enterFunction(
@@ -97,7 +99,7 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
   // RetIt: the return position when the entered function returns.
 
   // Check whether interruption occurred.
-  if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
+  if (unlikely(StackMgr.stopRequested())) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
   }
@@ -402,7 +404,7 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
                         const AST::Instruction::JumpDescriptor &JumpDesc,
                         AST::InstrView::iterator &PC) noexcept {
   // Check the stop token.
-  if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
+  if (unlikely(StackMgr.stopRequested())) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
   }

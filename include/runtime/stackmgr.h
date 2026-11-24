@@ -16,7 +16,10 @@
 #include "ast/instruction.h"
 #include "runtime/instance/module.h"
 
+#include <atomic>
+#include <cstdint>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -58,6 +61,22 @@ public:
     FrameStack.reserve(16U);
   }
   ~StackManager() = default;
+
+  /// Getter and setter for the stop token of the run that uses this stack.
+  std::atomic_uint32_t &getStopToken() const noexcept {
+    assuming(StopToken != nullptr);
+    return *StopToken;
+  }
+  std::atomic_uint32_t *
+  exchangeStopToken(std::atomic_uint32_t *Token) noexcept {
+    return std::exchange(StopToken, Token);
+  }
+
+  /// True when a stop request reached the run that uses this stack. The call
+  /// clears the request.
+  bool stopRequested() noexcept {
+    return getStopToken().exchange(0, std::memory_order_relaxed) != 0;
+  }
 
   /// Getter for stack size.
   size_t size() const noexcept { return ValueStack.size(); }
@@ -242,6 +261,7 @@ private:
   /// @{
   std::vector<Value> ValueStack;
   std::vector<Frame> FrameStack;
+  std::atomic_uint32_t *StopToken = nullptr;
   /// @}
 };
 

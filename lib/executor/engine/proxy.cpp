@@ -13,6 +13,7 @@ thread_local Executor *Executor::This = nullptr;
 thread_local Runtime::StackManager *Executor::CurrentStack = nullptr;
 thread_local Executor::ExecutorContext Executor::ExecutionContext;
 thread_local Executor::PendingExnStruct Executor::PendingExn;
+thread_local Executor::StopState::Scope *Executor::CurrentScope = nullptr;
 thread_local std::array<StackTraceEntry, 256> Executor::StackTrace;
 thread_local size_t Executor::StackTraceSize = 0;
 

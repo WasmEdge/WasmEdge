@@ -124,7 +124,7 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
                                    AST::InstrView::iterator &PC) noexcept {
   // Check stop token
-  if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
+  if (unlikely(StackMgr.stopRequested())) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
   }

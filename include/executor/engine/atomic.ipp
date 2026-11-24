@@ -391,10 +391,13 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
   auto &WaiterMapMtx = MemInst.getWaiterMapMutex();
   auto &WaiterMap = MemInst.getWaiterMap();
 
+  StopState *Run = enclosingRun();
   std::list<Runtime::Instance::MemoryInstance::Waiter>::iterator WaiterIt;
   Runtime::Instance::MemoryInstance::Waiter *Waiter;
   {
-    // Compare and enqueue under the lock that atomicNotify() takes.
+    // Compare, enqueue, and attach the waiter to its run under the lock that
+    // atomicNotify() takes, so that a notify sees the waiter only after a stop
+    // of the run can reach it.
     std::unique_lock<std::mutex> Locker(WaiterMapMtx);
     if (AtomicObj->load() != Expected.le()) {
       return static_cast<uint64_t>(1); // NotEqual
@@ -402,11 +405,15 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     auto &Queue = WaiterMap[Address];
     WaiterIt = Queue.emplace(Queue.end());
     Waiter = &*WaiterIt;
+    if (Run) {
+      Run->setWaiter(Waiter);
+    }
   }
 
-  WaitingMemory.store(&MemInst, std::memory_order_release);
   cxx20::scope_exit ScopeExitHolder([&]() noexcept {
-    WaitingMemory.store(nullptr, std::memory_order_release);
+    if (Run) {
+      Run->setWaiter(nullptr);
+    }
     std::unique_lock<std::mutex> Locker(WaiterMapMtx);
     auto Queue = WaiterMap.find(Address);
     assuming(Queue != WaiterMap.end());
@@ -416,36 +423,28 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     }
   });
 
-  while (true) {
-    std::unique_lock<std::mutex> Locker(Waiter->Mutex);
-    // Check StopToken while holding the Waiter mutex, before entering wait.
-    // This pairs with notifyAllWaiters() which acquires+releases this mutex
-    // before calling notify_all(), ensuring we either see StopToken here or
-    // get woken by the subsequent notify_all().
-    if (unlikely(StopToken.load(std::memory_order_acquire) != 0)) {
-      return Unexpect(ErrCode::Value::Interrupted);
-    }
-    if (Waiter->Notified) {
-      return static_cast<uint64_t>(0); // ok
-    }
-    std::cv_status WaitResult = std::cv_status::no_timeout;
-    if (!Until) {
-      Waiter->Cond.wait(Locker);
-    } else {
-      WaitResult = Waiter->Cond.wait_until(Locker, *Until);
-    }
-    if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
-      return Unexpect(ErrCode::Value::Interrupted);
-    }
-    if (Waiter->Notified) {
-      // Woken by memory.atomic.notify — return "ok" per the spec,
-      // regardless of the current memory value.
-      return static_cast<uint64_t>(0); // ok
-    }
-    if (WaitResult == std::cv_status::timeout) {
-      return static_cast<uint64_t>(2); // Timed-out
-    }
+  std::unique_lock<std::mutex> Locker(Waiter->Mutex);
+  // Check the stop token while holding the Waiter mutex. This pairs with
+  // StopState::requestStop(), which sets the token and then notifies under this
+  // same mutex, so the wait either sees the token or gets woken by the notify.
+  auto Woken = [Run, Waiter]() noexcept {
+    return (Run && Run->StopToken.load(std::memory_order_relaxed) != 0) ||
+           Waiter->Notified;
+  };
+  if (!Until) {
+    Waiter->Cond.wait(Locker, Woken);
+  } else {
+    Waiter->Cond.wait_until(Locker, *Until, Woken);
   }
+  if (unlikely(Run && Run->StopToken.load(std::memory_order_relaxed) != 0)) {
+    return Unexpect(ErrCode::Value::Interrupted);
+  }
+  if (Waiter->Notified) {
+    // Woken by memory.atomic.notify — return "ok" per the spec, regardless of
+    // the current memory value.
+    return static_cast<uint64_t>(0); // ok
+  }
+  return static_cast<uint64_t>(2); // Timed-out
 }
 
 } // namespace Executor

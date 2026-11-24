@@ -334,5 +334,85 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   return Returns;
 }
 
+/// Stop every active run. See "include/executor/executor.h".
+void Executor::stop() noexcept {
+  for (auto &L : RunLists) {
+    std::unique_lock<std::mutex> Lock(L.Mutex);
+    for (auto *Run = L.Head; Run != nullptr; Run = Run->Next) {
+      Run->requestStop();
+    }
+  }
+}
+
+namespace {
+/// Index of the current thread. Threads take the indices in turn.
+size_t threadIndex() noexcept {
+  static std::atomic_size_t NextIndex = 0;
+  thread_local const size_t Index =
+      NextIndex.fetch_add(1, std::memory_order_relaxed);
+  return Index;
+}
+} // namespace
+
+Executor::StopState::StopState(Executor &Target) noexcept
+    : Ex(Target),
+      List(Target.RunLists[threadIndex() % Target.RunLists.size()]) {
+  std::unique_lock<std::mutex> Lock(List.Mutex);
+  Next = std::exchange(List.Head, this);
+  if (Next != nullptr) {
+    Next->Prev = this;
+  }
+}
+
+Executor::StopState::~StopState() noexcept { unregister(); }
+
+void Executor::StopState::requestStop() noexcept {
+  std::unique_lock<std::mutex> Lock(Mutex);
+  StopToken.store(1, std::memory_order_relaxed);
+  if (Waiter) {
+    std::unique_lock<std::mutex> WaiterLock(Waiter->Mutex);
+    Waiter->Cond.notify_all();
+  }
+}
+
+void Executor::StopState::unregister() noexcept {
+  if (!Registered) {
+    return;
+  }
+  Registered = false;
+  std::unique_lock<std::mutex> Lock(List.Mutex);
+  (Prev != nullptr ? Prev->Next : List.Head) = Next;
+  if (Next != nullptr) {
+    Next->Prev = Prev;
+  }
+  Prev = Next = nullptr;
+}
+
+void Executor::StopState::setWaiter(
+    Runtime::Instance::MemoryInstance::Waiter *W) noexcept {
+  std::unique_lock<std::mutex> Lock(Mutex);
+  Waiter = W;
+}
+
+Executor::StopState::Scope::Scope(StopState &R) noexcept
+    : Run(R), Saved(std::exchange(CurrentScope, this)) {}
+
+Executor::StopState::Scope::~Scope() noexcept { CurrentScope = Saved; }
+
+Executor::StopState *Executor::enclosingRun() const noexcept {
+  return CurrentScope != nullptr && &CurrentScope->Run.Ex == this
+             ? &CurrentScope->Run
+             : nullptr;
+}
+
+Executor::RunScope::RunScope(Executor &Ex) noexcept
+    : Run([&]() -> StopState & {
+        if (auto *Enclosing = Ex.enclosingRun()) {
+          return *Enclosing;
+        }
+        return LocalRun.emplace(Ex);
+      }()),
+      Entered(Run) {}
+
 } // namespace Executor
 } // namespace WasmEdge

@@ -254,7 +254,13 @@ public:
                         Span<const ComponentValVariant> Params = {},
                         Span<const ComponentValType> ParamTypes = {});
 
-  /// Stop execution
+  /// Stop every run that is active on the VM. A stopped run fails with
+  /// Interrupted at its next checkpoint. A stop does not interrupt a host
+  /// function, and a run that starts after the stop is not stopped. Compiled
+  /// code has checkpoints of its own only if it was compiled as interruptible.
+  /// Without them, a stop still reaches compiled code when it calls a function
+  /// through the runtime or waits in memory.atomic.wait. A run that ends before
+  /// its next checkpoint ends normally.
   void stop() noexcept { ExecutorEngine.stop(); }
 
   /// Snapshot VM-owned core modules at an invocation boundary. An empty path
@@ -328,6 +334,14 @@ public:
 #endif
 
 private:
+  template <typename> friend class WasmEdge::Async;
+
+  /// Create a run that stop() can stop before it starts. See
+  /// Executor::startRun().
+  std::shared_ptr<Executor::Executor::StopState> startRun() {
+    return ExecutorEngine.startRun();
+  }
+
   std::vector<Runtime::Instance::ModuleInstance *> collectModuleInstances();
 
   /// Release and terminate all module instances in a sequence or map

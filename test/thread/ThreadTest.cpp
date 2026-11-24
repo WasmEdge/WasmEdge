@@ -23,10 +23,14 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <fstream>
+#include <future>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -611,6 +615,365 @@ TEST(AtomicWaitNotify, RehashWhileWaiting) {
   std::unique_lock<std::mutex> Locker(Mutex);
   EXPECT_TRUE(WaiterMap.empty());
 }
+
+// (module
+//   (memory (export "memory") 1 1 shared)
+//   (func (export "wait32") (param i32 i32 i64) (result i32)
+//     (memory.atomic.wait32 (local.get 0) (local.get 1) (local.get 2)))
+//   (func (export "notify") (param i32 i32) (result i32)
+//     (memory.atomic.notify (local.get 0) (local.get 1)))
+//   (func (export "spin")
+//     (i32.atomic.store (i32.const 16) (i32.const 1))
+//     (loop (br_if 0 (i32.eqz (i32.atomic.load (i32.const 20))))))
+//   (func (export "started") (result i32) (i32.atomic.load (i32.const 16)))
+//   (func (export "release") (i32.atomic.store (i32.const 20) (i32.const 1))))
+std::array<WasmEdge::Byte, 172> StopWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
+    0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f,
+    0x60, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x06, 0x05, 0x00, 0x01,
+    0x02, 0x03, 0x02, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x37, 0x06,
+    0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x06, 0x77, 0x61,
+    0x69, 0x74, 0x33, 0x32, 0x00, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69, 0x66,
+    0x79, 0x00, 0x01, 0x04, 0x73, 0x70, 0x69, 0x6e, 0x00, 0x02, 0x07, 0x73,
+    0x74, 0x61, 0x72, 0x74, 0x65, 0x64, 0x00, 0x03, 0x07, 0x72, 0x65, 0x6c,
+    0x65, 0x61, 0x73, 0x65, 0x00, 0x04, 0x0a, 0x44, 0x05, 0x0c, 0x00, 0x20,
+    0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00, 0x0b, 0x0a, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x16, 0x00, 0x41,
+    0x10, 0x41, 0x01, 0xfe, 0x17, 0x02, 0x00, 0x03, 0x40, 0x41, 0x14, 0xfe,
+    0x10, 0x02, 0x00, 0x45, 0x0d, 0x00, 0x0b, 0x0b, 0x08, 0x00, 0x41, 0x10,
+    0xfe, 0x10, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x41, 0x14, 0x41, 0x01, 0xfe,
+    0x17, 0x02, 0x00, 0x0b,
+};
+
+// (module
+//   (import "host" "gate" (func $gate))
+//   (start $gate))
+std::array<WasmEdge::Byte, 32> GateWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+    0x60, 0x00, 0x00, 0x02, 0x0d, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74,
+    0x04, 0x67, 0x61, 0x74, 0x65, 0x00, 0x00, 0x08, 0x01, 0x00,
+};
+
+/// Host function that blocks until the test opens it. The VM holds its lock
+/// while it instantiates a module, so a start function that calls the gate
+/// keeps every other run from starting.
+class Gate : public WasmEdge::Runtime::HostFunction<Gate> {
+public:
+  WasmEdge::Expect<void> body(const WasmEdge::Runtime::CallingFrame &) {
+    Entered.set_value();
+    Opened.wait();
+    return {};
+  }
+  std::promise<void> Entered;
+  std::shared_future<void> Opened;
+};
+
+class StopTest : public ::testing::Test {
+protected:
+  using AsyncT = decltype(std::declval<WasmEdge::VM::VM &>().asyncExecute(
+      std::string_view{}));
+
+  static constexpr const std::string_view Other = "other"sv;
+  static constexpr const auto Bound = 20s;
+
+  void SetUp() override {
+    Conf.addProposal(WasmEdge::Proposal::Threads);
+    VM = std::make_unique<WasmEdge::VM::VM>(Conf);
+    ASSERT_TRUE(VM->registerModule(Other, StopWasm));
+    ASSERT_TRUE(VM->loadWasm(StopWasm));
+    ASSERT_TRUE(VM->validate());
+    ASSERT_TRUE(VM->instantiate());
+  }
+
+  void TearDown() override {
+    if (Locker.valid()) {
+      openGate();
+    }
+    if (VM) {
+      VM->execute("release"sv);
+      VM->stop();
+      wakeWaiters({});
+      wakeWaiters(Other);
+    }
+    for (auto &Worker : Workers) {
+      Worker.wait();
+    }
+  }
+
+  WasmEdge::Runtime::Instance::MemoryInstance &
+  memory(std::string_view ModName = {}) {
+    const auto *ModInst = ModName.empty()
+                              ? VM->getActiveModule()
+                              : VM->getStoreManager().findModule(ModName);
+    return *ModInst->findMemoryExports("memory"sv);
+  }
+
+  /// Wake every waiter of the memory without a stop request, so that
+  /// TearDown() joins the workers also when a stop does not wake them.
+  void wakeWaiters(std::string_view ModName) {
+    const auto *ModInst = ModName.empty()
+                              ? VM->getActiveModule()
+                              : VM->getStoreManager().findModule(ModName);
+    if (!ModInst) {
+      return;
+    }
+    auto *MemInst = ModInst->findMemoryExports("memory"sv);
+    std::unique_lock<std::mutex> Locker(MemInst->getWaiterMapMutex());
+    for (auto &[Address, Queue] : MemInst->getWaiterMap()) {
+      for (auto &Waiter : Queue) {
+        {
+          std::unique_lock<std::mutex> WaiterLocker(Waiter.Mutex);
+          Waiter.Notified = true;
+        }
+        Waiter.Cond.notify_all();
+      }
+    }
+  }
+
+  bool waitForSpinner() {
+    const auto Deadline = std::chrono::steady_clock::now() + Bound;
+    while (std::chrono::steady_clock::now() < Deadline) {
+      if (auto Started = toU32(VM->execute("started"sv)); Started && *Started) {
+        return true;
+      }
+      std::this_thread::sleep_for(1ms);
+    }
+    return false;
+  }
+
+  bool waitForWaiters(std::string_view ModName, size_t Count) {
+    auto &MemInst = memory(ModName);
+    const auto Deadline = std::chrono::steady_clock::now() + Bound;
+    while (std::chrono::steady_clock::now() < Deadline) {
+      {
+        std::unique_lock<std::mutex> Locker(MemInst.getWaiterMapMutex());
+        size_t Waiting = 0;
+        for (const auto &[Address, Queue] : MemInst.getWaiterMap()) {
+          Waiting += Queue.size();
+        }
+        if (Waiting >= Count) {
+          return true;
+        }
+      }
+      std::this_thread::sleep_for(1ms);
+    }
+    return false;
+  }
+
+  AsyncT &start(std::string_view ModName, std::string_view Func,
+                std::vector<WasmEdge::ValVariant> Params = {},
+                std::vector<WasmEdge::ValType> ParamTypes = {}) {
+    return Workers.emplace_back(
+        ModName.empty() ? VM->asyncExecute(Func, Params, ParamTypes)
+                        : VM->asyncExecute(ModName, Func, Params, ParamTypes));
+  }
+
+  AsyncT &startNotify(uint32_t Address, uint32_t Count) {
+    return start({}, "notify"sv, {Address, Count},
+                 {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                  WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+  }
+
+  WasmEdge::Expect<uint32_t> notify(uint32_t Address, uint32_t Count) {
+    return result(startNotify(Address, Count));
+  }
+
+  /// Register a module whose start function waits in the gate, so the VM
+  /// holds its lock and no other run starts until openGate(). False when the
+  /// start function does not reach the gate in time.
+  bool closeGate() {
+    auto GateFunc = std::make_unique<Gate>();
+    auto Entered = GateFunc->Entered.get_future();
+    GateFunc->Opened = Open.get_future().share();
+    HostMod.addHostFunc("gate"sv, std::move(GateFunc));
+    if (!VM->registerModule(HostMod)) {
+      return false;
+    }
+    Locker = std::async(std::launch::async, [this]() {
+      return VM->registerModule("gate"sv, GateWasm);
+    });
+    return Entered.wait_for(Bound) == std::future_status::ready;
+  }
+
+  /// Open the gate, and return the result of the module registration that
+  /// waited in it.
+  WasmEdge::Expect<void> openGate() {
+    if (!GateOpened) {
+      GateOpened = true;
+      Open.set_value();
+    }
+    if (Locker.wait_for(Bound) != std::future_status::ready) {
+      ADD_FAILURE() << "the registration did not finish in time";
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::Terminated);
+    }
+    return Locker.get();
+  }
+
+  /// Start a wait that times out long after Bound, so that a wait that a
+  /// stop does not wake fails the test and still ends.
+  AsyncT &startWait(uint32_t Address, std::string_view ModName = {}) {
+    const auto Timeout = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(3 * Bound)
+            .count());
+    return start(ModName, "wait32"sv, {Address, UINT32_C(0), Timeout},
+                 {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                  WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                  WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+  }
+
+  /// The i32 that a run returns, or the error of the run.
+  static WasmEdge::Expect<uint32_t>
+  toU32(WasmEdge::Expect<
+        std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>
+            Result) {
+    if (!Result) {
+      return WasmEdge::Unexpect(Result.error());
+    }
+    if (Result->size() != 1 ||
+        (*Result)[0].second.getCode() != WasmEdge::TypeCode::I32) {
+      ADD_FAILURE() << "the run did not return one i32";
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::FuncSigMismatch);
+    }
+    return (*Result)[0].first.get<uint32_t>();
+  }
+
+  static WasmEdge::Expect<uint32_t> result(AsyncT &Worker) {
+    if (!Worker.waitFor(Bound)) {
+      ADD_FAILURE() << "the run did not finish in time";
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::Terminated);
+    }
+    return toU32(Worker.get());
+  }
+
+  static void expectInterrupted(AsyncT &Worker) {
+    ASSERT_TRUE(Worker.waitFor(Bound));
+    auto Result = Worker.get();
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
+  }
+
+  WasmEdge::Configure Conf;
+  /// Host module of the gate. The VM uses it, so it outlives the VM.
+  WasmEdge::Runtime::Instance::ModuleInstance HostMod{"host"sv};
+  std::unique_ptr<WasmEdge::VM::VM> VM;
+  std::list<AsyncT> Workers;
+  std::promise<void> Open;
+  bool GateOpened = false;
+  std::future<WasmEdge::Expect<void>> Locker;
+};
+
+TEST_F(StopTest, StopDoesNotInterruptNextRun) {
+  auto &Waiter = startWait(0);
+  ASSERT_TRUE(waitForWaiters({}, 1));
+  VM->stop();
+  expectInterrupted(Waiter);
+  auto Result = notify(4, 1);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ(*Result, 0U);
+}
+
+TEST_F(StopTest, StopWakesWaiterAfterAnotherReturns) {
+  auto &Waiter1 = startWait(0);
+  auto &Waiter2 = startWait(8);
+  ASSERT_TRUE(waitForWaiters({}, 2));
+  auto Notified = notify(8, 1);
+  ASSERT_TRUE(Notified);
+  EXPECT_EQ(*Notified, 1U);
+  auto Result = result(Waiter2);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ(*Result, 0U);
+  VM->stop();
+  expectInterrupted(Waiter1);
+}
+
+TEST_F(StopTest, StopWakesWaitersOnEveryMemory) {
+  auto &Waiter1 = startWait(0);
+  auto &Waiter2 = startWait(0, Other);
+  ASSERT_TRUE(waitForWaiters({}, 1));
+  ASSERT_TRUE(waitForWaiters(Other, 1));
+  VM->stop();
+  expectInterrupted(Waiter1);
+  expectInterrupted(Waiter2);
+}
+
+TEST_F(StopTest, StopInterruptsSpinningAndWaitingRuns) {
+  auto &Spinner = start({}, "spin"sv);
+  auto &Waiter = startWait(0);
+  ASSERT_TRUE(waitForWaiters({}, 1));
+  ASSERT_TRUE(waitForSpinner());
+  VM->stop();
+  expectInterrupted(Spinner);
+  expectInterrupted(Waiter);
+}
+
+TEST_F(StopTest, StopReachesRunBeforeItStarts) {
+  ASSERT_TRUE(closeGate());
+  auto &Spinner = start({}, "spin"sv);
+  VM->stop();
+  auto Registered = openGate();
+  EXPECT_TRUE(Registered ||
+              Registered.error() == WasmEdge::ErrCode::Value::Interrupted);
+  expectInterrupted(Spinner);
+}
+
+TEST_F(StopTest, CancelReachesRunBeforeItStarts) {
+  ASSERT_TRUE(closeGate());
+  auto &Spinner = start({}, "spin"sv);
+  Spinner.cancel();
+  EXPECT_TRUE(openGate());
+  expectInterrupted(Spinner);
+}
+
+TEST_F(StopTest, CancelStopsOnlyItsRun) {
+  auto &Waiter1 = startWait(0);
+  auto &Waiter2 = startWait(8);
+  ASSERT_TRUE(waitForWaiters({}, 2));
+  Waiter1.cancel();
+  expectInterrupted(Waiter1);
+  auto Notified = notify(8, 1);
+  ASSERT_TRUE(Notified);
+  EXPECT_EQ(*Notified, 1U);
+  auto Result = result(Waiter2);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ(*Result, 0U);
+}
+
+TEST_F(StopTest, CancelOfFinishedRunKeepsOtherRuns) {
+  auto &Waiter = startWait(0);
+  ASSERT_TRUE(waitForWaiters({}, 1));
+  auto &Finished = startNotify(4, 1);
+  ASSERT_TRUE(result(Finished));
+  Finished.cancel();
+  auto Notified = notify(0, 1);
+  ASSERT_TRUE(Notified);
+  EXPECT_EQ(*Notified, 1U);
+  auto Result = result(Waiter);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ(*Result, 0U);
+}
+
+#ifdef WASMEDGE_USE_LLVM
+/// The stop tests on JIT code that is not interruptible.
+class StopTestJIT : public StopTest {
+protected:
+  void SetUp() override {
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
+    StopTest::SetUp();
+  }
+};
+
+/// Code compiled without interruptible has no checkpoints of its own, but a
+/// stop still ends its memory.atomic.wait in the runtime.
+TEST_F(StopTestJIT, StopWakesCompiledWaiter) {
+  ASSERT_FALSE(Conf.getCompilerConfigure().isInterruptible());
+  ASSERT_TRUE(
+      VM->getActiveModule()->findFuncExports("wait32"sv)->isCompiledFunction());
+  auto &Waiter = startWait(0);
+  ASSERT_TRUE(waitForWaiters({}, 1));
+  VM->stop();
+  expectInterrupted(Waiter);
+}
+#endif
 
 TEST(AsyncExecute, ThreadTest) {
   WasmEdge::Configure Conf;

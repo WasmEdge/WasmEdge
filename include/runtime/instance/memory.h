@@ -418,22 +418,6 @@ public:
     return WaiterMap;
   }
 
-  /// Wake all waiters on this memory instance (used by Executor::stop()).
-  void notifyAllWaiters() noexcept {
-    std::unique_lock<std::mutex> Locker(WaiterMapMutex);
-    for (auto &[Addr, Queue] : WaiterMap) {
-      for (auto &W : Queue) {
-        // Lock the Waiter mutex and notify while holding it. This pairs with
-        // the wait loop which checks StopToken under this same mutex before
-        // entering Cond.wait(). The lock ensures we either:
-        // (a) block until the waiter enters Cond.wait() — then wake it, or
-        // (b) run before the waiter checks StopToken — it will see it set.
-        std::unique_lock<std::mutex> WaiterLocker(W.Mutex);
-        W.Cond.notify_all();
-      }
-    }
-  }
-
 private:
   /// Update the page count in the limit and its live mirror synchronously.
   void setLivePageCount(const uint64_t Count) noexcept {

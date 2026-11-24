@@ -71,11 +71,5 @@ Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
   return Total;
 }
 
-void Executor::atomicNotifyAll() noexcept {
-  if (auto *MemInst = WaitingMemory.load(std::memory_order_acquire)) {
-    MemInst->notifyAllWaiters();
-  }
-}
-
 } // namespace Executor
 } // namespace WasmEdge

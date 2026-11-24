@@ -25,12 +25,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <random>
 #include <set>
 #include <string>
 #include <string_view>
@@ -3834,6 +3836,9 @@ public:
   const WasmEdge::Runtime::CallingFrame &frame() const noexcept {
     return CallFrame;
   }
+  void wireWASIModule(const WasmEdge::Host::WasiModule &WasiMod) noexcept {
+    Mod.wireWASIModule(&WasiMod);
+  }
 
   bool load() {
     if (!ready()) {
@@ -3935,7 +3940,7 @@ private:
   }
 
   std::unique_ptr<WasmEdge::Host::WasiNNModule> NNMod;
-  WasmEdge::Runtime::Instance::ModuleInstance Mod;
+  WasiWiredModule Mod;
   WasmEdge::Runtime::CallingFrame CallFrame;
   WasmEdge::Runtime::Instance::MemoryInstance *MemInst = nullptr;
   uint32_t NextPtr = UINT32_C(65536);
@@ -4003,6 +4008,41 @@ std::vector<uint8_t> makeWAV(uint16_t Channels,
   return WAV;
 }
 
+// A new directory for the output files of one test, removed with its
+// content when the test ends. The backend opens the output files through the
+// WASI filesystem of the caller, so a WASI module preopens the directory as
+// /out.
+class ScopedTempDir {
+public:
+  ScopedTempDir() {
+    std::random_device Random;
+    const auto Base = std::filesystem::temp_directory_path();
+    do {
+      Path = Base / ("wasmedge-whisper-" + std::to_string(Random()));
+    } while (!std::filesystem::create_directory(Path));
+    WasiMod.init(std::vector<std::string>{"/out:" + Path.string()}, "test", {},
+                 {});
+  }
+  ScopedTempDir(const ScopedTempDir &) = delete;
+  ScopedTempDir &operator=(const ScopedTempDir &) = delete;
+  ~ScopedTempDir() {
+    std::error_code Error;
+    std::filesystem::remove_all(Path, Error);
+  }
+  const WasmEdge::Host::WasiModule &wasi() const noexcept { return WasiMod; }
+  /// Path of a file in the directory for the host.
+  std::string file(std::string_view Name) const {
+    return (Path / Name).string();
+  }
+  /// Path of a file in the directory for the guest.
+  static std::string guestFile(std::string_view Name) {
+    return "/out/" + std::string(Name);
+  }
+
+private:
+  std::filesystem::path Path;
+  WasmEdge::Host::WasiModule WasiMod;
+};
 } // namespace
 
 TEST(WasiNNTest, WhisperBackend) {
@@ -4310,6 +4350,45 @@ TEST(WasiNNTest, WhisperBackendDiarizeFollowsChannels) {
   const auto MonoOutput = H.getOutput(Ctx);
   EXPECT_FALSE(MonoOutput.empty());
   EXPECT_EQ(MonoOutput.find("(speaker"sv), std::string::npos) << MonoOutput;
+}
+
+TEST(WasiNNTest, WhisperBackendOutputFilesFollowContext) {
+  const ScopedTempDir Dir;
+  WhisperHarness H;
+  H.wireWASIModule(Dir.wasi());
+  ASSERT_TRUE(H.load());
+  const auto Speech = readEntireFile("./wasinn_whisper_fixtures/test.wav");
+  ASSERT_FALSE(Speech.empty());
+  const auto Silence = makeWAV(1, std::vector<int16_t>(16000 * 2, 0));
+  const std::string FileName = ScopedTempDir::guestFile("output");
+  const std::string SrtName = Dir.file("output.srt");
+  uint32_t CtxA = 0;
+  uint32_t CtxB = 0;
+  ASSERT_TRUE(H.initContext(CtxA));
+  ASSERT_TRUE(H.initContext(CtxB));
+
+  EXPECT_EQ(H.setMetadata(CtxA, "{\"output-srt\":true,\"output-file\":\"" +
+                                    FileName + "\"}"),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.setInput(CtxA, 0, Speech), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.compute(CtxA), static_cast<int32_t>(ErrNo::Success));
+  const auto Srt = readEntireFile(SrtName);
+  const std::string SrtText(Srt.begin(), Srt.end());
+  ASSERT_FALSE(SrtText.empty());
+  std::filesystem::remove(SrtName);
+  EXPECT_EQ(H.setInput(CtxB, 0, Silence), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(H.compute(CtxB), static_cast<int32_t>(ErrNo::Success));
+
+  const auto Output = H.getOutput(CtxA);
+  EXPECT_FALSE(std::filesystem::exists(SrtName));
+  const auto TextBegin = Output.find("] "sv);
+  ASSERT_NE(TextBegin, std::string::npos) << Output;
+  const auto TextEnd = Output.find('\n', TextBegin);
+  const auto FirstSegment =
+      Output.substr(TextBegin + 2, TextEnd - TextBegin - 2);
+  ASSERT_FALSE(FirstSegment.empty()) << Output;
+  EXPECT_NE(SrtText.find(FirstSegment), std::string::npos)
+      << "srt: " << SrtText << "\noutput: " << Output;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 

@@ -79,19 +79,17 @@ std::string estimateDiarizationSpeaker(Span<const int16_t> StereoPCM16,
   return Speaker;
 }
 
-bool writeText(Host::File &File, const std::string &Fname,
+void writeText(Host::File &File, const std::string &Fname,
                const std::string &Text) noexcept {
   if (auto Res = File.write(Span<const uint8_t>(
           reinterpret_cast<const uint8_t *>(Text.data()), Text.size()));
       !Res) {
     spdlog::error("[WASI-NN] Whisper backend: failed to write {}: {}."sv, Fname,
                   Res.error());
-    return false;
   }
-  return true;
 }
 
-bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
+void outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
                const std::string &Fname, const Config &Params,
                Span<const int16_t> StereoPCM16) {
   auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
@@ -99,7 +97,7 @@ bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
   if (!File) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
-    return false;
+    return;
   }
   spdlog::info("[WASI-NN] Whisper backend: saving srt output to {}."sv, Fname);
 
@@ -120,18 +118,18 @@ bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
     Fout << toTimestamp(T0, true) << " --> " << toTimestamp(T1, true) << "\n";
     Fout << Speaker << Text << "\n\n";
   }
-  return writeText(**File, Fname, Fout.str());
+  writeText(**File, Fname, Fout.str());
 }
 
-static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
-                      const std::string &Fname, const Config &Params,
-                      Span<const int16_t> StereoPCM16) {
+void outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
+               const std::string &Fname, const Config &Params,
+               Span<const int16_t> StereoPCM16) {
   auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
                            __WASI_RIGHTS_FD_WRITE);
   if (!File) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
-    return false;
+    return;
   }
 
   spdlog::info("[WASI-NN] Whisper backend: saving lrc output to {}."sv, Fname);
@@ -164,8 +162,7 @@ static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
 
     Fout << '[' << TimestampLrc << ']' << Speaker << text << "\n";
   }
-
-  return writeText(**File, Fname, Fout.str());
+  writeText(**File, Fname, Fout.str());
 }
 
 std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
@@ -179,7 +176,7 @@ std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
   return Escaped;
 }
 
-bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
+void outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
                 const std::string &Fname, const Config &Params,
                 Span<const int16_t> StereoPCM16, bool Full) {
   auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
@@ -265,7 +262,7 @@ bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
   if (!File) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
-    return false;
+    return;
   }
 
   spdlog::info("[WASI-NN] Whisper backend: saving json output to {}."sv, Fname);
@@ -345,7 +342,7 @@ bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
 
   EndArr(true);
   EndObj(true);
-  return writeText(**File, Fname, Fout.str());
+  writeText(**File, Fname, Fout.str());
 }
 
 bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
@@ -1012,11 +1009,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> getOutput(WasiNNEnvironment &Env, WASINN::Graph &G,
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &,
                         WASINN::Context &C, uint32_t Index,
                         Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
-  auto &GraphRef = G.get<Graph>();
   auto &CxtRef = C.get<Context>();
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: getOutput with Index {}"sv,
@@ -1038,6 +1034,29 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, WASINN::Graph &G,
         Index);
   }
 
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> compute(WasiNNEnvironment &Env, WASINN::Graph &G,
+                      WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  if (CxtRef.WhisperConfig.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] Whisper backend: compute"sv);
+  }
+
+  CxtRef.Outputs.clear();
+  if (whisper_full_parallel(GraphRef.WhisperCtx, CxtRef.WhisperParams,
+                            CxtRef.InputPCM.data(), CxtRef.InputPCM.size(),
+                            CxtRef.WhisperConfig.ProcessorsNum) != 0) {
+    spdlog::error(
+        "[WASI-NN] Whisper backend: Error: failed to process audio."sv);
+    return ErrNo::RuntimeError;
+  }
+
+  // The whisper context of the graph holds only the latest transcription, so
+  // write the files of this context before another context computes. The
+  // files are best effort: a failed file is logged and does not fail compute.
   if (CxtRef.WhisperConfig.OutputSrt) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".srt";
     outputSrt(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
@@ -1054,26 +1073,6 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, WASINN::Graph &G,
     const auto Fname = CxtRef.WhisperConfig.FileName + ".json";
     outputJson(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
                CxtRef.InputStereoPCM16, CxtRef.WhisperConfig.OutputJsonFull);
-  }
-
-  return ErrNo::Success;
-}
-
-Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
-                      WASINN::Context &C) noexcept {
-  auto &GraphRef = G.get<Graph>();
-  auto &CxtRef = C.get<Context>();
-  if (CxtRef.WhisperConfig.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Whisper backend: compute"sv);
-  }
-
-  CxtRef.Outputs.clear();
-  if (whisper_full_parallel(GraphRef.WhisperCtx, CxtRef.WhisperParams,
-                            CxtRef.InputPCM.data(), CxtRef.InputPCM.size(),
-                            CxtRef.WhisperConfig.ProcessorsNum) != 0) {
-    spdlog::error(
-        "[WASI-NN] Whisper backend: Error: failed to process audio."sv);
-    return ErrNo::RuntimeError;
   }
 
   if (CxtRef.WhisperConfig.EnableDebugLog) {

@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#include "wat/parser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -81,6 +82,19 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     return E;
   };
 
+  // Find WAT text in the mapped bytes. A full read only for this test is not
+  // necessary, because maybeWAT reads only the leading whitespace and comments.
+  // The text format loader is experimental, so it is on only by request.
+  // Without it, the text goes to the binary loader.
+  if (isWatInput(FMgr.getSpan())) {
+    // Reset the file manager after the conversion, because the parser reads
+    // the mapped file. A later parse then starts from a clean state.
+    auto Res = parseWatUnit(FMgr.getSpan()).map_error(ReportError);
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, std::move(Res));
+    return Mod;
+  }
+
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -135,11 +149,47 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
 }
 
+// Find if Code is WAT text that the loader reads. The text format loader is
+// experimental, so it is on only by request.
+bool Loader::isWatInput(Span<const uint8_t> Code) const {
+  return EnableWAT && WAT::maybeWAT(Code);
+}
+
+// Convert the WAT text Code into a module.
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseWatUnit(Span<const uint8_t> Code) {
+  // The text is a WASM module, so the input type is WASM.
+  WASMType = InputType::WASM;
+  EXPECTED_TRY(auto Mod, WAT::parseWat(Code, Conf).map_error([](auto E) {
+    spdlog::error(E);
+    return E;
+  }));
+  return std::make_unique<AST::Module>(std::move(Mod));
+}
+
 // Parse module or component from byte code. See "include/loader/loader.h".
 Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Find if the buffer holds WAT text. The text format loader is
+  // experimental, so it is on only by request.
+  if (isWatInput(Code)) {
+    // Drop the state of an earlier parse, which can still hold a mapped
+    // file.
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, parseWatUnit(Code));
+    return Mod;
+  }
+  return parseBinaryUnit(Code);
+}
+
+// Parse a binary module or component from byte code. See
+// "include/loader/loader.h".
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
+Loader::parseBinaryUnit(Span<const uint8_t> Code) {
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
@@ -234,6 +284,42 @@ Loader::loadUnit() {
 // Serialize module into byte code. See "include/loader/loader.h".
 Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
   return Ser.serializeModule(Mod);
+}
+
+// Parse an input of the AOT compiler. See "include/loader/loader.h".
+Expect<Loader::CompileInput>
+Loader::parseCompileInput(Span<const uint8_t> Code) {
+  CompileInput In;
+  In.Code = Code;
+  In.IsWat = isWatInput(Code);
+  std::lock_guard Lock(Mutex);
+  if (In.IsWat) {
+    // Drop the state of an earlier parse, which can still hold a mapped
+    // file.
+    FMgr.reset();
+    EXPECTED_TRY(In.Module, parseWatUnit(Code));
+    return In;
+  }
+  // The format is known, so the binary parse does not test it again.
+  EXPECTED_TRY(auto Unit, parseBinaryUnit(Code));
+  auto *Mod = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
+  if (Mod == nullptr) {
+    return Unexpect(ErrCode::Value::MalformedVersion);
+  }
+  In.Module = std::move(*Mod);
+  return In;
+}
+
+// Give the binary of an input of the AOT compiler. See
+// "include/loader/loader.h".
+Expect<Span<const Byte>> Loader::compileBinary(CompileInput &In) {
+  if (!In.IsWat) {
+    return In.Code;
+  }
+  if (In.Serialized.empty()) {
+    EXPECTED_TRY(In.Serialized, Ser.serializeModule(*In.Module));
+  }
+  return Span<const Byte>(In.Serialized);
 }
 
 } // namespace Loader

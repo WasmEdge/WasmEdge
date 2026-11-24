@@ -224,7 +224,7 @@ class Loader {
 public:
   Loader(const Configure &Conf,
          const Executable::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), IntrinsicsTable(IT) {}
+      : Conf(Conf), EnableWAT(this->Conf.isEnableWAT()), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -251,6 +251,28 @@ public:
   /// Serialize module into byte code.
   Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
 
+  /// A module for the AOT compiler. The compiled output embeds the WASM binary
+  /// of the module, and the binary then loads with the same configuration.
+  struct CompileInput {
+    std::unique_ptr<AST::Module> Module;
+    /// The input bytes. The caller keeps them alive.
+    Span<const Byte> Code;
+    /// True if the input is WAT text.
+    bool IsWat = false;
+    /// The binary of a WAT input, which compileBinary makes.
+    std::vector<Byte> Serialized;
+  };
+
+  /// Parse Code for the AOT compiler. The loader finds the input format once,
+  /// and the result keeps it.
+  Expect<CompileInput> parseCompileInput(Span<const uint8_t> Code);
+
+  /// Give the WASM binary that the compiled output of In embeds. The caller
+  /// validates In.Module first. For a binary input, the result is In.Code,
+  /// with no copy. For WAT text, the serializer makes the binary once, and In
+  /// keeps it.
+  Expect<Span<const Byte>> compileBinary(CompileInput &In);
+
   /// Reset status.
   void reset() noexcept { FMgr.reset(); }
 
@@ -259,6 +281,16 @@ public:
                               std::shared_ptr<Executable> Library);
 
 private:
+  /// Find if Code is WAT text that this loader reads.
+  bool isWatInput(Span<const uint8_t> Code) const;
+  /// Convert WAT text into a module.
+  Expect<std::unique_ptr<AST::Module>> parseWatUnit(Span<const uint8_t> Code);
+  /// Parse a binary module or component from Code. The caller holds the lock
+  /// of the loader.
+  Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                      std::unique_ptr<AST::Module>>>
+  parseBinaryUnit(Span<const uint8_t> Code);
+
   /// \name Helper functions to print error log when loading AST nodes
   /// @{
   inline Unexpected<ErrCode> logLoadError(ErrCode Code, uint64_t Off,
@@ -516,6 +548,9 @@ private:
   /// \name Loader members
   /// @{
   const Configure Conf;
+  /// The EnableWAT flag of Conf. Conf is a copy that does not change, so a
+  /// load does not take the lock of Conf to read the flag.
+  const bool EnableWAT;
   const Serializer Ser;
   FileMgr FMgr;
   const Executable::IntrinsicsTable *IntrinsicsTable;

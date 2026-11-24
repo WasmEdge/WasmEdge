@@ -320,7 +320,8 @@ public:
     if (unlikely(!checkAccessBound(Offset, Size))) {
       return {};
     }
-    return {reinterpret_cast<const char *>(&DataPtr[Offset]), Size};
+    return {reinterpret_cast<const char *>(&DataPtr[Offset]),
+            static_cast<size_t>(Size)};
   }
 
   /// Template for loading bytes and converting them to a value.
@@ -354,7 +355,7 @@ public:
       } else {
         if constexpr (sizeof(T) > 8) {
           assuming(sizeof(T) == 16);
-          EndianValue<T> LoadValue = 0U;
+          EndianValue<T> LoadValue = static_cast<T>(0U);
           std::memcpy(&LoadValue.raw(), &DataPtr[Offset], Length);
           Value = LoadValue.le();
         } else {

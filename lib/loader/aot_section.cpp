@@ -5,7 +5,7 @@
 #include "common/spdlog.h"
 #include "system/allocator.h"
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if (WASMEDGE_OS_LINUX && !defined(__ARM_EABI__)) || WASMEDGE_OS_MACOS
 extern "C" {
 extern void __register_frame(void *);
 extern void __deregister_frame(void *);
@@ -134,9 +134,11 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
 
   Registered = true;
 #if WASMEDGE_OS_LINUX
+#if !defined(__ARM_EABI__)
   if (EHFrameAddress) {
     __register_frame(EHFrameAddress);
   }
+#endif
 #elif WASMEDGE_OS_MACOS
   if (EHFrameAddress) {
     auto Iter = EHFrameAddress;
@@ -164,9 +166,11 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
 void AOTSection::unload() noexcept {
   if (Binary) {
 #if WASMEDGE_OS_LINUX
+#if !defined(__ARM_EABI__)
     if (Registered && EHFrameAddress) {
       __deregister_frame(EHFrameAddress);
     }
+#endif
 #elif WASMEDGE_OS_MACOS
     if (Registered && EHFrameAddress) {
       auto Iter = EHFrameAddress;

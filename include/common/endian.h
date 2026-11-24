@@ -58,12 +58,15 @@ template <typename T> T byteswap(T V) {
     return static_cast<T>(__builtin_bswap32(static_cast<uint32_t>(V)));
   } else if constexpr (sizeof(T) == 8) {
     return static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(V)));
-  } else if constexpr (sizeof(T) == 16) {
+  }
+#if defined(__SIZEOF_INT128__)
+  else if constexpr (sizeof(T) == 16) {
     return (static_cast<__int128_t>(__builtin_bswap64(static_cast<uint64_t>(V)))
             << 64) |
            static_cast<__int128_t>(
                __builtin_bswap64(static_cast<uint64_t>(V >> 64)));
   }
+#endif
 #elif defined(_MSC_VER)
   if constexpr (sizeof(T) == 2) {
     return static_cast<T>(_byteswap_ushort(static_cast<uint16_t>(V)));

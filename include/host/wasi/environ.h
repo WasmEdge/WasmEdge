@@ -95,6 +95,27 @@ public:
 
   constexpr __wasi_exitcode_t getExitCode() const noexcept { return ExitCode; }
 
+  struct InitialDescriptor {
+    /// Empty after the descriptor is closed, unless it is a directory.
+    std::weak_ptr<VINode> Node;
+    /// Keeps a directory open. Null for every other descriptor.
+    std::shared_ptr<VINode> Directory;
+    __wasi_rights_t FsRightsBase;
+    __wasi_rights_t FsRightsInheriting;
+  };
+
+  /// The descriptors that were in the table at the last initialization, in
+  /// ascending order: the standard streams, the preopened directories, and
+  /// descriptors from an earlier initialization. Each entry holds the rights at
+  /// that time. Guest actions do not change the entries or their rights.
+  ///
+  /// The record keeps a directory open until the next initialization or
+  /// fini(), because a guest can close a directory and keep a descriptor below
+  /// it. The record keeps no other descriptor open.
+  Span<const InitialDescriptor> getInitialDescriptors() const noexcept {
+    return InitialDescriptors;
+  }
+
   /// Read command-line argument data.
   ///
   /// The size of the array should match that returned by `args_sizes_get`.
@@ -1210,6 +1231,7 @@ private:
 
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
+  std::vector<InitialDescriptor> InitialDescriptors;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
     std::shared_lock Lock(FdMutex);

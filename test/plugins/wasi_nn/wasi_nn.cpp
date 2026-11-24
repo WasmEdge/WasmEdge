@@ -19,18 +19,21 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <numeric>
 #include <set>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -3811,20 +3814,142 @@ TEST(WasiNNTest, RPCServerHostFuncCallerSizesMemoryByBytes) {
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
-TEST(WasiNNTest, WhisperBackend) {
-  // Create the wasi_nn module instance.
-  auto NNMod = createModule();
-  ASSERT_TRUE(NNMod);
+namespace {
+// Creates the wasi_nn module and a guest memory for the Whisper tests, and
+// calls the host functions with that memory.
+class WhisperHarness {
+public:
+  WhisperHarness() : NNMod(createModule()), Mod(""), CallFrame(nullptr, &Mod) {
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(60000)));
+    MemInst = Mod.findMemoryExports("memory");
+  }
 
-  // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(60000)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_TRUE(MemInstPtr != nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  bool ready() const noexcept { return NNMod && MemInst != nullptr; }
+  WasmEdge::Host::WasiNNModule &module() noexcept { return *NNMod; }
+  WasmEdge::Runtime::Instance::MemoryInstance &memory() noexcept {
+    return *MemInst;
+  }
+  const WasmEdge::Runtime::CallingFrame &frame() const noexcept {
+    return CallFrame;
+  }
+
+  bool load() {
+    if (!ready()) {
+      return false;
+    }
+    const auto Weight =
+        readEntireFile("./wasinn_whisper_fixtures/ggml-tiny.bin");
+    if (Weight.empty()) {
+      return false;
+    }
+    const uint32_t WeightPtr = store(Weight);
+    uint32_t BuilderPtr = alloc(8);
+    const uint32_t BuildersPtr = BuilderPtr;
+    writeFatPointer(*MemInst, WeightPtr, static_cast<uint32_t>(Weight.size()),
+                    BuilderPtr);
+    const uint32_t GraphIdPtr = alloc(4);
+    if (call("load"sv,
+             {BuildersPtr, UINT32_C(1), static_cast<uint32_t>(Backend::Whisper),
+              static_cast<uint32_t>(Device::CPU), GraphIdPtr}) !=
+        static_cast<int32_t>(ErrNo::Success)) {
+      return false;
+    }
+    GraphId = *MemInst->getPointer<uint32_t *>(GraphIdPtr);
+    return true;
+  }
+
+  bool initContext(uint32_t &ContextId) {
+    const uint32_t ContextIdPtr = alloc(4);
+    if (call("init_execution_context"sv, {GraphId, ContextIdPtr}) !=
+        static_cast<int32_t>(ErrNo::Success)) {
+      return false;
+    }
+    ContextId = *MemInst->getPointer<uint32_t *>(ContextIdPtr);
+    return true;
+  }
+
+  int32_t setInput(uint32_t ContextId, uint32_t Index,
+                   const std::vector<uint8_t> &Data) {
+    const std::vector<uint32_t> Dim{1, static_cast<uint32_t>(Data.size())};
+    const uint32_t DimPtr = alloc(static_cast<uint32_t>(Dim.size() * 4));
+    writeBinaries<uint32_t>(*MemInst, Dim, DimPtr);
+    const uint32_t DataPtr = store(Data);
+    uint32_t TensorPtr = alloc(20);
+    const uint32_t TensorEntryPtr = TensorPtr;
+    writeFatPointer(*MemInst, DimPtr, static_cast<uint32_t>(Dim.size()),
+                    TensorPtr);
+    writeUInt32(*MemInst, static_cast<uint32_t>(TensorType::U8), TensorPtr);
+    writeFatPointer(*MemInst, DataPtr, static_cast<uint32_t>(Data.size()),
+                    TensorPtr);
+    return call("set_input"sv, {ContextId, Index, TensorEntryPtr});
+  }
+
+  int32_t setMetadata(uint32_t ContextId, std::string_view Metadata) {
+    return setInput(ContextId, 1,
+                    std::vector<uint8_t>(Metadata.begin(), Metadata.end()));
+  }
+
+  int32_t compute(uint32_t ContextId) { return call("compute"sv, {ContextId}); }
+
+  std::string getOutput(uint32_t ContextId) {
+    const uint32_t OutSize = 65536;
+    const uint32_t OutPtr = alloc(OutSize);
+    const uint32_t BytesWrittenPtr = alloc(4);
+    EXPECT_EQ(call("get_output"sv,
+                   {ContextId, UINT32_C(0), OutPtr, OutSize, BytesWrittenPtr}),
+              static_cast<int32_t>(ErrNo::Success));
+    const uint32_t BytesWritten =
+        *MemInst->getPointer<uint32_t *>(BytesWrittenPtr);
+    const char *Out = MemInst->getPointer<const char *>(OutPtr);
+    return std::string(Out, BytesWritten);
+  }
+
+private:
+  int32_t call(std::string_view Name,
+               std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *FuncInst = NNMod->findFuncExports(Name);
+    if (FuncInst == nullptr) {
+      ADD_FAILURE() << "missing function " << Name;
+      return -1;
+    }
+    std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+    if (!FuncInst->getHostFunc().run(CallFrame, Args, Errno)) {
+      ADD_FAILURE() << "host function " << Name << " trapped";
+      return -1;
+    }
+    return Errno[0].get<int32_t>();
+  }
+
+  uint32_t alloc(uint32_t Size) {
+    const uint32_t Ptr = NextPtr;
+    NextPtr += (Size + 7) & ~UINT32_C(7);
+    return Ptr;
+  }
+
+  uint32_t store(const std::vector<uint8_t> &Data) {
+    const uint32_t Ptr = alloc(static_cast<uint32_t>(Data.size()));
+    writeBinaries<uint8_t>(*MemInst, Data, Ptr);
+    return Ptr;
+  }
+
+  std::unique_ptr<WasmEdge::Host::WasiNNModule> NNMod;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod;
+  WasmEdge::Runtime::CallingFrame CallFrame;
+  WasmEdge::Runtime::Instance::MemoryInstance *MemInst = nullptr;
+  uint32_t NextPtr = UINT32_C(65536);
+  uint32_t GraphId = 0;
+};
+
+} // namespace
+
+TEST(WasiNNTest, WhisperBackend) {
+  WhisperHarness H;
+  ASSERT_TRUE(H.ready());
+  auto *NNMod = &H.module();
+  auto &MemInst = H.memory();
+  const auto &CallFrame = H.frame();
 
   std::vector<uint8_t> TensorData =
       readEntireFile("./wasinn_whisper_fixtures/test.wav");

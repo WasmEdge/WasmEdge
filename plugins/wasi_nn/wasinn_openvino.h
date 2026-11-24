@@ -11,6 +11,7 @@
 #include "openvino/openvino.hpp"
 
 #include <string_view>
+#include <vector>
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -25,6 +26,7 @@ struct Graph {
   ~Graph() noexcept {}
   ov::Tensor OpenVINOIWeightTensor;
   std::shared_ptr<ov::Model> OpenVINOModel;
+  ov::CompiledModel OpenVINOCompiledModel;
   std::string_view DeviceName;
 };
 
@@ -33,6 +35,7 @@ struct Context {
   ~Context() noexcept {}
   uint32_t GraphId;
   ov::InferRequest OpenVINOInferRequest;
+  std::vector<bool> InputIsSet;
 };
 
 struct Environ {

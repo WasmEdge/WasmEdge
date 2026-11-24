@@ -573,7 +573,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::RuntimeError));
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // Swap back.
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
@@ -639,6 +639,113 @@ TEST(WasiNNTest, OpenVINOBackend) {
       EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
     }
   }
+}
+
+TEST(WasiNNTest, OpenVINOBackendContextState) {
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto &MemInst = *Mod.findMemoryExports("memory");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto Run = [&](std::string_view Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    return runHostFunc(*NNMod, CallFrame, Name, Args);
+  };
+
+  // A model with two inputs of shape 1x2 whose output is their sum.
+  const std::string XML = R"(<?xml version="1.0"?>
+<net name="sum" version="11">
+  <layers>
+    <layer id="0" name="a" type="Parameter" version="opset1">
+      <data shape="1,2" element_type="f32"/>
+      <output><port id="0" precision="FP32"><dim>1</dim><dim>2</dim></port></output>
+    </layer>
+    <layer id="1" name="b" type="Parameter" version="opset1">
+      <data shape="1,2" element_type="f32"/>
+      <output><port id="0" precision="FP32"><dim>1</dim><dim>2</dim></port></output>
+    </layer>
+    <layer id="2" name="sum" type="Add" version="opset1">
+      <data auto_broadcast="numpy"/>
+      <input>
+        <port id="0"><dim>1</dim><dim>2</dim></port>
+        <port id="1"><dim>1</dim><dim>2</dim></port>
+      </input>
+      <output><port id="2" precision="FP32"><dim>1</dim><dim>2</dim></port></output>
+    </layer>
+    <layer id="3" name="out" type="Result" version="opset1">
+      <input><port id="0"><dim>1</dim><dim>2</dim></port></input>
+    </layer>
+  </layers>
+  <edges>
+    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+  </edges>
+</net>
+)";
+
+  // Memory layout: result ids at 0, the graph builders at 16, a tensor
+  // descriptor at 48, the dimensions at 128, the output at 256, and the model
+  // at 1024.
+  const uint32_t ResultPtr = 0;
+  const uint32_t BuilderPtr = 16;
+  const uint32_t TensorPtr = 48;
+  const uint32_t DimPtr = 128;
+  const uint32_t OutputPtr = 256;
+  const uint32_t ModelPtr = 1024;
+  writeBinaries<uint8_t>(MemInst, std::vector<uint8_t>(XML.begin(), XML.end()),
+                         ModelPtr);
+  uint32_t Ptr = BuilderPtr;
+  writeFatPointer(MemInst, ModelPtr, static_cast<uint32_t>(XML.size()), Ptr);
+  writeFatPointer(MemInst, ModelPtr, 0, Ptr);
+  ASSERT_EQ(Run("load", {BuilderPtr, UINT32_C(2),
+                         static_cast<uint32_t>(Backend::OpenVINO),
+                         static_cast<uint32_t>(Device::CPU), ResultPtr}),
+            ErrNo::Success);
+  const uint32_t GraphId = *MemInst.getPointer<uint32_t *>(ResultPtr);
+  auto InitContext = [&]() {
+    EXPECT_EQ(Run("init_execution_context", {GraphId, ResultPtr}),
+              ErrNo::Success);
+    return *MemInst.getPointer<uint32_t *>(ResultPtr);
+  };
+  auto SetInput = [&](uint32_t ContextId, uint32_t Index,
+                      std::vector<float> Values) {
+    const auto Count = static_cast<uint32_t>(Values.size());
+    writeBinaries<uint32_t>(MemInst, std::vector<uint32_t>{1, Count}, DimPtr);
+    writeBinaries<float>(MemInst, Values, DimPtr + 8);
+    uint32_t DescPtr = TensorPtr;
+    writeTensorDescriptor(MemInst, DimPtr, 2, TensorType::F32, Count * 4,
+                          DescPtr);
+    return Run("set_input", {ContextId, Index, TensorPtr});
+  };
+  auto Output = [&](uint32_t ContextId) {
+    EXPECT_EQ(Run("get_output",
+                  {ContextId, UINT32_C(0), OutputPtr, UINT32_C(64), ResultPtr}),
+              ErrNo::Success);
+    const auto Values = MemInst.getSpan<const float>(OutputPtr, 2);
+    return std::vector<float>(Values.begin(), Values.end());
+  };
+
+  const uint32_t First = InitContext();
+  const uint32_t Second = InitContext();
+  EXPECT_EQ(SetInput(First, 0, {1.0f, 2.0f}), ErrNo::Success);
+  EXPECT_EQ(SetInput(Second, 0, {3.0f, 4.0f}), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {Second}), ErrNo::InvalidArgument);
+  EXPECT_NE(SetInput(Second, 1, {1.0f, 2.0f, 3.0f}), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {Second}), ErrNo::InvalidArgument);
+  EXPECT_EQ(SetInput(First, 1, {10.0f, 20.0f}), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {First}), ErrNo::Success);
+  EXPECT_EQ(SetInput(Second, 1, {30.0f, 40.0f}), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {Second}), ErrNo::Success);
+  EXPECT_EQ(Output(First), (std::vector<float>{11.0f, 22.0f}));
+  EXPECT_EQ(Output(Second), (std::vector<float>{33.0f, 44.0f}));
+
+  const uint32_t Third = InitContext();
+  EXPECT_NE(SetInput(Third, 0, {1.0f, 2.0f, 3.0f}), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {Third}), ErrNo::InvalidArgument);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 

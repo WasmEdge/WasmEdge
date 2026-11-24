@@ -120,19 +120,30 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
   }
 
   try {
+    if (!GraphRef.OpenVINOCompiledModel) {
+      // Without an explicit hint OpenVINO infers in bf16 or f16 on CPUs that
+      // support them, so the same F32 model would produce host-dependent
+      // output.
+      GraphRef.OpenVINOCompiledModel = Env.OpenVINOCore.compile_model(
+          GraphRef.OpenVINOModel, std::string(GraphRef.DeviceName),
+          ov::hint::inference_precision(ov::element::f32));
+    }
+
     ov::Shape InputShape(Tensor.Dimension.data(),
                          Tensor.Dimension.data() + Tensor.Dimension.size());
     ov::Tensor InputTensor(ov::element::f32, InputShape);
     std::copy_n(Tensor.Tensor.data(), Tensor.Tensor.size(),
                 static_cast<uint8_t *>(InputTensor.data()));
-
-    // Without an explicit hint OpenVINO infers in bf16 or f16 on CPUs that
-    // support them, so the same F32 model would produce host-dependent output.
-    ov::CompiledModel CompiledModel = Env.OpenVINOCore.compile_model(
-        GraphRef.OpenVINOModel, std::string(GraphRef.DeviceName),
-        ov::hint::inference_precision(ov::element::f32));
-    CxtRef.OpenVINOInferRequest = CompiledModel.create_infer_request();
-    CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);
+    if (CxtRef.OpenVINOInferRequest) {
+      CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);
+    } else {
+      ov::InferRequest Request =
+          GraphRef.OpenVINOCompiledModel.create_infer_request();
+      Request.set_input_tensor(Index, InputTensor);
+      CxtRef.OpenVINOInferRequest = std::move(Request);
+      CxtRef.InputIsSet.assign(GraphRef.OpenVINOModel->inputs().size(), false);
+    }
+    CxtRef.InputIsSet[Index] = true;
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Set Input Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;
@@ -177,6 +188,12 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &,
                               WASINN::Context &C) noexcept {
   auto &CxtRef = C.get<Context>();
+  if (!CxtRef.OpenVINOInferRequest ||
+      std::find(CxtRef.InputIsSet.begin(), CxtRef.InputIsSet.end(), false) !=
+          CxtRef.InputIsSet.end()) {
+    spdlog::error("[WASI-NN] Not all inputs are set."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
   try {
     CxtRef.OpenVINOInferRequest.infer();
   } catch (const std::exception &EX) {

@@ -46,8 +46,10 @@ endif()
 wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusionCore
   STATIC
   sd_adapter_check.cpp
+  sd_guest_file.cpp
   sd_image.cpp
   sd_request.cpp
+  sd_session.cpp
 )
 
 # sd_image.cpp compiles the stb decoders. They overflow signed integers on

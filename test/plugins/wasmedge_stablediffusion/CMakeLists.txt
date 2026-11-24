@@ -2,8 +2,10 @@ wasmedge_add_executable(wasmedgeStableDiffusionTests
   wasmedge_stablediffusion.cpp
   sd_abi_test.cpp
   sd_adapter_check_test.cpp
+  sd_guest_file_test.cpp
   sd_image_test.cpp
   sd_request_test.cpp
+  sd_session_test.cpp
 )
 
 add_dependencies(wasmedgeStableDiffusionTests

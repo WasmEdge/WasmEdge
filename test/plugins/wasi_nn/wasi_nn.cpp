@@ -1081,6 +1081,22 @@ def forward(self, x):
   EXPECT_EQ(GetOutput(Context, 0), ErrNo::Success);
   EXPECT_EQ(Output(), 2.0f);
 
+  EXPECT_EQ(SetInput(Context, 0, 3.0f, 4), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {Context}), ErrNo::Success);
+  EXPECT_EQ(GetOutput(Context, 0), ErrNo::Success);
+  EXPECT_EQ(Output(), 6.0f);
+  EXPECT_EQ(GetOutput(Context, 1), ErrNo::InvalidArgument);
+  EXPECT_EQ(SetInput(Context, 0, -1.0f, 4), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {Context}), ErrNo::RuntimeError);
+  EXPECT_EQ(GetOutput(Context, 0), ErrNo::InvalidArgument);
+
+  const uint32_t TupleContext = LoadModel(R"(
+def forward(self, x):
+    return (x * 2.0, 1)
+)");
+  EXPECT_EQ(SetInput(TupleContext, 0, 1.0f, 4), ErrNo::Success);
+  EXPECT_EQ(Run("compute", {TupleContext}), ErrNo::RuntimeError);
+  EXPECT_EQ(GetOutput(TupleContext, 0), ErrNo::InvalidArgument);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 

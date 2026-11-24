@@ -301,6 +301,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
                       WASINN::Context &C) noexcept {
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
+  CxtRef.TorchOutputs.clear();
   if (CxtRef.TorchInputs.size() == 0) {
     spdlog::error("[WASI-NN] Torch: Input is not set!"sv);
     return ErrNo::InvalidArgument;
@@ -313,7 +314,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
     }
   }
   try {
-    return GraphRef.Model->run(CxtRef.TorchInputs, CxtRef.TorchOutputs);
+    std::vector<at::Tensor> Outputs;
+    auto Res = GraphRef.Model->run(CxtRef.TorchInputs, Outputs);
+    if (Res && *Res == ErrNo::Success) {
+      CxtRef.TorchOutputs = std::move(Outputs);
+    }
+    return Res;
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Torch: Failed to run the model: {}"sv, EX.what());
     return ErrNo::RuntimeError;

@@ -43,6 +43,69 @@ if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
   set(GGML_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion plugin: Turn off accelerate")
 endif()
 
+wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusionCore
+  STATIC
+  sd_adapter_check.cpp
+  sd_image.cpp
+  sd_request.cpp
+)
+
+# sd_image.cpp compiles the stb decoders. They overflow signed integers on
+# crafted input. -fwrapv makes the overflow defined.
+set_source_files_properties(sd_image.cpp
+  PROPERTIES
+  COMPILE_OPTIONS -fwrapv
+)
+
+target_compile_options(wasmedgePluginWasmEdgeStableDiffusionCore
+  PUBLIC
+  -DWASMEDGE_PLUGIN
+)
+
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasmedgePluginWasmEdgeStableDiffusionCore
+    PUBLIC
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginWasmEdgeStableDiffusionCore
+    PUBLIC
+    wasmedge_shared
+  )
+endif()
+
+# Build simdjson from source and link it statically, so that every build has
+# the same parser. A simdjson of the build host (Homebrew has one) is a shared
+# library, and the plug-in would then need it at run time. simdjson takes its
+# library type from BUILD_SHARED_LIBS, so that variable is off here.
+set(WASMEDGE_FORCE_DOWNLOAD_SIMDJSON ON)
+set(BUILD_SHARED_LIBS OFF)
+wasmedge_setup_simdjson()
+target_link_libraries(wasmedgePluginWasmEdgeStableDiffusionCore
+  PRIVATE
+  simdjson::simdjson
+)
+
+# The headers of that simdjson come first. Another package of the build host
+# can bring the headers of the host's simdjson into the include path.
+target_include_directories(wasmedgePluginWasmEdgeStableDiffusionCore
+  SYSTEM BEFORE
+  PRIVATE
+  $<TARGET_PROPERTY:simdjson::simdjson,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+target_include_directories(wasmedgePluginWasmEdgeStableDiffusionCore
+  PUBLIC
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_include_directories(wasmedgePluginWasmEdgeStableDiffusionCore
+  SYSTEM
+  PRIVATE
+  "${stable-diffusion_SOURCE_DIR}/thirdparty"
+)
+
 
 wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
   SHARED
@@ -53,6 +116,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
 
 target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
   PRIVATE
+  wasmedgePluginWasmEdgeStableDiffusionCore
   stable-diffusion
   ${CMAKE_THREAD_LIBS_INIT}
 )

@@ -1,5 +1,9 @@
 wasmedge_add_executable(wasmedgeStableDiffusionTests
   wasmedge_stablediffusion.cpp
+  sd_abi_test.cpp
+  sd_adapter_check_test.cpp
+  sd_image_test.cpp
+  sd_request_test.cpp
 )
 
 add_dependencies(wasmedgeStableDiffusionTests
@@ -12,8 +16,16 @@ target_include_directories(wasmedgeStableDiffusionTests
     $<TARGET_PROPERTY:wasmedgePluginWasmEdgeStableDiffusion,INCLUDE_DIRECTORIES>
 )
 
+FetchContent_GetProperties(stable-diffusion)
+target_include_directories(wasmedgeStableDiffusionTests
+  SYSTEM
+  PRIVATE
+  "${stable-diffusion_SOURCE_DIR}/thirdparty"
+)
+
 target_link_libraries(wasmedgeStableDiffusionTests
   PRIVATE
+  wasmedgePluginWasmEdgeStableDiffusionCore
   ${GTEST_BOTH_LIBRARIES}
 )
 

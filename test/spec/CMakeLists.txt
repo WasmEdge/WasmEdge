@@ -65,3 +65,16 @@ target_link_libraries(wasmedgeTestSpec
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}
 )
+
+add_executable(wast2wat EXCLUDE_FROM_ALL
+  wast2wat.cpp
+  wast_parser.cpp
+)
+wasmedge_setup_target(wast2wat)
+
+target_link_libraries(wast2wat
+  PRIVATE
+  wasmedgeWat
+  wasmedgeCommon
+  std::filesystem
+)

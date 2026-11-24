@@ -516,6 +516,22 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
+  // Test: set_input -- tensor data shorter than the dimensions.
+  BuilderPtr = SetInputEntryPtr;
+  writeTensorDescriptor(
+      MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+      TensorType::F32, static_cast<uint32_t>(TensorData.size() - 4),
+      BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
@@ -533,6 +549,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
   StorePtr += (TensorDim.size() * 4 + TensorData.size());
+  // The input must be copied, so changes to the guest memory after set_input
+  // do not change the result of compute.
+  writeBinaries<uint8_t>(MemInst, std::vector<uint8_t>(TensorData.size()),
+                         StorePtr - static_cast<uint32_t>(TensorData.size()));
 
   // OpenVINO WASI-NN compute tests.
   // Test: compute -- context id exceeds.

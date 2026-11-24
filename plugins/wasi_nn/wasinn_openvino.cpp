@@ -111,12 +111,20 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
     return WASINN::ErrNo::InvalidArgument;
   }
 
+  if (!isDenseTensorSize(Tensor.Dimension, tensorElementSize(TensorType::F32),
+                         Tensor.Tensor.size())) {
+    spdlog::error("[WASI-NN] The tensor data size {} does not match the "
+                  "dimensions."sv,
+                  Tensor.Tensor.size());
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
   try {
-    ov::element::Type InputType = ov::element::f32;
     ov::Shape InputShape(Tensor.Dimension.data(),
                          Tensor.Dimension.data() + Tensor.Dimension.size());
-    ov::Tensor InputTensor =
-        ov::Tensor(InputType, InputShape, Tensor.Tensor.data());
+    ov::Tensor InputTensor(ov::element::f32, InputShape);
+    std::copy_n(Tensor.Tensor.data(), Tensor.Tensor.size(),
+                static_cast<uint8_t *>(InputTensor.data()));
 
     // Without an explicit hint OpenVINO infers in bf16 or f16 on CPUs that
     // support them, so the same F32 model would produce host-dependent output.

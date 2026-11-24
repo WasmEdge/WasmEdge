@@ -353,7 +353,12 @@ bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
   if (Buf.substr(8, 4) != Format) {
     return false;
   }
-  uint32_t ChunkSize = *reinterpret_cast<const uint32_t *>(Buf.data() + 4);
+  // RIFF stores the chunk size in little-endian byte order.
+  uint64_t ChunkSize = 0;
+  for (size_t I = 0; I < 4; ++I) {
+    ChunkSize |= static_cast<uint64_t>(static_cast<uint8_t>(Buf[4 + I]))
+                 << (8 * I);
+  }
   if (ChunkSize + 8 != Buf.size()) {
     return false;
   }

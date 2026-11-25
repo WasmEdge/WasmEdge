@@ -409,7 +409,6 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
       Run->setWaiter(Waiter);
     }
   }
-
   cxx20::scope_exit ScopeExitHolder([&]() noexcept {
     if (Run) {
       Run->setWaiter(nullptr);
@@ -424,25 +423,24 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
   });
 
   std::unique_lock<std::mutex> Locker(Waiter->Mutex);
-  // Check the stop token while holding the Waiter mutex. This pairs with
-  // StopState::requestStop(), which sets the token and then notifies under this
-  // same mutex, so the wait either sees the token or gets woken by the notify.
-  auto Woken = [Run, Waiter]() noexcept {
-    return (Run && Run->StopToken.load(std::memory_order_relaxed) != 0) ||
-           Waiter->Notified;
+  // StopState::requestStop() and StopState::setWaiter() set Interrupted under
+  // this same mutex, so the state alone decides the result.
+  using WaitState = Runtime::Instance::MemoryInstance::Waiter::WaitState;
+  auto Woken = [Waiter]() noexcept {
+    return Waiter->State != WaitState::Waiting;
   };
   if (!Until) {
     Waiter->Cond.wait(Locker, Woken);
-  } else {
-    Waiter->Cond.wait_until(Locker, *Until, Woken);
+  } else if (!Waiter->Cond.wait_until(Locker, *Until, Woken)) {
+    Waiter->State = WaitState::TimedOut;
   }
-  if (unlikely(Run && Run->StopToken.load(std::memory_order_relaxed) != 0)) {
-    return Unexpect(ErrCode::Value::Interrupted);
-  }
-  if (Waiter->Notified) {
+  if (Waiter->State == WaitState::Notified) {
     // Woken by memory.atomic.notify — return "ok" per the spec, regardless of
     // the current memory value.
     return static_cast<uint64_t>(0); // ok
+  }
+  if (unlikely(Waiter->State == WaitState::Interrupted)) {
+    return Unexpect(ErrCode::Value::Interrupted);
   }
   return static_cast<uint64_t>(2); // Timed-out
 }

@@ -310,6 +310,8 @@ private:
     }
 
     void unregister() noexcept;
+    /// Attach W to this run, or detach the waiter if W is null. If the run is
+    /// already stopped, mark W as interrupted, so that no notify takes it.
     void setWaiter(Runtime::Instance::MemoryInstance::Waiter *W) noexcept;
 
     Executor &Ex;

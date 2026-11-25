@@ -370,8 +370,8 @@ void Executor::StopState::requestStop() noexcept {
   std::unique_lock<std::mutex> Lock(Mutex);
   StopToken.store(1, std::memory_order_relaxed);
   if (Waiter) {
-    std::unique_lock<std::mutex> WaiterLock(Waiter->Mutex);
-    Waiter->Cond.notify_all();
+    Waiter->wake(
+        Runtime::Instance::MemoryInstance::Waiter::WaitState::Interrupted);
   }
 }
 
@@ -392,6 +392,9 @@ void Executor::StopState::setWaiter(
     Runtime::Instance::MemoryInstance::Waiter *W) noexcept {
   std::unique_lock<std::mutex> Lock(Mutex);
   Waiter = W;
+  if (W != nullptr && StopToken.load(std::memory_order_relaxed) != 0) {
+    W->wake(Runtime::Instance::MemoryInstance::Waiter::WaitState::Interrupted);
+  }
 }
 
 Executor::StopState::Scope::Scope(StopState &R) noexcept

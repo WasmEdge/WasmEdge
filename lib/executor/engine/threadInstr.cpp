@@ -55,18 +55,16 @@ Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
   auto &WaiterMap = MemInst.getWaiterMap();
   std::unique_lock<std::mutex> Locker(WaiterMapMtx);
   uint64_t Total = 0;
+  using WaitState = Runtime::Instance::MemoryInstance::Waiter::WaitState;
   auto Queue = WaiterMap.find(Address);
   if (Queue == WaiterMap.end()) {
     return Total;
   }
   for (auto Iterator = Queue->second.begin();
        Total < Count && Iterator != Queue->second.end(); ++Iterator) {
-    {
-      std::unique_lock<std::mutex> WaiterLocker(Iterator->Mutex);
-      Iterator->Notified = true;
+    if (Iterator->wake(WaitState::Notified)) {
+      ++Total;
     }
-    Iterator->Cond.notify_all();
-    ++Total;
   }
   return Total;
 }

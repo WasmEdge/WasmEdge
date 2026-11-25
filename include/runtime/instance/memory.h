@@ -404,12 +404,45 @@ public:
     return {};
   }
 
-  /// Waiter support for atomic wait/notify across threads.
+  /// Waiter support for atomic wait/notify across threads. The lock order is
+  /// a run list mutex or the waiter map mutex, then the mutex of a run, then
+  /// the mutex of a waiter.
   struct Waiter {
+    /// How the wait ends. The first notify, stop, or timeout sets it under
+    /// Mutex, and the wait returns the result that it gives. A waiter stays
+    /// in the queue until its thread removes it, and a notify skips a waiter
+    /// that is not Waiting.
+    enum class WaitState : uint8_t {
+      /// Nothing ended the wait yet.
+      Waiting,
+      /// A notify woke the waiter, so the wait returns ok.
+      Notified,
+      /// A stop of the run of the waiter ended the wait.
+      Interrupted,
+      /// The timeout of the wait ended it.
+      TimedOut,
+    };
     std::mutex Mutex;
     std::condition_variable Cond;
-    bool Notified = false;
+    /// Guarded by Mutex.
+    WaitState State = WaitState::Waiting;
     Waiter() noexcept = default;
+
+    /// End the wait with NewState and wake its thread, if nothing ended the
+    /// wait yet. Return true if this call ended the wait. The caller holds the
+    /// waiter map mutex or the mutex of the run of the waiter, so that the
+    /// waiter thread cannot remove the waiter before the wake.
+    bool wake(WaitState NewState) noexcept {
+      {
+        std::unique_lock<std::mutex> Locker(Mutex);
+        if (State != WaitState::Waiting) {
+          return false;
+        }
+        State = NewState;
+      }
+      Cond.notify_one();
+      return true;
+    }
   };
 
   std::mutex &getWaiterMapMutex() noexcept { return WaiterMapMutex; }

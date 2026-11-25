@@ -616,6 +616,46 @@ TEST(AtomicWaitNotify, RehashWhileWaiting) {
   EXPECT_TRUE(WaiterMap.empty());
 }
 
+/// A notify counts only the waiters that it wakes. A waiter stays in the
+/// queue until its thread returns, so a later notify skips a waiter that is
+/// already woken, whose wait already timed out, or whose run was stopped.
+TEST(AtomicWaitNotify, NotifyCountsOnlyWokenWaiters) {
+  using WaitState =
+      WasmEdge::Runtime::Instance::MemoryInstance::Waiter::WaitState;
+  const auto Ended = {WaitState::TimedOut, WaitState::Interrupted,
+                      WaitState::Notified};
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicThreads32));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto &MemInst = *VM.getActiveModule()->findMemoryExports("memory"sv);
+  {
+    std::unique_lock<std::mutex> Locker(MemInst.getWaiterMapMutex());
+    auto &Queue = MemInst.getWaiterMap()[UINT64_C(0)];
+    for (const auto State : Ended) {
+      Queue.emplace_back().State = State;
+    }
+    Queue.emplace_back();
+    Queue.emplace_back();
+  }
+  for (const uint32_t Woken : {1U, 1U, 0U}) {
+    auto Notified = VM.execute(
+        "notify"sv,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1)},
+        {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+         WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Notified);
+    EXPECT_EQ((*Notified)[0].first.get<uint32_t>(), Woken);
+  }
+  std::unique_lock<std::mutex> Locker(MemInst.getWaiterMapMutex());
+  auto Waiter = MemInst.getWaiterMap()[UINT64_C(0)].begin();
+  for (const auto State : Ended) {
+    EXPECT_EQ((Waiter++)->State, State);
+  }
+}
+
 // (module
 //   (memory (export "memory") 1 1 shared)
 //   (func (export "wait32") (param i32 i32 i64) (result i32)
@@ -718,14 +758,12 @@ protected:
       return;
     }
     auto *MemInst = ModInst->findMemoryExports("memory"sv);
+    using WaitState =
+        WasmEdge::Runtime::Instance::MemoryInstance::Waiter::WaitState;
     std::unique_lock<std::mutex> Locker(MemInst->getWaiterMapMutex());
     for (auto &[Address, Queue] : MemInst->getWaiterMap()) {
       for (auto &Waiter : Queue) {
-        {
-          std::unique_lock<std::mutex> WaiterLocker(Waiter.Mutex);
-          Waiter.Notified = true;
-        }
-        Waiter.Cond.notify_all();
+        Waiter.wake(WaitState::Notified);
       }
     }
   }
@@ -936,6 +974,23 @@ TEST_F(StopTest, CancelStopsOnlyItsRun) {
   auto Result = result(Waiter2);
   ASSERT_TRUE(Result);
   EXPECT_EQ(*Result, 0U);
+}
+
+/// A cancelled waiter does not take a notify, also before its thread wakes,
+/// so the notify wakes the next waiter of the address.
+TEST_F(StopTest, NotifySkipsCancelledWaiter) {
+  auto &Waiter1 = startWait(0);
+  ASSERT_TRUE(waitForWaiters({}, 1));
+  auto &Waiter2 = startWait(0);
+  ASSERT_TRUE(waitForWaiters({}, 2));
+  Waiter1.cancel();
+  auto Notified = notify(0, 1);
+  ASSERT_TRUE(Notified);
+  EXPECT_EQ(*Notified, 1U);
+  auto Result = result(Waiter2);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ(*Result, 0U);
+  expectInterrupted(Waiter1);
 }
 
 TEST_F(StopTest, CancelOfFinishedRunKeepsOtherRuns) {

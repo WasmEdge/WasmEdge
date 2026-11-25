@@ -33,6 +33,9 @@ struct vector_ext_intrinsics<T, N, std::enable_if_t<N * sizeof(T) == 16>> {
   using storage_type =
       typename simd_backend<T, vector_ext_abi<N>>::storage_type;
   using backend = simd_backend<T, m128i_abi<N>>;
+  // Tells whether the rounding works on the bit pattern with integer
+  // instructions.
+  static constexpr bool integer_rounding = backend::integer_rounding;
 
   static __m128i to_m128i(const storage_type &S) noexcept {
     return cxx20::bit_cast<__m128i>(S);

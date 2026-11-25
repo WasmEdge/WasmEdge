@@ -244,6 +244,9 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
 
   // std::round_to_nearest rounds ties to even, the IEEE default.
 #if defined(__SSE4_1__) || defined(__AVX__)
+  // Tells whether round works on the bit pattern with integer instructions.
+  static constexpr bool integer_rounding = false;
+
   template <std::float_round_style R>
   static storage_type round(const storage_type &A) noexcept {
     constexpr int Mode =
@@ -262,6 +265,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
   // x86 has no rounding instruction before SSE4.1. The rounding works on the
   // bit pattern with integer instructions, so it does not depend on the MXCSR
   // rounding mode or on denormals-are-zero.
+  static constexpr bool integer_rounding = true;
   using int_type = integer_from_t<sizeof(T)>;
   static constexpr int mantissa_bits = std::numeric_limits<T>::digits - 1;
   static constexpr int_type exponent_bias =

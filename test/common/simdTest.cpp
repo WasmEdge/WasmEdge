@@ -261,15 +261,29 @@ template <class F, class T> void checkRounding() {
 }
 
 #if defined(_M_X64) || defined(__SSE2__)
+template <class F> struct BackendOf;
+template <template <simd_size_type> class Abi> struct BackendOf<Family<Abi>> {
+  using type = simd::detail::simd_backend<float, Abi<4>>;
+};
+
 // The x86 rounding without SSE4.1 must not depend on the MXCSR rounding mode
-// or on denormals-are-zero. The other backends round with libm, the compiler
-// expansion of it, or an instruction, as the scalar instructions do.
-template <class F> constexpr bool exactRoundingOnX86() {
-#if !defined(__SSE4_1__) && !defined(__AVX__)
-  return !std::is_same_v<F, ArrayFamily>;
-#else
-  return false;
+// or on denormals-are-zero. The m128i backend reports that it uses it, and the
+// vector_ext backend reports it through its SSE2 intrinsics. The members are
+// read by name, so a backend that loses one fails to compile instead of
+// skipping the checks.
+template <class F> struct IntegerRounding : std::false_type {};
+template <>
+struct IntegerRounding<M128iFamily>
+    : std::bool_constant<BackendOf<M128iFamily>::type::integer_rounding> {};
+#if defined(__GNUC__) || defined(__clang__)
+template <>
+struct IntegerRounding<VectorExtFamily>
+    : std::bool_constant<
+          BackendOf<VectorExtFamily>::type::intrinsics::integer_rounding> {};
 #endif
+
+template <class F> constexpr bool usesIntegerRounding() {
+  return IntegerRounding<F>::value;
 }
 
 template <class F, class T> void checkRoundingIgnoresRoundingMode() {
@@ -531,7 +545,7 @@ TYPED_TEST(SimdTest, RoundingMatchesScalar) {
 
 #if defined(_M_X64) || defined(__SSE2__)
 TYPED_TEST(SimdTest, RoundingIgnoresRoundingMode) {
-  if constexpr (!exactRoundingOnX86<TypeParam>()) {
+  if (!usesIntegerRounding<TypeParam>()) {
     GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
   } else {
     checkRoundingIgnoresRoundingMode<TypeParam, float>();
@@ -540,7 +554,7 @@ TYPED_TEST(SimdTest, RoundingIgnoresRoundingMode) {
 }
 
 TYPED_TEST(SimdTest, RoundingIgnoresDenormalsAreZero) {
-  if constexpr (!exactRoundingOnX86<TypeParam>()) {
+  if (!usesIntegerRounding<TypeParam>()) {
     GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
   } else {
     checkRoundingIgnoresDenormalsAreZero<TypeParam, float>();

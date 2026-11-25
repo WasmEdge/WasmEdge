@@ -3,11 +3,13 @@
 
 #include "experimental/simd.hpp"
 #include "common/nan.h"
+#include "common/span.h"
 #include "common/types.h"
 #include "experimental/bit.hpp"
 #include "experimental/math.hpp"
 #include "experimental/simd/ext.hpp"
 
+#include <array>
 #include <atomic>
 #include <cfenv>
 #include <cmath>
@@ -15,6 +17,7 @@
 #include <cstring>
 #include <functional>
 #include <gtest/gtest.h>
+#include <iomanip>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -240,24 +243,115 @@ template <class T> bool sameFloat(T Got, T Want) {
   return bitsOf(Got) == bitsOf(Want);
 }
 
+template <class F, class T> using Lanes = std::array<T, V16<F, T>::size>;
+template <class F, class T> using VectorFn = V16<F, T> (*)(const V16<F, T> &);
+
+// An operation on vectors and the scalar function that it must match in each
+// lane.
+template <class F, class T> struct LaneOp {
+  const char *Name;
+  VectorFn<F, T> Vector;
+  T (*Scalar)(T);
+};
+
+template <class F, class T> constexpr LaneOp<F, T> sqrtOp() {
+  using V = V16<F, T>;
+  return {"sqrt", [](const V &X) -> V { return simd::sqrt(X); },
+          [](T Y) -> T { return std::sqrt(Y); }};
+}
+
+template <class F, class T> constexpr std::array<LaneOp<F, T>, 4> roundOps() {
+  using V = V16<F, T>;
+  return {{
+      {"ceil", [](const V &X) -> V { return simd::ceil(X); },
+       [](T Y) -> T { return std::ceil(Y); }},
+      {"floor", [](const V &X) -> V { return simd::floor(X); },
+       [](T Y) -> T { return std::floor(Y); }},
+      {"trunc", [](const V &X) -> V { return simd::trunc(X); },
+       [](T Y) -> T { return std::trunc(Y); }},
+      {"roundeven",
+       [](const V &X) -> V { return cxx26::simd_ext::roundeven(X); },
+       [](T Y) -> T { return cxx26::roundeven(Y); }},
+  }};
+}
+
+// Fills the lanes with Count values from Values + K on, and wraps to the
+// front. It copies bytes, so a signaling NaN stays signaling.
+template <class F, class T>
+Lanes<F, T> loadLanes(const T *Values, std::size_t Count, std::size_t K) {
+  Lanes<F, T> In{};
+  for (std::size_t I = 0; I < In.size(); ++I) {
+    std::memcpy(&In[I], &Values[(K + I) % Count], sizeof(T));
+  }
+  return In;
+}
+
+// Converts between lanes and a vector without a floating-point instruction.
+template <class F, class T> V16<F, T> toVector(const Lanes<F, T> &In) {
+  return cxx20::bit_cast<V16<F, T>>(In);
+}
+template <class F, class T> Lanes<F, T> toLanes(const V16<F, T> &X) {
+  return cxx20::bit_cast<Lanes<F, T>>(X);
+}
+
+// Applies Fn to X and writes the result to Y.
+template <class F, class T>
+void applyVector(VectorFn<F, T> Fn, const V16<F, T> &X, V16<F, T> &Y) {
+  Y = Fn(X);
+}
+
+template <class F, class T>
+void expectLanes(const LaneOp<F, T> &Op, const Lanes<F, T> &In,
+                 const Lanes<F, T> &Out) {
+  for (std::size_t I = 0; I < In.size(); ++I) {
+    const T Want = Op.Scalar(In[I]);
+    EXPECT_TRUE(sameFloat(Out[I], Want))
+        << std::setprecision(std::numeric_limits<T>::max_digits10) << Op.Name
+        << '(' << In[I] << ") in lane " << I << " is " << Out[I] << ", not "
+        << Want;
+  }
+}
+
+// Fills a vector with each batch of Values in turn and passes the lanes and
+// the vector to Check.
+template <class F, class T, class C>
+void forEachBatch(WasmEdge::Span<const T> Values, C Check) {
+  for (std::size_t K = 0; K < Values.size(); K += V16<F, T>::size) {
+    const auto In = loadLanes<F, T>(Values.data(), Values.size(), K);
+    Check(In, toVector<F, T>(In));
+    if (::testing::Test::HasFatalFailure()) {
+      return;
+    }
+  }
+}
+
+// Lets Run apply Op to each batch of Values, and compares each lane of the
+// result with the scalar reference. Run can change the floating-point
+// environment around the call. The vector is ready before Run starts, and Run
+// ends before the test reads the lanes.
+template <class F, class T, class R>
+void checkBatches(const LaneOp<F, T> &Op, WasmEdge::Span<const T> Values,
+                  R Run) {
+  forEachBatch<F, T>(Values,
+                     [&Op, &Run](const Lanes<F, T> &In, const V16<F, T> &X) {
+                       V16<F, T> Y{};
+                       Run(Op, X, Y);
+                       if (::testing::Test::HasFatalFailure()) {
+                         return;
+                       }
+                       expectLanes(Op, In, toLanes<F, T>(Y));
+                     });
+}
+
 template <class F, class T> void checkRounding() {
   using V = V16<F, T>;
-  const auto In = roundingValues<T>();
-  for (std::size_t K = 0; K < In.size(); K += V::size) {
-    const V X([&](auto I) { return In[(K + I) % In.size()]; });
-    const V Sqrt = simd::sqrt(X);
-    const V Ceil = simd::ceil(X);
-    const V Floor = simd::floor(X);
-    const V Trunc = simd::trunc(X);
-    const V RoundEven = cxx26::simd_ext::roundeven(X);
-    for (simd_size_type I = 0; I < V::size; ++I) {
-      const T Y = X[I];
-      EXPECT_TRUE(sameFloat(Sqrt[I], std::sqrt(Y))) << Y;
-      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y))) << Y;
-      EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y))) << Y;
-      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y))) << Y;
-      EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y))) << Y;
-    }
+  const auto Values = roundingValues<T>();
+  const auto Apply = [](const LaneOp<F, T> &Op, const V &X, V &Y) {
+    applyVector<F, T>(Op.Vector, X, Y);
+  };
+  checkBatches<F, T>(sqrtOp<F, T>(), Values, Apply);
+  for (const auto &Op : roundOps<F, T>()) {
+    checkBatches<F, T>(Op, Values, Apply);
   }
 }
 

@@ -2580,6 +2580,61 @@ TEST(ExecutorRegression, ReentryThroughOtherExecutorSharesRun) {
   EXPECT_EQ(Res.error(), ErrCode::Value::Interrupted);
 }
 
+/// Host function that returns 7, and stops the executor that calls it when
+/// Stop is set.
+class ReturnSeven : public Runtime::HostFunction<ReturnSeven> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame) {
+    if (Stop) {
+      Frame.getExecutor()->stop();
+    }
+    return UINT32_C(7);
+  }
+  bool Stop = false;
+};
+
+/// Host function that counts its calls.
+class CountCalls : public Runtime::HostFunction<CountCalls> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t) {
+    ++Count;
+    return {};
+  }
+  uint32_t Count = 0;
+};
+
+/// A call of a component function is one run. A stop request from its core
+/// function makes the call fail, and the post-return function does not run.
+TEST(ExecutorRegression, ComponentCallIsOneRun) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Executor::Executor Executor(Conf);
+  Runtime::Instance::ModuleInstance HostMod("host");
+  auto CoreP = std::make_unique<ReturnSeven>();
+  auto &Core = *CoreP;
+  HostMod.addHostFunc("core", std::move(CoreP));
+  auto PostReturnP = std::make_unique<CountCalls>();
+  auto &PostReturn = *PostReturnP;
+  HostMod.addHostFunc("post_return", std::move(PostReturnP));
+  const AST::Component::FuncType Type({},
+                                      ComponentValType(ComponentTypeCode::U32));
+  const Runtime::Instance::Component::FunctionInstance Func(
+      Type, HostMod.findFuncExports("core"), nullptr, nullptr, nullptr,
+      HostMod.findFuncExports("post_return"));
+
+  auto Res = Executor.invoke(&Func, {}, {});
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ(std::get<uint32_t>((*Res)[0].first), 7U);
+  EXPECT_EQ(PostReturn.Count, 1U);
+
+  Core.Stop = true;
+  Res = Executor.invoke(&Func, {}, {});
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::Interrupted);
+  EXPECT_EQ(PostReturn.Count, 1U);
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();
   testing::InitGoogleTest(&argc, argv);

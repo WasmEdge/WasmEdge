@@ -247,6 +247,12 @@ public:
   /// after it checks its arguments, and a core module instantiation starts its
   /// run when it calls the start function. A stop that comes before that does
   /// not reach them.
+  ///
+  /// A call of a component function is one run, so a stop that reaches it
+  /// before the post-return function starts also skips the post-return
+  /// function. The memory that the callee allocated for the results then stays
+  /// allocated, so discard the component instance after such a stop, as after a
+  /// trap.
   void stop() noexcept;
 
 private:

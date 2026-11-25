@@ -1241,8 +1241,10 @@ private:
     return {};
   }
 
-  /// Find the preopened directory which the guest path is under, as the WASI
-  /// libc does, and leave the path relative to it.
+  /// Find the preopened directory that contains the guest path. On return, the
+  /// path is relative to that directory. The longest name wins. Among equal
+  /// names, the last preopened one wins, as in the WASI libc. Unlike the WASI
+  /// libc, this function first drops every leading "/" and "./" of the path.
   WasiExpect<std::shared_ptr<VINode>>
   findPreopen(std::string_view &Path) const noexcept;
 

@@ -2635,6 +2635,86 @@ TEST(ExecutorRegression, ComponentCallIsOneRun) {
   EXPECT_EQ(PostReturn.Count, 1U);
 }
 
+/// Host function that counts its calls.
+class CountMarks : public Runtime::HostFunction<CountMarks> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &) {
+    ++Count;
+    return {};
+  }
+  uint32_t Count = 0;
+};
+
+/// Instantiation of a component is one run. A stop request from the start
+/// function of one core instance keeps the start function of the next core
+/// instance from running.
+TEST(ExecutorRegression, ComponentInstantiationIsOneRun) {
+  // (component
+  //   (type (instance (type (func)) (export "stop" (func (type 0)))
+  //                   (export "mark" (func (type 0)))))
+  //   (import "host" (instance (type 0)))
+  //   (alias export 0 "stop" (func))
+  //   (alias export 0 "mark" (func))
+  //   (core func (canon lower (func 0)))
+  //   (core func (canon lower (func 1)))
+  //   (core instance (export "stop" (func 0)) (export "mark" (func 1)))
+  //   (core module (import "host" "stop" (func $s)) (start $s))
+  //   (core module (import "host" "mark" (func $m)) (start $m))
+  //   (core instance (instantiate 0 (with "host" (instance 0))))
+  //   (core instance (instantiate 1 (with "host" (instance 0)))))
+  std::array<WasmEdge::Byte, 187> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x1a, 0x01, 0x42,
+      0x03, 0x01, 0x40, 0x00, 0x01, 0x00, 0x04, 0x00, 0x04, 0x73, 0x74, 0x6f,
+      0x70, 0x01, 0x00, 0x04, 0x00, 0x04, 0x6d, 0x61, 0x72, 0x6b, 0x01, 0x00,
+      0x0a, 0x09, 0x01, 0x00, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x05, 0x00, 0x06,
+      0x11, 0x02, 0x01, 0x00, 0x00, 0x04, 0x73, 0x74, 0x6f, 0x70, 0x01, 0x00,
+      0x00, 0x04, 0x6d, 0x61, 0x72, 0x6b, 0x08, 0x09, 0x02, 0x01, 0x00, 0x00,
+      0x00, 0x01, 0x00, 0x01, 0x00, 0x02, 0x11, 0x01, 0x01, 0x02, 0x04, 0x73,
+      0x74, 0x6f, 0x70, 0x00, 0x00, 0x04, 0x6d, 0x61, 0x72, 0x6b, 0x00, 0x01,
+      0x01, 0x20, 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x02, 0x0d, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74,
+      0x04, 0x73, 0x74, 0x6f, 0x70, 0x00, 0x00, 0x08, 0x01, 0x00, 0x01, 0x20,
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x0d, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x04, 0x6d,
+      0x61, 0x72, 0x6b, 0x00, 0x00, 0x08, 0x01, 0x00, 0x02, 0x15, 0x02, 0x00,
+      0x00, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x12, 0x00, 0x00, 0x01, 0x01,
+      0x04, 0x68, 0x6f, 0x73, 0x74, 0x12, 0x00};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  Executor::Executor Executor(Conf);
+  Runtime::StoreManager Store;
+
+  Runtime::Instance::ModuleInstance HostMod("host");
+  HostMod.addHostFunc("stop", std::make_unique<StopExecutor>());
+  auto MarkP = std::make_unique<CountMarks>();
+  auto &Mark = *MarkP;
+  HostMod.addHostFunc("mark", std::move(MarkP));
+  const AST::Component::FuncType Type({}, std::nullopt);
+  Runtime::Instance::ComponentInstance HostComp("host");
+  HostComp.addFunction(
+      std::make_unique<Runtime::Instance::Component::FunctionInstance>(
+          Type, HostMod.findFuncExports("stop"), nullptr, nullptr, nullptr));
+  HostComp.exportFunction("stop", 0);
+  HostComp.addFunction(
+      std::make_unique<Runtime::Instance::Component::FunctionInstance>(
+          Type, HostMod.findFuncExports("mark"), nullptr, nullptr, nullptr));
+  HostComp.exportFunction("mark", 1);
+  ASSERT_TRUE(Executor.registerComponent(Store, HostComp));
+
+  auto Unit = Loader.parseWasmUnit(Wasm);
+  ASSERT_TRUE(Unit);
+  using CompPtr = std::unique_ptr<AST::Component::Component>;
+  ASSERT_TRUE(std::holds_alternative<CompPtr>(*Unit));
+  const auto &Comp = *std::get<CompPtr>(*Unit);
+  ASSERT_TRUE(Validator.validate(Comp));
+  auto Res = Executor.instantiateComponent(Store, Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::Interrupted);
+  EXPECT_EQ(Mark.Count, 0U);
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();
   testing::InitGoogleTest(&argc, argv);

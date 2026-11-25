@@ -17,6 +17,7 @@ Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       const AST::Component::Component &Comp,
                       std::optional<std::string_view> Name) {
+  RunScope Run(*this);
   auto CompInst =
       std::make_unique<Runtime::Instance::ComponentInstance>(Name.value_or(""));
 

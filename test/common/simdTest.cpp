@@ -604,6 +604,23 @@ template <class F, class T> void checkRoundingRaisesNoException() {
 }
 #endif
 
+// WasmEdge stores lane I of a 16-byte value at bytes [I * sizeof(T),
+// (I + 1) * sizeof(T)), as an array of T. Each byte of the pattern is distinct,
+// so a swap of lanes or of bytes in a lane changes the result.
+template <class F, class T> void checkRawLanes() {
+  using V = V16<F, T>;
+  std::array<T, V::size> Want{};
+  for (std::size_t I = 0; I < Want.size(); ++I) {
+    std::uint64_t Lane = 0;
+    for (std::size_t B = 0; B < sizeof(T); ++B) {
+      Lane |= std::uint64_t(0x10U + I * sizeof(T) + B) << (8 * B);
+    }
+    Want[I] = static_cast<T>(Lane);
+  }
+  const V X([&](auto I) { return Want[I]; });
+  EXPECT_EQ((cxx20::bit_cast<std::array<T, V::size>>(X)), Want) << sizeof(T);
+}
+
 template <class F, class T> void checkMaskBits() {
   using V = V16<F, T>;
   constexpr unsigned long long All = (1ULL << V::size) - 1;
@@ -648,6 +665,10 @@ TYPED_TEST(SimdTest, Layout) {
   EXPECT_EQ(simd::alignment_v<F64>, 16U);
   EXPECT_TRUE(std::is_trivially_copyable_v<U8>);
   EXPECT_TRUE(std::is_trivially_default_constructible_v<F64>);
+  checkRawLanes<TypeParam, std::uint8_t>();
+  checkRawLanes<TypeParam, std::uint16_t>();
+  checkRawLanes<TypeParam, std::uint32_t>();
+  checkRawLanes<TypeParam, std::uint64_t>();
 }
 
 TYPED_TEST(SimdTest, BroadcastKeepsNegativeZero) {

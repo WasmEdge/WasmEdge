@@ -25,6 +25,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <set>
 #include <shared_mutex>
 #include <type_traits>
 #include <unordered_map>
@@ -305,6 +306,8 @@ private:
     /// First block of the slot in the high half, slot size in the low half.
     std::atomic<uint64_t> Info = 0;
     std::atomic<std::atomic<uint64_t> *> LiveBits = nullptr;
+    /// Live slots of a small slot block.
+    uint32_t Used = 0;
   };
 
   struct Part {
@@ -363,9 +366,20 @@ private:
                                   bool Live) noexcept;
   Expect<uint32_t> allocateData(HeapKind Kind, uint64_t Size, uint32_t TypeId,
                                 uint32_t Length) noexcept;
+  /// Prepare the spare index entries and the spare bitmap. Call it with
+  /// `DataMutex` held, before a data allocation changes any state, or before
+  /// a free changes the indexes.
+  void reserveData();
   Expect<uint32_t> takeBlocks(uint32_t Count) noexcept;
-  void setupBlocks(uint32_t Start, uint32_t Count, uint32_t SlotSize);
+  /// Add the free blocks to the free runs and merge the run with neighbor
+  /// runs that are contiguous in host memory. Uses the spare index entries.
+  void addRun(uint32_t Start, uint32_t Count) noexcept;
+  /// Mark the blocks as one slot of `SlotSize` bytes, or as a block of small
+  /// slots. The first block takes the spare bitmap if it has no bitmap.
+  void setupBlocks(uint32_t Start, uint32_t Count, uint32_t SlotSize) noexcept;
   void freeObject(uint32_t Off) noexcept;
+  /// Make the data slot at `Off` dead, then give its space back. If the
+  /// index entries cannot be prepared, the space stays out of the indexes.
   void freeData(uint32_t Off) noexcept;
   void initHeader(uint8_t *Slot, HeapKind Kind, uint32_t Off,
                   bool Live) noexcept;
@@ -394,8 +408,18 @@ private:
   std::mutex DataMutex;
   uint32_t DataTop = 0;
   uint32_t DataCommitted = 0;
-  std::multimap<uint32_t, uint32_t> FreeRuns;
-  std::vector<uint32_t> ClassFree[kClassCount];
+  /// Free block runs as (block count, first block) pairs.
+  std::set<std::pair<uint32_t, uint32_t>> FreeRuns;
+  /// Free block runs by first block.
+  std::map<uint32_t, uint32_t> RunStarts;
+  /// Small slot blocks with a free slot, for each size class.
+  std::set<uint32_t> ClassBlocks[kClassCount];
+  /// Entries and a bitmap that `reserveData` prepares, so that the indexes
+  /// can change without an allocation.
+  decltype(FreeRuns)::node_type SpareRun;
+  decltype(RunStarts)::node_type SpareStart;
+  std::set<uint32_t>::node_type SpareClass;
+  std::unique_ptr<std::atomic<uint64_t>[]> SpareBitmap;
   Part Parts[kPartCount];
   std::mutex BoxMutex;
   std::unordered_map<const void *, const ExternBox *> Boxes;

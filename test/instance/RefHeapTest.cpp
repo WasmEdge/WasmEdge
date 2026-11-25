@@ -11,7 +11,9 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <new>
 #include <set>
 #include <thread>
 #include <vector>
@@ -56,6 +58,29 @@ public:
 };
 
 } // namespace
+
+namespace {
+/// Allocations that the replaced `operator new` allows on this thread before
+/// it throws, or a negative number for no limit.
+thread_local int AllowedNews = -1;
+thread_local uint64_t NewCount = 0;
+} // namespace
+
+void *operator new(std::size_t Size) {
+  ++NewCount;
+  if (AllowedNews == 0) {
+    throw std::bad_alloc();
+  }
+  if (AllowedNews > 0) {
+    --AllowedNews;
+  }
+  if (void *P = std::malloc(Size == 0 ? 1 : Size)) {
+    return P;
+  }
+  throw std::bad_alloc();
+}
+void operator delete(void *P) noexcept { std::free(P); }
+void operator delete(void *P, std::size_t) noexcept { std::free(P); }
 
 namespace WasmEdge::Runtime {
 template <> struct HeapTraits<TestData> {
@@ -271,6 +296,76 @@ TEST_P(RefHeapModes, Full) {
     EXPECT_EQ(F.error(), ErrCode::Value::RefHeapFull);
     EXPECT_TRUE(Heap->allocate(HeapKind::Exception, 64));
   }
+}
+
+TEST_P(RefHeapModes, EmptyBlocksReturn) {
+  MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  std::vector<uint32_t> Small;
+  while (auto S = Heap->allocate(HeapKind::Struct, 64)) {
+    Small.push_back(*S);
+  }
+  EXPECT_EQ(Small.size(), 3U * 65536 / 64);
+  for (const auto Off : Small) {
+    Heap->free(Off);
+  }
+  auto A = Heap->allocate(HeapKind::Array, 3 * 65536);
+  ASSERT_TRUE(A);
+  EXPECT_TRUE(Heap->getDataSpan(*A, 0, 3 * 65536));
+  Heap->free(*A);
+  for (uint32_t I = 0; I < 3 * 65536 / 128; ++I) {
+    ASSERT_TRUE(Heap->allocate(HeapKind::Struct, 128)) << I;
+  }
+  EXPECT_FALSE(Heap->allocate(HeapKind::Struct, 64));
+}
+
+TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
+  MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  const uint64_t Before = NewCount;
+  AllowedNews = 0;
+  auto First = Heap->allocate(HeapKind::Array, 2 * 65536);
+  AllowedNews = -1;
+  if (NewCount == Before) {
+    GTEST_SKIP() << "the replaced operator new does not reach the heap";
+  }
+  ASSERT_FALSE(First);
+  EXPECT_EQ(First.error(), ErrCode::Value::RefHeapFull);
+
+  for (int N = 1; N < 16; ++N) {
+    std::vector<uint32_t> Offs;
+    Offs.reserve(4);
+    AllowedNews = N;
+    for (const uint64_t Size :
+         {UINT64_C(40), UINT64_C(2) * 65536, UINT64_C(64), UINT64_C(1000)}) {
+      if (auto Off = Heap->allocate(HeapKind::Struct, Size)) {
+        Offs.push_back(*Off);
+      }
+    }
+    AllowedNews = -1;
+    for (const auto Off : Offs) {
+      Heap->free(Off);
+    }
+  }
+  auto All = Heap->allocate(HeapKind::Array, 3 * 65536);
+  ASSERT_TRUE(All);
+  Heap->free(*All);
+
+  MAKE_HEAP_OR_SKIP(Fresh, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  auto Large = Fresh->allocate(HeapKind::Array, 2 * 65536);
+  ASSERT_TRUE(Large);
+  AllowedNews = 0;
+  Fresh->free(*Large);
+  AllowedNews = -1;
+  EXPECT_EQ(Fresh->getHeader(*Large), nullptr);
+  EXPECT_FALSE(Fresh->getDataSpan(*Large, 0, 32));
+  auto Small = Fresh->allocate(HeapKind::Struct, 64);
+  ASSERT_TRUE(Small);
+  AllowedNews = 0;
+  Fresh->free(*Small);
+  AllowedNews = -1;
+  EXPECT_EQ(Fresh->getHeader(*Small), nullptr);
+  auto Again = Fresh->allocate(HeapKind::Struct, 64);
+  ASSERT_TRUE(Again);
+  EXPECT_NE(Fresh->getHeader(*Again), nullptr);
 }
 
 TEST_P(RefHeapModes, LoadStore) {

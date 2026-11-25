@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <limits>
 #include <new>
 
@@ -271,14 +272,16 @@ Expect<uint32_t> RefHeap::allocateObject(HeapKind Kind, uint64_t Size,
 }
 
 Expect<uint32_t> RefHeap::takeBlocks(uint32_t Count) noexcept {
-  if (auto It = FreeRuns.lower_bound(Count); It != FreeRuns.end()) {
-    const uint32_t Have = It->first;
-    const uint32_t Start = It->second;
+  if (auto It = FreeRuns.lower_bound({Count, 0}); It != FreeRuns.end()) {
+    const auto [Have, Start] = *It;
     auto Node = FreeRuns.extract(It);
+    auto StartNode = RunStarts.extract(Start);
     if (Have > Count) {
-      Node.key() = Have - Count;
-      Node.mapped() = Start + Count;
+      Node.value() = {Have - Count, Start + Count};
       FreeRuns.insert(std::move(Node));
+      StartNode.key() = Start + Count;
+      StartNode.mapped() = Have - Count;
+      RunStarts.insert(std::move(StartNode));
     }
     return Start;
   }
@@ -305,10 +308,7 @@ Expect<uint32_t> RefHeap::takeBlocks(uint32_t Count) noexcept {
         return Unexpect(ErrCode::Value::RefHeapFull);
       }
       if (DataTop < Start) {
-        try {
-          FreeRuns.emplace(Start - DataTop, DataTop);
-        } catch (const std::bad_alloc &) {
-        }
+        addRun(DataTop, Start - DataTop);
       }
       DataCommitted = End * kBlocksPerChunk;
     }
@@ -317,19 +317,75 @@ Expect<uint32_t> RefHeap::takeBlocks(uint32_t Count) noexcept {
   return Start;
 }
 
-void RefHeap::setupBlocks(uint32_t Start, uint32_t Count, uint32_t SlotSize) {
-  for (uint32_t B = Start; B < Start + Count; ++B) {
-    auto &Blk = Blocks[B];
-    if (Blk.LiveBits.load(std::memory_order_relaxed) == nullptr) {
-      auto Bits = std::make_unique<std::atomic<uint64_t>[]>(kBitmapWords);
-      for (uint32_t I = 0; I < kBitmapWords; ++I) {
-        std::atomic_init(&Bits[I], UINT64_C(0));
-      }
-      Bitmaps.push_back(std::move(Bits));
-      Blk.LiveBits.store(Bitmaps.back().get(), std::memory_order_release);
+void RefHeap::reserveData() {
+  if (!SpareRun) {
+    decltype(FreeRuns) Tmp;
+    Tmp.emplace(0, 0);
+    SpareRun = Tmp.extract(Tmp.begin());
+  }
+  if (!SpareStart) {
+    decltype(RunStarts) Tmp;
+    Tmp.emplace(0, 0);
+    SpareStart = Tmp.extract(Tmp.begin());
+  }
+  if (!SpareClass) {
+    std::set<uint32_t> Tmp;
+    Tmp.insert(0);
+    SpareClass = Tmp.extract(Tmp.begin());
+  }
+  if (!SpareBitmap) {
+    auto Bits = std::make_unique<std::atomic<uint64_t>[]>(kBitmapWords);
+    for (uint32_t I = 0; I < kBitmapWords; ++I) {
+      std::atomic_init(&Bits[I], UINT64_C(0));
     }
-    Blk.Info.store((static_cast<uint64_t>(Start) << 32) | SlotSize,
-                   std::memory_order_release);
+    SpareBitmap = std::move(Bits);
+  }
+  if (Bitmaps.size() == Bitmaps.capacity()) {
+    Bitmaps.reserve(Bitmaps.size() * 2 + 1);
+  }
+}
+
+void RefHeap::addRun(uint32_t Start, uint32_t Count) noexcept {
+  auto Joins = [this](uint32_t First, uint32_t N, uint32_t Next) {
+    return reinterpret_cast<uintptr_t>(getDataAddr(First << kBlockShift)) +
+               (static_cast<uintptr_t>(N) << kBlockShift) ==
+           reinterpret_cast<uintptr_t>(getDataAddr(Next << kBlockShift));
+  };
+  auto Next = RunStarts.lower_bound(Start);
+  if (Next != RunStarts.end() && Next->first == Start + Count &&
+      Joins(Start, Count, Next->first)) {
+    FreeRuns.erase({Next->second, Next->first});
+    Count += Next->second;
+    Next = RunStarts.erase(Next);
+  }
+  if (Next != RunStarts.begin()) {
+    if (auto Prev = std::prev(Next); Prev->first + Prev->second == Start &&
+                                     Joins(Prev->first, Prev->second, Start)) {
+      FreeRuns.erase({Prev->second, Prev->first});
+      Start = Prev->first;
+      Count += Prev->second;
+      RunStarts.erase(Prev);
+    }
+  }
+  assuming(SpareStart && SpareRun);
+  SpareStart.key() = Start;
+  SpareStart.mapped() = Count;
+  RunStarts.insert(std::move(SpareStart));
+  SpareRun.value() = {Count, Start};
+  FreeRuns.insert(std::move(SpareRun));
+}
+
+void RefHeap::setupBlocks(uint32_t Start, uint32_t Count,
+                          uint32_t SlotSize) noexcept {
+  auto &First = Blocks[Start];
+  if (First.LiveBits.load(std::memory_order_relaxed) == nullptr) {
+    assuming(SpareBitmap && Bitmaps.size() < Bitmaps.capacity());
+    Bitmaps.push_back(std::move(SpareBitmap));
+    First.LiveBits.store(Bitmaps.back().get(), std::memory_order_release);
+  }
+  for (uint32_t B = Start; B < Start + Count; ++B) {
+    Blocks[B].Info.store((static_cast<uint64_t>(Start) << 32) | SlotSize,
+                         std::memory_order_release);
   }
 }
 
@@ -349,23 +405,43 @@ Expect<uint32_t> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
   std::unique_lock Lock(DataMutex);
+  reserveData();
   uint32_t Off;
   uint32_t SlotIdx = 0;
   if (Size <= kMaxSmallSize) {
     const uint32_t Class = getClassIndex(Size);
     const uint32_t SlotSize = UINT32_C(1) << (Class + kMinClassShift);
-    auto &FreeList = ClassFree[Class];
-    if (FreeList.empty()) {
+    const uint32_t SlotCount = kBlockSize / SlotSize;
+    auto &Partial = ClassBlocks[Class];
+    if (Partial.empty()) {
       EXPECTED_TRY(const uint32_t Start, takeBlocks(1));
       setupBlocks(Start, 1, SlotSize);
-      const uint32_t BlockOff = Start << kBlockShift;
-      for (uint32_t Pos = kBlockSize; Pos > 0; Pos -= SlotSize) {
-        FreeList.push_back(BlockOff + Pos - SlotSize);
+      SpareClass.value() = Start;
+      Partial.insert(std::move(SpareClass));
+    }
+    const uint32_t B = *Partial.begin();
+    const auto *Bits = Blocks[B].LiveBits.load(std::memory_order_relaxed);
+    uint32_t Word = 0;
+    uint64_t Free = 0;
+    for (; Word * 64 < SlotCount; ++Word) {
+      Free = ~Bits[Word].load(std::memory_order_relaxed);
+      if (SlotCount - Word * 64 < 64) {
+        Free &= (UINT64_C(1) << (SlotCount - Word * 64)) - 1;
+      }
+      if (Free != 0) {
+        break;
       }
     }
-    Off = FreeList.back();
-    FreeList.pop_back();
-    SlotIdx = (Off & kBlockMask) / SlotSize;
+    assuming(Free != 0);
+    SlotIdx = Word * 64;
+    while ((Free & 1) == 0) {
+      Free >>= 1;
+      ++SlotIdx;
+    }
+    if (++Blocks[B].Used == SlotCount) {
+      Partial.erase(Partial.begin());
+    }
+    Off = (B << kBlockShift) + SlotIdx * SlotSize;
   } else {
     const auto Count =
         static_cast<uint32_t>((Size + kBlockSize - 1) / kBlockSize);
@@ -670,17 +746,28 @@ void RefHeap::freeData(uint32_t Off) noexcept {
                                std::memory_order_acq_rel);
   std::memset(getDataAddr(Off), 0, SlotSize);
   try {
-    if (SlotSize <= kMaxSmallSize) {
-      ClassFree[getClassIndex(SlotSize)].push_back(Off);
-      return;
-    }
-    const uint32_t Count = SlotSize / kBlockSize;
-    for (uint32_t B = BlockIdx; B < BlockIdx + Count; ++B) {
-      Blocks[B].Info.store(0, std::memory_order_release);
-    }
-    FreeRuns.emplace(Count, BlockIdx);
+    reserveData();
   } catch (const std::bad_alloc &) {
+    return;
   }
+  if (SlotSize <= kMaxSmallSize) {
+    auto &Blk = Blocks[BlockIdx];
+    auto &Partial = ClassBlocks[getClassIndex(SlotSize)];
+    if (--Blk.Used == 0) {
+      Partial.erase(BlockIdx);
+      Blk.Info.store(0, std::memory_order_release);
+      addRun(BlockIdx, 1);
+    } else if (Blk.Used + 1 == kBlockSize / SlotSize) {
+      SpareClass.value() = BlockIdx;
+      Partial.insert(std::move(SpareClass));
+    }
+    return;
+  }
+  const uint32_t Count = SlotSize / kBlockSize;
+  for (uint32_t B = BlockIdx; B < BlockIdx + Count; ++B) {
+    Blocks[B].Info.store(0, std::memory_order_release);
+  }
+  addRun(BlockIdx, Count);
 }
 
 } // namespace Runtime

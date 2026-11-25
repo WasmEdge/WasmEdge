@@ -114,18 +114,14 @@ std::unique_ptr<RefHeap> makeHeap(HeapMode Mode, RefHeap::Limits L = {}) {
   return std::move(*Res);
 }
 
-class RefHeapModes : public ::testing::TestWithParam<HeapMode> {};
-
-#define MAKE_HEAP_OR_SKIP(Name, ...)                                           \
-  if (!RefHeap::isModeSupported(GetParam())) {                                 \
-    GTEST_SKIP() << "this address mode is not available on this host";         \
-  }                                                                            \
-  auto Name = makeHeap(GetParam(), ##__VA_ARGS__);                             \
-  ASSERT_TRUE(Name) << "heap creation failed";
-
-#define MAKE_CHUNK_HEAP(Name, ...)                                             \
-  auto Name = makeHeap(HeapMode::Chunk, ##__VA_ARGS__);                        \
-  ASSERT_TRUE(Name) << "heap creation failed";
+class RefHeapModes : public ::testing::TestWithParam<HeapMode> {
+protected:
+  void SetUp() override {
+    if (!RefHeap::isModeSupported(GetParam())) {
+      GTEST_SKIP() << "this address mode is not available on this host";
+    }
+  }
+};
 
 TEST(RefHeap, HeaderLayout) {
   EXPECT_EQ(sizeof(HeapHeader), 32U);
@@ -143,7 +139,8 @@ TEST(RefHeap, HeaderLayout) {
 }
 
 TEST_P(RefHeapModes, DataSlots) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto A = Heap->allocate(HeapKind::Struct, 40);
   auto B = Heap->allocate(HeapKind::Struct, 100);
   ASSERT_TRUE(A);
@@ -177,7 +174,8 @@ TEST_P(RefHeapModes, DataSlots) {
 }
 
 TEST_P(RefHeapModes, LargeData) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto A = Heap->allocate(HeapKind::Array, 200000);
   ASSERT_TRUE(A);
   EXPECT_TRUE(Heap->getDataSpan(*A, 0, 200000));
@@ -198,7 +196,8 @@ TEST_P(RefHeapModes, LargeData) {
 }
 
 TEST_P(RefHeapModes, ObjectSlots) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto A = Heap->allocate(HeapKind::Function, 128);
   ASSERT_TRUE(A);
   EXPECT_EQ(*A & RefHeap::kTagObject, RefHeap::kTagObject);
@@ -243,7 +242,8 @@ TEST_P(RefHeapModes, ObjectSlots) {
 }
 
 TEST_P(RefHeapModes, Forged) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto D = Heap->allocate(HeapKind::Struct, 32);
   ASSERT_TRUE(D);
   EXPECT_FALSE(Heap->getDataSpan(UINT32_C(0xFFFFFFF0), 0, 16));
@@ -274,7 +274,9 @@ TEST_P(RefHeapModes, Forged) {
 
 TEST_P(RefHeapModes, Full) {
   {
-    MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+    auto Heap =
+        makeHeap(GetParam(), RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+    ASSERT_TRUE(Heap) << "heap creation failed";
     auto A = Heap->allocate(HeapKind::Array, 2 * 65536);
     ASSERT_TRUE(A);
     auto B = Heap->allocate(HeapKind::Array, 2 * 65536);
@@ -283,7 +285,8 @@ TEST_P(RefHeapModes, Full) {
     EXPECT_FALSE(Heap->allocate(HeapKind::Array, UINT64_C(1) << 33));
   }
   {
-    MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{UINT64_C(1) << 32, 65536});
+    auto Heap = makeHeap(GetParam(), RefHeap::Limits{UINT64_C(1) << 32, 65536});
+    ASSERT_TRUE(Heap) << "heap creation failed";
     for (uint32_t I = 0; I < 256; ++I) {
       ASSERT_TRUE(Heap->allocate(HeapKind::Function, 200)) << I;
     }
@@ -295,7 +298,9 @@ TEST_P(RefHeapModes, Full) {
 }
 
 TEST_P(RefHeapModes, EmptyBlocksReturn) {
-  MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  auto Heap =
+      makeHeap(GetParam(), RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  ASSERT_TRUE(Heap) << "heap creation failed";
   std::vector<uint32_t> Small;
   while (auto S = Heap->allocate(HeapKind::Struct, 64)) {
     Small.push_back(*S);
@@ -315,7 +320,9 @@ TEST_P(RefHeapModes, EmptyBlocksReturn) {
 }
 
 TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
-  MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  auto Heap =
+      makeHeap(GetParam(), RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  ASSERT_TRUE(Heap) << "heap creation failed";
   const uint64_t Before = NewCount;
   AllowedNews = 0;
   auto First = Heap->allocate(HeapKind::Array, 2 * 65536);
@@ -345,7 +352,9 @@ TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
   ASSERT_TRUE(All);
   Heap->free(*All);
 
-  MAKE_HEAP_OR_SKIP(Fresh, RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  auto Fresh =
+      makeHeap(GetParam(), RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});
+  ASSERT_TRUE(Fresh) << "heap creation failed";
   auto Large = Fresh->allocate(HeapKind::Array, 2 * 65536);
   ASSERT_TRUE(Large);
   AllowedNews = 0;
@@ -416,7 +425,8 @@ TEST(RefHeap, HostModuleKeepsFirstAddError) {
 }
 
 TEST_P(RefHeapModes, LoadStore) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto A = Heap->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(A);
   ASSERT_TRUE(Heap->store<uint64_t>(*A, 32, UINT64_C(0x0123456789ABCDEF)));
@@ -428,7 +438,8 @@ TEST_P(RefHeapModes, LoadStore) {
 }
 
 TEST_P(RefHeapModes, Threads) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   constexpr int kThreads = 4;
   std::vector<std::vector<uint32_t>> Kept(kThreads);
   std::vector<std::thread> Workers;
@@ -468,7 +479,8 @@ TEST_P(RefHeapModes, Threads) {
 }
 
 TEST_P(RefHeapModes, LargeSlotRace) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   std::atomic<uint32_t> Probe{0};
   std::atomic<bool> Stop{false};
   std::atomic<uint32_t> Hits{0};
@@ -510,7 +522,8 @@ TEST(RefHeap, Modes) {
 }
 
 TEST(RefHeap, ChunkRunContiguous) {
-  MAKE_CHUNK_HEAP(Heap);
+  auto Heap = makeHeap(HeapMode::Chunk);
+  ASSERT_TRUE(Heap) << "heap creation failed";
   EXPECT_EQ(Heap->getMode(), HeapMode::Chunk);
   auto S = Heap->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(S);
@@ -536,7 +549,8 @@ TEST(RefHeap, ChunkRunContiguous) {
 }
 
 TEST(RefHeap, ChunkObjectParts) {
-  MAKE_CHUNK_HEAP(Heap);
+  auto Heap = makeHeap(HeapMode::Chunk);
+  ASSERT_TRUE(Heap) << "heap creation failed";
   const uint32_t PerChunk = RefHeap::kChunkSize / 256;
   std::vector<uint32_t> Offs;
   for (uint32_t I = 0; I <= PerChunk; ++I) {
@@ -561,7 +575,8 @@ TEST(RefHeap, ChunkObjectParts) {
 }
 
 TEST_P(RefHeapModes, Unique) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   int Count = 0;
   {
     auto P = Heap->makeUnique<Counted>(Count, UINT64_C(42));
@@ -601,7 +616,8 @@ TEST_P(RefHeapModes, Unique) {
 }
 
 TEST_P(RefHeapModes, NotLiveWhileBuilt) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   uint32_t Built = 1;
   uint32_t Destroyed = 1;
   auto P = Heap->makeUnique<Probe>(*Heap, Built, Destroyed);
@@ -624,7 +640,8 @@ TEST_P(RefHeapModes, NotLiveWhileBuilt) {
 }
 
 TEST_P(RefHeapModes, Shared) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   int Count = 0;
   {
     auto P = Heap->makeShared<Counted>(Count, UINT64_C(5));
@@ -655,7 +672,8 @@ TEST_P(RefHeapModes, Shared) {
 }
 
 TEST_P(RefHeapModes, WithTail) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto P = Heap->makeUniqueWithTail<Tailed>(64);
   ASSERT_TRUE(P);
   EXPECT_EQ((*P)->Head, 7U);
@@ -670,7 +688,8 @@ TEST_P(RefHeapModes, WithTail) {
 }
 
 TEST_P(RefHeapModes, ReleaseAdopt) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   int Count = 0;
   auto P = Heap->makeUnique<Counted>(Count, UINT64_C(9));
   ASSERT_TRUE(P);
@@ -692,8 +711,10 @@ TEST_P(RefHeapModes, ReleaseAdopt) {
 }
 
 TEST_P(RefHeapModes, AdoptForeign) {
-  MAKE_HEAP_OR_SKIP(Heap);
-  MAKE_HEAP_OR_SKIP(Other);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
+  auto Other = makeHeap(GetParam());
+  ASSERT_TRUE(Other) << "heap creation failed";
   int Count = 0;
   Counted Local(Count, UINT64_C(1));
   EXPECT_FALSE(Heap->adopt(&Local));
@@ -711,7 +732,8 @@ TEST_P(RefHeapModes, AdoptForeign) {
 }
 
 TEST_P(RefHeapModes, PrivateConstructor) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto P = Heap->makeUnique<Hidden>(UINT64_C(11));
   ASSERT_TRUE(P);
   EXPECT_EQ((*P)->getValue(), 11U);
@@ -719,7 +741,8 @@ TEST_P(RefHeapModes, PrivateConstructor) {
 }
 
 TEST_P(RefHeapModes, MakeData) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto P = Heap->makeData(HeapKind::Struct, 7U, 3U, 24U);
   ASSERT_TRUE(P);
   const uint32_t Off = P->Slot.getOffset();
@@ -747,7 +770,8 @@ TEST_P(RefHeapModes, MakeData) {
 }
 
 TEST_P(RefHeapModes, EmptyDataSlot) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto P = Heap->makeData(HeapKind::Struct, 1U, 0U, 0U);
   ASSERT_TRUE(P);
   const auto *Header = Heap->getHeader(P->Slot.getOffset());
@@ -756,14 +780,16 @@ TEST_P(RefHeapModes, EmptyDataSlot) {
 }
 
 TEST_P(RefHeapModes, DataSlotTooBig) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto P = Heap->makeData(HeapKind::Struct, 1U, 0U, UINT64_C(1) << 32);
   ASSERT_FALSE(P);
   EXPECT_EQ(P.error(), ErrCode::Value::RefHeapFull);
 }
 
 TEST_P(RefHeapModes, DataSlotReset) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   auto P = Heap->makeData(HeapKind::Struct, 1U, 0U, 16U);
   ASSERT_TRUE(P);
   const uint32_t Off = P->Slot.getOffset();
@@ -773,7 +799,8 @@ TEST_P(RefHeapModes, DataSlotReset) {
 }
 
 TEST_P(RefHeapModes, Descriptor) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   int Count = 0;
   auto P = Heap->makeUnique<Counted>(Count, UINT64_C(4));
   ASSERT_TRUE(P);
@@ -802,7 +829,8 @@ TEST_P(RefHeapModes, Descriptor) {
 }
 
 TEST_P(RefHeapModes, ExternBoxes) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   int HostA = 0;
   int HostB = 0;
   auto A1 = Heap->boxExtern(&HostA);
@@ -833,7 +861,8 @@ TEST_P(RefHeapModes, ExternBoxes) {
 }
 
 TEST_P(RefHeapModes, ExternBoxesFillPartition) {
-  MAKE_HEAP_OR_SKIP(Heap, RefHeap::Limits{4 * 65536, 65536});
+  auto Heap = makeHeap(GetParam(), RefHeap::Limits{4 * 65536, 65536});
+  ASSERT_TRUE(Heap) << "heap creation failed";
   const uint32_t Slots = 65536 / RefHeap::getSlotSize(HeapKind::ExternBox);
   std::vector<uint8_t> Hosts(Slots + 1);
   uint32_t Boxed = 0;
@@ -852,7 +881,8 @@ TEST_P(RefHeapModes, ExternBoxesFillPartition) {
 }
 
 TEST_P(RefHeapModes, ExternBoxThreads) {
-  MAKE_HEAP_OR_SKIP(Heap);
+  auto Heap = makeHeap(GetParam());
+  ASSERT_TRUE(Heap) << "heap creation failed";
   constexpr uint32_t kThreads = 8;
   constexpr uint32_t kHosts = 64;
   std::vector<uint64_t> Hosts(kHosts);

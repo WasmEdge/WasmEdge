@@ -105,12 +105,12 @@ enum class AddressType : uint8_t { I32, I64 };
 //       |             | ValTypeCode  |         For the HeapType use
 //       |   0th:      | 0x7F, 0x7E,  | (Function references and GC proposal)
 //       | Reserved    | 0x7D, 0x7C,  | HeapTypeCode        |
-//       | (Padding)   |   (numtype)  | 0x00, 0x40,         |    Type index
+//       | (Zero)      |   (numtype)  | 0x00, 0x40,         |    Type index
 //  code |             | 0x7B,        | 0x70, 0x6F,         |    (uint32_t)
 //       |             |   (vectype)  | (func-ref proposal) |
 //       |   1st:      | 0x78, 0x77,  | 0x73, 0x72, 0x71,   |
-//       | Externalize | (packedtype) | 0x6E, 0x6D, 0x6C,   |
-//       |             | 0x64, 0x63   | 0x6B, 0x6A,         |
+//       | Reserved    | (packedtype) | 0x6E, 0x6D, 0x6C,   |
+//       | (Zero)      | 0x64, 0x63   | 0x6B, 0x6A,         |
 //       |             |   (reftype)  |    (GC proposal)    |
 //       |             |              | 0x69                |
 //       |             |              | (Exception handling proposal)
@@ -129,7 +129,7 @@ public:
   ValType() noexcept = default;
   // General constructors for initializing data.
   ValType(TypeCode C, TypeCode HT, uint32_t I) noexcept {
-    Inner.Data.Externalize = 0;
+    Inner.Data.Padding = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = HT;
     Inner.Data.Idx = I;
@@ -139,7 +139,7 @@ public:
   }
   // Constructor for the value type codes without heap type immediates.
   ValType(TypeCode C) noexcept {
-    Inner.Data.Externalize = 0;
+    Inner.Data.Padding = 0;
     Inner.Data.Idx = 0;
     switch (C) {
     case TypeCode::I32:
@@ -180,7 +180,7 @@ public:
   }
   // Constructor for the value type with abs heap type in reference type.
   ValType(TypeCode C, TypeCode HT) noexcept {
-    Inner.Data.Externalize = 0;
+    Inner.Data.Padding = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = HT;
     Inner.Data.Idx = 0;
@@ -188,7 +188,7 @@ public:
   }
   // Constructor for the value type with type index in reference type.
   ValType(TypeCode C, uint32_t I) noexcept {
-    Inner.Data.Externalize = 0;
+    Inner.Data.Padding = 0;
     Inner.Data.Code = C;
     Inner.Data.HTCode = TypeCode::TypeIndex;
     Inner.Data.Idx = I;
@@ -250,6 +250,7 @@ public:
     }
   }
 
+  // A type index counts as a function type: only the type list can tell.
   bool isFuncRefType() const noexcept {
     return (Inner.Data.HTCode == TypeCode::FuncRef) ||
            (Inner.Data.HTCode == TypeCode::NullFuncRef) ||
@@ -258,8 +259,7 @@ public:
 
   bool isExternRefType() const noexcept {
     return (Inner.Data.HTCode == TypeCode::ExternRef) ||
-           (Inner.Data.HTCode == TypeCode::NullExternRef) ||
-           Inner.Data.Externalize;
+           (Inner.Data.HTCode == TypeCode::NullExternRef);
   }
 
   bool isNullableRefType() const noexcept {
@@ -328,16 +328,11 @@ public:
     return *this;
   }
 
-  void setExternalized() noexcept { Inner.Data.Externalize = 1U; }
-  void setInternalized() noexcept { Inner.Data.Externalize = 0U; }
-  bool isExternalized() noexcept { return Inner.Data.Externalize != 0U; }
-
 private:
   union {
     uint8_t Raw[8];
     struct {
-      uint8_t Padding;
-      uint8_t Externalize;
+      uint16_t Padding;
       TypeCode Code;
       TypeCode HTCode;
       uint32_t Idx;
@@ -638,7 +633,7 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
-  if (!Val.getType().isFuncRefType()) {
+  if (Val.getType().getHeapTypeCode() != TypeCode::FuncRef) {
     return nullptr;
   }
   return Val.getPtr<Runtime::Instance::FunctionInstance>();

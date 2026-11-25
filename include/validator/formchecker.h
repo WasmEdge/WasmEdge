@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -28,9 +29,58 @@
 namespace WasmEdge {
 namespace Validator {
 
-typedef std::optional<ValType> VType;
+/// Operand type on the value stack: a value type, or one of the two bottom
+/// types the validation algorithm gives to the operands of unreachable code.
+class VType {
+public:
+  /// The bottom type, which matches every value type.
+  VType() noexcept = default;
+  /// A value type.
+  VType(const ValType &VT) noexcept : Type(VT) {}
+  /// The non-null reference to the bottom heap type, which matches every
+  /// reference type.
+  static VType bottomRef() noexcept {
+    VType V;
+    V.IsBottomRef = true;
+    return V;
+  }
 
-static inline constexpr VType unreachableVType() { return VType(); }
+  friend bool operator==(const VType &LHS, const VType &RHS) noexcept {
+    return LHS.Type == RHS.Type && LHS.IsBottomRef == RHS.IsBottomRef;
+  }
+  friend bool operator!=(const VType &LHS, const VType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
+  /// Getter for the value type, empty for the bottom types.
+  const std::optional<ValType> &getValType() const noexcept { return Type; }
+
+  bool isBottom() const noexcept { return !Type.has_value() && !IsBottomRef; }
+
+  bool isNumType() const noexcept {
+    return Type.has_value() ? Type->isNumType() : !IsBottomRef;
+  }
+
+  bool isRefType() const noexcept {
+    return !Type.has_value() || Type->isRefType();
+  }
+
+  bool isNullableRefType() const noexcept {
+    return Type.has_value() && Type->isNullableRefType();
+  }
+
+  /// The non-null type of a reference operand, `(ref bot)` when unknown.
+  VType getNonNullableRef() const noexcept {
+    if (Type.has_value()) {
+      return VType(Type->getNonNullableRef());
+    }
+    return bottomRef();
+  }
+
+private:
+  std::optional<ValType> Type;
+  bool IsBottomRef = false;
+};
 
 class FormChecker {
 public:
@@ -109,11 +159,11 @@ private:
   Expect<void> checkInstr(const AST::Instruction &Instr);
 
   /// Stack operations
-  void pushType(VType);
+  void pushType(const VType &V);
   void pushTypes(Span<const VType> Input);
   void pushTypes(Span<const ValType> Input);
   Expect<VType> popType();
-  Expect<VType> popType(ValType E);
+  Expect<VType> popType(const ValType &E);
   Expect<void> popTypes(Span<const ValType> Input);
   void pushCtrl(Span<const ValType> In, Span<const ValType> Out,
                 const AST::Instruction *Jump,

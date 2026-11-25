@@ -48,6 +48,10 @@ namespace Executor {
 class Executor;
 }
 
+namespace Host {
+class FileSystem;
+}
+
 namespace Runtime {
 
 class StoreManager;
@@ -579,6 +583,19 @@ protected:
     return WASIModInst;
   }
 
+  /// Set the filesystem which this module provides as a WASI module.
+  void setFileSystem(const Host::FileSystem *FS) noexcept {
+    std::unique_lock Lock(Mutex);
+    FileSys = FS;
+  }
+
+  /// Get the filesystem which this module provides as a WASI module. Null for
+  /// the other modules.
+  const Host::FileSystem *getFileSystem() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return FileSys;
+  }
+
   /// Unsafely import an instance into this module. Only valid before
   /// finalization: buildContext() caches the instance vectors' buffers, which a
   /// later push_back may reallocate.
@@ -803,6 +820,9 @@ protected:
 
   /// Imported WASI module instance during instantiation.
   const ModuleInstance *WASIModInst = nullptr;
+
+  /// Filesystem provided by this module as a WASI module.
+  const Host::FileSystem *FileSys = nullptr;
 
   /// Linked store. Key is (StoreManager*, RegisteredName) to support
   /// the same module registered under multiple alias names.

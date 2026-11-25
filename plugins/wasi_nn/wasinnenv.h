@@ -19,18 +19,19 @@
 #include "wasinn_whisper.h"
 #include "wasinntypes.h"
 
-#include "host/wasi/environ.h"
+#include "host/filesystem.h"
 
 #include "common/spdlog.h"
-#include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "runtime/callingframe.h"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <shared_mutex>
 #include <string>
 #include <string_view>
@@ -316,6 +317,23 @@ struct WasiNNEnvironment :
     return false;
   }
 
+  // Whether the builder is one registered by the nn-preload option of the
+  // host. Only such a builder may name a path of the host; the builders of a
+  // guest are model data whatever they begin with.
+  bool isPreloaded(Span<const uint8_t> Builder) const noexcept {
+    if (Builder.empty()) {
+      return false;
+    }
+    for (const auto &Md : RawMdMap) {
+      for (const auto &Raw : std::get<0>(Md.second)) {
+        if (Raw.data() == Builder.data() && Raw.size() == Builder.size()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Build a graph from the preloaded model bytes registered under Name.
   // MdMutex guards only the name -> handle map and is never held across the
   // (possibly minutes-long) model load; RawMdMap is constructor-immutable.
@@ -469,18 +487,46 @@ struct WasiNNEnvironment :
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
 
-  const Host::WASI::Environ *getEnv() const noexcept {
-    return Environ.load(std::memory_order_acquire);
-  }
-  // Concurrent host calls re-derive the same environ; the atomic store makes
-  // that race benign instead of undefined behavior.
-  void setEnviron(const Runtime::CallingFrame *CurrentFrame) noexcept {
-    auto *WasiModule = CurrentFrame->getWASIModule();
-    if (WasiModule != nullptr) {
-      Environ.store(dynamic_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
-                        ->getEnv(),
-                    std::memory_order_release);
+  /// The filesystem of the module calling the host function on this thread,
+  /// which the backends open the files of the guest with. Null when the module
+  /// has none.
+  const Host::FileSystem *getFileSystem() const noexcept { return FileSys; }
+  /// Open the file of the guest path with the filesystem of the calling module.
+  WASI::WasiExpect<std::shared_ptr<Host::File>>
+  openFile(std::string_view Path, __wasi_oflags_t OpenFlags,
+           __wasi_rights_t Rights) const noexcept {
+    const auto *FS = getFileSystem();
+    if (FS == nullptr) {
+      return WASI::WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
     }
+    return FS->open(Path, OpenFlags, Rights, static_cast<__wasi_fdflags_t>(0));
+  }
+  /// Read the whole file of the guest path, which holds MaxSize bytes at most.
+  WASI::WasiExpect<std::vector<uint8_t>>
+  readFile(std::string_view Path, __wasi_filesize_t MaxSize) const noexcept {
+    EXPECTED_TRY(auto File, openFile(Path, static_cast<__wasi_oflags_t>(0),
+                                     __WASI_RIGHTS_FD_READ));
+    // The size of the file is the offset of its end.
+    EXPECTED_TRY(auto Size, File->seek(0, __WASI_WHENCE_END));
+    if (Size > MaxSize) {
+      return WASI::WasiUnexpect(__WASI_ERRNO_FBIG);
+    }
+    EXPECTED_TRY(File->seek(0, __WASI_WHENCE_SET));
+    std::vector<uint8_t> Data;
+    try {
+      Data.resize(static_cast<std::size_t>(Size));
+    } catch (const std::bad_alloc &) {
+      return WASI::WasiUnexpect(__WASI_ERRNO_NOMEM);
+    }
+    EXPECTED_TRY(auto ReadSize, File->read(Data));
+    Data.resize(ReadSize);
+    return Data;
+  }
+  // Every host call binds the filesystem of its caller to its own thread, so
+  // that concurrent callers of one instance never open files with the
+  // filesystem of another module.
+  void setFileSystem(const Runtime::CallingFrame &Frame) noexcept {
+    FileSys = Frame.getFileSystem();
   }
 
 private:
@@ -505,7 +551,7 @@ private:
                   Op, C.getGraphId(), ContextId);
   }
 
-  std::atomic<const Host::WASI::Environ *> Environ{nullptr};
+  static inline thread_local const Host::FileSystem *FileSys = nullptr;
 };
 
 } // namespace WASINN

@@ -2,9 +2,11 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_whisper.h"
-#include "host/wasi/vfs_io.h"
+#include "host/filesystem.h"
 #include "wasinnenv.h"
 #include <cstdint>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
@@ -77,16 +79,31 @@ estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
   return Speaker;
 }
 
+bool writeText(Host::File &File, const std::string &Fname,
+               const std::string &Text) noexcept {
+  if (auto Res = File.write(Span<const uint8_t>(
+          reinterpret_cast<const uint8_t *>(Text.data()), Text.size()));
+      !Res) {
+    spdlog::error("[WASI-NN] Whisper backend: failed to write {}: {}."sv, Fname,
+                  Res.error());
+    return false;
+  }
+  return true;
+}
+
 bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
                const std::string &Fname, const Config &Params,
                const std::vector<std::vector<float>> &PCMF32s) {
-  WasmEdge::FStream::OFStream Fout(Fname, Env.getEnv());
-  if (!Fout.is_open()) {
+  auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                           __WASI_RIGHTS_FD_WRITE);
+  if (!File) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
     return false;
   }
   spdlog::info("[WASI-NN] Whisper backend: saving srt output to {}."sv, Fname);
+
+  std::ostringstream Fout;
 
   const int NSegments = whisper_full_n_segments(Ctx);
   for (int I = 0; I < NSegments; ++I) {
@@ -103,14 +120,15 @@ bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
     Fout << toTimestamp(T0, true) << " --> " << toTimestamp(T1, true) << "\n";
     Fout << Speaker << Text << "\n\n";
   }
-  return true;
+  return writeText(**File, Fname, Fout.str());
 }
 
 static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
                       const std::string &Fname, const Config &Params,
                       const std::vector<std::vector<float>> &PCMF32s) {
-  WasmEdge::FStream::OFStream Fout(Fname, Env.getEnv());
-  if (!Fout.is_open()) {
+  auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                           __WASI_RIGHTS_FD_WRITE);
+  if (!File) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
     return false;
@@ -118,6 +136,7 @@ static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
 
   spdlog::info("[WASI-NN] Whisper backend: saving lrc output to {}."sv, Fname);
 
+  std::ostringstream Fout;
   Fout << "[by:whisper.cpp]\n";
 
   const int NSegments = whisper_full_n_segments(Ctx);
@@ -146,7 +165,7 @@ static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
     Fout << '[' << TimestampLrc << ']' << Speaker << text << "\n";
   }
 
-  return true;
+  return writeText(**File, Fname, Fout.str());
 }
 
 std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
@@ -163,7 +182,9 @@ std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
 bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
                 const std::string &Fname, const Config &Params,
                 const std::vector<std::vector<float>> &PCMF32s, bool Full) {
-  WasmEdge::FStream::OFStream Fout(Fname, Env.getEnv());
+  auto File = Env.openFile(Fname, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                           __WASI_RIGHTS_FD_WRITE);
+  std::ostringstream Fout;
   int Indent = 0;
 
   auto Doindent = [&]() {
@@ -241,7 +262,7 @@ bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
     EndObj(End);
   };
 
-  if (!Fout.is_open()) {
+  if (!File) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
     return false;
@@ -324,7 +345,7 @@ bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
 
   EndArr(true);
   EndObj(true);
-  return true;
+  return writeText(**File, Fname, Fout.str());
 }
 
 bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
@@ -833,7 +854,7 @@ Expect<ErrNo> handleTranslationConfig(whisper_context *WhisperCtx,
 
 } // Namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
+Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
                    Span<const Span<uint8_t>> Builders, Device) noexcept {
   auto &GraphRef = G.get<Graph>();
 
@@ -867,7 +888,7 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
   auto Weight = Builders[0];
   const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                   Weight.size());
-  if (BinModel.substr(0, 8) == "preload:"sv) {
+  if (Env.isPreloaded(Weight) && BinModel.substr(0, 8) == "preload:"sv) {
     GraphRef.ModelFilePath = BinModel.substr(8);
   }
 

@@ -2307,6 +2307,128 @@ TEST(AOTNullLocal, AbstractRefTypeIsBottomTyped) {
   EXPECT_EQ((*RTestExtern)[0].first.get<uint32_t>(), 1u);
 }
 
+TEST(AOTRefValue, TypedByValue) {
+  // The compiled code keeps the type of a reference in its value: a host
+  // reference is non-null and internalizes to an any, an externalized struct
+  // passes the host and unwraps to itself, and a function reference refers to
+  // its function.
+  //
+  // (module
+  //   (type $s (struct (field i32)))
+  //   (table (export "tab") 2 externref)
+  //   (global (export "func") (mut funcref) (ref.null func))
+  //   (func $wrap (export "wrap") (result externref)
+  //     (extern.convert_any (struct.new $s (i32.const 42))))
+  //   (func (export "unwrap") (param externref) (result i32)
+  //     (struct.get $s 0
+  //       (ref.cast (ref $s) (any.convert_extern (local.get 0)))))
+  //   (func (export "test") (param i32) (result i32)
+  //     (ref.test (ref extern) (table.get 0 (local.get 0))))
+  //   (func (export "test_struct") (param i32) (result i32)
+  //     (ref.test (ref $s) (any.convert_extern (table.get 0 (local.get 0)))))
+  //   (func (export "set_func")
+  //     (global.set 0 (ref.func $wrap)))
+  //   (elem declare func $wrap))
+  std::array<WasmEdge::Byte, 203> RefValueWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x16, 0x05, 0x5f,
+      0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x6f, 0x60, 0x01, 0x6f, 0x01, 0x7f,
+      0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x00, 0x00, 0x03, 0x06, 0x05, 0x01,
+      0x02, 0x03, 0x03, 0x04, 0x04, 0x04, 0x01, 0x6f, 0x00, 0x02, 0x06, 0x06,
+      0x01, 0x70, 0x01, 0xd0, 0x70, 0x0b, 0x07, 0x3e, 0x07, 0x03, 0x74, 0x61,
+      0x62, 0x01, 0x00, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x03, 0x00, 0x04, 0x77,
+      0x72, 0x61, 0x70, 0x00, 0x00, 0x06, 0x75, 0x6e, 0x77, 0x72, 0x61, 0x70,
+      0x00, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x02, 0x0b, 0x74, 0x65,
+      0x73, 0x74, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x03, 0x08,
+      0x73, 0x65, 0x74, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x04, 0x09, 0x05,
+      0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x36, 0x05, 0x09, 0x00, 0x41, 0x2a,
+      0xfb, 0x00, 0x00, 0xfb, 0x1b, 0x0b, 0x0d, 0x00, 0x20, 0x00, 0xfb, 0x1a,
+      0xfb, 0x16, 0x00, 0xfb, 0x02, 0x00, 0x00, 0x0b, 0x09, 0x00, 0x20, 0x00,
+      0x25, 0x00, 0xfb, 0x14, 0x6f, 0x0b, 0x0b, 0x00, 0x20, 0x00, 0x25, 0x00,
+      0xfb, 0x1a, 0xfb, 0x14, 0x00, 0x0b, 0x06, 0x00, 0xd2, 0x00, 0x24, 0x00,
+      0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00,
+      0x04, 0x77, 0x72, 0x61, 0x70, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
+
+  const ScopedTempFile Artifact("AOTRefValueTest", WASMEDGE_LIB_EXTENSION);
+  const auto &Path = Artifact.get();
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Module = Loader.parseModule(RefValueWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(ValidatorEngine.validate(**Module));
+  auto Data = Compiler.compile(**Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(RefValueWasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const auto *ModInst = VM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  const auto *WrapFn = ModInst->findFuncExports("wrap");
+  ASSERT_NE(WrapFn, nullptr);
+  ASSERT_TRUE(WrapFn->isCompiledFunction());
+  auto *TabInst = ModInst->findTableExports("tab");
+  ASSERT_NE(TabInst, nullptr);
+  const std::vector<WasmEdge::ValType> I32{
+      WasmEdge::ValType(WasmEdge::TypeCode::I32)};
+
+  // A host reference is non-null by its value, unlike the null reference of
+  // the other table entry, and internalizes to an any that is not the struct.
+  int Object = 0;
+  ASSERT_TRUE(TabInst->setRefAddr(0, WasmEdge::RefVariant(&Object)));
+  auto Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(0))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);
+  Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(1))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 0U);
+  Test = VM.execute("test_struct", {WasmEdge::ValVariant(UINT32_C(0))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 0U);
+
+  // An externalized struct is `(ref extern)` for the host, and unwraps to
+  // itself when the host hands it back as an argument or a table entry.
+  auto Wrapped = VM.execute("wrap");
+  ASSERT_TRUE(Wrapped);
+  ASSERT_EQ((*Wrapped).size(), 1U);
+  EXPECT_EQ((*Wrapped)[0].second,
+            WasmEdge::ValType(WasmEdge::TypeCode::Ref,
+                              WasmEdge::TypeCode::ExternRef));
+  auto Unwrapped =
+      VM.execute("unwrap", {(*Wrapped)[0].first}, {(*Wrapped)[0].second});
+  ASSERT_TRUE(Unwrapped);
+  EXPECT_EQ((*Unwrapped)[0].first.get<uint32_t>(), 42U);
+  ASSERT_TRUE(
+      TabInst->setRefAddr(1, (*Wrapped)[0].first.get<WasmEdge::RefVariant>()));
+  Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(1))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);
+  Test = VM.execute("test_struct", {WasmEdge::ValVariant(UINT32_C(1))}, I32);
+  ASSERT_TRUE(Test);
+  EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);
+
+  // A function reference refers to its function.
+  ASSERT_TRUE(VM.execute("set_func"));
+  auto *GlobInst = ModInst->findGlobalExports("func");
+  ASSERT_NE(GlobInst, nullptr);
+  EXPECT_EQ(WasmEdge::retrieveFuncRef(
+                GlobInst->getValue().get<WasmEdge::RefVariant>()),
+            WrapFn);
+
+  VM.cleanup();
+}
+
 TEST(AOTTmpValues, LoopKeepsNativeStackFlat) {
   // The temporary values of the runtime calls in a loop must not grow the
   // native stack on every iteration (issue #4636).

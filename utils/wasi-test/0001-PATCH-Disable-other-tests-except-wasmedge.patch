@@ -28,7 +28,8 @@ index 9341520..da54714 100755
  def test_deno(filepath, config, cwd):
      cmd = ['deno', 'run']
 @@ -202,10 +208,6 @@ def main():
-     inputs.extend(sorted(glob.glob("target/wasm32-wasi/**/*.wasm")))
+-    inputs.extend(sorted(glob.glob("target/wasm32-wasi/**/*.wasm")))
++    inputs.extend(sorted(glob.glob("target/wasm32-wasip1/**/*.wasm")))
  
      tests = {
 -            "deno": test_deno,

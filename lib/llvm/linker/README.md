@@ -44,6 +44,24 @@ The native linker replaces an existing output file in the same way as lld:
   output directly. A Mach-O output must be signed, so the native linker
   rejects a Mach-O output that is not a regular file.
 
+## ARM float requirements
+
+On ARMv7 Linux, the native linker accepts the hard-float and the softfp ABI.
+Both need VFP. The native linker does not support a WasmEdge build for the
+pure soft-float ABI. AOT compilation then fails with this error:
+`ARM pure-soft float ABI is unsupported by the native linker.`
+
+The hard-float and softfp ABIs pass floating-point values in different
+registers, so a universal Wasm file records the ABI in its architecture tag.
+Tag 4 is softfp, and tag 6 is hard-float. A universal Wasm file from an earlier
+WasmEdge release always carries tag 4. If the tag does not match the host ABI,
+the loader ignores the AOT code and runs the module in the interpreter.
+
+The native linker links no runtime library such as libgcc. Thus, when the
+native linker links an ARMv7 object, the compiler adds its own helpers for
+integer division, float conversion, and rounding to the object. On x86-64
+hosts without SSE4.1, it adds rounding helpers for the same reason.
+
 ## Input restrictions
 
 The native linker is not a general linker. It accepts only the object that the

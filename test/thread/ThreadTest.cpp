@@ -1070,7 +1070,8 @@ TEST(AOTCompile, IndependentCompilersRunConcurrently) {
         auto Module = Loader.parseModule(Modules[Thread]);
         if (!Module || !Validator.validate(**Module))
           return false;
-        auto Data = Compiler.compile(**Module);
+        auto Data = Compiler.compile(
+            **Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
         if (!Data || !CodeGen.codegen(Modules[Thread], std::move(*Data), Path))
           return false;
         WasmEdge::VM::VM VM(Conf);
@@ -1115,7 +1116,8 @@ TEST(AOTAsyncExecute, ThreadTest) {
     ASSERT_TRUE(Compiler.checkConfigure());
     auto Module = *Loader.parseModule(MersenneTwister19937);
     ASSERT_TRUE(ValidatorEngine.validate(*Module));
-    auto Data = Compiler.compile(*Module);
+    auto Data =
+        Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
     ASSERT_TRUE(Data);
     ASSERT_TRUE(CodeGen.codegen(MersenneTwister19937, std::move(*Data), Path));
   }
@@ -1170,7 +1172,8 @@ TEST(AOTAsyncExecute, GasThreadTest) {
     ASSERT_TRUE(Compiler.checkConfigure());
     auto Module = *Loader.parseModule(MersenneTwister19937);
     ASSERT_TRUE(ValidatorEngine.validate(*Module));
-    auto Data = Compiler.compile(*Module);
+    auto Data =
+        Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
     ASSERT_TRUE(Data);
     ASSERT_TRUE(CodeGen.codegen(MersenneTwister19937, std::move(*Data), Path));
   }

@@ -38,6 +38,7 @@ set(WASMEDGE_LLVM_SOURCES
   jit.cpp
   lazyjit.cpp
   llvm.cpp
+  runtime_libcalls.cpp
 )
 
 set(WASMEDGE_LLVM_LINKER_SOURCES

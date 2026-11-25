@@ -617,6 +617,14 @@ TEST(LinkGraphTest, RejectsEveryRISCVSymbolDifferenceTriplePermutation) {
   }
 }
 
+TEST(LinkGraphTest, EnforcesARMELFPatchSizes) {
+  EXPECT_EQ(relocationPatchSize(ObjectFormat::ELF, Target::ARM,
+                                llvm::ELF::R_ARM_THM_JUMP24, 0),
+            4U);
+  EXPECT_FALSE(relocationPatchSize(ObjectFormat::ELF, Target::ARM,
+                                   llvm::ELF::R_ARM_THM_JUMP19, 4));
+}
+
 TEST(LinkGraphTest, EnforcesCanonicalX86RelocationPatchSizes) {
   struct Case {
     ObjectFormat Format;
@@ -1470,6 +1478,7 @@ TEST(LinkGraphTest, ClassifiesRelocationPatchSizesForEveryFormat) {
        std::nullopt},
       {ObjectFormat::COFF, Target::RISCV64, llvm::ELF::R_RISCV_64, 8,
        std::nullopt},
+      {ObjectFormat::ELF, Target::ARM, llvm::ELF::R_ARM_THM_JUMP24, 0, 4},
       {ObjectFormat::ELF, Target::ARM, llvm::ELF::R_ARM_MOVW_ABS_NC, 4,
        std::nullopt},
       {ObjectFormat::ELF, Target::AArch64,

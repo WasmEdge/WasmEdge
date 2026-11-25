@@ -900,7 +900,8 @@ protected:
       return {};
     }
     EXPECT_TRUE(Validator.validate(**Module));
-    auto Data = Compiler.compile(**Module);
+    auto Data =
+        Compiler.compile(**Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
     EXPECT_TRUE(Data);
     if (!Data) {
       return {};

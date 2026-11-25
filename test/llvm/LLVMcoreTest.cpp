@@ -123,7 +123,7 @@ std::shared_ptr<AST::Module> compileToJIT(const Configure &Conf,
   if (!Compiler.checkConfigure()) {
     return nullptr;
   }
-  auto Data = Compiler.compile(*Mod);
+  auto Data = Compiler.compile(*Mod, LLVM::Compiler::Consumer::JIT);
   if (!Data) {
     return nullptr;
   }
@@ -1128,7 +1128,8 @@ protected:
     ASSERT_NE(Mod, nullptr);
     LLVM::Compiler Compiler(Conf);
     ASSERT_TRUE(Compiler.checkConfigure());
-    auto Data = Compiler.compile(*Mod);
+    auto Data =
+        Compiler.compile(*Mod, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
     ASSERT_TRUE(Data);
 
     auto OutputPath = Path / "linker";
@@ -1219,7 +1220,10 @@ TEST_P(NativeCoreTest, TestSuites) {
             Module = std::move(Result);
             return ValidatorEngine.validate(*Module);
           })
-          .and_then([&]() noexcept { return Compiler.compile(*Module); })
+          .and_then([&]() noexcept {
+            return Compiler.compile(
+                *Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
+          })
           .and_then([&](auto Result) noexcept {
             return CodeGen.codegen(Data, std::move(Result), SOPath);
           })
@@ -1393,7 +1397,10 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
             Module = std::move(Result);
             return ValidatorEngine.validate(*Module);
           })
-          .and_then([&]() noexcept { return Compiler.compile(*Module); })
+          .and_then([&]() noexcept {
+            return Compiler.compile(
+                *Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
+          })
           .and_then([&](auto Result) noexcept {
             return CodeGen.codegen(Data, std::move(Result), SOPath);
           })
@@ -1825,7 +1832,8 @@ protected:
       return Unexpect(Module.error());
     }
     EXPECTED_TRY(ValidatorEngine.validate(**Module));
-    auto Data = Compiler.compile(**Module);
+    auto Data =
+        Compiler.compile(**Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
     if (!Data) {
       return Unexpect(Data.error());
     }
@@ -1884,7 +1892,8 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
               u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
+  auto Data =
+      Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(AsyncWasm, std::move(*Data), Path));
   {
@@ -1926,7 +1935,8 @@ TEST(AsyncExecute, NativeInterruptTest) {
               u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
+  auto Data =
+      Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(AsyncWasm, std::move(*Data), Path));
   ASSERT_TRUE(VM.loadWasm(Path));
@@ -1971,7 +1981,8 @@ TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
       std::filesystem::temp_directory_path() / u8path("AOTcoreTest.aot.wasm");
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
+  auto Data =
+      Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(AsyncWasm, std::move(*Data), Path));
   {
@@ -2013,7 +2024,8 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
       std::filesystem::temp_directory_path() / u8path("AOTcoreTest.aot.wasm");
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
+  auto Data =
+      Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(AsyncWasm, std::move(*Data), Path));
   ASSERT_TRUE(VM.loadWasm(Path));
@@ -2101,7 +2113,8 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
 
   auto Module = *Loader.parseModule(SIMDNaNTestWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
+  auto Data =
+      Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(SIMDNaNTestWasm, std::move(*Data), Path));
 
@@ -2174,7 +2187,8 @@ TEST(AOTMemory64, BoundsCheck) {
 
   auto Module = *Loader.parseModule(Memory64Wasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
+  auto Data =
+      Compiler.compile(*Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(Memory64Wasm, std::move(*Data), Path));
 
@@ -2271,7 +2285,8 @@ TEST(NativeRunMode, LoadSharedLibraryRequiresAOTMode) {
     auto Module = Loader.parseModule(NativeRunModeWasm);
     ASSERT_TRUE(Module);
     ASSERT_TRUE(ValidatorEngine.validate(**Module));
-    auto Data = Compiler.compile(**Module);
+    auto Data =
+        Compiler.compile(**Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
     ASSERT_TRUE(Data);
     ASSERT_TRUE(CodeGen.codegen(NativeRunModeWasm, std::move(*Data), Path));
   }
@@ -2509,7 +2524,7 @@ TEST(AOTRefValue, TypedByValue) {
   auto Module = Loader.parseModule(RefValueWasm);
   ASSERT_TRUE(Module);
   ASSERT_TRUE(ValidatorEngine.validate(**Module));
-  auto Data = Compiler.compile(**Module);
+  auto Data = Compiler.compile(**Module, LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(RefValueWasm, std::move(*Data), Path));
 
@@ -2790,7 +2805,7 @@ TEST(AOTAtomicStore, LeftoverOperandStack) {
     auto Module = LoaderEngine.parseModule(AtomicStoreWasm);
     ASSERT_TRUE(Module);
     ASSERT_TRUE(ValidatorEngine.validate(**Module));
-    auto Data = Compiler.compile(**Module);
+    auto Data = Compiler.compile(**Module, LLVM::Compiler::Consumer::CodeGen);
     ASSERT_TRUE(Data);
     ASSERT_TRUE(
         CodeGen.codegen(AtomicStoreWasm, std::move(*Data), Artifact.get()));
@@ -2908,7 +2923,7 @@ TEST(AOTAtomicRMW, IdempotentOutOfBoundsTraps) {
     auto Module = LoaderEngine.parseModule(AtomicRMWWasm);
     ASSERT_TRUE(Module);
     ASSERT_TRUE(ValidatorEngine.validate(**Module));
-    auto Data = Compiler.compile(**Module);
+    auto Data = Compiler.compile(**Module, LLVM::Compiler::Consumer::CodeGen);
     ASSERT_TRUE(Data);
     ASSERT_TRUE(
         CodeGen.codegen(AtomicRMWWasm, std::move(*Data), Artifact.get()));

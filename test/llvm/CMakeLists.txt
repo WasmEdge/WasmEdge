@@ -9,6 +9,7 @@ wasmedge_add_executable(wasmedgeLLVMCoreTests
   LinkerUnwindTest.cpp
   LLVMcoreTest.cpp
   NativeWriterTest.cpp
+  RuntimeLibcallsTest.cpp
 )
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
@@ -45,6 +46,10 @@ if(NOT WASMEDGE_LINK_LLVM_STATIC)
         endif()
       endforeach()
     endforeach()
+    if(NOT LLVMMCJIT IN_LIST LLVM_AVAILABLE_LIBS)
+      message(FATAL_ERROR "wasmedgeLLVMCoreTests needs the LLVM MCJIT component")
+    endif()
+    list(APPEND WASMEDGE_LLVM_TEST_TARGET_COMPONENTS MCJIT)
     llvm_map_components_to_libnames(WASMEDGE_LLVM_TEST_TARGET_LIBS
       ${WASMEDGE_LLVM_TEST_TARGET_COMPONENTS})
   endif()
@@ -60,6 +65,15 @@ if(NOT WASMEDGE_LINK_LLVM_STATIC)
   endif()
 endif()
 
+if(WASMEDGE_LINK_LLVM_STATIC)
+  set(WASMEDGE_LLVM_MCJIT_LIBRARY
+    "${LLVM_LIBRARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}LLVMMCJIT${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  if(NOT EXISTS "${WASMEDGE_LLVM_MCJIT_LIBRARY}")
+    message(FATAL_ERROR "wasmedgeLLVMCoreTests needs ${WASMEDGE_LLVM_MCJIT_LIBRARY}")
+  endif()
+  target_link_libraries(wasmedgeLLVMCoreTests PRIVATE
+    ${WASMEDGE_LLVM_MCJIT_LIBRARY})
+endif()
 
 target_include_directories(wasmedgeLLVMCoreTests
   PRIVATE

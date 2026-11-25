@@ -942,7 +942,8 @@ TEST_F(LinkerOutputTest, UniversalCodegenExecutesTinyFixture) {
   auto Module = Loader.parseModule(TinyWasm);
   ASSERT_TRUE(Module);
   ASSERT_TRUE(Validator.validate(**Module));
-  auto Data = Compiler.compile(**Module);
+  auto Data =
+      Compiler.compile(**Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   const auto Output = Directory / "execute.wasm";
 
@@ -1208,7 +1209,8 @@ TEST_F(LinkerOutputTest, NativeMachOWriterSupportsEmptyModule) {
   auto Module = Loader.parseModule(EmptyWasm);
   ASSERT_TRUE(Module);
   ASSERT_TRUE(Validator.validate(**Module));
-  auto Data = Compiler.compile(**Module);
+  auto Data =
+      Compiler.compile(**Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
   ASSERT_TRUE(Data);
   ASSERT_TRUE(CodeGen.codegen(EmptyWasm, std::move(*Data), Output));
 

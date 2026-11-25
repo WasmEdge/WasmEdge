@@ -1984,8 +1984,10 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt [[maybe_unused]],
               Module = std::move(Result);
               return Cxt->Valid.validate(*Module.get());
             })
-            .and_then(
-                [&]() noexcept { return Cxt->Compiler.compile(*Module.get()); })
+            .and_then([&]() noexcept {
+              return Cxt->Compiler.compile(
+                  *Module.get(), WasmEdge::LLVM::Compiler::Consumer::CodeGen);
+            })
             .and_then([&](auto Result) noexcept {
               return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
             });
@@ -2019,7 +2021,10 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
               Module = std::move(Result);
               return Cxt->Valid.validate(*Module);
             })
-            .and_then([&]() noexcept { return Cxt->Compiler.compile(*Module); })
+            .and_then([&]() noexcept {
+              return Cxt->Compiler.compile(
+                  *Module, WasmEdge::LLVM::Compiler::Consumer::CodeGen);
+            })
             .and_then([&](auto Result) noexcept {
               return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
             });

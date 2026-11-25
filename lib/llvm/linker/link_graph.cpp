@@ -317,6 +317,7 @@ std::optional<uint8_t> relocationPatchSize(ObjectFormat Format,
     case llvm::ELF::R_ARM_ABS32:
     case llvm::ELF::R_ARM_REL32:
     case llvm::ELF::R_ARM_THM_CALL:
+    case llvm::ELF::R_ARM_THM_JUMP24:
     case llvm::ELF::R_ARM_CALL:
     case llvm::ELF::R_ARM_JUMP24:
     case llvm::ELF::R_ARM_PREL31:

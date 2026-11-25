@@ -567,6 +567,41 @@ TEST(ParseSubcommand, MalformedNameSection) {
   EXPECT_TRUE(containsAll(R.Stdout, {"func[0] size=2 <f>"}));
 #endif
   std::filesystem::remove(OversizedPath);
+
+  // (module (func $f)) with a name section whose function names give index
+  // 0 twice. The later name replaces the earlier one.
+  std::array<uint8_t, 40> Repeated{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
+      0x01, 0x02, 0x00, 0x0b, 0x00, 0x0e, 0x04, 0x6e, 0x61, 0x6d,
+      0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x66};
+  std::string RepeatedPath =
+      writeWasmToFile(Repeated.data(), Repeated.size(), "name_repeated.wasm");
+  EXPECT_EQ(callParse({RepeatedPath.c_str()}), EXIT_SUCCESS);
+#if !WASMEDGE_OS_WINDOWS
+  auto RepeatedResult = callParseCaptureStdout({RepeatedPath.c_str()});
+  ASSERT_EQ(RepeatedResult.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(RepeatedResult.Stdout, {"func[0] size=2 <f>"}));
+#endif
+  std::filesystem::remove(RepeatedPath);
+
+  // (module (func $f)) with a name section whose function names have a
+  // byte after the last name. The parse tool ignores that subsection.
+  std::array<uint8_t, 38> Trailing{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
+      0x01, 0x02, 0x00, 0x0b, 0x00, 0x0c, 0x04, 0x6e, 0x61, 0x6d,
+      0x65, 0x01, 0x05, 0x01, 0x00, 0x01, 0x66, 0x00};
+  std::string TrailingPath =
+      writeWasmToFile(Trailing.data(), Trailing.size(), "name_trailing.wasm");
+  EXPECT_EQ(callParse({TrailingPath.c_str()}), EXIT_SUCCESS);
+#if !WASMEDGE_OS_WINDOWS
+  auto TrailingResult = callParseCaptureStdout({TrailingPath.c_str()});
+  ASSERT_EQ(TrailingResult.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(TrailingResult.Stdout, {"func[0] size=2"}));
+  EXPECT_EQ(TrailingResult.Stdout.find("<f>"), std::string::npos);
+#endif
+  std::filesystem::remove(TrailingPath);
 }
 
 #if !WASMEDGE_OS_WINDOWS

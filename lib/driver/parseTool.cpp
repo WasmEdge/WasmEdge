@@ -7,8 +7,8 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "driver/tool.h"
-#include "loader/filemgr.h"
 #include "loader/loader.h"
+#include "loader/name_section.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -29,48 +29,32 @@ struct NameSection {
   std::map<uint32_t, std::string> GlobalNames;
 };
 
-// Reads a name map subsection: a count of index and name pairs.
-Expect<std::map<uint32_t, std::string>> readNameMap(Span<const Byte> Data) {
-  FileMgr Mgr;
-  EXPECTED_TRY(Mgr.setCode(Data));
-  std::map<uint32_t, std::string> Map;
-  EXPECTED_TRY(uint32_t Count, Mgr.readU32());
-  for (uint32_t I = 0; I < Count; ++I) {
-    EXPECTED_TRY(uint32_t Idx, Mgr.readU32());
-    EXPECTED_TRY(std::string Name, Mgr.readName());
-    Map[Idx] = std::move(Name);
-  }
-  return Map;
-}
-
-// Reads the function and global name subsections, each within its own size.
+// Reads the function and global name subsections. To recover from a
+// repeated index, a later entry for the same index replaces the earlier one.
 NameSection parseNameSection(Span<const Byte> Data) {
   NameSection NS;
-  FileMgr Mgr;
-  if (!Mgr.setCode(Data)) {
-    return NS;
-  }
-  while (Mgr.getRemainSize() > 0) {
-    const auto SubId = Mgr.readByte();
-    const auto SubSize = Mgr.readU32();
-    if (!SubId || !SubSize || *SubSize > Mgr.getRemainSize()) {
-      spdlog::warn(
-          "Malformed name section; the remaining names are ignored."sv);
-      break;
-    }
-    const auto SubData = Data.subspan(Mgr.getOffset(), *SubSize);
-    if (*SubId == 1 || *SubId == 7) {
-      auto Res = readNameMap(SubData);
-      if (!Res) {
-        spdlog::warn("Malformed name subsection {}; its names are ignored."sv,
-                     *SubId);
-      } else if (*SubId == 1) {
-        NS.FuncNames = std::move(*Res);
-      } else {
-        NS.GlobalNames = std::move(*Res);
-      }
-    }
-    Mgr.seek(Mgr.getOffset() + *SubSize);
+  const bool Complete = Loader::forEachNameSubsection(
+      Data, [&NS](Byte SubId, Span<const Byte> SubData) {
+        if (SubId != Loader::FunctionNameSubsection &&
+            SubId != Loader::GlobalNameSubsection) {
+          return;
+        }
+        std::map<uint32_t, std::string> Names;
+        auto Res = Loader::readNameMap(
+            SubData, [&Names](uint32_t Index, std::string Name) {
+              Names[Index] = std::move(Name);
+            });
+        if (!Res) {
+          spdlog::warn("Malformed name subsection {}; its names are ignored."sv,
+                       SubId);
+          return;
+        }
+        (SubId == Loader::FunctionNameSubsection ? NS.FuncNames
+                                                 : NS.GlobalNames) =
+            std::move(Names);
+      });
+  if (!Complete) {
+    spdlog::warn("Malformed name section; the remaining names are ignored."sv);
   }
   return NS;
 }

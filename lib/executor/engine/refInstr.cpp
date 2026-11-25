@@ -110,25 +110,47 @@ ValVariant readField(const uint8_t *Src, const ValType &Type,
   return Val;
 }
 
-void writeSegmentValue(uint8_t *Dst, const uint8_t *Src,
-                       const uint32_t Size) noexcept {
-  auto Write = [Dst, Src](auto X) noexcept {
-    EndianValue<decltype(X)> V;
-    std::memcpy(&V.raw(), Src, sizeof(X));
-    X = V.le();
-    std::memcpy(Dst, &X, sizeof(X));
-  };
-  switch (Size) {
-  case 1:
-    return Write(uint8_t(0));
-  case 2:
-    return Write(uint16_t(0));
-  case 4:
-    return Write(uint32_t(0));
-  case 8:
-    return Write(uint64_t(0));
-  default:
-    return Write(static_cast<uint128_t>(0U));
+/// Bytes of `Cnt` elements of `Size` bytes from `Start` in the data segment,
+/// or MemoryOutOfBounds if the segment is too short.
+Expect<const uint8_t *>
+getSegmentBytes(const Runtime::Instance::DataInstance &Data,
+                const uint32_t Start, const uint32_t Cnt,
+                const uint32_t Size) noexcept {
+  if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Cnt) * Size >
+      Data.getData().size()) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  return Data.getData().data() + Start;
+}
+
+/// Copy `Cnt` little-endian elements of `Size` bytes from a data segment.
+void copySegment(uint8_t *Dst, const uint8_t *Src, const uint32_t Cnt,
+                 const uint32_t Size) noexcept {
+  if constexpr (Endian::native == Endian::little) {
+    if (Cnt != 0) {
+      std::memcpy(Dst, Src, static_cast<size_t>(Cnt) * Size);
+    }
+  } else {
+    auto Copy = [&](auto X) noexcept {
+      for (uint32_t I = 0; I < Cnt; I++) {
+        EndianValue<decltype(X)> V;
+        std::memcpy(&V.raw(), Src + static_cast<size_t>(I) * Size, sizeof(X));
+        X = V.le();
+        std::memcpy(Dst + static_cast<size_t>(I) * Size, &X, sizeof(X));
+      }
+    };
+    switch (Size) {
+    case 1:
+      return Copy(uint8_t(0));
+    case 2:
+      return Copy(uint16_t(0));
+    case 4:
+      return Copy(uint32_t(0));
+    case 8:
+      return Copy(uint64_t(0));
+    default:
+      return Copy(static_cast<uint128_t>(0U));
+    }
   }
 }
 
@@ -608,19 +630,12 @@ Executor::arrayNewData(const Runtime::Instance::ModuleInstance *ModInst,
   const uint32_t BSize = VType.getBitWidth() / 8;
   auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
   assuming(DataInst);
-  if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) * BSize >
-      DataInst->getData().size()) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
+  EXPECTED_TRY(const uint8_t *Src,
+               getSegmentBytes(*DataInst, Start, Length, BSize));
   auto *Owner = const_cast<Runtime::Instance::ModuleInstance *>(ModInst);
   EXPECTED_TRY(const auto View, Owner->newArray(TypeIdx, Length, BSize));
   EXPECTED_TRY(uint8_t *Elems, getNewElems(View, Length, BSize));
-  for (uint32_t I = 0; I < Length; I++) {
-    writeSegmentValue(Elems + I * BSize,
-                      DataInst->getData().data() + Start +
-                          static_cast<size_t>(I) * BSize,
-                      BSize);
-  }
+  copySegment(Elems, Src, Length, BSize);
   return RefVariant::makeArray(ValType(TypeCode::Ref, TypeIdx),
                                View.getOffset());
 }
@@ -721,16 +736,9 @@ Expect<void> Executor::arrayInitData(
   EXPECTED_TRY(uint8_t *Elems, getElemSpan(View, DstIdx, Cnt, BSize));
   auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
   assuming(DataInst);
-  if (static_cast<uint64_t>(SrcIdx) + static_cast<uint64_t>(Cnt) * BSize >
-      DataInst->getData().size()) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
-  for (uint32_t I = 0; I < Cnt; I++) {
-    writeSegmentValue(Elems + static_cast<size_t>(I) * BSize,
-                      DataInst->getData().data() + SrcIdx +
-                          static_cast<size_t>(I) * BSize,
-                      BSize);
-  }
+  EXPECTED_TRY(const uint8_t *Src,
+               getSegmentBytes(*DataInst, SrcIdx, Cnt, BSize));
+  copySegment(Elems, Src, Cnt, BSize);
   return {};
 }
 

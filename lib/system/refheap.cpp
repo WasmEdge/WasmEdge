@@ -527,11 +527,6 @@ RefVariant::getExceptionInst() const noexcept {
       decodeRef(Runtime::HeapKind::Exception, getOffset()));
 }
 
-const Runtime::Instance::CompositeBase *
-RefVariant::getCompositeInst() const noexcept {
-  return getFuncInst();
-}
-
 namespace Runtime {
 
 Expect<const ExternBox *> RefHeap::boxExtern(const void *Host) noexcept {

@@ -62,7 +62,7 @@ public:
         }
         GotId = Header->TypeId;
       } else {
-        const auto *Inst = Ref.getCompositeInst();
+        const auto *Inst = Ref.getFuncInst();
         if (Inst == nullptr) {
           return false;
         }

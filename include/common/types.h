@@ -405,8 +405,8 @@ class ExceptionInstance;
 /// RefType variant definition.
 struct RefVariant {
   // Constructors.
-  RefVariant() noexcept { setData<void>(TypeCode::ExternRef); }
-  RefVariant(const ValType &VT) noexcept { setData<void>(VT); }
+  RefVariant() noexcept { setNull(TypeCode::ExternRef); }
+  RefVariant(const ValType &VT) noexcept { setNull(VT); }
   RefVariant(const ValType &VT, const RefVariant &Val) noexcept {
     setType(VT);
     setWord(Val.getOffset());
@@ -476,8 +476,6 @@ struct RefVariant {
   getArrayInst() const noexcept;
   WASMEDGE_EXPORT const Runtime::Instance::ExceptionInstance *
   getExceptionInst() const noexcept;
-  WASMEDGE_EXPORT const Runtime::Instance::CompositeBase *
-  getCompositeInst() const noexcept;
   // Getter for the host object of an external reference, or null if the
   // reference does not hold a box.
   WASMEDGE_EXPORT const void *getExternHost() const noexcept;
@@ -491,10 +489,7 @@ struct RefVariant {
   // Make an i31 reference from the low 31 bits of the value.
   static RefVariant makeI31(uint32_t Value) noexcept {
     RefVariant Ref(ValType(TypeCode::Ref, TypeCode::I31Ref));
-    const auto Word =
-        static_cast<uint64_t>(((Value & 0x7FFFFFFFU) << 1) | kI31Tag);
-    std::memcpy(reinterpret_cast<unsigned char *>(&Ref.Data) + sizeof(uint64_t),
-                &Word, sizeof(Word));
+    Ref.setWord(((Value & 0x7FFFFFFFU) << 1) | kI31Tag);
     return Ref;
   }
 
@@ -528,7 +523,7 @@ private:
   }
 
   // Helper function to set the type and a null word.
-  template <typename T> void setData(const ValType &VT) noexcept {
+  void setNull(const ValType &VT) noexcept {
     setType(VT);
     setWord(0U);
   }

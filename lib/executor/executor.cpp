@@ -226,7 +226,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         if (const auto *Header = getDataHeader(Ref)) {
           Id = Header->TypeId;
         } else {
-          auto *Inst = Ref.getCompositeInst();
+          auto *Inst = Ref.getFuncInst();
           if (Inst != nullptr && Inst->getModule() != nullptr) {
             Id = Inst->getModule()->getCanonicalTypeId(RefType.getTypeIndex());
           }

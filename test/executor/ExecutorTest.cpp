@@ -669,8 +669,7 @@ TEST(RefVariant, Factories) {
   EXPECT_EQ(Func.getExceptionInst(), nullptr);
   const auto TypedFunc = RefVariant::makeFunc(Def, FuncPtr);
   EXPECT_EQ(TypedFunc.getType(), Def);
-  EXPECT_EQ(static_cast<const void *>(TypedFunc.getCompositeInst()),
-            static_cast<const void *>(FuncPtr));
+  EXPECT_EQ(TypedFunc.getFuncInst(), FuncPtr);
 
   auto StructObj = Heap->makeData<Inst::StructInstance>(0U, 0U, 16U);
   ASSERT_TRUE(StructObj);
@@ -736,7 +735,6 @@ TEST(RefVariant, Factories) {
     EXPECT_EQ(Null.getStructInst(), nullptr);
     EXPECT_EQ(Null.getArrayInst(), nullptr);
     EXPECT_EQ(Null.getExceptionInst(), nullptr);
-    EXPECT_EQ(Null.getCompositeInst(), nullptr);
     EXPECT_EQ(Null.getExternPtr<void>(), nullptr);
     EXPECT_EQ(retrieveExternRef<void>(Null), nullptr);
   }
@@ -758,7 +756,6 @@ TEST(RefVariant, StaleFunction) {
   ASSERT_NE(Func.getFuncInst(), nullptr);
   FuncObj->reset();
   EXPECT_EQ(Func.getFuncInst(), nullptr);
-  EXPECT_EQ(Func.getCompositeInst(), nullptr);
 }
 
 const std::array<WasmEdge::Byte, 72> StaleTableWasm{

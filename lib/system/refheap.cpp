@@ -276,9 +276,10 @@ Expect<uint32_t> RefHeap::allocateObject(HeapKind Kind, uint64_t Size,
   std::unique_lock Lock(P.Mutex);
   uint32_t Rel;
   bool Fresh = false;
-  if (!P.FreeList.empty()) {
-    Rel = P.FreeList.back();
-    P.FreeList.pop_back();
+  if (P.FreeHead != kNoFreeSlot) {
+    Rel = P.FreeHead;
+    P.FreeHead =
+        reinterpret_cast<HeapHeader *>(getObjectAddr(P.Base + Rel))->TypeId;
   } else {
     Rel = P.Top.load(std::memory_order_relaxed);
     if (static_cast<uint64_t>(Rel) + P.SlotSize > PartLimit) {
@@ -359,7 +360,7 @@ Expect<uint32_t> RefHeap::takeBlocks(uint32_t Count) noexcept {
   return Start;
 }
 
-void RefHeap::reserveData() {
+void RefHeap::reserveRun() {
   if (!SpareRun) {
     decltype(FreeRuns) Tmp;
     Tmp.emplace(0, 0);
@@ -370,11 +371,27 @@ void RefHeap::reserveData() {
     Tmp.emplace(0, 0);
     SpareStart = Tmp.extract(Tmp.begin());
   }
+}
+
+void RefHeap::reserveClass() {
   if (!SpareClass) {
     std::set<uint32_t> Tmp;
     Tmp.insert(0);
     SpareClass = Tmp.extract(Tmp.begin());
   }
+}
+
+void RefHeap::reserveRelease(uint32_t BlockIdx, uint32_t SlotSize) {
+  if (SlotSize > kMaxSmallSize || Blocks[BlockIdx].Used == 1) {
+    reserveRun();
+  } else if (Blocks[BlockIdx].Used == kBlockSize / SlotSize) {
+    reserveClass();
+  }
+}
+
+void RefHeap::reserveData() {
+  reserveRun();
+  reserveClass();
   if (!SpareBitmap) {
     auto Bits = std::make_unique<std::atomic<uint64_t>[]>(kBitmapWords);
     for (uint32_t I = 0; I < kBitmapWords; ++I) {
@@ -448,6 +465,7 @@ Expect<RefHeap::DataView> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
   std::unique_lock Lock(DataMutex);
+  releasePending();
   reserveData();
   uint32_t Off;
   uint32_t SlotIdx = 0;
@@ -537,7 +555,9 @@ bool RefHeap::findDataSlot(uint32_t Off, uint32_t &BlockIdx, uint32_t &SlotIdx,
   const auto *Bits = Blocks[B].LiveBits.load(std::memory_order_acquire);
   if (Bits == nullptr ||
       ((Bits[SlotIdx / 64].load(std::memory_order_acquire) >> (SlotIdx % 64)) &
-       1) == 0) {
+       1) == 0 ||
+      reinterpret_cast<const HeapHeader *>(getDataAddr(Off))->Kind ==
+          HeapKind::Free) {
     return false;
   }
   BlockIdx = B;
@@ -766,11 +786,9 @@ void RefHeap::freeObject(uint32_t Off) noexcept {
   }
   Header->Live.store(0, std::memory_order_release);
   Header->Kind = HeapKind::Free;
+  Header->TypeId = P.FreeHead;
   std::memset(Slot + sizeof(HeapHeader), 0, P.SlotSize - sizeof(HeapHeader));
-  try {
-    P.FreeList.push_back(Off - P.Base);
-  } catch (const std::bad_alloc &) {
-  }
+  P.FreeHead = Off - P.Base;
 }
 
 void RefHeap::freeData(uint32_t Off) noexcept {
@@ -779,15 +797,27 @@ void RefHeap::freeData(uint32_t Off) noexcept {
   if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
     return;
   }
+  uint8_t *Slot = getDataAddr(Off);
+  try {
+    reserveRelease(BlockIdx, SlotSize);
+  } catch (const std::bad_alloc &) {
+    auto *Header = reinterpret_cast<HeapHeader *>(Slot);
+    Header->Live.store(0, std::memory_order_release);
+    Header->Kind = HeapKind::Free;
+    Header->TypeId = PendingFree;
+    std::memset(Slot + sizeof(HeapHeader), 0, SlotSize - sizeof(HeapHeader));
+    PendingFree = Off;
+    return;
+  }
   auto *Bits = Blocks[BlockIdx].LiveBits.load(std::memory_order_relaxed);
   Bits[SlotIdx / 64].fetch_and(~(UINT64_C(1) << (SlotIdx % 64)),
                                std::memory_order_acq_rel);
-  std::memset(getDataAddr(Off), 0, SlotSize);
-  try {
-    reserveData();
-  } catch (const std::bad_alloc &) {
-    return;
-  }
+  std::memset(Slot, 0, SlotSize);
+  releaseData(BlockIdx, SlotSize);
+  releasePending();
+}
+
+void RefHeap::releaseData(uint32_t BlockIdx, uint32_t SlotSize) noexcept {
   if (SlotSize <= kMaxSmallSize) {
     auto &Blk = Blocks[BlockIdx];
     auto &Partial = ClassBlocks[getClassIndex(SlotSize)];
@@ -806,6 +836,29 @@ void RefHeap::freeData(uint32_t Off) noexcept {
     Blocks[B].Info.store(0, std::memory_order_release);
   }
   addRun(BlockIdx, Count);
+}
+
+void RefHeap::releasePending() noexcept {
+  while (PendingFree != 0) {
+    const uint32_t Off = PendingFree;
+    const uint32_t BlockIdx = Off >> kBlockShift;
+    const auto SlotSize = static_cast<uint32_t>(
+        Blocks[BlockIdx].Info.load(std::memory_order_relaxed));
+    try {
+      reserveRelease(BlockIdx, SlotSize);
+    } catch (const std::bad_alloc &) {
+      return;
+    }
+    auto *Header = reinterpret_cast<HeapHeader *>(getDataAddr(Off));
+    PendingFree = Header->TypeId;
+    const uint32_t SlotIdx =
+        SlotSize <= kMaxSmallSize ? (Off & kBlockMask) / SlotSize : 0;
+    auto *Bits = Blocks[BlockIdx].LiveBits.load(std::memory_order_relaxed);
+    Bits[SlotIdx / 64].fetch_and(~(UINT64_C(1) << (SlotIdx % 64)),
+                                 std::memory_order_acq_rel);
+    std::memset(Header, 0, sizeof(HeapHeader));
+    releaseData(BlockIdx, SlotSize);
+  }
 }
 
 } // namespace Runtime

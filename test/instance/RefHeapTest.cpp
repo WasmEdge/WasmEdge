@@ -389,15 +389,90 @@ TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
   AllowedNews = -1;
   EXPECT_EQ(Fresh->getHeader(*Large), nullptr);
   EXPECT_FALSE(Fresh->getDataSpan(*Large, 0, 32));
+  auto Again = Fresh->allocate(HeapKind::Array, 2 * 65536);
+  ASSERT_TRUE(Again);
+  EXPECT_EQ(*Again, *Large);
   auto Small = Fresh->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(Small);
   AllowedNews = 0;
   Fresh->free(*Small);
   AllowedNews = -1;
   EXPECT_EQ(Fresh->getHeader(*Small), nullptr);
-  auto Again = Fresh->allocate(HeapKind::Struct, 64);
+  auto Block = Fresh->allocate(HeapKind::Array, 65536);
+  ASSERT_TRUE(Block);
+  EXPECT_EQ(*Block, *Small);
+}
+
+TEST_P(RefHeapModes, DataFreeInPartialBlockNeedsNoAllocation) {
+  auto Heap = makeHeap(GetParam(), RefHeap::Limits{8 * 65536, 65536});
+  ASSERT_TRUE(Heap) << "heap creation failed";
+  auto A = Heap->allocate(HeapKind::Struct, 64);
+  auto B = Heap->allocate(HeapKind::Struct, 64);
+  auto C = Heap->allocate(HeapKind::Struct, 1024);
+  ASSERT_TRUE(A);
+  ASSERT_TRUE(B);
+  ASSERT_TRUE(C);
+  const uint64_t Before = NewCount;
+  AllowedNews = 0;
+  Heap->free(*A);
+  AllowedNews = -1;
+  EXPECT_EQ(NewCount, Before);
+  EXPECT_EQ(Heap->getHeader(*A), nullptr);
+  auto Again = Heap->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(Again);
-  EXPECT_NE(Fresh->getHeader(*Again), nullptr);
+  EXPECT_EQ(*Again, *A);
+}
+
+TEST_P(RefHeapModes, DataFreeWithoutMemoryIsDeferred) {
+  auto Heap = makeHeap(GetParam(), RefHeap::Limits{17 * 65536, 65536});
+  ASSERT_TRUE(Heap) << "heap creation failed";
+  std::vector<uint32_t> Offs;
+  Offs.reserve(8);
+  while (auto Off = Heap->allocate(HeapKind::Array, 2 * 65536)) {
+    Offs.push_back(*Off);
+  }
+  ASSERT_GE(Offs.size(), 4U);
+  const uint64_t Before = NewCount;
+  size_t Freed = 0;
+  AllowedNews = 0;
+  for (size_t I = 0; I < Offs.size(); I += 2) {
+    Heap->free(Offs[I]);
+    ++Freed;
+  }
+  AllowedNews = -1;
+  if (NewCount == Before) {
+    GTEST_SKIP() << "the replaced operator new does not reach the heap";
+  }
+  for (size_t I = 0; I < Offs.size(); I += 2) {
+    EXPECT_EQ(Heap->getHeader(Offs[I]), nullptr) << I;
+  }
+  Heap->free(Offs[1]);
+  ++Freed;
+  size_t Reused = 0;
+  while (Heap->allocate(HeapKind::Array, 2 * 65536)) {
+    ++Reused;
+  }
+  EXPECT_EQ(Reused, Freed);
+}
+
+TEST_P(RefHeapModes, ObjectFreeNeedsNoAllocation) {
+  auto Heap = makeHeap(GetParam(), RefHeap::Limits{4 * 65536, 65536});
+  ASSERT_TRUE(Heap) << "heap creation failed";
+  std::vector<uint32_t> Offs;
+  Offs.reserve(65536 / RefHeap::getSlotSize(HeapKind::Function));
+  while (auto Off = Heap->allocate(HeapKind::Function, 64)) {
+    Offs.push_back(*Off);
+  }
+  ASSERT_FALSE(Offs.empty());
+  AllowedNews = 0;
+  for (const auto Off : Offs) {
+    Heap->free(Off);
+  }
+  AllowedNews = -1;
+  for (size_t I = 0; I < Offs.size(); ++I) {
+    ASSERT_TRUE(Heap->allocate(HeapKind::Function, 64)) << I;
+  }
+  EXPECT_FALSE(Heap->allocate(HeapKind::Function, 64));
 }
 
 class NopHost : public Runtime::HostFunction<NopHost> {

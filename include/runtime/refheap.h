@@ -331,6 +331,7 @@ private:
   static constexpr uint32_t kMaxClassShift = 15;
   static constexpr uint32_t kClassCount = kMaxClassShift - kMinClassShift + 1;
   static constexpr uint32_t kPartCount = 3;
+  static constexpr uint32_t kNoFreeSlot = UINT32_MAX;
 
   struct Block {
     /// First block of the slot in the high half, slot size in the low half.
@@ -345,7 +346,9 @@ private:
     uint32_t SlotSize = 0;
     std::atomic<uint32_t> Top = 0;
     uint32_t Committed = 0;
-    std::vector<uint32_t> FreeList;
+    /// Part offset of the first free slot, or kNoFreeSlot. The TypeId of
+    /// each free slot holds the part offset of the next one.
+    uint32_t FreeHead = kNoFreeSlot;
     std::mutex Mutex;
   };
 
@@ -397,9 +400,15 @@ private:
   Expect<DataView> allocateData(HeapKind Kind, uint64_t Size, uint32_t TypeId,
                                 uint32_t Length) noexcept;
   /// Prepare the spare index entries and the spare bitmap. Call it with
-  /// `DataMutex` held, before a data allocation changes any state, or before
-  /// a free changes the indexes.
+  /// `DataMutex` held, before a data allocation changes any state.
   void reserveData();
+  /// Prepare the spare entries of a free run, or of a size class.
+  void reserveRun();
+  void reserveClass();
+  /// Prepare only the spare entries that the release of the slot of
+  /// `SlotSize` bytes in the block `BlockIdx` uses. Call it with `DataMutex`
+  /// held, before the release changes any state.
+  void reserveRelease(uint32_t BlockIdx, uint32_t SlotSize);
   Expect<uint32_t> takeBlocks(uint32_t Count) noexcept;
   /// Add the free blocks to the free runs and merge the run with neighbor
   /// runs that are contiguous in host memory. Uses the spare index entries.
@@ -409,8 +418,15 @@ private:
   void setupBlocks(uint32_t Start, uint32_t Count, uint32_t SlotSize) noexcept;
   void freeObject(uint32_t Off) noexcept;
   /// Make the data slot at `Off` dead, then give its space back. If the
-  /// index entries cannot be prepared, the space stays out of the indexes.
+  /// index entries cannot be prepared, the slot keeps its live bit with a
+  /// free header, so that no lookup finds it and no allocation reuses it,
+  /// and waits in the pending list.
   void freeData(uint32_t Off) noexcept;
+  /// Give the space of the dead slot of `SlotSize` bytes that starts in the
+  /// block `BlockIdx` back to the indexes. Uses the spare index entries.
+  void releaseData(uint32_t BlockIdx, uint32_t SlotSize) noexcept;
+  /// Release the pending dead slots while the spare entries can be prepared.
+  void releasePending() noexcept;
   void initHeader(uint8_t *Slot, HeapKind Kind, uint32_t Off,
                   bool Live) noexcept;
   WASMEDGE_EXPORT void setLive(uint32_t Off, bool Live) noexcept;
@@ -444,6 +460,9 @@ private:
   std::map<uint32_t, uint32_t> RunStarts;
   /// Small slot blocks with a free slot, for each size class.
   std::set<uint32_t> ClassBlocks[kClassCount];
+  /// Offset of the first dead data slot whose space is not yet back in the
+  /// indexes, or 0. The TypeId of each such slot holds the next offset.
+  uint32_t PendingFree = 0;
   /// Entries and a bitmap that `reserveData` prepares, so that the indexes
   /// can change without an allocation.
   decltype(FreeRuns)::node_type SpareRun;

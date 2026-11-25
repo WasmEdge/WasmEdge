@@ -55,11 +55,6 @@ private:
   uint64_t Value;
 };
 
-class TestData {
-public:
-  TestData() = delete;
-};
-
 } // namespace
 
 namespace {
@@ -86,9 +81,6 @@ void operator delete(void *P) noexcept { std::free(P); }
 void operator delete(void *P, std::size_t) noexcept { std::free(P); }
 
 namespace WasmEdge::Runtime {
-template <> struct HeapTraits<TestData> {
-  static constexpr HeapKind Kind = HeapKind::Struct;
-};
 template <> struct HeapTraits<Hidden> {
   static constexpr HeapKind Kind = HeapKind::Exception;
 };
@@ -578,7 +570,6 @@ TEST_P(RefHeapModes, Unique) {
     EXPECT_EQ((*P)->Value, 42U);
     const uint32_t Off = P->getOffset();
     EXPECT_EQ(Heap->decodeObject(HeapKind::Function, Off), P->get());
-    EXPECT_EQ(Heap->getOffset(P->get()), Off);
 
     Runtime::UniqueHeapPtr<Counted> Q = std::move(*P);
     EXPECT_FALSE(*P);
@@ -616,7 +607,6 @@ TEST_P(RefHeapModes, NotLiveWhileBuilt) {
   auto P = Heap->makeUnique<Probe>(*Heap, Built, Destroyed);
   ASSERT_TRUE(P);
   EXPECT_EQ(Built, 0U);
-  EXPECT_EQ(Heap->getOffset(P->get()), P->getOffset());
   const uint32_t Off = P->getOffset();
   P->reset();
   EXPECT_EQ(Destroyed, 0U);
@@ -674,7 +664,6 @@ TEST_P(RefHeapModes, WithTail) {
   const uint32_t End =
       static_cast<uint32_t>(sizeof(HeapHeader) + sizeof(Tailed) + 64);
   EXPECT_TRUE(Heap->getDataSpan(Off, 0, End));
-  EXPECT_EQ(Heap->getOffset(P->get()), Off);
   auto S = Heap->makeSharedWithTail<Tailed>(0);
   ASSERT_TRUE(S);
   EXPECT_EQ((*S)->Head, 7U);
@@ -731,12 +720,13 @@ TEST_P(RefHeapModes, PrivateConstructor) {
 
 TEST_P(RefHeapModes, MakeData) {
   MAKE_HEAP_OR_SKIP(Heap);
-  auto P = Heap->makeData<TestData>(7U, 3U, 24U);
+  auto P = Heap->makeData(HeapKind::Struct, 7U, 3U, 24U);
   ASSERT_TRUE(P);
-  const uint32_t Off = P->getOffset();
+  const uint32_t Off = P->Slot.getOffset();
+  EXPECT_EQ(P->View.getOffset(), Off);
+  EXPECT_EQ(P->View.Size, 64U);
   EXPECT_NE(Off, 0U);
   EXPECT_EQ(Off & (RefHeap::kTagI31 | RefHeap::kTagObject), 0U);
-  EXPECT_EQ(Heap->getOffset(P->get()), Off);
   const auto *Header = Heap->getHeader(Off);
   ASSERT_NE(Header, nullptr);
   EXPECT_EQ(Header->Kind, HeapKind::Struct);
@@ -758,29 +748,27 @@ TEST_P(RefHeapModes, MakeData) {
 
 TEST_P(RefHeapModes, EmptyDataSlot) {
   MAKE_HEAP_OR_SKIP(Heap);
-  auto P = Heap->makeData<TestData>(1U, 0U, 0U);
+  auto P = Heap->makeData(HeapKind::Struct, 1U, 0U, 0U);
   ASSERT_TRUE(P);
-  const auto *Header = Heap->getHeader(P->getOffset());
+  const auto *Header = Heap->getHeader(P->Slot.getOffset());
   ASSERT_NE(Header, nullptr);
   EXPECT_EQ(Header->Kind, HeapKind::Struct);
-  EXPECT_EQ(Heap->getOffset(P->get()), P->getOffset());
 }
 
 TEST_P(RefHeapModes, DataSlotTooBig) {
   MAKE_HEAP_OR_SKIP(Heap);
-  auto P = Heap->makeData<TestData>(1U, 0U, UINT64_C(1) << 32);
+  auto P = Heap->makeData(HeapKind::Struct, 1U, 0U, UINT64_C(1) << 32);
   ASSERT_FALSE(P);
   EXPECT_EQ(P.error(), ErrCode::Value::RefHeapFull);
 }
 
 TEST_P(RefHeapModes, DataSlotReset) {
   MAKE_HEAP_OR_SKIP(Heap);
-  auto P = Heap->makeData<TestData>(1U, 0U, 16U);
+  auto P = Heap->makeData(HeapKind::Struct, 1U, 0U, 16U);
   ASSERT_TRUE(P);
-  const auto *Obj = P->get();
-  const uint32_t Off = P->getOffset();
-  P->reset();
-  EXPECT_EQ(Heap->getOffset(Obj), 0U);
+  const uint32_t Off = P->Slot.getOffset();
+  P->Slot.reset();
+  EXPECT_FALSE(P->Slot);
   EXPECT_EQ(Heap->getHeader(Off), nullptr);
 }
 

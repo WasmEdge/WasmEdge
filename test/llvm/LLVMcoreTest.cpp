@@ -868,8 +868,8 @@ TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
   const auto Ref = (*R)[0].first.get<RefVariant>();
   auto *Heap = Runtime::RefHeap::getGlobal();
   ASSERT_NE(Heap, nullptr);
-  const uint32_t Off = Heap->getOffset(Ref.getStructInst());
-  ASSERT_NE(Off, 0u);
+  const uint32_t Off = Ref.getOffset();
+  ASSERT_TRUE(Heap->getDataView(Off, Runtime::HeapKind::Struct));
   constexpr uint32_t FieldBase = sizeof(Runtime::HeapHeader);
   auto Tag = Heap->load<uint32_t>(Off, FieldBase);
   ASSERT_TRUE(Tag);
@@ -881,10 +881,10 @@ TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
          "to a null bottom type through the callee's own type section";
 
   CallerInst.reset();
-  EXPECT_EQ(Heap->getOffset(Ref.getStructInst()), Off)
+  EXPECT_TRUE(Heap->getDataView(Off, Runtime::HeapKind::Struct))
       << "the struct is owned by the caller instead of the callee";
   CalleeInst.reset();
-  EXPECT_EQ(Heap->getOffset(Ref.getStructInst()), 0u)
+  EXPECT_FALSE(Heap->getDataView(Off, Runtime::HeapKind::Struct))
       << "the struct created by the callee's struct.new_default is not "
          "owned by the callee module";
 }

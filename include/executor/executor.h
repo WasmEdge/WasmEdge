@@ -576,10 +576,11 @@ private:
   const Runtime::HeapHeader *
   getDataHeader(const RefVariant &Ref) const noexcept;
 
-  /// Helper function for getting the data slot offset of a struct or array
+  /// Helper function for getting the checked data slot of a struct or array
   /// reference of the kind `Kind`.
-  Expect<uint32_t> getDataOffset(const RefVariant &Ref,
-                                 const Runtime::HeapKind Kind) const noexcept;
+  Expect<Runtime::RefHeap::DataView>
+  getDataView(const RefVariant &Ref,
+              const Runtime::HeapKind Kind) const noexcept;
   /// @}
 
   /// \name Interpreter - Run instructions functions

@@ -397,8 +397,6 @@ private:
 namespace Runtime::Instance {
 class CompositeBase;
 class FunctionInstance;
-class StructInstance;
-class ArrayInstance;
 class ExceptionInstance;
 } // namespace Runtime::Instance
 
@@ -439,17 +437,19 @@ struct RefVariant {
            const Runtime::Instance::FunctionInstance *P) noexcept {
     return make(VT, P);
   }
-  // Make a struct reference of the given type.
-  static RefVariant
-  makeStruct(const ValType &VT,
-             const Runtime::Instance::StructInstance *P) noexcept {
-    return make(VT, P);
+  // Make a struct reference of the given type to the data slot at the heap
+  // offset `Off`.
+  static RefVariant makeStruct(const ValType &VT, uint32_t Off) noexcept {
+    RefVariant Ref(VT);
+    Ref.setWord(Off);
+    return Ref;
   }
-  // Make an array reference of the given type.
-  static RefVariant
-  makeArray(const ValType &VT,
-            const Runtime::Instance::ArrayInstance *P) noexcept {
-    return make(VT, P);
+  // Make an array reference of the given type to the data slot at the heap
+  // offset `Off`.
+  static RefVariant makeArray(const ValType &VT, uint32_t Off) noexcept {
+    RefVariant Ref(VT);
+    Ref.setWord(Off);
+    return Ref;
   }
   // Make an exception reference.
   static RefVariant
@@ -470,10 +470,6 @@ struct RefVariant {
   // not hold a live instance of the kind gives null.
   WASMEDGE_EXPORT const Runtime::Instance::FunctionInstance *
   getFuncInst() const noexcept;
-  WASMEDGE_EXPORT Runtime::Instance::StructInstance *
-  getStructInst() const noexcept;
-  WASMEDGE_EXPORT Runtime::Instance::ArrayInstance *
-  getArrayInst() const noexcept;
   WASMEDGE_EXPORT const Runtime::Instance::ExceptionInstance *
   getExceptionInst() const noexcept;
   // Getter for the host object of an external reference, or null if the

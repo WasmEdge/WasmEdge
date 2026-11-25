@@ -651,6 +651,7 @@ static uint64_t refWord(const WasmEdge::RefVariant &Ref) noexcept {
 TEST(RefVariant, Factories) {
   using namespace WasmEdge;
   namespace Inst = Runtime::Instance;
+  using Runtime::HeapKind;
   alignas(16) static std::array<std::byte, 64> Storage{};
   auto *Addr = Storage.data();
   const ValType Def(TypeCode::Ref, 3);
@@ -666,27 +667,27 @@ TEST(RefVariant, Factories) {
   EXPECT_EQ(Word(Func), static_cast<uint64_t>(Heap->getOffset(FuncPtr)));
   EXPECT_EQ(Func.getOffset(), FuncObj->getOffset());
   EXPECT_EQ(Func.getFuncInst(), FuncPtr);
-  EXPECT_EQ(Func.getStructInst(), nullptr);
+  EXPECT_FALSE(Heap->getDataView(Func.getOffset(), HeapKind::Struct));
   EXPECT_EQ(Func.getExceptionInst(), nullptr);
   const auto TypedFunc = RefVariant::makeFunc(Def, FuncPtr);
   EXPECT_EQ(TypedFunc.getType(), Def);
   EXPECT_EQ(TypedFunc.getFuncInst(), FuncPtr);
 
-  auto StructObj = Heap->makeData<Inst::StructInstance>(0U, 0U, 16U);
+  auto StructObj = Heap->makeData(HeapKind::Struct, 0U, 0U, 16U);
   ASSERT_TRUE(StructObj);
-  const auto Struct = RefVariant::makeStruct(Def, StructObj->get());
+  const auto Struct = RefVariant::makeStruct(Def, StructObj->Slot.getOffset());
   EXPECT_EQ(Struct.getType(), Def);
-  EXPECT_EQ(Word(Struct), static_cast<uint64_t>(StructObj->getOffset()));
-  EXPECT_EQ(Struct.getStructInst(), StructObj->get());
-  EXPECT_EQ(Struct.getArrayInst(), nullptr);
+  EXPECT_EQ(Word(Struct), static_cast<uint64_t>(StructObj->Slot.getOffset()));
+  EXPECT_TRUE(Heap->getDataView(Struct.getOffset(), HeapKind::Struct));
+  EXPECT_FALSE(Heap->getDataView(Struct.getOffset(), HeapKind::Array));
   EXPECT_EQ(Struct.getFuncInst(), nullptr);
-  auto ArrayObj = Heap->makeData<Inst::ArrayInstance>(0U, 1U, 16U);
+  auto ArrayObj = Heap->makeData(HeapKind::Array, 0U, 1U, 16U);
   ASSERT_TRUE(ArrayObj);
-  const auto Array = RefVariant::makeArray(Def, ArrayObj->get());
+  const auto Array = RefVariant::makeArray(Def, ArrayObj->Slot.getOffset());
   EXPECT_EQ(Array.getType(), Def);
-  EXPECT_EQ(Word(Array), static_cast<uint64_t>(ArrayObj->getOffset()));
-  EXPECT_EQ(Array.getArrayInst(), ArrayObj->get());
-  EXPECT_EQ(Array.getStructInst(), nullptr);
+  EXPECT_EQ(Word(Array), static_cast<uint64_t>(ArrayObj->Slot.getOffset()));
+  EXPECT_TRUE(Heap->getDataView(Array.getOffset(), HeapKind::Array));
+  EXPECT_FALSE(Heap->getDataView(Array.getOffset(), HeapKind::Struct));
 
   auto ExnObj = Inst::ExceptionInstance::create(
       reinterpret_cast<Inst::TagInstance *>(Addr), {});
@@ -699,9 +700,6 @@ TEST(RefVariant, Factories) {
 
   EXPECT_TRUE(RefVariant::makeFunc(
                   reinterpret_cast<const Inst::FunctionInstance *>(Addr))
-                  .isNull());
-  EXPECT_TRUE(RefVariant::makeStruct(
-                  Def, reinterpret_cast<const Inst::StructInstance *>(Addr))
                   .isNull());
 
   const auto Extern = RefVariant::makeExtern(Addr + 8);
@@ -733,8 +731,6 @@ TEST(RefVariant, Factories) {
         RefVariant(ValType(TypeCode::RefNull, 0)), RefVariant()}) {
     EXPECT_TRUE(Null.isNull());
     EXPECT_EQ(Null.getFuncInst(), nullptr);
-    EXPECT_EQ(Null.getStructInst(), nullptr);
-    EXPECT_EQ(Null.getArrayInst(), nullptr);
     EXPECT_EQ(Null.getExceptionInst(), nullptr);
     EXPECT_EQ(Null.getExternPtr<void>(), nullptr);
     EXPECT_EQ(retrieveExternRef<void>(Null), nullptr);

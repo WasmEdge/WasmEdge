@@ -669,20 +669,20 @@ Executor::getDataHeader(const RefVariant &Ref) const noexcept {
   return Runtime::Matcher::getDataHeader(Ref);
 }
 
-Expect<uint32_t>
-Executor::getDataOffset(const RefVariant &Ref,
-                        const Runtime::HeapKind Kind) const noexcept {
+Expect<Runtime::RefHeap::DataView>
+Executor::getDataView(const RefVariant &Ref,
+                      const Runtime::HeapKind Kind) const noexcept {
   const uint32_t Off = Ref.getOffset();
   if (Off == 0) {
     return Unexpect(Kind == Runtime::HeapKind::Struct
                         ? ErrCode::Value::AccessNullStruct
                         : ErrCode::Value::AccessNullArray);
   }
-  const auto *Header = getDataHeader(Ref);
-  if (Header == nullptr || Header->Kind != Kind) {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  if (Heap == nullptr) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  return Off;
+  return Heap->getDataView(Off, Kind);
 }
 
 } // namespace Executor

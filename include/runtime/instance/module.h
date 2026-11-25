@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
 #include "runtime/instance/exception.h"
@@ -25,7 +24,6 @@
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/reflifetime.h"
-#include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
 #include "runtime/typetable.h"
@@ -437,13 +435,15 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
   }
-  Expect<ArrayInstance *> newArray(uint32_t TypeIdx, uint32_t Length,
-                                   uint32_t ElemSize) {
-    return newData(OwnedArrayInsts, TypeIdx, Length,
+  /// Make an array or a struct data slot that this module owns, and return
+  /// a checked view of it.
+  Expect<RefHeap::DataView> newArray(uint32_t TypeIdx, uint32_t Length,
+                                     uint32_t ElemSize) {
+    return newData(HeapKind::Array, TypeIdx, Length,
                    static_cast<uint64_t>(Length) * ElemSize);
   }
-  Expect<StructInstance *> newStruct(uint32_t TypeIdx, uint64_t FieldBytes) {
-    return newData(OwnedStructInsts, TypeIdx, 0, FieldBytes);
+  Expect<RefHeap::DataView> newStruct(uint32_t TypeIdx, uint64_t FieldBytes) {
+    return newData(HeapKind::Struct, TypeIdx, 0, FieldBytes);
   }
   template <typename... Args>
   Expect<ExceptionInstance *> newException(Args &&...Values) {
@@ -692,19 +692,19 @@ protected:
     InstsVec.push_back(OwnedInstsVec.back().get());
   }
 
-  /// Make a data slot of the defined type `TypeIdx` that this module owns.
-  template <typename T>
-  Expect<T *> newData(std::vector<UniqueHeapPtr<T>> &OwnedVec, uint32_t TypeIdx,
-                      uint32_t Length, uint64_t FieldBytes) {
+  /// Make a data slot of the defined type `TypeIdx` that this module owns,
+  /// and return a checked view of it.
+  Expect<RefHeap::DataView> newData(HeapKind Kind, uint32_t TypeIdx,
+                                    uint32_t Length, uint64_t FieldBytes) {
     auto *Heap = RefHeap::getGlobal();
     if (Heap == nullptr) {
       return Unexpect(ErrCode::Value::RefHeapFull);
     }
-    EXPECTED_TRY(auto Data, Heap->makeData<T>(getCanonicalTypeId(TypeIdx),
-                                              Length, FieldBytes));
+    EXPECTED_TRY(auto Data, Heap->makeData(Kind, getCanonicalTypeId(TypeIdx),
+                                           Length, FieldBytes));
     std::unique_lock Lock(Mutex);
-    OwnedVec.push_back(std::move(Data));
-    return OwnedVec.back().get();
+    OwnedDataSlots.push_back(std::move(Data.Slot));
+    return Data.View;
   }
 
   /// Unsafely add and export the existing instance to this module.
@@ -873,8 +873,7 @@ protected:
   std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
   std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
-  std::vector<UniqueHeapPtr<ArrayInstance>> OwnedArrayInsts;
-  std::vector<UniqueHeapPtr<StructInstance>> OwnedStructInsts;
+  std::vector<UniqueDataSlot> OwnedDataSlots;
   std::vector<UniqueHeapPtr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.

@@ -245,7 +245,8 @@ Expect<uint32_t> RefHeap::allocateSlot(HeapKind Kind, uint64_t Size,
     return allocateObject(Kind, Size, Live);
   }
   if (Kind == HeapKind::Struct || Kind == HeapKind::Array) {
-    return allocateData(Kind, Size, 0, 0);
+    EXPECTED_TRY(const auto View, allocateData(Kind, Size, 0, 0));
+    return View.getOffset();
   }
   return Unexpect(ErrCode::Value::RefHeapFull);
 }
@@ -414,18 +415,19 @@ void RefHeap::setupBlocks(uint32_t Start, uint32_t Count,
   }
 }
 
-Expect<uint32_t> RefHeap::allocateDataSlot(HeapKind Kind, uint64_t FieldBytes,
-                                           uint32_t TypeId,
-                                           uint32_t Length) noexcept {
+Expect<RefHeap::DataView> RefHeap::allocateDataSlot(HeapKind Kind,
+                                                    uint64_t FieldBytes,
+                                                    uint32_t TypeId,
+                                                    uint32_t Length) noexcept {
   if (FieldBytes > k4G) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
   return allocateData(Kind, sizeof(HeapHeader) + FieldBytes, TypeId, Length);
 }
 
-Expect<uint32_t> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
-                                       uint32_t TypeId,
-                                       uint32_t Length) noexcept try {
+Expect<RefHeap::DataView> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
+                                                uint32_t TypeId,
+                                                uint32_t Length) noexcept try {
   if (Size > static_cast<uint64_t>(DataBlocks) * kBlockSize) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
@@ -433,9 +435,10 @@ Expect<uint32_t> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
   reserveData();
   uint32_t Off;
   uint32_t SlotIdx = 0;
+  uint32_t SlotSize;
   if (Size <= kMaxSmallSize) {
     const uint32_t Class = getClassIndex(Size);
-    const uint32_t SlotSize = UINT32_C(1) << (Class + kMinClassShift);
+    SlotSize = UINT32_C(1) << (Class + kMinClassShift);
     const uint32_t SlotCount = kBlockSize / SlotSize;
     auto &Partial = ClassBlocks[Class];
     if (Partial.empty()) {
@@ -471,7 +474,8 @@ Expect<uint32_t> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
     const auto Count =
         static_cast<uint32_t>((Size + kBlockSize - 1) / kBlockSize);
     EXPECTED_TRY(const uint32_t Start, takeBlocks(Count));
-    setupBlocks(Start, Count, Count * kBlockSize);
+    SlotSize = Count * kBlockSize;
+    setupBlocks(Start, Count, SlotSize);
     Off = Start << kBlockShift;
   }
   uint8_t *Slot = getDataAddr(Off);
@@ -484,7 +488,7 @@ Expect<uint32_t> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
       Blocks[Off >> kBlockShift].LiveBits.load(std::memory_order_relaxed);
   Bits[SlotIdx / 64].fetch_or(UINT64_C(1) << (SlotIdx % 64),
                               std::memory_order_release);
-  return Off;
+  return DataView{Header, SlotSize};
 } catch (const std::bad_alloc &) {
   return Unexpect(ErrCode::Value::RefHeapFull);
 }
@@ -591,17 +595,7 @@ void *decodeRef(Runtime::HeapKind Kind, uint32_t Off) noexcept {
   if (Heap == nullptr) {
     return nullptr;
   }
-  if (Runtime::RefHeap::isObjectKind(Kind)) {
-    return Heap->decodeObject(Kind, Off);
-  }
-  if ((Off & (Runtime::RefHeap::kTagI31 | Runtime::RefHeap::kTagObject)) != 0) {
-    return nullptr;
-  }
-  auto *Header = Heap->getHeader(Off);
-  if (Header == nullptr || Header->Kind != Kind) {
-    return nullptr;
-  }
-  return reinterpret_cast<uint8_t *>(Header) + sizeof(Runtime::HeapHeader);
+  return Heap->decodeObject(Kind, Off);
 }
 
 } // namespace
@@ -610,16 +604,6 @@ const Runtime::Instance::FunctionInstance *
 RefVariant::getFuncInst() const noexcept {
   return static_cast<const Runtime::Instance::FunctionInstance *>(
       decodeRef(Runtime::HeapKind::Function, getOffset()));
-}
-
-Runtime::Instance::StructInstance *RefVariant::getStructInst() const noexcept {
-  return static_cast<Runtime::Instance::StructInstance *>(
-      decodeRef(Runtime::HeapKind::Struct, getOffset()));
-}
-
-Runtime::Instance::ArrayInstance *RefVariant::getArrayInst() const noexcept {
-  return static_cast<Runtime::Instance::ArrayInstance *>(
-      decodeRef(Runtime::HeapKind::Array, getOffset()));
 }
 
 const Runtime::Instance::ExceptionInstance *
@@ -729,6 +713,19 @@ Expect<uint8_t *> RefHeap::getDataSpan(uint32_t Off, uint32_t Pos,
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   return getDataAddr(Off) + Pos;
+}
+
+Expect<RefHeap::DataView> RefHeap::getDataView(uint32_t Off,
+                                               HeapKind Kind) const noexcept {
+  uint32_t BlockIdx, SlotIdx, SlotSize;
+  if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  auto *Header = reinterpret_cast<HeapHeader *>(getDataAddr(Off));
+  if (Header->Kind != Kind) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  return DataView{Header, SlotSize};
 }
 
 void RefHeap::free(uint32_t Off) noexcept {

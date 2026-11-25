@@ -106,6 +106,8 @@ template <typename T> struct HeapTraits;
 
 template <typename T> class UniqueHeapPtr;
 template <typename T> class SharedHeapPtr;
+class UniqueDataSlot;
+struct NewDataSlot;
 
 /// Box of a host pointer that an externref holds.
 struct ExternBox {
@@ -213,6 +215,24 @@ public:
   Expect<uint8_t *> getDataSpan(uint32_t Off, uint32_t Pos,
                                 uint32_t Size) const noexcept;
 
+  /// A live data slot that one check found: its header and its size.
+  struct DataView {
+    HeapHeader *Header;
+    uint32_t Size;
+    /// Address of `Bytes` bytes at the slot position `Pos`, or null if they
+    /// do not fit in the slot.
+    uint8_t *getSpan(uint64_t Pos, uint64_t Bytes) const noexcept {
+      if (Pos > Size || Bytes > Size - Pos) {
+        return nullptr;
+      }
+      return reinterpret_cast<uint8_t *>(Header) + Pos;
+    }
+    uint32_t getOffset() const noexcept { return Header->SelfOffset; }
+  };
+  /// The live data slot of `Kind` at `Off`. Fails with MemoryOutOfBounds if
+  /// `Off` is not the start of such a slot.
+  Expect<DataView> getDataView(uint32_t Off, HeapKind Kind) const noexcept;
+
   template <typename T>
   Expect<T> load(uint32_t Off, uint32_t Pos) const noexcept {
     static_assert(std::is_trivially_copyable_v<T>);
@@ -238,11 +258,10 @@ public:
   Expect<UniqueHeapPtr<T>> makeUnique(ArgsT &&...Args) noexcept {
     return makeUniqueWithTail<T>(0, std::forward<ArgsT>(Args)...);
   }
-  /// New data slot for the empty marker type `T`, with `FieldBytes` zero
-  /// bytes after the header. The header holds `TypeId` and `Length`.
-  template <typename T>
-  Expect<UniqueHeapPtr<T>> makeData(uint32_t TypeId, uint32_t Length,
-                                    uint64_t FieldBytes) noexcept;
+  /// New struct or array data slot with `FieldBytes` zero bytes after the
+  /// header. The header holds `TypeId` and `Length`.
+  Expect<NewDataSlot> makeData(HeapKind Kind, uint32_t TypeId, uint32_t Length,
+                               uint64_t FieldBytes) noexcept;
 
   /// Box of `Host`, or null for a null `Host`. The same host pointer always
   /// gives the same box. Boxes live until the heap is destroyed.
@@ -362,13 +381,13 @@ private:
                                                 bool Live) noexcept;
   /// New live data slot with `FieldBytes` zero bytes after the header. The
   /// header holds `TypeId` and `Length` before the slot becomes live.
-  WASMEDGE_EXPORT Expect<uint32_t> allocateDataSlot(HeapKind Kind,
+  WASMEDGE_EXPORT Expect<DataView> allocateDataSlot(HeapKind Kind,
                                                     uint64_t FieldBytes,
                                                     uint32_t TypeId,
                                                     uint32_t Length) noexcept;
   Expect<uint32_t> allocateObject(HeapKind Kind, uint64_t Size,
                                   bool Live) noexcept;
-  Expect<uint32_t> allocateData(HeapKind Kind, uint64_t Size, uint32_t TypeId,
+  Expect<DataView> allocateData(HeapKind Kind, uint64_t Size, uint32_t TypeId,
                                 uint32_t Length) noexcept;
   /// Prepare the spare index entries and the spare bitmap. Call it with
   /// `DataMutex` held, before a data allocation changes any state, or before
@@ -558,16 +577,56 @@ Expect<UniqueHeapPtr<T>> RefHeap::makeUniqueWithTail(uint32_t TailBytes,
   return UniqueHeapPtr<T>(this, Res.first, Res.second);
 }
 
-template <typename T>
-Expect<UniqueHeapPtr<T>> RefHeap::makeData(uint32_t TypeId, uint32_t Length,
-                                           uint64_t FieldBytes) noexcept {
-  constexpr HeapKind Kind = HeapTraits<T>::Kind;
-  static_assert(Kind == HeapKind::Struct || Kind == HeapKind::Array);
-  static_assert(std::is_empty_v<T> && std::is_trivially_destructible_v<T>);
-  EXPECTED_TRY(const uint32_t Off,
+/// Owning handle of a struct or array data slot. It holds only the offset,
+/// because the slot holds field bytes and no C++ object. It cannot be copied.
+class UniqueDataSlot {
+public:
+  UniqueDataSlot() noexcept = default;
+  UniqueDataSlot(UniqueDataSlot &&Other) noexcept
+      : Heap(std::exchange(Other.Heap, nullptr)),
+        Off(std::exchange(Other.Off, 0)) {}
+  UniqueDataSlot &operator=(UniqueDataSlot &&Other) noexcept {
+    if (this != &Other) {
+      reset();
+      Heap = std::exchange(Other.Heap, nullptr);
+      Off = std::exchange(Other.Off, 0);
+    }
+    return *this;
+  }
+  UniqueDataSlot(const UniqueDataSlot &) = delete;
+  UniqueDataSlot &operator=(const UniqueDataSlot &) = delete;
+  ~UniqueDataSlot() noexcept { reset(); }
+
+  explicit operator bool() const noexcept { return Off != 0; }
+  uint32_t getOffset() const noexcept { return Off; }
+
+  void reset() noexcept {
+    if (Off != 0) {
+      std::exchange(Heap, nullptr)->free(std::exchange(Off, 0));
+    }
+  }
+
+private:
+  friend class RefHeap;
+  UniqueDataSlot(RefHeap *H, uint32_t O) noexcept : Heap(H), Off(O) {}
+
+  RefHeap *Heap = nullptr;
+  uint32_t Off = 0;
+};
+
+/// A new data slot: its owning handle and a checked view of it.
+struct NewDataSlot {
+  UniqueDataSlot Slot;
+  RefHeap::DataView View;
+};
+
+inline Expect<NewDataSlot> RefHeap::makeData(HeapKind Kind, uint32_t TypeId,
+                                             uint32_t Length,
+                                             uint64_t FieldBytes) noexcept {
+  assuming(Kind == HeapKind::Struct || Kind == HeapKind::Array);
+  EXPECTED_TRY(const auto View,
                allocateDataSlot(Kind, FieldBytes, TypeId, Length));
-  return UniqueHeapPtr<T>(
-      this, reinterpret_cast<T *>(getDataAddr(Off) + sizeof(HeapHeader)), Off);
+  return NewDataSlot{UniqueDataSlot(this, View.getOffset()), View};
 }
 
 template <typename T> UniqueHeapPtr<T> RefHeap::adopt(T *Ptr) noexcept {

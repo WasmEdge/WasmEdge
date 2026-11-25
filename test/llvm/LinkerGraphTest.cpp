@@ -12,6 +12,7 @@
 
 #include "LinkerTestHelpers.h"
 #include "LinkerTestUtils.h"
+#include "linker/compact_unwind.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
 #include "linker/relocation.h"
@@ -1661,6 +1662,19 @@ TEST(LinkGraphTest, RejectsPruningMachOEHFrameStillInUse) {
     EXPECT_EQ(Graph.sections()[EHFrame].Purpose, SectionPurpose::EHFrame);
     EXPECT_EQ(Graph.symbols().size(), 3U);
   }
+}
+
+TEST(LinkGraphTest, ValidatesMutatedMachOUnwindInfoSection) {
+  auto Graph = makeCompactUnwindGraph(Target::AArch64, 0x02000000);
+  ASSERT_TRUE(reserveMachOUnwindInfo(Graph));
+  ASSERT_TRUE(Graph.validate());
+  auto &Sections = const_cast<std::vector<Section> &>(Graph.sections());
+  ASSERT_EQ(Sections.back().Purpose, SectionPurpose::UnwindInfo);
+  ASSERT_FALSE(Sections.back().Content.empty());
+  Sections.back().Content.pop_back();
+  auto Result = Graph.validate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error().Message, "incoherent Mach-O unwind info section");
 }
 
 TEST(LayoutTest, RejectsInvalidSegmentAlignmentAndExtraPlacements) {

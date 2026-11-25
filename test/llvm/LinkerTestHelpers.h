@@ -3,6 +3,7 @@
 #pragma once
 
 #include "LinkerTestUtils.h"
+#include "linker/eh_frame.h"
 #include "linker/link_graph.h"
 
 #include "loader/loader.h"
@@ -562,6 +563,143 @@ inline void clearMachOSectionRelocations(std::vector<WasmEdge::Byte> &Bytes,
 inline std::vector<WasmEdge::Byte>
 makeAssemblyObject(const llvm::Triple &Triple, std::string Assembly,
                    std::string Features, bool HardFloat);
+
+inline X86_64MachOEHFrameFixture
+makeX86_64MachOEHFrameFixture(bool Raw, bool Alias = false,
+                              bool Mixed = false) {
+  std::string Assembly = Mixed ? R"(
+.text
+.globl _t0
+_t0:
+ret
+.globl _f0
+_f0:
+ret
+)"
+                               : R"(
+.text
+.globl _f0
+_f0:
+ret
+.globl _f1
+_f1:
+ret
+)";
+  if (Alias && !Mixed) {
+    Assembly += R"(
+.globl _f1_alias
+.set _f1_alias, _f1
+)";
+  }
+  Assembly += R"(
+.data
+.globl _d0
+_d0:
+.quad 0
+.section __TEXT,__eh_frame,coalesced,no_toc+strip_static_syms+live_support
+.p2align 3
+Lx86_cie:
+.long Lx86_cie_end-Lx86_cie-4
+.long 0
+.byte 1
+.asciz "zR"
+.byte 1
+.byte 0x78
+.byte 16
+.byte 1
+.byte 0x10
+.p2align 3
+Lx86_cie_end:
+Lx86_fde:
+.long Lx86_fde_end-Lx86_fde-4
+.long 28
+)";
+  Assembly += Mixed ? ".quad _f0\n" : ".quad _f1\n";
+  Assembly += R"(
+.quad 1
+.byte 0
+.p2align 3
+Lx86_fde_end:
+.long 0
+)";
+  if (Mixed) {
+    Assembly += R"(
+.section __LD,__compact_unwind,regular,debug
+.p2align 3
+.quad _t0
+.long 1
+.long 0x01000000
+.quad 0
+.quad 0
+)";
+  }
+  auto Bytes = makeAssemblyObject(llvm::Triple("x86_64-apple-macosx"),
+                                  std::move(Assembly), {}, false);
+  const auto EH = machOEHFrameObject(Bytes);
+  EXPECT_NE(EH.Content, 0U);
+  EXPECT_EQ(EH.Relocations.size(), 1U);
+
+  auto Parsed =
+      llvm::object::ObjectFile::createObjectFile(llvm::MemoryBufferRef(
+          llvm::StringRef(reinterpret_cast<const char *>(Bytes.data()),
+                          Bytes.size()),
+          "x86-eh-frame.o"));
+  EXPECT_TRUE(static_cast<bool>(Parsed));
+  if (!Parsed) {
+    llvm::consumeError(Parsed.takeError());
+    return {std::move(Bytes), 0, 0, 0};
+  }
+  uint64_t EHAddress = 0;
+  uint64_t TargetAddress = 0;
+  uint64_t DataAddress = 0;
+  std::set<size_t> Fields;
+  std::set<uint64_t> Relocations;
+  for (const auto &Section : (*Parsed)->sections()) {
+    auto Name = sectionName(Section);
+    EXPECT_TRUE(static_cast<bool>(Name));
+    if (!Name || *Name != "__eh_frame")
+      continue;
+    EHAddress = Section.getAddress();
+    auto Contents = Section.getContents();
+    EXPECT_TRUE(static_cast<bool>(Contents));
+    if (!Contents)
+      continue;
+    const std::vector<WasmEdge::Byte> Frame(Contents->bytes_begin(),
+                                            Contents->bytes_end());
+    auto ParsedFields = machOEHFrameFields(Frame, Target::X86_64);
+    EXPECT_TRUE(ParsedFields.has_value());
+    if (ParsedFields)
+      Fields = std::move(*ParsedFields);
+    for (const auto &Relocation : Section.relocations())
+      Relocations.insert(Relocation.getOffset());
+  }
+  for (const auto &Symbol : (*Parsed)->symbols()) {
+    auto Name = Symbol.getName();
+    EXPECT_TRUE(static_cast<bool>(Name));
+    if (!Name || (*Name != (Mixed ? "_f0" : "_f1") && *Name != "_d0"))
+      continue;
+    auto Address = Symbol.getAddress();
+    EXPECT_TRUE(static_cast<bool>(Address));
+    if (!Address)
+      continue;
+    if (*Name == "_d0")
+      DataAddress = *Address;
+    else
+      TargetAddress = *Address;
+  }
+  EXPECT_EQ(Fields.size(), 1U);
+  EXPECT_NE(TargetAddress, 0U);
+  EXPECT_NE(DataAddress, 0U);
+  const size_t Field = Fields.empty() ? 0 : *Fields.begin();
+  EXPECT_NE(Relocations.find(Field), Relocations.end());
+  if (Raw && Fields.size() == 1 && TargetAddress != 0) {
+    const int64_t Delta = static_cast<int64_t>(TargetAddress) -
+                          static_cast<int64_t>(EHAddress + Field);
+    write64le(Bytes, EH.Content + Field, static_cast<uint64_t>(Delta));
+    clearMachOSectionRelocations(Bytes, "__eh_frame");
+  }
+  return {std::move(Bytes), Field, EHAddress + Field, DataAddress};
+}
 
 inline void clearMachOSectionRelocations(std::vector<WasmEdge::Byte> &Bytes,
                                          std::string_view Name) {

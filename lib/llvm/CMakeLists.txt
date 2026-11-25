@@ -32,6 +32,8 @@ set(WASMEDGE_LLVM_SOURCES
 
 set(WASMEDGE_LLVM_LINKER_SOURCES
   linker/byte_io.cpp
+  linker/compact_unwind.cpp
+  linker/eh_frame.cpp
   linker/layout.cpp
   linker/link_graph.cpp
   linker/relocation.cpp

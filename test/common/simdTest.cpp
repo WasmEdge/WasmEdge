@@ -12,6 +12,7 @@
 #include <cfenv>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <gtest/gtest.h>
 #include <limits>
@@ -20,7 +21,7 @@
 #include <vector>
 
 #if defined(_M_X64) || defined(__SSE2__)
-#include <xmmintrin.h>
+#include <immintrin.h>
 #endif
 
 namespace {
@@ -284,6 +285,23 @@ struct IntegerRounding<VectorExtFamily>
 
 template <class F> constexpr bool usesIntegerRounding() {
   return IntegerRounding<F>::value;
+}
+
+constexpr unsigned int MxcsrDenormalsAreZero = 0x0040U;
+// The writable MXCSR bits of a CPU that stores a zero mask with FXSAVE.
+constexpr std::uint32_t MxcsrDefaultMask = 0xFFBFU;
+
+// Early SSE2 CPUs have no denormals-are-zero bit, and a write to it faults.
+// FXSAVE stores the mask of the writable MXCSR bits at byte 28.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((target("fxsr")))
+#endif
+bool hasDenormalsAreZero() noexcept {
+  alignas(16) unsigned char Area[512] = {};
+  _fxsave(Area);
+  std::uint32_t Mask;
+  std::memcpy(&Mask, Area + 28, sizeof(Mask));
+  return ((Mask != 0 ? Mask : MxcsrDefaultMask) & MxcsrDenormalsAreZero) != 0;
 }
 
 template <class F, class T> void checkRoundingIgnoresRoundingMode() {
@@ -557,6 +575,9 @@ TYPED_TEST(SimdTest, RoundingIgnoresDenormalsAreZero) {
   if (!usesIntegerRounding<TypeParam>()) {
     GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
   } else {
+    if (!hasDenormalsAreZero()) {
+      GTEST_SKIP() << "the CPU has no denormals-are-zero bit";
+    }
     checkRoundingIgnoresDenormalsAreZero<TypeParam, float>();
     checkRoundingIgnoresDenormalsAreZero<TypeParam, double>();
   }

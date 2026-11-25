@@ -6,13 +6,23 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(LLVMConfig)
 include(AddLLVM)
 
-find_package(LLD HINTS "${LLD_CMAKE_PATH}" "${LLD_DIR}" "${LLVM_LIBRARY_DIR}/cmake/lld")
-if(LLD_FOUND)
-  list(APPEND CMAKE_MODULE_PATH "${LLD_CMAKE_DIR}")
+if(WASMEDGE_USE_LLD)
+  find_package(LLD HINTS "${LLD_CMAKE_PATH}" "${LLD_DIR}" "${LLVM_LIBRARY_DIR}/cmake/lld")
+  if(LLD_FOUND)
+    list(APPEND CMAKE_MODULE_PATH "${LLD_CMAKE_DIR}")
+  elseif(NOT WASMEDGE_LINK_LLVM_STATIC)
+    find_path(WASMEDGE_LLD_INCLUDE_DIR lld/Common/Driver.h HINTS "${LLVM_INCLUDE_DIR}")
+    if(NOT WASMEDGE_LLD_INCLUDE_DIR)
+      message(FATAL_ERROR
+        "WASMEDGE_USE_LLD needs the LLD headers. Set LLD_DIR to the directory "
+        "that holds LLDConfig.cmake, or configure with -DWASMEDGE_USE_LLD=OFF "
+        "to use the native linker.")
+    endif()
+    set(LLD_INCLUDE_DIRS "${WASMEDGE_LLD_INCLUDE_DIR}")
+  endif()
 endif()
 
 set(LLVM_INCLUDE_DIR "${LLVM_INCLUDE_DIR}" PARENT_SCOPE)
-set(LLD_INCLUDE_DIRS "${LLD_INCLUDE_DIRS}" PARENT_SCOPE)
 
 set(WASMEDGE_LLVM_SOURCES
   compiler.cpp
@@ -32,17 +42,19 @@ set(WASMEDGE_LLVM_SOURCES
 
 set(WASMEDGE_LLVM_LINKER_SOURCES
   linker/byte_io.cpp
+  linker/elf_writer.cpp
   linker/compact_unwind.cpp
   linker/eh_frame.cpp
-  linker/elf_writer.cpp
   linker/layout.cpp
   linker/link_graph.cpp
   linker/macho_writer.cpp
+  linker/native_linker.cpp
+  linker/pe_writer.cpp
   linker/object_reader.cpp
   linker/object_reader_coff.cpp
   linker/object_reader_elf.cpp
   linker/object_reader_macho.cpp
-  linker/pe_writer.cpp
+  linker/output_file.cpp
   linker/relocation.cpp
   linker/relocation_aarch64.cpp
   linker/relocation_arm.cpp
@@ -55,6 +67,11 @@ set(WASMEDGE_LLVM_LINKER_SOURCES
 )
 
 list(APPEND WASMEDGE_LLVM_SOURCES ${WASMEDGE_LLVM_LINKER_SOURCES})
+if(WASMEDGE_USE_LLD)
+  list(APPEND WASMEDGE_LLVM_SOURCES lld.cpp)
+else()
+  set(LLVM_OPTIONAL_SOURCES lld.cpp)
+endif()
 
 if(MSVC)
   set_source_files_properties(${WASMEDGE_LLVM_LINKER_SOURCES}
@@ -86,18 +103,38 @@ if(WASMEDGE_LINK_LLVM_STATIC)
     ${WASMEDGE_LLVM_LINK_SHARED_COMPONENTS}
   )
 else()
-  if(APPLE)
-    list(APPEND LLD_LIBS lldMachO)
-  elseif(WIN32)
-    list(APPEND LLD_LIBS lldCOFF)
+  if(WIN32)
     set(EXTRA_COMPONENTS DebugInfoPDB LibDriver WindowsManifest)
-  else()
-    list(APPEND LLD_LIBS lldELF)
   endif()
 
-  list(APPEND LLD_LIBS lldCommon)
-  if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
-    list(APPEND LLD_LIBS lldDriver)
+  if(WASMEDGE_USE_LLD)
+    if(APPLE)
+      list(APPEND LLD_LIBS lldMachO)
+    elseif(WIN32)
+      list(APPEND LLD_LIBS lldCOFF)
+    else()
+      list(APPEND LLD_LIBS lldELF)
+    endif()
+    list(APPEND LLD_LIBS lldCommon)
+    if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
+      list(APPEND LLD_LIBS lldDriver)
+    endif()
+    if(NOT LLD_FOUND)
+      set(WASMEDGE_LLD_LIBRARIES)
+      foreach(WASMEDGE_LLD_NAME IN LISTS LLD_LIBS)
+        find_library(WASMEDGE_LLD_${WASMEDGE_LLD_NAME}_LIBRARY ${WASMEDGE_LLD_NAME}
+          HINTS "${LLVM_LIBRARY_DIR}")
+        if(NOT WASMEDGE_LLD_${WASMEDGE_LLD_NAME}_LIBRARY)
+          message(FATAL_ERROR
+            "WASMEDGE_USE_LLD needs the ${WASMEDGE_LLD_NAME} library. Set LLD_DIR "
+            "to the directory that holds LLDConfig.cmake, or configure with "
+            "-DWASMEDGE_USE_LLD=OFF to use the native linker.")
+        endif()
+        list(APPEND WASMEDGE_LLD_LIBRARIES "${WASMEDGE_LLD_${WASMEDGE_LLD_NAME}_LIBRARY}")
+      endforeach()
+      set(LLD_LIBS ${WASMEDGE_LLD_LIBRARIES})
+    endif()
+    list(APPEND EXTRA_COMPONENTS linker lto option)
   endif()
 
   # Command line warning D9025 : overriding '/EHs' with '/EHs-'
@@ -117,12 +154,9 @@ else()
     LINK_COMPONENTS
     binaryformat
     core
-    linker
-    lto
     native
     nativecodegen
     object
-    option
     passes
     support
     orcjit
@@ -139,6 +173,10 @@ else()
 endif()
 
 wasmedge_setup_target(wasmedgeLLVM)
+
+if(WASMEDGE_USE_LLD)
+  target_compile_definitions(wasmedgeLLVM PUBLIC WASMEDGE_USE_LLD)
+endif()
 
 target_include_directories(wasmedgeLLVM
   PRIVATE
@@ -157,18 +195,20 @@ target_include_directories(wasmedgeLLVM
   ${PROJECT_BINARY_DIR}/include
 )
 
-include(CheckCXXSourceCompiles)
-set(CMAKE_REQUIRED_LINK_OPTIONS "-Wl,-lc,--exclude-libs=libc.a")
-check_cxx_source_compiles("int main(){}" SUPPORT_EXCLUDE_LIBS)
+if(WASMEDGE_USE_LLD)
+  include(CheckCXXSourceCompiles)
+  set(CMAKE_REQUIRED_LINK_OPTIONS "-Wl,-lc,--exclude-libs=libc.a")
+  check_cxx_source_compiles("int main(){}" SUPPORT_EXCLUDE_LIBS)
 
-if(SUPPORT_EXCLUDE_LIBS)
-  file(GLOB LLD_ALL_LIBS ${LLVM_LIBRARY_DIR}/liblld*.a)
-  list(TRANSFORM LLD_ALL_LIBS REPLACE "^.*/" "")
-  string(JOIN : LLD_ALL_LIBS_COLON ${LLD_ALL_LIBS})
-  if(NOT LLD_ALL_LIBS_COLON STREQUAL "")
-    target_link_options(wasmedgeLLVM
-      PUBLIC
-      "SHELL:-Wl,--exclude-libs=${LLD_ALL_LIBS_COLON}"
-    )
+  if(SUPPORT_EXCLUDE_LIBS)
+    file(GLOB LLD_ALL_LIBS ${LLVM_LIBRARY_DIR}/liblld*.a)
+    list(TRANSFORM LLD_ALL_LIBS REPLACE "^.*/" "")
+    string(JOIN : LLD_ALL_LIBS_COLON ${LLD_ALL_LIBS})
+    if(NOT LLD_ALL_LIBS_COLON STREQUAL "")
+      target_link_options(wasmedgeLLVM
+        PUBLIC
+        "SHELL:-Wl,--exclude-libs=${LLD_ALL_LIBS_COLON}"
+      )
+    endif()
   endif()
 endif()

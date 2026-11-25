@@ -700,4 +700,38 @@ TEST(SectionTest, LoadAOTSectionFailureAfterEHFrame) {
     EXPECT_TRUE(Exec.load(Good));
   }
 }
+
+TEST(SectionTest, FindsBoundedEHFrameRecords) {
+  using WasmEdge::Loader::findEHFrameFDEs;
+  using Bytes = std::vector<uint8_t>;
+  const Bytes CIE{0x08U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+                  0x00U, 0x00U, 0x01U, 0x00U, 0x00U, 0x00U};
+  const Bytes FDE{0x08U, 0x00U, 0x00U, 0x00U, 0x10U, 0x00U,
+                  0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U};
+  const Bytes Terminator{0x00U, 0x00U, 0x00U, 0x00U};
+  auto Join = [](std::initializer_list<Bytes> Parts) {
+    Bytes Result;
+    for (const auto &Part : Parts) {
+      Result.insert(Result.end(), Part.begin(), Part.end());
+    }
+    return Result;
+  };
+
+  const Bytes Valid = Join({CIE, FDE, FDE, Terminator, {0x00U, 0x00U}});
+  const auto Records = findEHFrameFDEs(Valid);
+  ASSERT_TRUE(Records);
+  EXPECT_EQ(*Records, (std::vector<size_t>{12, 24}));
+  EXPECT_EQ(findEHFrameFDEs(Join({CIE, FDE})), (std::vector<size_t>{12}));
+  EXPECT_EQ(findEHFrameFDEs(Bytes{}), std::vector<size_t>{});
+  EXPECT_EQ(findEHFrameFDEs(Bytes{0x00U, 0x00U}), std::vector<size_t>{});
+
+  Bytes Truncated = Join({CIE, FDE});
+  Truncated.pop_back();
+  EXPECT_FALSE(findEHFrameFDEs(Truncated));
+  EXPECT_FALSE(findEHFrameFDEs(Join({CIE, {0x02U, 0x00U, 0x00U, 0x00U}})));
+  EXPECT_FALSE(findEHFrameFDEs(Join({CIE, {0x08U, 0x00U, 0x00U}})));
+  EXPECT_FALSE(
+      findEHFrameFDEs(Join({{0xFFU, 0xFFU, 0xFFU, 0xFFU}, Bytes(12, 0x00U)})));
+  EXPECT_FALSE(findEHFrameFDEs(Join({CIE, Terminator, {0x00U, 0x01U}})));
+}
 } // namespace

@@ -13,6 +13,11 @@ wasmedge_add_executable(wasmedgeLLVMCoreTests
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
 
+add_test(NAME wasmedgeLLVMStaticZstdTarget
+  COMMAND ${CMAKE_COMMAND}
+    -DWASMEDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/StaticZstdTargetTest.cmake)
+
 target_link_libraries(wasmedgeLLVMCoreTests
   PRIVATE
   wasmedgeTestSpec

@@ -852,6 +852,91 @@ inline std::vector<WasmEdge::Byte> makeX86_64ELFReaderFixture() {
   return std::vector<WasmEdge::Byte>(Bytes.begin(), Bytes.end());
 }
 
+class LinkerOutputTest : public testing::Test {
+protected:
+  void SetUp() override {
+    TempDirectory.emplace("WasmEdgeLinker-");
+    if (std::getenv("WASMEDGE_KEEP_LINKER_FIXTURE") != nullptr)
+      TempDirectory->keep();
+    Directory = TempDirectory->path();
+  }
+
+  void TearDown() override { TempDirectory.reset(); }
+
+  std::vector<WasmEdge::Byte>
+  readFile(const std::filesystem::path &Path) const {
+    std::ifstream Input(Path, std::ios_base::binary | std::ios_base::ate);
+    EXPECT_TRUE(Input);
+    const auto Size = Input.tellg();
+    EXPECT_GE(Size, 0);
+    std::vector<WasmEdge::Byte> Result(static_cast<size_t>(Size));
+    Input.seekg(0);
+    EXPECT_TRUE(Input.read(reinterpret_cast<char *>(Result.data()), Size));
+    return Result;
+  }
+
+  void expectNoTemporaryFiles() const {
+    for (const auto &Entry : std::filesystem::directory_iterator(Directory)) {
+      EXPECT_EQ(Entry.path().extension(), ".wasm");
+    }
+  }
+
+  std::vector<WasmEdge::Byte>
+  compileTinyObject(WasmEdge::Span<const WasmEdge::Byte> Wasm,
+                    const std::filesystem::path &Output,
+                    bool Native = false) const {
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setOutputFormat(
+        Native ? WasmEdge::CompilerConfigure::OutputFormat::Native
+               : WasmEdge::CompilerConfigure::OutputFormat::Wasm);
+    Conf.getCompilerConfigure().setDumpIR(true);
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator Validator(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    auto Module = Loader.parseModule(Wasm);
+    EXPECT_TRUE(Module);
+    if (!Module) {
+      return {};
+    }
+    EXPECT_TRUE(Validator.validate(**Module));
+    auto Data = Compiler.compile(**Module);
+    EXPECT_TRUE(Data);
+    if (!Data) {
+      return {};
+    }
+    {
+      ScopedCurrentPath CurrentPath(Directory);
+      EXPECT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Output));
+    }
+    auto Object = readFile(Directory / "wasm.o");
+    std::filesystem::remove(Directory / "wasm.o");
+    std::filesystem::remove(Directory / "wasm.ll");
+    std::filesystem::remove(Directory / "wasm-opt.ll");
+    if (Native)
+      std::filesystem::remove(Output);
+    return Object;
+  }
+
+  uint32_t execute(const std::filesystem::path &Path) const {
+    WasmEdge::Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+    WasmEdge::VM::VM VM(Conf);
+    EXPECT_TRUE(VM.loadWasm(Path));
+    EXPECT_TRUE(VM.validate());
+    EXPECT_TRUE(VM.instantiate());
+    auto Result = VM.execute("f");
+    EXPECT_TRUE(Result);
+    if (!Result || Result->size() != 1) {
+      return 0;
+    }
+    return (*Result)[0].first.get<uint32_t>();
+  }
+
+  std::optional<ScopedTempDirectory> TempDirectory;
+  std::filesystem::path Directory;
+};
+
 inline void expectGraphStateEquals(const LinkGraph &Actual,
                                    const LinkGraph &Expected) {
   EXPECT_EQ(Actual.target(), Expected.target());

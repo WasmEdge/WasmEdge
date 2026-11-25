@@ -15,6 +15,7 @@
 #include "linker/eh_frame.h"
 #include "linker/elf_writer.h"
 #include "linker/macho_writer.h"
+#include "linker/native_linker.h"
 #include "linker/pe_writer.h"
 #include "linker/relocation.h"
 #include "linker/universal_wasm_writer.h"
@@ -63,6 +64,29 @@ namespace {
 
 using namespace WasmEdge::LLVM::Linker;
 using namespace WasmEdge::LLVM::Test;
+
+static_assert(!std::is_move_constructible_v<Writer>);
+
+class ScopedLoggingCallback {
+public:
+  explicit ScopedLoggingCallback(std::vector<std::string> &Logs)
+      : Logger(spdlog::default_logger()), Level(spdlog::get_level()) {
+    WasmEdge::Log::setLoggingCallback(
+        [&](const spdlog::details::log_msg &Value) {
+          Logs.emplace_back(Value.payload.data(), Value.payload.size());
+        });
+    WasmEdge::Log::setWarnLoggingLevel();
+  }
+
+  ~ScopedLoggingCallback() {
+    spdlog::set_default_logger(Logger);
+    spdlog::set_level(Level);
+  }
+
+private:
+  std::shared_ptr<spdlog::logger> Logger;
+  spdlog::level::level_enum Level;
+};
 
 struct ArchitectureCase {
   Target Architecture;
@@ -5359,7 +5383,248 @@ TEST(NativeWriterTest, BufferedWriteFailureDoesNotAbortOnDestruction) {
 #endif
 
 #if !WASMEDGE_OS_WINDOWS
+TEST(NativeWriterTest, PublishFailurePreservesDestination) {
+  llvm::SmallString<128> UniqueRoot;
+  ASSERT_FALSE(llvm::sys::fs::createUniqueDirectory("wasmedge-publish-failure",
+                                                    UniqueRoot));
+  const auto Root = WasmEdge::u8path(UniqueRoot.str().str());
+  struct Cleanup {
+    std::filesystem::path Root;
+    ~Cleanup() {
+      std::error_code Error;
+      std::filesystem::remove_all(Root, Error);
+    }
+  } CleanupGuard{Root};
+  const auto Destination = Root / "library.so";
+  const auto Existing = Destination / "existing";
+  const auto Temporary = Root / "library.so.tmp-test";
+  ASSERT_TRUE(std::filesystem::create_directory(Destination));
+  {
+    std::ofstream File(Existing, std::ios_base::binary);
+    File.put(1);
+  }
+  {
+    std::ofstream File(Temporary, std::ios_base::binary);
+    File.put(2);
+  }
 
+  EXPECT_FALSE(Internal::publishAtomically(Temporary, Destination));
+  EXPECT_TRUE(std::filesystem::is_directory(Destination));
+  EXPECT_TRUE(std::filesystem::is_regular_file(Existing));
+  EXPECT_FALSE(std::filesystem::exists(Temporary));
+  size_t Entries = 0;
+  for (const auto &Entry : std::filesystem::directory_iterator(Root)) {
+    static_cast<void>(Entry);
+    ++Entries;
+  }
+  EXPECT_EQ(Entries, 1U);
+}
+
+TEST(MachOWriterTest, PublishesUnsignedWhenSigningFails) {
+  llvm::SmallString<128> UniqueRoot;
+  ASSERT_FALSE(
+      llvm::sys::fs::createUniqueDirectory("wasmedge-macho-sign", UniqueRoot));
+  const auto Root = WasmEdge::u8path(UniqueRoot.str().str());
+  struct Cleanup {
+    std::filesystem::path Root;
+    ~Cleanup() {
+      std::error_code Error;
+      std::filesystem::remove_all(Root, Error);
+    }
+  } CleanupGuard{Root};
+  const auto Log = Root / "order.log";
+  auto MakeHelper = [&](std::string_view Name, std::string_view Action) {
+    const auto Path = Root / Name;
+    std::ofstream Script(Path);
+    Script << "#!/bin/sh\n"
+              "printf '%s\\n' \"$@\" >> \""
+           << Log.string() << "\"\n"
+           << Action << "\n";
+    Script.close();
+    EXPECT_TRUE(Script);
+    EXPECT_EQ(::chmod(Path.c_str(), 0700), 0);
+    return Path;
+  };
+  const auto Success =
+      MakeHelper("success helper", "chmod 0753 \"$4\"; exit 0");
+  const auto Signaled = MakeHelper("signal helper", "kill -TERM $$");
+  const auto Failed = MakeHelper("failure helper", "exit 7");
+  const auto Mutates = MakeHelper("mutating helper", ": > \"$4\"; exit 7");
+
+  const auto Destination = Root / "library.dylib";
+  const std::vector<WasmEdge::Byte> Existing{1, 2, 3};
+  const std::vector<WasmEdge::Byte> Replacement{4, 5, 6};
+  constexpr mode_t TemporaryMode = 04753;
+  auto Write = [](const std::filesystem::path &Path,
+                  const std::vector<WasmEdge::Byte> &Bytes) {
+    std::ofstream File(Path, std::ios_base::binary);
+    File.write(reinterpret_cast<const char *>(Bytes.data()),
+               static_cast<std::streamsize>(Bytes.size()));
+  };
+  auto Read = [](const std::filesystem::path &Path) {
+    std::ifstream File(Path, std::ios_base::binary);
+    return std::vector<WasmEdge::Byte>(std::istreambuf_iterator<char>(File),
+                                       std::istreambuf_iterator<char>());
+  };
+  Write(Destination, Existing);
+
+  std::vector<std::string> Logs;
+  ScopedLoggingCallback Capture(Logs);
+
+  const std::array<std::filesystem::path, 5> Failures{
+      Root / "missing", Signaled, Failed, Mutates, "/bin/false"};
+  for (size_t I = 0; I < Failures.size(); ++I) {
+    const auto Temporary = Root / ("temporary-" + std::to_string(I));
+    Write(Destination, Existing);
+    Write(Temporary, Replacement);
+    ASSERT_EQ(::chmod(Temporary.c_str(), TemporaryMode), 0);
+    std::filesystem::remove(Log);
+    Logs.clear();
+    EXPECT_FALSE(
+        Internal::publishMachO(Temporary, Destination, Failures[I], false));
+    EXPECT_EQ(Read(Destination), Existing);
+    EXPECT_FALSE(std::filesystem::exists(Temporary));
+    EXPECT_EQ(Logs.size(), 1U);
+    if (Logs.size() == 1U) {
+      EXPECT_EQ(Logs[0], "native linker: Mach-O signing failed");
+    }
+
+    Write(Temporary, Replacement);
+    ASSERT_EQ(::chmod(Temporary.c_str(), TemporaryMode), 0);
+    std::filesystem::remove(Log);
+    Logs.clear();
+    EXPECT_TRUE(
+        Internal::publishMachO(Temporary, Destination, Failures[I], true));
+    EXPECT_EQ(Read(Destination), Replacement);
+    struct stat DestinationStat{};
+    ASSERT_EQ(::stat(Destination.c_str(), &DestinationStat), 0);
+    EXPECT_EQ(DestinationStat.st_mode & 07777, TemporaryMode);
+    EXPECT_FALSE(std::filesystem::exists(Temporary));
+    size_t TemporaryEntries = 0;
+    for (const auto &Entry : std::filesystem::directory_iterator(Root)) {
+      if (const auto Name = Entry.path().filename().string();
+          Name.find("temporary-") == 0 || Name.find(".wasmedge-") == 0)
+        ++TemporaryEntries;
+    }
+    EXPECT_EQ(TemporaryEntries, 0U);
+    EXPECT_EQ(Logs.size(), 1U);
+    if (Logs.size() == 1U) {
+      EXPECT_EQ(
+          Logs[0],
+          "native linker: Mach-O signing failed; publishing unsigned output");
+    }
+    std::string LogValue;
+    if (std::filesystem::exists(Log)) {
+      const auto LogBytes = Read(Log);
+      LogValue.assign(LogBytes.begin(), LogBytes.end());
+    }
+    const auto ExpectedPrefix =
+        "--force\n--sign\n-\n" + (Root / ".wasmedge-").string();
+    if (I == 0 || I == 4) {
+      EXPECT_TRUE(LogValue.empty());
+    } else {
+      EXPECT_EQ(LogValue.find(ExpectedPrefix), 0U);
+      ASSERT_FALSE(LogValue.empty());
+      EXPECT_EQ(LogValue.back(), '\n');
+    }
+  }
+
+  {
+    const auto InPlace = Root / "temporary-in-place";
+    Write(Destination, Existing);
+    Write(InPlace, Replacement);
+    ASSERT_EQ(::chmod(InPlace.c_str(), TemporaryMode), 0);
+    std::filesystem::remove(Log);
+    Logs.clear();
+    EXPECT_TRUE(Internal::publishMachO(InPlace, Destination, Success, false));
+    EXPECT_EQ(Read(Destination), Replacement);
+    struct stat InPlaceStat{};
+    ASSERT_EQ(::stat(Destination.c_str(), &InPlaceStat), 0);
+    EXPECT_EQ(InPlaceStat.st_mode & 07777, TemporaryMode);
+    EXPECT_FALSE(std::filesystem::exists(InPlace));
+    EXPECT_TRUE(Logs.empty());
+    const auto InPlaceLog = Read(Log);
+    EXPECT_EQ(std::string(InPlaceLog.begin(), InPlaceLog.end()),
+              "--force\n--sign\n-\n" + InPlace.string() + "\n");
+  }
+
+  const auto Temporary = Root / "temporary-success";
+  Write(Destination, Existing);
+  Write(Temporary, Replacement);
+  ASSERT_EQ(::chmod(Temporary.c_str(), TemporaryMode), 0);
+  std::filesystem::remove(Log);
+  Logs.clear();
+  EXPECT_TRUE(Internal::publishMachO(Temporary, Destination, Success, true));
+  EXPECT_EQ(Read(Destination), Replacement);
+  struct stat DestinationStat{};
+  ASSERT_EQ(::stat(Destination.c_str(), &DestinationStat), 0);
+  EXPECT_EQ(DestinationStat.st_mode & 07777, TemporaryMode);
+  EXPECT_FALSE(std::filesystem::exists(Temporary));
+  size_t TemporaryEntries = 0;
+  for (const auto &Entry : std::filesystem::directory_iterator(Root)) {
+    if (const auto Name = Entry.path().filename().string();
+        Name.find("temporary-") == 0 || Name.find(".wasmedge-") == 0)
+      ++TemporaryEntries;
+  }
+  EXPECT_EQ(TemporaryEntries, 0U);
+  EXPECT_TRUE(Logs.empty());
+  const auto LogBytes = Read(Log);
+  const std::string LogValue(LogBytes.begin(), LogBytes.end());
+  EXPECT_EQ(
+      LogValue.find("--force\n--sign\n-\n" + (Root / ".wasmedge-").string()),
+      0U);
+  ASSERT_FALSE(LogValue.empty());
+  EXPECT_EQ(LogValue.back(), '\n');
+}
+
+TEST(MachOWriterTest, PublicationFailureCleansSigningTemporaries) {
+  llvm::SmallString<128> UniqueRoot;
+  ASSERT_FALSE(llvm::sys::fs::createUniqueDirectory(
+      "wasmedge-macho-publish-failure", UniqueRoot));
+  const auto Root = WasmEdge::u8path(UniqueRoot.str().str());
+  struct Cleanup {
+    std::filesystem::path Root;
+    ~Cleanup() {
+      std::error_code Error;
+      std::filesystem::remove_all(Root, Error);
+    }
+  } CleanupGuard{Root};
+  const auto Success = Root / "success helper";
+  {
+    std::ofstream Script(Success);
+    Script << "#!/bin/sh\nexit 0\n";
+    Script.close();
+    ASSERT_TRUE(Script);
+  }
+  ASSERT_EQ(::chmod(Success.c_str(), 0700), 0);
+  const auto Destination = Root / "library.dylib";
+  ASSERT_TRUE(std::filesystem::create_directory(Destination));
+  const auto Sentinel = Destination / "sentinel";
+  {
+    std::ofstream File(Sentinel);
+    File << "existing";
+  }
+  const std::array<std::filesystem::path, 2> Signers{Root / "missing", Success};
+  for (size_t I = 0; I < Signers.size() * 2; ++I) {
+    const auto Temporary = Root / ("temporary-" + std::to_string(I));
+    {
+      std::ofstream File(Temporary, std::ios_base::binary);
+      File << "replacement";
+    }
+    EXPECT_FALSE(Internal::publishMachO(Temporary, Destination, Signers[I / 2],
+                                        I % 2 == 0));
+    EXPECT_TRUE(std::filesystem::is_directory(Destination));
+    EXPECT_TRUE(std::filesystem::exists(Sentinel));
+    EXPECT_FALSE(std::filesystem::exists(Temporary));
+    size_t TemporaryEntries = 0;
+    for (const auto &Entry : std::filesystem::directory_iterator(Root)) {
+      if (const auto Name = Entry.path().filename().string();
+          Name.find("temporary-") == 0 || Name.find(".wasmedge-") == 0)
+        ++TemporaryEntries;
+    }
+    EXPECT_EQ(TemporaryEntries, 0U);
+  }
+}
 #endif
 
 constexpr std::array<WasmEdge::Byte, 8> UniversalEmptyWasm{

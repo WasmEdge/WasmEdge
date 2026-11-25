@@ -50,6 +50,18 @@ namespace {
 using namespace WasmEdge::LLVM::Linker;
 using namespace WasmEdge::LLVM::Test;
 
+static_assert(sizeof(Target) == sizeof(uint8_t));
+static_assert(sizeof(Endianness) == sizeof(uint8_t));
+static_assert(sizeof(SectionKind) == sizeof(uint8_t));
+static_assert(sizeof(ObjectFormat) == sizeof(uint8_t));
+static_assert(std::is_same_v<SectionId, uint32_t>);
+static_assert(std::is_same_v<SymbolId, uint32_t>);
+static_assert(
+    std::is_same_v<decltype(Section::Content), std::vector<WasmEdge::Byte>>);
+static_assert(std::is_same_v<decltype(Symbol::Section), SectionId>);
+static_assert(
+    noexcept(std::declval<LinkGraph &>().swap(std::declval<LinkGraph &>())));
+
 TEST(LinkGraphTest, OwnsContentAndUsesStableIds) {
   LinkGraph Graph(Target::X86_64, Endianness::Little);
   ASSERT_TRUE(Graph.beginInput("input.o"));

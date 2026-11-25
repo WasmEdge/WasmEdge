@@ -17,14 +17,22 @@
 #include "ast/section.h"
 #include "common/executable.h"
 #include "common/filesystem.h"
+#include "common/span.h"
 #include "system/winapi.h"
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace WasmEdge {
 namespace Loader {
+
+/// Returns the offsets of the FDE records in an eh_frame section, or
+/// std::nullopt when a record or the padding after the terminator does not
+/// fit in the section.
+std::optional<std::vector<size_t>>
+findEHFrameFDEs(Span<const uint8_t> Section) noexcept;
 
 /// Holder class for a library handle.
 class AOTSection : public Executable {
@@ -101,8 +109,7 @@ private:
 #if WASMEDGE_OS_LINUX
   void *EHFrameAddress = nullptr;
 #elif WASMEDGE_OS_MACOS
-  uint8_t *EHFrameAddress = nullptr;
-  uint32_t EHFrameSize = 0;
+  std::vector<uint8_t *> EHFrameRecords;
 #elif WASMEDGE_OS_WINDOWS
   void *PDataAddress = nullptr;
   uint32_t PDataSize = 0;

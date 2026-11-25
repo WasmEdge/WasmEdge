@@ -17,6 +17,7 @@
 #include "linker/elf_writer.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
+#include "linker/native_linker.h"
 #include "linker/object_reader.h"
 #include "linker/relocation.h"
 #include "linker/universal_wasm_writer.h"
@@ -886,18 +887,101 @@ Lmultiple_fde1_end:
   return makeAssemblyObject(llvm::Triple("arm64-apple-macosx"), Assembly);
 }
 
+class UnsupportedObjectArchitectureTest
+    : public LinkerOutputTest,
+      public testing::WithParamInterface<ObjectArchitectureCase> {};
+
 #if defined(__x86_64__) || defined(_M_X64)
+class NonHostObjectFormatTest
+    : public LinkerOutputTest,
+      public testing::WithParamInterface<ObjectArchitectureCase> {};
 #endif
 
 #if WASMEDGE_OS_LINUX && (defined(__x86_64__) || defined(_M_X64))
+TEST_P(UnsupportedObjectArchitectureTest,
+       NativeLinkerRejectsUnsupportedInputsAtomically) {
+  const auto &Test = GetParam();
+  REQUIRE_LLVM_TARGET(Test.Triple);
+  const auto Output = Directory / "existing.wasm";
+  const std::array<WasmEdge::Byte, 3> Sentinel{1, 2, 3};
+  constexpr std::array<WasmEdge::Byte, 8> EmptyWasm{0x00, 0x61, 0x73, 0x6D,
+                                                    0x01, 0x00, 0x00, 0x00};
+  const auto Object = makeSemanticObject(llvm::Triple(Test.Triple));
+  {
+    std::ofstream File(Output, std::ios_base::binary | std::ios_base::trunc);
+    File.write(reinterpret_cast<const char *>(Sentinel.data()),
+               Sentinel.size());
+    ASSERT_TRUE(File);
+  }
+  EXPECT_FALSE(
+      NativeLinker::link(Object, EmptyWasm, Output, OutputKind::UniversalWasm));
+  EXPECT_EQ(readFile(Output),
+            (std::vector<WasmEdge::Byte>(Sentinel.begin(), Sentinel.end())));
+  expectNoTemporaryFiles();
+}
 
+INSTANTIATE_TEST_SUITE_P(
+    NonHostArchitectures, UnsupportedObjectArchitectureTest,
+    testing::Values(
+        ObjectArchitectureCase{"x86_64-apple-macosx", Target::X86_64},
+        ObjectArchitectureCase{"x86_64-pc-windows-msvc", Target::X86_64},
+        ObjectArchitectureCase{"aarch64-unknown-linux-gnu", Target::AArch64}),
+    [](const testing::TestParamInfo<ObjectArchitectureCase> &Info) {
+      switch (Info.index) {
+      case 0:
+        return std::string("MachO_X86_64");
+      case 1:
+        return std::string("COFF_X86_64");
+      default:
+        return architectureName(Info.param.Architecture);
+      }
+    });
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64)
+TEST_P(NonHostObjectFormatTest,
+       NativeLinkerRejectsNonHostObjectFormatsAtomically) {
+  constexpr std::array<WasmEdge::Byte, 8> EmptyWasm{0x00, 0x61, 0x73, 0x6D,
+                                                    0x01, 0x00, 0x00, 0x00};
+  const auto &Test = GetParam();
+  REQUIRE_LLVM_TARGET(Test.Triple);
+  const auto Object = makeObject(llvm::Triple(Test.Triple), false, false, "f0",
+                                 {}, false, false, "generic", {}, false, false,
+                                 false, false, false, false, {}, true);
+  const auto Output = Directory / (std::string(Test.Triple) + ".wasm");
+  EXPECT_FALSE(
+      NativeLinker::link(Object, EmptyWasm, Output, OutputKind::UniversalWasm));
+  EXPECT_FALSE(std::filesystem::exists(Output));
+  expectNoTemporaryFiles();
+}
 
 #if WASMEDGE_OS_LINUX
+INSTANTIATE_TEST_SUITE_P(
+    NonHostFormats, NonHostObjectFormatTest,
+    testing::Values(
+        ObjectArchitectureCase{"x86_64-apple-macosx", Target::X86_64},
+        ObjectArchitectureCase{"x86_64-pc-windows-msvc", Target::X86_64}),
+    [](const testing::TestParamInfo<ObjectArchitectureCase> &Info) {
+      return Info.index == 0 ? "MachO_X86_64" : "COFF_X86_64";
+    });
 #elif WASMEDGE_OS_MACOS
+INSTANTIATE_TEST_SUITE_P(
+    NonHostFormats, NonHostObjectFormatTest,
+    testing::Values(
+        ObjectArchitectureCase{"x86_64-unknown-linux-gnu", Target::X86_64},
+        ObjectArchitectureCase{"x86_64-pc-windows-msvc", Target::X86_64}),
+    [](const testing::TestParamInfo<ObjectArchitectureCase> &Info) {
+      return Info.index == 0 ? "ELF_X86_64" : "COFF_X86_64";
+    });
 #elif WASMEDGE_OS_WINDOWS
+INSTANTIATE_TEST_SUITE_P(
+    NonHostFormats, NonHostObjectFormatTest,
+    testing::Values(
+        ObjectArchitectureCase{"x86_64-unknown-linux-gnu", Target::X86_64},
+        ObjectArchitectureCase{"x86_64-apple-macosx", Target::X86_64}),
+    [](const testing::TestParamInfo<ObjectArchitectureCase> &Info) {
+      return Info.index == 0 ? "ELF_X86_64" : "MachO_X86_64";
+    });
 #endif
 #endif
 

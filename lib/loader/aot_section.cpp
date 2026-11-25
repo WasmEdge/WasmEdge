@@ -2,9 +2,12 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/aot_section.h"
+#include "aot/version.h"
 #include "common/spdlog.h"
 #include "system/allocator.h"
 
+#include <algorithm>
+#include <cstring>
 #include <limits>
 
 #if (WASMEDGE_OS_LINUX && !defined(__ARM_EABI__)) || WASMEDGE_OS_MACOS
@@ -28,6 +31,39 @@ uint64_t roundUpPageBoundary(const uint64_t Value,
 } // namespace
 
 namespace WasmEdge::Loader {
+
+std::optional<std::vector<size_t>>
+findEHFrameFDEs(Span<const uint8_t> Section) noexcept {
+  constexpr size_t FieldSize = 4;
+  constexpr uint32_t ExtendedLengthMarker = UINT32_MAX;
+  std::vector<size_t> Records;
+  size_t Offset = 0;
+  while (Offset < Section.size()) {
+    const size_t Remaining = Section.size() - Offset;
+    uint32_t Length = 0;
+    if (Remaining >= FieldSize) {
+      std::memcpy(&Length, Section.data() + Offset, FieldSize);
+    }
+    if (Remaining < FieldSize || Length == 0) {
+      if (std::any_of(Section.begin() + Offset, Section.end(),
+                      [](uint8_t Value) { return Value != 0; })) {
+        return std::nullopt;
+      }
+      break;
+    }
+    if (Length == ExtendedLengthMarker || Length < FieldSize ||
+        Length > Remaining - FieldSize) {
+      return std::nullopt;
+    }
+    uint32_t CIEPointer = 0;
+    std::memcpy(&CIEPointer, Section.data() + Offset + FieldSize, FieldSize);
+    if (CIEPointer != 0) {
+      Records.push_back(Offset);
+    }
+    Offset += FieldSize + Length;
+  }
+  return Records;
+}
 
 Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   unload();
@@ -86,28 +122,40 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
       return Unexpect(ErrCode::Value::IntegerTooLarge);
     }
     std::copy(Content.begin(), Content.end(), Binary + Offset);
-    switch (std::get<0>(Section)) {
-    case 1: { // Text
+    switch (static_cast<AOT::SectionKind>(std::get<0>(Section))) {
+    case AOT::SectionKind::Text: {
       const auto O = roundDownPageBoundary(Offset, PageSize);
       const auto S = roundUpPageBoundary(Size + (Offset - O), PageSize);
       ExecutableRanges.emplace_back(Binary + O, S);
       break;
     }
-    case 2: // Data
+    case AOT::SectionKind::Data:
       break;
-    case 3: // BSS
+    case AOT::SectionKind::BSS:
       break;
 #if WASMEDGE_OS_LINUX
-    case 4: // EHFrame
+    case AOT::SectionKind::Unwind: // EHFrame
       EHFrameAddress = reinterpret_cast<void *>(Binary + Offset);
       break;
 #elif WASMEDGE_OS_MACOS
-    case 4: // EHFrame
-      EHFrameAddress = reinterpret_cast<uint8_t *>(Binary + Offset);
-      EHFrameSize = Size;
+    case AOT::SectionKind::Unwind: { // EHFrame
+      auto Records =
+          findEHFrameFDEs(Span<const uint8_t>(Binary + Offset, Size));
+      if (!Records) {
+        spdlog::error(ErrCode::Value::IllegalGrammar);
+        spdlog::error("    AOT eh_frame record out of range."sv);
+        unload();
+        return Unexpect(ErrCode::Value::IllegalGrammar);
+      }
+      EHFrameRecords.clear();
+      EHFrameRecords.reserve(Records->size());
+      for (const auto Record : *Records) {
+        EHFrameRecords.push_back(Binary + Offset + Record);
+      }
       break;
+    }
 #elif WASMEDGE_OS_WINDOWS
-    case 4: // PData
+    case AOT::SectionKind::Unwind: // PData
       PDataAddress = reinterpret_cast<void *>(Binary + Offset);
       PDataSize =
           static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
@@ -141,17 +189,8 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   }
 #endif
 #elif WASMEDGE_OS_MACOS
-  if (EHFrameAddress) {
-    auto Iter = EHFrameAddress;
-    const auto End = EHFrameAddress + EHFrameSize - 4;
-
-    while (Iter < End) {
-      if (Iter != EHFrameAddress) {
-        __register_frame(Iter);
-      }
-      const uint32_t Length = *reinterpret_cast<const uint32_t *>(Iter);
-      Iter += Length + 4;
-    }
+  for (auto *const Record : EHFrameRecords) {
+    __register_frame(Record);
   }
 #elif WASMEDGE_OS_WINDOWS
   if (PDataSize != 0) {
@@ -173,16 +212,9 @@ void AOTSection::unload() noexcept {
     }
 #endif
 #elif WASMEDGE_OS_MACOS
-    if (Registered && EHFrameAddress) {
-      auto Iter = EHFrameAddress;
-      const auto End = EHFrameAddress + EHFrameSize - 4;
-
-      while (Iter < End) {
-        if (Iter != EHFrameAddress) {
-          __deregister_frame(Iter);
-        }
-        const uint32_t Length = *reinterpret_cast<const uint32_t *>(Iter);
-        Iter += Length + 4;
+    if (Registered) {
+      for (auto *const Record : EHFrameRecords) {
+        __deregister_frame(Record);
       }
     }
 #elif WASMEDGE_OS_WINDOWS
@@ -200,8 +232,7 @@ void AOTSection::unload() noexcept {
 #if WASMEDGE_OS_LINUX
   EHFrameAddress = nullptr;
 #elif WASMEDGE_OS_MACOS
-  EHFrameAddress = nullptr;
-  EHFrameSize = 0;
+  EHFrameRecords.clear();
 #elif WASMEDGE_OS_WINDOWS
   PDataAddress = nullptr;
   PDataSize = 0;

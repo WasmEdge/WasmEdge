@@ -136,13 +136,13 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
 #endif
 
-  // On RISC-V we use generic-rv64 as the CPU, so also use default
-  // features; host features under QEMU can be inconsistent (e.g.
-  // zvl*b without v) which LLVM >= 20 rejects.
+  // On RISC-V we use generic-rv64 as the CPU with the RV64GC baseline that
+  // every riscv64 Linux system provides; host features under QEMU can be
+  // inconsistent (e.g. zvl*b without v) which LLVM >= 20 rejects.
   TM = LLVM::TargetMachine::create(
       TheTarget, Triple, CPUName.c_str(),
 #if defined(__riscv) && __riscv_xlen == 64
-      "",
+      "+m,+a,+f,+d,+c",
 #else
       LLVM::getHostCPUFeatures().unwrap(),
 #endif

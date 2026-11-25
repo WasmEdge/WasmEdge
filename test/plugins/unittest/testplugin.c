@@ -72,17 +72,23 @@ CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   ParamTypes[1] = WasmEdge_ValTypeGenI32();
   ReturnTypes[0] = WasmEdge_ValTypeGenI32();
 
-  /* Create the "add" function and add it to the module instance. */
+  /* Create the "add" and "sub" functions and add them to the module
+   * instance. If one of them cannot be made or added, give no module. */
   FType = WasmEdge_FunctionTypeCreate(ParamTypes, 2, ReturnTypes, 1);
-  FuncName = WasmEdge_StringCreateByCString("add");
-  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncAdd, Accumulate, 0);
-  WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
-  WasmEdge_StringDelete(FuncName);
-  /* Create the "sub" function and add it to the module instance. */
-  FuncName = WasmEdge_StringCreateByCString("sub");
-  FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncSub, Accumulate, 0);
-  WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
-  WasmEdge_StringDelete(FuncName);
+  const char *Names[2] = {"add", "sub"};
+  WasmEdge_HostFunc_t Funcs[2] = {HostFuncAdd, HostFuncSub};
+  for (int I = 0; I < 2 && Mod; I++) {
+    FuncName = WasmEdge_StringCreateByCString(Names[I]);
+    FuncCxt = WasmEdge_FunctionInstanceCreate(FType, Funcs[I], Accumulate, 0);
+    WasmEdge_Result Res =
+        WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
+    WasmEdge_StringDelete(FuncName);
+    if (!WasmEdge_ResultOK(Res)) {
+      WasmEdge_FunctionInstanceDelete(FuncCxt);
+      WasmEdge_ModuleInstanceDelete(Mod);
+      Mod = NULL;
+    }
+  }
   WasmEdge_FunctionTypeDelete(FType);
 
   return Mod;

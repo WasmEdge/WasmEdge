@@ -36,6 +36,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <shared_mutex>
 #include <string>
@@ -118,6 +119,19 @@ public:
     }
     std::unique_lock Lock(Mutex);
     InstantiateFinalized.store(true, std::memory_order_release);
+  }
+
+  /// The error of the first host function that could not be added, if any.
+  /// A host module with such an error lacks an export that it declares.
+  std::optional<ErrCode> getHostAddError() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return HostAddError;
+  }
+  /// Record that a host function of this module could not be made, so that
+  /// the module counts as lacking an export.
+  void recordHostAddError(ErrCode Code) noexcept {
+    std::unique_lock Lock(Mutex);
+    static_cast<void>(unsafeRecordHostAddError(Code));
   }
 
   /// Return true if this module instance has been finalized (immutable).
@@ -225,13 +239,16 @@ public:
     if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
       return Unexpect(ErrCode::Value::WrongVMWorkflow);
     }
-    EXPECTED_TRY(unsafeImportDefinedType(Func->getDefinedType()));
+    if (auto Res = unsafeImportDefinedType(Func->getDefinedType());
+        unlikely(!Res)) {
+      return unsafeRecordHostAddError(Res.error());
+    }
     auto Inst = FunctionInstance::create(
         this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func));
     if (unlikely(!Inst)) {
       Types.pop_back();
       CanonTypeIds.pop_back();
-      return Unexpect(Inst);
+      return unsafeRecordHostAddError(Inst.error());
     }
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(*Inst));
@@ -244,7 +261,11 @@ public:
       return Unexpect(ErrCode::Value::WrongVMWorkflow);
     }
     assuming(Func->isHostFunction());
-    EXPECTED_TRY(unsafeImportDefinedType(Func->getHostFunc().getDefinedType()));
+    if (auto Res =
+            unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+        unlikely(!Res)) {
+      return unsafeRecordHostAddError(Res.error());
+    }
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
@@ -447,7 +468,11 @@ protected:
   Expect<void> importHostFunction(FunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
     assuming(Func->isHostFunction());
-    EXPECTED_TRY(unsafeImportDefinedType(Func->getHostFunc().getDefinedType()));
+    if (auto Res =
+            unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+        unlikely(!Res)) {
+      return unsafeRecordHostAddError(Res.error());
+    }
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeImportInstance(FuncInsts, Func);
     return {};
@@ -632,6 +657,14 @@ protected:
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     assuming(!isInstantiateFinalized());
     Vec.push_back(Ptr);
+  }
+
+  /// Keep `Code` if it is the first host function error, and return it.
+  Unexpected<ErrCode> unsafeRecordHostAddError(ErrCode Code) noexcept {
+    if (!HostAddError) {
+      HostAddError = Code;
+    }
+    return Unexpect(Code);
   }
 
   /// Unsafely import a defined type from a host function into this module.
@@ -884,6 +917,8 @@ protected:
   /// Whether this module instance has been finalized (immutable). Once set,
   /// the indexed instances will not be mutated anymore.
   mutable std::atomic<bool> InstantiateFinalized{false};
+  /// The first error of `addHostFunc`.
+  std::optional<ErrCode> HostAddError;
 
   /// Intrusive lifetime: owner flag plus importer count, packed into one
   /// atomic.

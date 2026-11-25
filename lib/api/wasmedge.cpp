@@ -2335,6 +2335,10 @@ WasmEdge_ModuleInstanceCreateWASIWithFds(
     const int32_t StdErrFd) noexcept {
   try {
     auto WasiMod = std::make_unique<WasmEdge::Host::WasiModule>();
+    if (const auto Err = WasiMod->getHostAddError()) {
+      spdlog::error(*Err);
+      return nullptr;
+    }
     WasmEdge_ModuleInstanceInitWASIWithFds(
         toModCxt(WasiMod.get()), Args, ArgLen, Envs, EnvLen, Preopens,
         PreopenLen, StdInFd, StdOutFd, StdErrFd);
@@ -2354,6 +2358,10 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
                                   const uint32_t PreopenLen) noexcept {
   try {
     auto WasiMod = std::make_unique<WasmEdge::Host::WasiModule>();
+    if (const auto Err = WasiMod->getHostAddError()) {
+      spdlog::error(*Err);
+      return nullptr;
+    }
     WasmEdge_ModuleInstanceInitWASI(toModCxt(WasiMod.get()), Args, ArgLen, Envs,
                                     EnvLen, Preopens, PreopenLen);
     return toModCxt(WasiMod.release());
@@ -2667,11 +2675,16 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListGlobal(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ModuleInstanceAddFunction(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_FunctionInstanceContext *FuncCxt) noexcept {
+  if (Cxt && !FuncCxt) {
+    fromModCxt(Cxt)->recordHostAddError(ErrCode::Value::WrongInstanceAddress);
+  }
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         auto Inst = WasmEdge::Runtime::RefHeap::getGlobal()->adopt(
             fromFuncCxt(FuncCxt));
         if (!Inst) {
+          fromModCxt(Cxt)->recordHostAddError(
+              ErrCode::Value::WrongInstanceAddress);
           return Unexpect(ErrCode::Value::WrongInstanceAddress);
         }
         auto Res =

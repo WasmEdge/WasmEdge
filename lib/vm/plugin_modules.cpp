@@ -67,22 +67,40 @@ std::unique_ptr<Runtime::Instance::ModuleInstance>
 createPluginModule(const OfficialPluginEntry &Entry) {
   if (const auto *Plugin = Plugin::Plugin::find(Entry.PluginName)) {
     if (const auto *Module = Plugin->findModule(Entry.ModuleName)) {
-      return Module->create();
+      if (auto Mod = Module->create()) {
+        return Mod;
+      }
     }
   }
-  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead."sv,
-                Entry.PluginName, Entry.ModuleName);
-  return Entry.MockFactory();
+  spdlog::debug(
+      "Plugin: {} , module name: {} not found or not created. Mock instead."sv,
+      Entry.PluginName, Entry.ModuleName);
+  return checkHostModule(Entry.MockFactory());
 }
 
 } // namespace
+
+std::unique_ptr<Runtime::Instance::ModuleInstance>
+checkHostModule(std::unique_ptr<Runtime::Instance::ModuleInstance> Mod) {
+  if (Mod) {
+    if (const auto Err = Mod->getHostAddError()) {
+      spdlog::error(*Err);
+      spdlog::error("Host module {} lacks a host function."sv,
+                    Mod->getModuleName());
+      return nullptr;
+    }
+  }
+  return Mod;
+}
 
 std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 loadOfficialPluginModules() {
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> Modules;
   Modules.reserve(OfficialPluginTable.size());
   for (const auto &Entry : OfficialPluginTable) {
-    Modules.push_back(createPluginModule(Entry));
+    if (auto Mod = createPluginModule(Entry)) {
+      Modules.push_back(std::move(Mod));
+    }
   }
   return Modules;
 }

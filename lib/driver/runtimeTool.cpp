@@ -492,6 +492,10 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   VM::VM VM(Conf);
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
+  if (WasiMod == nullptr) {
+    spdlog::error("Failed to create the WASI module."sv);
+    return EXIT_FAILURE;
+  }
 
   if (!registerLinkedModules(Opt, VM)) {
     return EXIT_FAILURE;

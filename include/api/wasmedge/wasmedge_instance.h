@@ -449,6 +449,11 @@ WasmEdge_ModuleInstanceListGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
 /// already been finalized, i.e. it has been used during execution and become
 /// immutable.
 ///
+/// If `FuncCxt` is NULL, for example because the function instance could not
+/// be created, or if the function instance cannot be added, the module
+/// instance records the failure. A plugin module with such a failure is not
+/// used.
+///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the function instance.

@@ -4,6 +4,7 @@
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "experimental/span.hpp"
+#include "runtime/instance/module.h"
 #include "runtime/refheap.h"
 #include "wasmedge/wasmedge.h"
 
@@ -3001,6 +3002,25 @@ TEST(APICoreTest, FunctionInstanceInHeap) {
   EXPECT_EQ(Heap->getOffset(FuncCxt), 0U);
   WasmEdge_StringDelete(Name);
   WasmEdge_FunctionTypeDelete(FuncType);
+}
+
+TEST(APICoreTest, ModuleInstanceRecordsMissingFunction) {
+  WasmEdge_String Name = WasmEdge_StringCreateByCString("plugin");
+  WasmEdge_ModuleInstanceContext *Mod = WasmEdge_ModuleInstanceCreate(Name);
+  WasmEdge_StringDelete(Name);
+  ASSERT_NE(Mod, nullptr);
+  const auto *Inst =
+      reinterpret_cast<const WasmEdge::Runtime::Instance::ModuleInstance *>(
+          Mod);
+  EXPECT_FALSE(Inst->getHostAddError());
+  Name = WasmEdge_StringCreateByCString("func");
+  EXPECT_FALSE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddFunction(Mod, Name, nullptr)));
+  WasmEdge_StringDelete(Name);
+  ASSERT_TRUE(Inst->getHostAddError());
+  EXPECT_EQ(*Inst->getHostAddError(),
+            WasmEdge::ErrCode::Value::WrongInstanceAddress);
+  WasmEdge_ModuleInstanceDelete(Mod);
 }
 
 TEST(APICoreTest, ModuleInstance) {

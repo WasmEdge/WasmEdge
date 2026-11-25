@@ -113,9 +113,9 @@ void VM::unsafeLoadBuiltInHosts() {
   // TODO: This will be extended for versioned WASI in the future.
   cleanupModInstContainer(BuiltInModInsts);
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
-    std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
-        std::make_unique<Host::WasiModule>();
-    BuiltInModInsts.insert({HostRegistration::Wasi, std::move(WasiMod)});
+    if (auto WasiMod = checkHostModule(std::make_unique<Host::WasiModule>())) {
+      BuiltInModInsts.insert({HostRegistration::Wasi, std::move(WasiMod)});
+    }
   }
 }
 
@@ -133,7 +133,9 @@ void VM::unsafeLoadPlugInHosts() {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
-      PlugInModInsts.push_back(Module.create());
+      if (auto Created = Module.create()) {
+        PlugInModInsts.push_back(std::move(Created));
+      }
     }
     for (const auto &Component : Plugin.components()) {
       PlugInCompInsts.push_back(Component.create());

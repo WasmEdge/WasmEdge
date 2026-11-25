@@ -23,8 +23,14 @@
 namespace WasmEdge {
 namespace VM {
 
+/// The host module `Mod`, or null if a host function of it could not be
+/// added. Logs the first such error.
+std::unique_ptr<Runtime::Instance::ModuleInstance>
+checkHostModule(std::unique_ptr<Runtime::Instance::ModuleInstance> Mod);
+
 /// Create the module instances for all official plugins, using the real
 /// plugin module when the plugin is installed and the mock module otherwise.
+/// An official plugin module that cannot be completed is left out.
 std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 loadOfficialPluginModules();
 

@@ -64,10 +64,15 @@ public:
     return Desc->Description;
   }
 
+  /// Create the module. Returns null if a host function of the module could
+  /// not be added.
   std::unique_ptr<Runtime::Instance::ModuleInstance> create() const noexcept {
     assuming(Desc);
-    return std::unique_ptr<Runtime::Instance::ModuleInstance>(
-        Desc->Create(Desc));
+    std::unique_ptr<Runtime::Instance::ModuleInstance> Mod(Desc->Create(Desc));
+    if (Mod && Mod->getHostAddError()) {
+      return nullptr;
+    }
+    return Mod;
   }
 
 private:

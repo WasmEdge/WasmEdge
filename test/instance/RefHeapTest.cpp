@@ -5,6 +5,8 @@
 #include "runtime/typetable.h"
 
 #include "common/config.h"
+#include "runtime/hostfunc.h"
+#include "runtime/instance/module.h"
 #include "system/allocator.h"
 
 #include <gtest/gtest.h>
@@ -104,6 +106,7 @@ template <> struct HeapTraits<Tailed> {
 namespace {
 
 using namespace WasmEdge;
+using namespace std::literals;
 using Runtime::HeapHeader;
 using Runtime::HeapKind;
 using Runtime::RefHeap;
@@ -367,6 +370,57 @@ TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
   auto Again = Fresh->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(Again);
   EXPECT_NE(Fresh->getHeader(*Again), nullptr);
+}
+
+class NopHost : public Runtime::HostFunction<NopHost> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &) { return {}; }
+};
+
+TEST(RefHeap, HostModuleKeepsAddError) {
+  Runtime::Instance::ModuleInstance Mod("host"sv);
+  EXPECT_FALSE(Mod.getHostAddError());
+  auto Func = std::make_unique<NopHost>();
+  const uint64_t Before = NewCount;
+  AllowedNews = 0;
+  auto Res = Mod.addHostFunc("nop"sv, std::move(Func));
+  AllowedNews = -1;
+  if (NewCount == Before) {
+    GTEST_SKIP() << "the replaced operator new does not reach the module";
+  }
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::TypeTableFull);
+  ASSERT_TRUE(Mod.getHostAddError());
+  EXPECT_EQ(*Mod.getHostAddError(), ErrCode::Value::TypeTableFull);
+  EXPECT_EQ(Mod.findFuncExports("nop"sv), nullptr);
+}
+
+class UnknownTypeHost : public Runtime::HostFunction<UnknownTypeHost> {
+public:
+  UnknownTypeHost() {
+    DefType.getCompositeType().getFuncType().getParamTypes().push_back(
+        ValType(TypeCode::Ref, 99U));
+  }
+  Expect<void> body(const Runtime::CallingFrame &) { return {}; }
+};
+
+TEST(RefHeap, HostModuleKeepsFirstAddError) {
+  Runtime::Instance::ModuleInstance Mod("host"sv);
+  auto First = Mod.addHostFunc("bad"sv, std::make_unique<UnknownTypeHost>());
+  ASSERT_FALSE(First);
+  EXPECT_EQ(First.error(), ErrCode::Value::IncompatibleImportType);
+  auto Func = std::make_unique<NopHost>();
+  const uint64_t Before = NewCount;
+  AllowedNews = 0;
+  auto Second = Mod.addHostFunc("nop"sv, std::move(Func));
+  AllowedNews = -1;
+  if (NewCount == Before) {
+    GTEST_SKIP() << "the replaced operator new does not reach the module";
+  }
+  ASSERT_FALSE(Second);
+  EXPECT_EQ(Second.error(), ErrCode::Value::TypeTableFull);
+  ASSERT_TRUE(Mod.getHostAddError());
+  EXPECT_EQ(*Mod.getHostAddError(), ErrCode::Value::IncompatibleImportType);
 }
 
 TEST_P(RefHeapModes, LoadStore) {

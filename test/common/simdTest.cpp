@@ -286,6 +286,11 @@ Lanes<F, T> loadLanes(const T *Values, std::size_t Count, std::size_t K) {
   return In;
 }
 
+template <class F, class T, std::size_t M>
+Lanes<F, T> loadLanes(const std::array<T, M> &Values) {
+  return loadLanes<F, T>(Values.data(), M, 0);
+}
+
 // Converts between lanes and a vector without a floating-point instruction.
 template <class F, class T> V16<F, T> toVector(const Lanes<F, T> &In) {
   return cxx20::bit_cast<V16<F, T>>(In);
@@ -381,7 +386,18 @@ template <class F> constexpr bool usesIntegerRounding() {
   return IntegerRounding<F>::value;
 }
 
+// The build defines WASMEDGE_SIMD_TEST_STRICT_FP when it compiles this file
+// with the strict floating-point option of the compiler.
+#if defined(WASMEDGE_SIMD_TEST_STRICT_FP)
+constexpr bool StrictFloatingPoint = true;
+#else
+constexpr bool StrictFloatingPoint = false;
+#endif
+
 constexpr unsigned int MxcsrDenormalsAreZero = 0x0040U;
+constexpr unsigned int MxcsrFlushToZero = 0x8000U;
+// Round to nearest, all exceptions masked, no flag set, DAZ and FTZ off.
+constexpr unsigned int MxcsrDefault = 0x1F80U;
 // The writable MXCSR bits of a CPU that stores a zero mask with FXSAVE.
 constexpr std::uint32_t MxcsrDefaultMask = 0xFFBFU;
 
@@ -398,44 +414,148 @@ bool hasDenormalsAreZero() noexcept {
   return ((Mask != 0 ? Mask : MxcsrDefaultMask) & MxcsrDenormalsAreZero) != 0;
 }
 
+// Starts from the default floating-point environment and restores the
+// original rounding mode, exception flags and MXCSR on scope exit, also when a
+// fatal assertion returns early.
+class FloatEnvGuard {
+public:
+  FloatEnvGuard() noexcept : Csr(_mm_getcsr()) {
+    Saved = std::fegetenv(&Env) == 0;
+    Ready = Saved && std::fesetenv(FE_DFL_ENV) == 0;
+    _mm_setcsr(MxcsrDefault);
+  }
+  ~FloatEnvGuard() noexcept {
+    if (Saved && std::fesetenv(&Env) != 0) {
+      ADD_FAILURE() << "cannot restore the floating-point environment";
+    }
+    _mm_setcsr(Csr);
+  }
+  FloatEnvGuard(const FloatEnvGuard &) = delete;
+  FloatEnvGuard &operator=(const FloatEnvGuard &) = delete;
+
+  // Tells whether the original environment is saved and the default one is
+  // set.
+  bool ready() const noexcept { return Ready; }
+
+private:
+  std::fenv_t Env;
+  unsigned int Csr;
+  bool Saved = false;
+  bool Ready = false;
+};
+
+// The compiler treats floating-point operations as free of side effects and
+// can move them past a change to the floating-point environment. The strict
+// floating-point option keeps that order. A call through a volatile function
+// pointer is a second boundary: GCC and Clang do not inline it, and its loads
+// and stores keep the calculation between the calls around it. C++ does not
+// guarantee this, so each test first runs a control through the same call,
+// which fails if the environment change does not reach the calculation.
+template <class F, class T>
+void applyOpaque(VectorFn<F, T> Fn, const V16<F, T> &X, V16<F, T> &Y) {
+  void (*volatile Apply)(VectorFn<F, T>, const V16<F, T> &, V16<F, T> &) =
+      &applyVector<F, T>;
+  Apply(Fn, X, Y);
+}
+
+template <class F, class T>
+Lanes<F, T> applyOpaque(VectorFn<F, T> Fn, const Lanes<F, T> &In) {
+  const auto X = toVector<F, T>(In);
+  V16<F, T> Y{};
+  applyOpaque<F, T>(Fn, X, Y);
+  return toLanes<F, T>(Y);
+}
+
+// Adds epsilon / 4 for FE_UPWARD and subtracts it for the other modes. The
+// step is too small to change 1 or -1 in the rounding to nearest.
+template <class F, class T> VectorFn<F, T> modeControl(int Mode) {
+  using V = V16<F, T>;
+  if (Mode == FE_UPWARD) {
+    return [](const V &X) -> V {
+      return X + V(std::numeric_limits<T>::epsilon() / 4);
+    };
+  }
+  return [](const V &X) -> V {
+    return X - V(std::numeric_limits<T>::epsilon() / 4);
+  };
+}
+
+// The results of modeControl for 1 and -1 in each mode. FE_DOWNWARD moves -1
+// away from zero, and FE_TOWARDZERO keeps it.
+template <class T> std::array<T, 2> modeControlResults(int Mode) {
+  switch (Mode) {
+  case FE_UPWARD:
+    return {std::nextafter(T(1), T(2)), std::nextafter(T(-1), T(0))};
+  case FE_DOWNWARD:
+    return {std::nextafter(T(1), T(0)), std::nextafter(T(-1), T(-2))};
+  default:
+    return {std::nextafter(T(1), T(0)), T(-1)};
+  }
+}
+
 template <class F, class T> void checkRoundingIgnoresRoundingMode() {
   using V = V16<F, T>;
-  const auto In = roundingValues<T>();
+  const FloatEnvGuard Guard;
+  ASSERT_TRUE(Guard.ready());
+  const auto Values = roundingValues<T>();
+  const auto In = loadLanes<F, T>(std::array<T, 2>{T(1), T(-1)});
   for (const int Mode : {FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO}) {
-    for (std::size_t K = 0; K < In.size(); K += V::size) {
-      const V X([&](auto I) { return In[(K + I) % In.size()]; });
-      ASSERT_EQ(std::fesetround(Mode), 0);
-      const V Ceil = simd::ceil(X);
-      const V Floor = simd::floor(X);
-      const V Trunc = simd::trunc(X);
-      const V RoundEven = cxx26::simd_ext::roundeven(X);
-      ASSERT_EQ(std::fesetround(FE_TONEAREST), 0);
-      for (simd_size_type I = 0; I < V::size; ++I) {
-        const T Y = X[I];
-        EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y))) << Mode << ' ' << Y;
-        EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y))) << Mode << ' ' << Y;
-        EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y))) << Mode << ' ' << Y;
-        EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y)))
-            << Mode << ' ' << Y;
-      }
+    SCOPED_TRACE(Mode);
+    ASSERT_EQ(std::fesetround(Mode), 0);
+    const auto Moved = applyOpaque<F, T>(modeControl<F, T>(Mode), In);
+    ASSERT_EQ(std::fesetround(FE_TONEAREST), 0);
+    const auto Want = modeControlResults<T>(Mode);
+    ASSERT_EQ(Moved[0], Want[0])
+        << "the control does not show the rounding mode";
+    ASSERT_EQ(Moved[1], Want[1])
+        << "the control does not show the rounding mode";
+    for (const auto &Op : roundOps<F, T>()) {
+      checkBatches<F, T>(Op, Values,
+                         [Mode](const LaneOp<F, T> &O, const V &X, V &Y) {
+                           ASSERT_EQ(std::fesetround(Mode), 0);
+                           applyOpaque<F, T>(O.Vector, X, Y);
+                           ASSERT_EQ(std::fesetround(FE_TONEAREST), 0);
+                         });
     }
   }
 }
 
+// Sets or clears denormals-are-zero, which reads a denormal input as zero, and
+// flush-to-zero, which writes a denormal result as zero. Fast-math startup
+// code sets both.
+void setDenormalsAreZero(bool On) noexcept {
+  const unsigned int Bits = MxcsrDenormalsAreZero | MxcsrFlushToZero;
+  _mm_setcsr(On ? (_mm_getcsr() | Bits) : (_mm_getcsr() & ~Bits));
+}
+
+// The control multiplies a denormal by the largest value, a product that is
+// normal. It must be nonzero with denormals-are-zero off, which shows that the
+// input is a denormal, and zero with it on.
 template <class F, class T> void checkRoundingIgnoresDenormalsAreZero() {
   using V = V16<F, T>;
+  const FloatEnvGuard Guard;
+  ASSERT_TRUE(Guard.ready());
   const T Tiny = std::numeric_limits<T>::denorm_min();
-  const V X([&](auto I) { return I % 2 == 0 ? Tiny : -Tiny; });
-  const unsigned int Saved = _mm_getcsr();
-  _mm_setcsr(Saved | 0x8040U);
-  const V Ceil = simd::ceil(X);
-  const V Floor = simd::floor(X);
-  const V Trunc = simd::trunc(X);
-  _mm_setcsr(Saved);
-  for (simd_size_type I = 0; I < V::size; ++I) {
-    EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(X[I]))) << I;
-    EXPECT_TRUE(sameFloat(Floor[I], std::floor(X[I]))) << I;
-    EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(X[I]))) << I;
+  const std::array<T, 2> Denormals{Tiny, -Tiny};
+  const auto In = loadLanes<F, T>(Denormals);
+  const VectorFn<F, T> Control = [](const V &X) -> V {
+    return X * V(std::numeric_limits<T>::max());
+  };
+  const auto Kept = applyOpaque<F, T>(Control, In);
+  ASSERT_NE(Kept[0], T(0)) << "the input is not a denormal";
+  ASSERT_NE(Kept[1], T(0)) << "the input is not a denormal";
+  setDenormalsAreZero(true);
+  const auto Zeroed = applyOpaque<F, T>(Control, In);
+  setDenormalsAreZero(false);
+  ASSERT_EQ(Zeroed[0], T(0)) << "denormals-are-zero had no effect";
+  ASSERT_EQ(Zeroed[1], T(0)) << "denormals-are-zero had no effect";
+  for (const auto &Op : roundOps<F, T>()) {
+    checkBatches<F, T>(Op, Denormals,
+                       [](const LaneOp<F, T> &O, const V &X, V &Y) {
+                         setDenormalsAreZero(true);
+                         applyOpaque<F, T>(O.Vector, X, Y);
+                         setDenormalsAreZero(false);
+                       });
   }
 }
 #endif
@@ -659,6 +779,8 @@ TYPED_TEST(SimdTest, RoundingMatchesScalar) {
 TYPED_TEST(SimdTest, RoundingIgnoresRoundingMode) {
   if (!usesIntegerRounding<TypeParam>()) {
     GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else if (!StrictFloatingPoint) {
+    GTEST_SKIP() << "the test is built without a strict floating-point option";
   } else {
     checkRoundingIgnoresRoundingMode<TypeParam, float>();
     checkRoundingIgnoresRoundingMode<TypeParam, double>();
@@ -668,6 +790,8 @@ TYPED_TEST(SimdTest, RoundingIgnoresRoundingMode) {
 TYPED_TEST(SimdTest, RoundingIgnoresDenormalsAreZero) {
   if (!usesIntegerRounding<TypeParam>()) {
     GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else if (!StrictFloatingPoint) {
+    GTEST_SKIP() << "the test is built without a strict floating-point option";
   } else {
     if (!hasDenormalsAreZero()) {
       GTEST_SKIP() << "the CPU has no denormals-are-zero bit";

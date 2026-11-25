@@ -134,6 +134,13 @@ jobs:
             build/test/plugins/wasi_nn/wasinn_*_fixtures
             build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
           key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
+      - if: ${{ matrix.dir == 'wasmedge_stablediffusion' }}
+        name: Check that the packaged ${{ matrix.plugin }} loads
+        shell: bash
+        run: |
+          bash .github/scripts/check_plugin_package.sh \
+            ${{ steps.var.outputs.artifact }} build/lib/api \
+            ${{ contains(matrix.plugin, 'cuda') && '--no-load' || '' }}
       - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
         name: Prepare test env
         shell: bash

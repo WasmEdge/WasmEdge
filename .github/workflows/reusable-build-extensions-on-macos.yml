@@ -122,6 +122,13 @@ jobs:
           else
             tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
           fi
+      - if: ${{ matrix.dir == 'wasmedge_stablediffusion' }}
+        name: Check that the packaged ${{ matrix.plugin }} loads
+        shell: bash
+        run: |
+          bash .github/scripts/check_plugin_package.sh \
+            ${{ steps.var.outputs.artifact }} build/lib/api \
+            ${{ contains(matrix.plugin, 'cuda') && '--no-load' || '' }}
       - if: ${{ !inputs.release && contains(matrix.plugin, 'stablediffusion') && contains(inputs.asset_tag, 'arm64') }}
         name: Rebuild with METAL=OFF for testing
         env:

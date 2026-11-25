@@ -1347,6 +1347,11 @@ VirtualFree(WasmEdge::winapi::LPVOID_ lpAddress,
             WasmEdge::winapi::DWORD_ dwFreeType);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+FlushInstructionCache(WasmEdge::winapi::HANDLE_ hProcess,
+                      WasmEdge::winapi::LPCVOID_ lpBaseAddress,
+                      WasmEdge::winapi::SIZE_T_ dwSize);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 VirtualProtect(WasmEdge::winapi::LPVOID_ lpAddress,
                WasmEdge::winapi::SIZE_T_ dwSize,
                WasmEdge::winapi::DWORD_ flNewProtect,
@@ -1356,6 +1361,7 @@ VirtualProtect(WasmEdge::winapi::LPVOID_ lpAddress,
 
 namespace WasmEdge::winapi {
 using ::CoTaskMemFree;
+using ::FlushInstructionCache;
 using ::LocalFree;
 using ::VirtualAlloc;
 using ::VirtualFree;

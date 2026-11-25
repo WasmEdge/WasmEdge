@@ -201,9 +201,16 @@ bool Allocator::set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept {
 #if WASMEDGE_OS_WINDOWS
   winapi::DWORD_ OldPerm;
   return winapi::VirtualProtect(Pointer, Size, winapi::PAGE_EXECUTE_READ_,
-                                &OldPerm) != 0;
+                                &OldPerm) != 0 &&
+         winapi::FlushInstructionCache(winapi::GetCurrentProcess(), Pointer,
+                                       Size) != 0;
 #elif defined(HAVE_MMAP)
-  return mprotect(Pointer, Size, PROT_EXEC | PROT_READ) == 0;
+  if (mprotect(Pointer, Size, PROT_EXEC | PROT_READ) != 0) {
+    return false;
+  }
+  __builtin___clear_cache(reinterpret_cast<char *>(Pointer),
+                          reinterpret_cast<char *>(Pointer + Size));
+  return true;
 #else
   return true;
 #endif

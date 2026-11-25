@@ -4312,6 +4312,54 @@ TEST(WasiTest, PreopenDoubleColonSeparator) {
 #endif
 }
 
+TEST(WasiTest, PreopenKeepsDotPrefixedGuestName) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::absolute(fs::path(
+      "wasmedge-wasi-dot-name-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count())));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root, Error));
+  ASSERT_FALSE(Error);
+  {
+    std::ofstream Data(Root / "data.txt", std::ios::binary);
+    ASSERT_TRUE(Data);
+    Data << "data";
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+  const auto NoFlags = static_cast<__wasi_oflags_t>(0);
+  const auto NoFdFlags = static_cast<__wasi_fdflags_t>(0);
+  auto GuestName = [&Env]() {
+    __wasi_prestat_t PreStat{};
+    EXPECT_TRUE(Env.fdPrestatGet(3, PreStat));
+    std::vector<uint8_t> Name(
+        WasmEdge::EndianValue(PreStat.u.dir.pr_name_len).le());
+    EXPECT_TRUE(Env.fdPrestatDirName(3, Name));
+    return std::string(Name.begin(), Name.end());
+  };
+
+  // A component which begins with a dot is part of the guest name.
+  Env.init({"/root/.cache:" + Root.string()}, "test"s, {}, {});
+  EXPECT_EQ(GuestName(), "root/.cache"sv);
+  EXPECT_TRUE(Env.open("/root/.cache/data.txt", NoFlags, __WASI_RIGHTS_FD_READ,
+                       NoFdFlags));
+  Env.fini();
+
+  // A "." component is still dropped.
+  Env.init({"/root/./cache:" + Root.string()}, "test"s, {}, {});
+  EXPECT_EQ(GuestName(), "root/cache"sv);
+  Env.fini();
+}
+
 TEST(WasiTest, PreopenRejectsUnknownMode) {
   namespace fs = std::filesystem;
 

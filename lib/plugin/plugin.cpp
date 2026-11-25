@@ -294,20 +294,13 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     const auto UsrStr = "/usr"sv;
     const auto LibStr = "/lib"sv;
     const auto &PathStr = LibPath.native();
-    if ((PathStr.size() >= UsrStr.size() &&
-         std::equal(UsrStr.begin(), UsrStr.end(), PathStr.begin())) ||
-        (PathStr.size() >= LibStr.size() &&
-         std::equal(LibStr.begin(), LibStr.end(), PathStr.begin()))) {
-      // The installation path of the WasmEdge library is under "/usr".
-      // Plug-in path will be in "LIB_PATH/wasmedge".
-      // If the installation path is under "/usr/lib" or "/usr/lib64", the
-      // traced library path will be "/lib" or "/lib64".
-      Result.push_back(LibPath / u8path("wasmedge"sv));
-    } else {
+    if (PathStr.compare(0, UsrStr.size(), UsrStr) != 0 &&
+        PathStr.compare(0, LibStr.size(), LibStr) != 0) {
       // The installation path of the WasmEdge library is not under "/usr", such
       // as "$HOME/.wasmedge". Plug-in path will be in "LIB_PATH/../plugin".
       Result.push_back(LibPath / u8path(".."sv) / u8path("plugin"sv));
     }
+    Result.push_back(LibPath / u8path("wasmedge"sv));
   } else {
     spdlog::error(ErrCode::Value::NonNullRequired);
     spdlog::error("Address could not be matched to any shared object. "sv

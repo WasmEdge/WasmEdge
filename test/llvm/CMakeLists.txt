@@ -5,8 +5,10 @@ wasmedge_add_executable(wasmedgeLLVMCoreTests
   LinkerGraphTest.cpp
   LinkerObjectReaderTest.cpp
   LinkerRelocationTest.cpp
+  LinkerTest.cpp
   LinkerUnwindTest.cpp
   LLVMcoreTest.cpp
+  NativeWriterTest.cpp
 )
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)

@@ -34,12 +34,15 @@ set(WASMEDGE_LLVM_LINKER_SOURCES
   linker/byte_io.cpp
   linker/compact_unwind.cpp
   linker/eh_frame.cpp
+  linker/elf_writer.cpp
   linker/layout.cpp
   linker/link_graph.cpp
+  linker/macho_writer.cpp
   linker/object_reader.cpp
   linker/object_reader_coff.cpp
   linker/object_reader_elf.cpp
   linker/object_reader_macho.cpp
+  linker/pe_writer.cpp
   linker/relocation.cpp
   linker/relocation_aarch64.cpp
   linker/relocation_arm.cpp
@@ -47,6 +50,8 @@ set(WASMEDGE_LLVM_LINKER_SOURCES
   linker/relocation_s390x.cpp
   linker/relocation_x86_64.cpp
   linker/thunks.cpp
+  linker/universal_wasm_writer.cpp
+  linker/writer.cpp
 )
 
 list(APPEND WASMEDGE_LLVM_SOURCES ${WASMEDGE_LLVM_LINKER_SOURCES})

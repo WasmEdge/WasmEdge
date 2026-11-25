@@ -14,10 +14,13 @@
 #include "LinkerTestUtils.h"
 #include "linker/compact_unwind.h"
 #include "linker/eh_frame.h"
+#include "linker/elf_writer.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
 #include "linker/object_reader.h"
 #include "linker/relocation.h"
+#include "linker/universal_wasm_writer.h"
+#include "linker/writer.h"
 
 #include "aot/version.h"
 
@@ -3133,6 +3136,25 @@ TEST(ObjectReaderTest, RejectsUnsupportedARMHeaderFlags) {
   EXPECT_EQ(Result.error().Kind, DiagnosticKind::Unsupported);
 }
 
+TEST(ObjectReaderTest, WritesAttributeNormalizedARMFlags) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  auto Bytes = makeARMAttributeObject(llvm::ARMBuildAttrs::BaseAAPCS);
+  write32le(Bytes, 36,
+            llvm::ELF::EF_ARM_EABI_VER4 | llvm::ELF::EF_ARM_ABI_FLOAT_HARD);
+  auto Result = ObjectReader::read(Bytes, Target::ARM);
+  ASSERT_TRUE(Result);
+  constexpr uint32_t Expected =
+      llvm::ELF::EF_ARM_EABI_VER5 | llvm::ELF::EF_ARM_ABI_FLOAT_SOFT;
+  ASSERT_EQ(Result->elfFlags(), Expected);
+  ASSERT_TRUE(ELFWriter::layout(*Result));
+  ASSERT_TRUE(applyRelocations(*Result));
+  std::vector<WasmEdge::Byte> OutputBytes;
+  Writer Output(OutputBytes);
+  ASSERT_TRUE(ELFWriter::write(*Result, Output));
+  ASSERT_GE(OutputBytes.size(), 40U);
+  EXPECT_EQ(read32le(OutputBytes, 36), Expected);
+}
+
 TEST(ObjectReaderTest, RejectsMalformedARMAttributes) {
   REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
   auto Bytes = makeARMAttributeObject(llvm::ARMBuildAttrs::HardFPAAPCS);
@@ -3429,6 +3451,23 @@ TEST(ObjectReaderTest, PreservesRISCVArchitectureFlags) {
   const uint32_t Expected =
       llvm::ELF::EF_RISCV_RVC | llvm::ELF::EF_RISCV_FLOAT_ABI_DOUBLE;
   EXPECT_EQ(Graph->elfFlags(), Expected);
+}
+
+TEST(ObjectReaderTest, WritesRISCVArchitectureFlags) {
+  REQUIRE_LLVM_TARGET("riscv64-unknown-linux-gnu");
+  const auto Bytes = makeAssemblyObject(
+      llvm::Triple("riscv64-unknown-linux-gnu"),
+      ".option rvc\n.text\n.globl f0\nf0:\n c.nop\n ret\n", "+c,+f,+d");
+  auto Graph = ObjectReader::read(Bytes, Target::RISCV64);
+  ASSERT_TRUE(Graph);
+  const uint32_t Expected =
+      llvm::ELF::EF_RISCV_RVC | llvm::ELF::EF_RISCV_FLOAT_ABI_DOUBLE;
+  ASSERT_TRUE(ELFWriter::layout(*Graph));
+  ASSERT_TRUE(applyRelocations(*Graph));
+  std::vector<WasmEdge::Byte> OutputBytes;
+  Writer Output(OutputBytes);
+  ASSERT_TRUE(ELFWriter::write(*Graph, Output));
+  EXPECT_EQ(read64le(OutputBytes, 48) & UINT32_MAX, Expected);
 }
 
 TEST(ObjectReaderTest, RejectsNonRelocatableELFObject) {

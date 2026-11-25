@@ -12,9 +12,11 @@
 
 #include "LinkerTestHelpers.h"
 #include "LinkerTestUtils.h"
+#include "linker/elf_writer.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
 #include "linker/object_reader.h"
+#include "linker/pe_writer.h"
 #include "linker/relocation.h"
 
 #include <gtest/gtest.h>
@@ -1027,6 +1029,83 @@ target:
   EXPECT_TRUE(applyRelocations(*Graph));
 }
 
+TEST(ARMRelocationTest, AddsCantUnwindBoundariesForUnindexedText) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes =
+      makeAssemblyObject(llvm::Triple("armv7-unknown-linux-gnueabihf"),
+                         R"(.syntax unified
+.arm
+.section .text.a,"ax",%progbits
+.globl a
+.type a,%function
+a:
+.fnstart
+  push {r4, lr}
+  pop {r4, pc}
+.fnend
+.section .text.b,"ax",%progbits
+.globl b
+.type b,%function
+b:
+  bx lr
+.section .text.c,"ax",%progbits
+.globl c
+.type c,%function
+c:
+  bx lr
+.section .text.d,"ax",%progbits
+.globl d
+.type d,%function
+d:
+.fnstart
+  push {r4, lr}
+  pop {r4, pc}
+.fnend
+)",
+                         "");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  ASSERT_TRUE(addARMExidxBoundaries(*Graph));
+  ASSERT_TRUE(ELFWriter::layout(*Graph));
+  ASSERT_TRUE(applyRelocations(*Graph));
+  std::map<uint64_t, uint32_t> Entries;
+  for (const auto &Value : Graph->sections()) {
+    if (Value.Purpose != SectionPurpose::ARMExidx)
+      continue;
+    for (uint64_t Offset = 0; Offset < Value.Content.size(); Offset += 8) {
+      const auto Function =
+          Internal::readUnsigned(Value.Content, Offset, 4, Endianness::Little);
+      const auto Data = Internal::readUnsigned(Value.Content, Offset + 4, 4,
+                                               Endianness::Little);
+      ASSERT_TRUE(Function && Data);
+      const int64_t Delta = llvm::SignExtend64<31>(*Function);
+      Entries.emplace(static_cast<uint64_t>(
+                          static_cast<int64_t>(Value.Address + Offset) + Delta),
+                      static_cast<uint32_t>(*Data));
+    }
+  }
+  for (const char *Name : {"a", "b", "c", "d"}) {
+    const auto Found =
+        std::find_if(Graph->symbols().begin(), Graph->symbols().end(),
+                     [&](const auto &Value) { return Value.Name == Name; });
+    ASSERT_NE(Found, Graph->symbols().end()) << Name;
+    const uint64_t Address =
+        Graph->sections()[Found->Section].Address + Found->Offset;
+    const auto Entry = Entries.find(Address);
+    ASSERT_NE(Entry, Entries.end()) << Name;
+    const bool Unindexed = Name[0] == 'b' || Name[0] == 'c';
+    EXPECT_EQ(Entry->second == 1U, Unindexed) << Name;
+  }
+  const auto Last =
+      std::find_if(Graph->sections().begin(), Graph->sections().end(),
+                   [](const auto &Value) { return Value.Name == ".text.d"; });
+  ASSERT_NE(Last, Graph->sections().end());
+  const auto End = Entries.find(Last->Address + Last->VirtualSize);
+  ASSERT_NE(End, Entries.end());
+  EXPECT_EQ(End->second, 1U);
+  EXPECT_EQ(Entries.size(), 5U);
+}
+
 TEST(ARMRelocationTest, KeepsLinkBitForGeneratedConditionalCall) {
   REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
   const auto ObjectBytes =
@@ -1693,6 +1772,60 @@ TEST(AArch64RelocationTest, RejectsMalformedCOFFImplicitInstructions) {
     EXPECT_FALSE(applyRelocations(Graph)) << Type;
     expectGraphStateEquals(Graph, Snapshot);
   }
+}
+
+TEST(AArch64RelocationTest, RelocatesGeneratedCOFFAddendsExactly) {
+  REQUIRE_LLVM_TARGET("aarch64-pc-windows-msvc");
+  const auto Object =
+      makeAssemblyObject(llvm::Triple("aarch64-pc-windows-msvc"), R"(
+.text
+.globl f
+.globl target
+f:
+  adrp x0, data+4097
+  add x0, x0, :lo12:data+4097
+  adrp x1, data-1
+  add x1, x1, :lo12:data-1
+  bl target+8
+target:
+  ret
+.data
+.p2align 4
+.globl data
+data:
+  .xword 0
+)");
+  auto Graph = ObjectReader::read(Object, Target::AArch64);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 4U);
+  ASSERT_TRUE(PEWriter::layout(*Graph));
+  const auto Before =
+      Graph->sections()[Graph->relocations()[0].Section].Content;
+  EXPECT_TRUE(std::any_of(Before.begin(), Before.end(),
+                          [](WasmEdge::Byte Value) { return Value != 0; }));
+  ASSERT_TRUE(applyRelocations(*Graph));
+  const auto &Text = Graph->sections()[Graph->relocations()[0].Section];
+  const auto DataSymbol =
+      std::find_if(Graph->symbols().begin(), Graph->symbols().end(),
+                   [](const auto &Symbol) { return Symbol.Name == "data"; });
+  ASSERT_NE(DataSymbol, Graph->symbols().end());
+  const uint64_t DataAddress =
+      Graph->sections()[DataSymbol->Section].Address + DataSymbol->Offset;
+  const auto FirstADRP =
+      Internal::readUnsigned(Text.Content, 0, 4, Endianness::Little);
+  const auto SecondADRP =
+      Internal::readUnsigned(Text.Content, 8, 4, Endianness::Little);
+  ASSERT_TRUE(FirstADRP && SecondADRP);
+  EXPECT_EQ(
+      decodeAdrpTargetPage(static_cast<uint32_t>(*FirstADRP), Text.Address),
+      (DataAddress + 4097) & ~UINT64_C(0xFFF));
+  EXPECT_EQ(decodeAdrpTargetPage(static_cast<uint32_t>(*SecondADRP),
+                                 Text.Address + 8),
+            (DataAddress - 1) & ~UINT64_C(0xFFF));
+  EXPECT_EQ(*Internal::readUnsigned(Text.Content, 4, 4, Endianness::Little),
+            UINT32_C(0x91000000) | (((DataAddress + 4097) & 0xFFF) << 10));
+  EXPECT_EQ(*Internal::readUnsigned(Text.Content, 12, 4, Endianness::Little),
+            UINT32_C(0x91000021) | (((DataAddress - 1) & 0xFFF) << 10));
 }
 
 TEST(RISCVRelocationTest, AppliesAbsoluteCallAndUnwindRelocations) {
@@ -2592,6 +2725,35 @@ TEST(RelocationTest, AppliesCOFFAddr32NBToUniversalOffsets) {
   EXPECT_EQ(*Value, 0x1000U);
 }
 
+TEST(RelocationTest, AppliesAArch64COFFAddr32NBFromPEBasedUniversalLayout) {
+  constexpr uint64_t ImageBase = UINT64_C(0x180000000);
+  LinkGraph Graph(Target::AArch64, Endianness::Little, ObjectFormat::COFF);
+  ASSERT_TRUE(Graph.beginInput("arm64-universal.obj"));
+  auto Text = Graph.addSection(Section{
+      ".text", SectionKind::Text, 4, 4, 0, 0, {0xC0, 0x03, 0x5F, 0xD6}});
+  auto PData = Graph.addSection(Section{".pdata", SectionKind::Unwind, 4, 8, 0,
+                                        0, std::vector<WasmEdge::Byte>(8),
+                                        SectionPurpose::PData});
+  ASSERT_TRUE(Text && PData);
+  auto Function = Graph.addSymbol(Symbol{"function", *Text, 0, 4, false});
+  ASSERT_TRUE(Function);
+  ASSERT_TRUE(Graph.addRelocation(
+      Relocation{*PData, 0, llvm::COFF::IMAGE_REL_ARM64_ADDR32NB, *Function, 0,
+                 true, ObjectFormat::COFF, 4}));
+  write32le(const_cast<Section &>(Graph.sections()[*PData]).Content, 4,
+            (1U << 2) | 1U);
+
+  ASSERT_TRUE(layout(Graph, ImageBase, 4096));
+  ASSERT_TRUE(applyRelocations(Graph));
+  EXPECT_EQ(read32le(Graph.sections()[*PData].Content, 0),
+            Graph.sections()[*Text].Address - ImageBase);
+  auto RuntimeFunctions = normalizePERuntimeFunctions(Graph, ImageBase);
+  ASSERT_TRUE(RuntimeFunctions);
+  ASSERT_EQ(RuntimeFunctions->size(), 8U);
+  EXPECT_EQ(read32le(*RuntimeFunctions, 0),
+            Graph.sections()[*Text].Address - ImageBase);
+}
+
 TEST(RelocationTest, AcceptsX86_64MachOAbsoluteAndRejectsGOTForm) {
   EXPECT_EQ(relocationPatchSize(ObjectFormat::MachO, Target::X86_64,
                                 llvm::MachO::X86_64_RELOC_UNSIGNED, 8),
@@ -2698,6 +2860,27 @@ TEST(RelocationTest, RejectsOverflowingSymbolAndPlaceAddresses) {
       "relocation place overflows");
 }
 
+TEST(RelocationTest, RejectsX86_64AddendAndImageRelativeOverflow) {
+  expectRelocationFailure(
+      makeELFRelocationGraph(
+          Target::X86_64, Endianness::Little,
+          llvm::MachO::X86_64_RELOC_SIGNED_1, 4, 0x2000, 0x1000, 0, INT64_MIN,
+          false, std::vector<WasmEdge::Byte>(16), ObjectFormat::MachO),
+      "relocation addend overflows");
+  expectRelocationFailure(
+      makeELFRelocationGraph(Target::X86_64, Endianness::Little,
+                             llvm::COFF::IMAGE_REL_AMD64_ADDR32NB, 4,
+                             PEImageBase + UINT64_C(0x100000000), 0x1000, 0, 0,
+                             false, std::vector<WasmEdge::Byte>(16),
+                             ObjectFormat::COFF),
+      "absolute relocation overflows");
+  expectRelocationFailure(
+      makeELFRelocationGraph(Target::X86_64, Endianness::Little,
+                             llvm::ELF::R_X86_64_64, 8, UINT64_MAX - 0xF,
+                             0x1000, 0, 0x100),
+      "absolute relocation overflows");
+}
+
 TEST(RelocationTest, AppliesPC32WhenAddendBringsDistantSymbolIntoRange) {
   auto Graph = makeELFRelocationGraph(
       Target::X86_64, Endianness::Little, llvm::ELF::R_X86_64_PC32, 4,
@@ -2745,6 +2928,43 @@ TEST(ARMRelocationTest, RejectsUnrepresentableDisplacementsAtomically) {
       makeELFRelocationGraph(Target::ARM, Endianness::Little,
                              llvm::ELF::R_ARM_PREL31, 4, UINT64_C(0x100001000)),
       "PREL31 relocation overflows");
+}
+
+TEST(AArch64RelocationTest, RejectsUnrepresentableDisplacementsAtomically) {
+  expectRelocationFailure(
+      makeELFRelocationGraph(Target::AArch64, Endianness::Little,
+                             llvm::ELF::R_AARCH64_CALL26, 4, UnreachableAddress,
+                             0x1000, 0, 0, false,
+                             littleEndianWords({UINT32_C(0x94000000)})),
+      "branch displacement overflows");
+  expectRelocationFailure(
+      makeELFRelocationGraph(
+          Target::AArch64, Endianness::Little,
+          llvm::COFF::IMAGE_REL_ARM64_BRANCH26, 4,
+          UINT64_C(0x1000) + UINT64_C(0x7FFFFFFFFFFFFF00), 0x1000, 0, 0, true,
+          littleEndianWords({UINT32_C(0x94000100)}), ObjectFormat::COFF),
+      "branch displacement overflows");
+  auto BelowImageBase = makeELFRelocationGraph(
+      Target::AArch64, Endianness::Little, llvm::COFF::IMAGE_REL_ARM64_ADDR32NB,
+      4, 0x2000, 0x1000, 0, 0, false, std::vector<WasmEdge::Byte>(16),
+      ObjectFormat::COFF);
+  ASSERT_TRUE(BelowImageBase.setImageBase(PEImageBase));
+  expectRelocationFailure(std::move(BelowImageBase),
+                          "ADDR32NB relocation overflows");
+  expectRelocationFailure(makeELFRelocationGraph(Target::AArch64,
+                                                 Endianness::Little,
+                                                 llvm::ELF::R_AARCH64_PREL64, 8,
+                                                 UnreachableAddress),
+                          "PREL64 relocation overflows");
+  expectRelocationFailure(makeELFRelocationGraph(Target::AArch64,
+                                                 Endianness::Little,
+                                                 llvm::ELF::R_AARCH64_PREL32, 4,
+                                                 UINT64_C(0x100002000)),
+                          "PREL32 relocation overflows");
+  expectRelocationFailure(
+      makeELFRelocationGraph(Target::AArch64, Endianness::Little,
+                             llvm::ELF::R_AARCH64_CALL26, 4, 0x2000, 0x1000, 2),
+      "invalid relocation field");
 }
 
 TEST(S390XRelocationTest, RejectsUnrepresentablePCRelativeDistance) {

@@ -4,6 +4,8 @@
 
 #include "ScopedTempDirectory.h"
 #include "linker/link_graph.h"
+#include "linker/universal_wasm_writer.h"
+#include "linker/writer.h"
 
 #include <llvm/BinaryFormat/ELF.h>
 #include <llvm/Config/llvm-config.h>
@@ -189,6 +191,22 @@ public:
 private:
   std::filesystem::path OriginalPath;
 };
+
+inline Linker::LinkExpect<void>
+writeUniversalWasmFile(const Linker::LinkGraph &Graph, Span<const Byte> Wasm,
+                       const std::filesystem::path &Output) {
+  std::vector<Byte> Bytes;
+  Linker::Writer Buffer(Bytes);
+  EXPECTED_TRY(Linker::UniversalWasmWriter::write(Graph, Wasm, Buffer));
+  std::ofstream File(Output, std::ios_base::binary | std::ios_base::trunc);
+  File.write(reinterpret_cast<const char *>(Bytes.data()),
+             static_cast<std::streamsize>(Bytes.size()));
+  File.close();
+  if (!File)
+    return Linker::diagnosticError("failed to write output",
+                                   Linker::DiagnosticKind::IO);
+  return {};
+}
 
 } // namespace Test
 } // namespace LLVM

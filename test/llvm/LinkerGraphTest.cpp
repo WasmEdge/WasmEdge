@@ -16,6 +16,7 @@
 #include "linker/layout.h"
 #include "linker/link_graph.h"
 #include "linker/object_reader.h"
+#include "linker/pe_writer.h"
 #include "linker/relocation.h"
 #include "linker/thunks.h"
 
@@ -1692,6 +1693,103 @@ TEST(LayoutTest, RejectsInvalidSegmentAlignmentAndExtraPlacements) {
   auto Placed = Internal::applyPlacements(Graph, Placements, 0);
   ASSERT_FALSE(Placed);
   EXPECT_EQ(Placed.error().Message, "invalid section ID");
+}
+
+struct BranchThunkCase {
+  ObjectFormat Format;
+  uint32_t Branch;
+  bool ImplicitAddend;
+  std::array<const char *, 3> Names;
+};
+
+uint64_t aarch64PageAddress(uint64_t Place, uint32_t Instruction) {
+  const uint64_t Immediate =
+      ((Instruction >> 29) & 0x3U) | (((Instruction >> 5) & 0x7FFFFU) << 2);
+  return (Place & ~UINT64_C(0xFFF)) +
+         static_cast<uint64_t>(llvm::SignExtend64<21>(Immediate) << 12);
+}
+
+TEST(BranchThunkTest, RedirectsOutOfRangeAArch64BranchesThroughThunks) {
+  constexpr uint64_t Gap = UINT64_C(160) << 20;
+  for (const auto &Test : {
+           BranchThunkCase{ObjectFormat::ELF,
+                           llvm::ELF::R_AARCH64_CALL26,
+                           false,
+                           {".text.a", ".text.b", ".text.c"}},
+           BranchThunkCase{ObjectFormat::MachO,
+                           llvm::MachO::ARM64_RELOC_BRANCH26,
+                           false,
+                           {"__a", "__b", "__c"}},
+           BranchThunkCase{ObjectFormat::COFF,
+                           llvm::COFF::IMAGE_REL_ARM64_BRANCH26,
+                           true,
+                           {".text$a", ".text$b", ".text$c"}},
+       }) {
+    LinkGraph Graph(Target::AArch64, Endianness::Little, Test.Format);
+    ASSERT_TRUE(Graph.beginInput("thunk.o"));
+    std::vector<WasmEdge::Byte> CallerCode(12);
+    write32le(CallerCode, 0, 0x94000000);
+    write32le(CallerCode, 4, Test.ImplicitAddend ? 0x94000001 : 0x14000000);
+    write32le(CallerCode, 8, 0xD65F03C0);
+    auto Caller = Graph.addSection(
+        Section{Test.Names[0], SectionKind::Text, 4, 12, 0, 0, CallerCode});
+    auto Filler = Graph.addSection(
+        Section{Test.Names[1], SectionKind::Text, 4, Gap, 0, 0, {}});
+    auto Callee = Graph.addSection(
+        Section{Test.Names[2], SectionKind::Text, 4, 8, 0, 0,
+                std::vector<WasmEdge::Byte>{0x1F, 0x20, 0x03, 0xD5, 0xC0, 0x03,
+                                            0x5F, 0xD6}});
+    ASSERT_TRUE(Caller && Filler && Callee);
+    auto Function = Graph.addSymbol(Symbol{"callee", *Callee, 0, 8, true});
+    ASSERT_TRUE(Function);
+    const int64_t SecondAddend = Test.ImplicitAddend ? 0 : 4;
+    ASSERT_TRUE(Graph.addRelocation(
+        Relocation{*Caller, 0, Test.Branch, *Function, 0, Test.ImplicitAddend,
+                   Test.Format, WordPatch}));
+    ASSERT_TRUE(Graph.addRelocation(
+        Relocation{*Caller, 4, Test.Branch, *Function, SecondAddend,
+                   Test.ImplicitAddend, Test.Format, WordPatch}));
+    const uint64_t ImageBase =
+        Test.Format == ObjectFormat::COFF ? PEImageBase : 0;
+    ASSERT_TRUE(layout(Graph, ImageBase));
+
+    auto Inserted = insertBranchThunks(Graph);
+    ASSERT_TRUE(Inserted);
+    EXPECT_TRUE(*Inserted);
+    ASSERT_TRUE(layout(Graph, ImageBase));
+    auto Again = insertBranchThunks(Graph);
+    ASSERT_TRUE(Again);
+    EXPECT_FALSE(*Again);
+    ASSERT_EQ(Graph.sections().size(), 4U);
+    const auto &Island = Graph.sections()[3];
+    ASSERT_TRUE(Island.Anchor);
+    EXPECT_EQ(Island.Anchor->Section, *Caller);
+    EXPECT_FALSE(Island.Anchor->After);
+    EXPECT_EQ(Island.Content.size(), 24U);
+    EXPECT_EQ(Island.Address + Island.VirtualSize,
+              Graph.sections()[*Caller].Address);
+    ASSERT_TRUE(applyRelocations(Graph));
+
+    const auto &Code = Graph.sections()[*Caller];
+    const auto &Thunks = Graph.sections()[3];
+    const uint64_t Target = Graph.sections()[*Callee].Address;
+    for (const uint64_t Offset : {UINT64_C(0), UINT64_C(4)}) {
+      const uint32_t Branch = read32le(Code.Content, Offset);
+      const uint64_t Place = Code.Address + Offset;
+      const uint64_t Thunk =
+          Place + static_cast<uint64_t>(
+                      llvm::SignExtend64<26>(Branch & 0x03FFFFFFU) << 2);
+      ASSERT_GE(Thunk, Thunks.Address);
+      ASSERT_LT(Thunk, Thunks.Address + Thunks.VirtualSize);
+      const uint64_t ThunkOffset = Thunk - Thunks.Address;
+      const uint32_t Adrp = read32le(Thunks.Content, ThunkOffset);
+      const uint32_t Add = read32le(Thunks.Content, ThunkOffset + 4);
+      const uint64_t Expected = Target + Offset;
+      EXPECT_EQ(aarch64PageAddress(Thunk, Adrp), Expected & ~UINT64_C(0xFFF));
+      EXPECT_EQ((Add >> 10) & 0xFFFU, Expected & 0xFFFU);
+      EXPECT_EQ(read32le(Thunks.Content, ThunkOffset + 8), 0xD61F0200U);
+    }
+  }
 }
 
 TEST(BranchThunkTest, LeavesReachableBranchesAlone) {

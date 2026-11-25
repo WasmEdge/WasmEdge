@@ -42,6 +42,7 @@ public:
 
   static uint8_t *allocate_chunk(uint64_t Size) noexcept;
   static void release_chunk(uint8_t *Pointer, uint64_t Size) noexcept;
+  static uint64_t chunk_page_size() noexcept;
   static bool set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept;
   static bool set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept;
   static bool set_chunk_readable_writable(uint8_t *Pointer,

@@ -15,21 +15,13 @@ extern void __deregister_frame(void *);
 using namespace std::literals;
 
 namespace {
-inline constexpr uint64_t roundDownPageBoundary(const uint64_t Value) {
-// ARM64 Mac has a special page size
-#if WASMEDGE_OS_MACOS && defined(__aarch64__)
-  return Value & ~UINT64_C(16383);
-#else
-  return Value & ~UINT64_C(4095);
-#endif
+uint64_t roundDownPageBoundary(const uint64_t Value,
+                               const uint64_t PageSize) noexcept {
+  return Value & ~(PageSize - 1);
 }
-inline constexpr uint64_t roundUpPageBoundary(const uint64_t Value) {
-// ARM64 Mac has a special page size
-#if WASMEDGE_OS_MACOS && defined(__aarch64__)
-  return roundDownPageBoundary(Value + UINT64_C(16383));
-#else
-  return roundDownPageBoundary(Value + UINT64_C(4095));
-#endif
+uint64_t roundUpPageBoundary(const uint64_t Value,
+                             const uint64_t PageSize) noexcept {
+  return roundDownPageBoundary(Value + PageSize - 1, PageSize);
 }
 } // namespace
 
@@ -37,12 +29,13 @@ namespace WasmEdge::Loader {
 
 Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   unload();
+  const uint64_t PageSize = Allocator::chunk_page_size();
   for (const auto &Section : AOTSec.getSections()) {
     const auto Offset = std::get<1>(Section);
     const auto Size = std::get<2>(Section);
     BinarySize = std::max(BinarySize, Offset + Size);
   }
-  BinarySize = roundUpPageBoundary(BinarySize);
+  BinarySize = roundUpPageBoundary(BinarySize, PageSize);
 
   // The symbol addresses are offsets into the binary about to be mapped, and
   // are dereferenced without any further check, so reject the out-of-range
@@ -87,8 +80,8 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
     std::copy(Content.begin(), Content.end(), Binary + Offset);
     switch (std::get<0>(Section)) {
     case 1: { // Text
-      const auto O = roundDownPageBoundary(Offset);
-      const auto S = roundUpPageBoundary(Size + (Offset - O));
+      const auto O = roundDownPageBoundary(Offset, PageSize);
+      const auto S = roundUpPageBoundary(Size + (Offset - O), PageSize);
       ExecutableRanges.emplace_back(Binary + O, S);
       break;
     }

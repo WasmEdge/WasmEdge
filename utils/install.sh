@@ -14,6 +14,16 @@ if ! command -v git &>/dev/null; then
     exit 1
 fi
 
+download_installer() {
+    if command -v curl &>/dev/null; then
+        curl --location --output /dev/null --silent --head --fail "$INSTALL_PY_URL" &&
+            curl --location -sSf -o "$1" "$INSTALL_PY_URL"
+    else
+        wget -q --method=HEAD "$INSTALL_PY_URL" &&
+            wget -qO "$1" "$INSTALL_PY_URL"
+    fi
+}
+
 main() {
     if [ "$PYTHON_EXECUTABLE" = "" ]; then
         if ! command -v which &>/dev/null; then
@@ -48,24 +58,20 @@ main() {
         INSTALL_PY_URL="https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.py"
     fi
 
-    if command -v curl &>/dev/null; then
-        if curl --output /dev/null --silent --head --fail "$INSTALL_PY_URL"; then
-            curl -sSf "$INSTALL_PY_URL" | "$PYTHON_EXECUTABLE" - "$@"
-        else
-            echo "${RED}$INSTALL_PY_URL not reachable${NC}"
-        fi
-
-    elif command -v wget &>/dev/null; then
-        if wget -q --method=HEAD "$INSTALL_PY_URL"; then
-            wget -qO- "$INSTALL_PY_URL" | "$PYTHON_EXECUTABLE" - "$@"
-        else
-            echo "${RED}$INSTALL_PY_URL not reachable{NC}"
-        fi
-    else
-        echo "${RED}curl or wget could not be found${NC}"
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        echo "${RED}curl or wget could not be found${NC}" >&2
         exit 1
     fi
 
+    installer=$(mktemp "${TMPDIR:-/tmp}/wasmedge-install.XXXXXXXXXX")
+    trap 'rm -f -- "$installer"' EXIT
+
+    if ! download_installer "$installer" || [[ ! -s "$installer" ]]; then
+        echo "${RED}Could not download $INSTALL_PY_URL${NC}" >&2
+        exit 1
+    fi
+
+    "$PYTHON_EXECUTABLE" - "$@" < "$installer"
 }
 
 main "$@"

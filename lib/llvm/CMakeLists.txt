@@ -30,10 +30,41 @@ set(WASMEDGE_LLVM_SOURCES
   llvm.cpp
 )
 
+set(WASMEDGE_LLVM_LINKER_SOURCES
+  linker/byte_io.cpp
+  linker/layout.cpp
+  linker/link_graph.cpp
+  linker/relocation.cpp
+  linker/relocation_aarch64.cpp
+  linker/relocation_arm.cpp
+  linker/relocation_riscv.cpp
+  linker/relocation_s390x.cpp
+  linker/relocation_x86_64.cpp
+  linker/thunks.cpp
+)
+
+list(APPEND WASMEDGE_LLVM_SOURCES ${WASMEDGE_LLVM_LINKER_SOURCES})
+
+if(MSVC)
+  set_source_files_properties(${WASMEDGE_LLVM_LINKER_SOURCES}
+    PROPERTIES COMPILE_OPTIONS /EHsc)
+else()
+  set_source_files_properties(${WASMEDGE_LLVM_LINKER_SOURCES}
+    PROPERTIES COMPILE_OPTIONS -fexceptions)
+endif()
+
 if(WASMEDGE_LINK_LLVM_STATIC)
   wasmedge_add_library(wasmedgeLLVM
     ${WASMEDGE_LLVM_SOURCES}
   )
+
+  if(NOT LLVM_ENABLE_RTTI)
+    if(MSVC)
+      target_compile_options(wasmedgeLLVM PRIVATE /GR-)
+    else()
+      target_compile_options(wasmedgeLLVM PRIVATE -fno-rtti)
+    endif()
+  endif()
 
   target_link_libraries(wasmedgeLLVM
     PUBLIC
@@ -73,11 +104,13 @@ else()
     std::filesystem
     ${CMAKE_THREAD_LIBS_INIT}
     LINK_COMPONENTS
+    binaryformat
     core
     linker
     lto
     native
     nativecodegen
+    object
     option
     passes
     support

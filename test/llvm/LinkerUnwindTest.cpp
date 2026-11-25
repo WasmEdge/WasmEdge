@@ -7,6 +7,7 @@
 #include "linker/eh_frame.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
+#include "linker/object_reader.h"
 #include "linker/relocation.h"
 
 #include <gtest/gtest.h>
@@ -40,6 +41,90 @@ namespace {
 
 using namespace WasmEdge::LLVM::Linker;
 using namespace WasmEdge::LLVM::Test;
+
+class GeneratedMachOEHFrameTest
+    : public testing::Test,
+      public testing::WithParamInterface<ObjectArchitectureCase> {};
+
+TEST_P(GeneratedMachOEHFrameTest, NormalizesGeneratedMachOFrames) {
+  const auto &Test = GetParam();
+  REQUIRE_LLVM_TARGET(Test.Triple);
+  const auto Triple = Test.Triple;
+  const auto Architecture = Test.Architecture;
+  const auto Object = makeObject(llvm::Triple(Triple), false, false, "f0", {},
+                                 false, false, "generic", {}, true, false,
+                                 false, false, false, false, {}, false, true);
+  auto Graph = ObjectReader::read(Object, Architecture);
+  ASSERT_TRUE(Graph) << Triple;
+  ASSERT_TRUE(compactUnwindToEHFrame(*Graph)) << Triple;
+  ASSERT_TRUE(layout(*Graph, 0, 0x4000));
+  ASSERT_TRUE(normalizeMachOEHFrame(*Graph)) << Triple;
+  constexpr uint64_t FirstBase = UINT64_C(0x100000000);
+  constexpr uint64_t SecondBase = UINT64_C(0x700000000);
+  const auto First = machOEHFrameStarts(*Graph, FirstBase);
+  const auto Second = machOEHFrameStarts(*Graph, SecondBase);
+  ASSERT_TRUE(First) << Triple;
+  ASSERT_TRUE(Second) << Triple;
+  ASSERT_EQ(First->size(), Second->size());
+  EXPECT_EQ(First->size(), 2U) << Triple;
+  for (size_t I = 0; I < First->size(); ++I)
+    EXPECT_EQ((*First)[I] - FirstBase, (*Second)[I] - SecondBase) << Triple;
+  for (const std::string_view Name : {"_f0", "_t0"}) {
+    const auto Symbol =
+        std::find_if(Graph->symbols().begin(), Graph->symbols().end(),
+                     [&](const auto &Value) { return Value.Name == Name; });
+    ASSERT_NE(Symbol, Graph->symbols().end()) << Triple << " " << Name;
+    const uint64_t Address =
+        FirstBase + Graph->sections()[Symbol->Section].Address + Symbol->Offset;
+    EXPECT_NE(std::find(First->begin(), First->end(), Address), First->end())
+        << Triple << " " << Name;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Architectures, GeneratedMachOEHFrameTest,
+    testing::Values(
+        ObjectArchitectureCase{"x86_64-apple-macosx", Target::X86_64},
+        ObjectArchitectureCase{"arm64-apple-macosx", Target::AArch64}),
+    objectArchitectureCaseName);
+
+TEST(MachOEHFrameTest, RelocationOwnsFDEAddressAndAppliesAddend) {
+  REQUIRE_LLVM_TARGET("x86_64-apple-macosx");
+  auto Fixture = makeX86_64MachOEHFrameFixture(false);
+  auto Graph = ObjectReader::read(Fixture.Bytes, Target::X86_64);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 1U);
+  auto &RelocationValue =
+      const_cast<Relocation &>(Graph->relocations().front());
+  ASSERT_EQ(RelocationValue.Offset, Fixture.Field);
+  RelocationValue.Addend = 1;
+  RelocationValue.AddendIsImplicit = false;
+  const auto ReferencedSymbol = RelocationValue.Symbol;
+  auto &EH = const_cast<Section &>(Graph->sections()[RelocationValue.Section]);
+  ASSERT_TRUE(Internal::writeUnsigned(EH.Content, Fixture.Field, 8,
+                                      Endianness::Little,
+                                      UINT64_C(0x7FFFFFFFFFFFFFFF)));
+
+  ASSERT_TRUE(layout(*Graph, 0, 0x4000));
+  ASSERT_TRUE(normalizeMachOEHFrame(*Graph));
+  const auto Starts = machOEHFrameStarts(*Graph, 0);
+  ASSERT_TRUE(Starts);
+  ASSERT_EQ(Starts->size(), 1U);
+  const auto &Symbol = Graph->symbols()[ReferencedSymbol];
+  EXPECT_EQ(Starts->front(),
+            Graph->sections()[Symbol.Section].Address + Symbol.Offset + 1);
+}
+
+TEST(MachOEHFrameTest, RejectsNonPointerWidthFDERelocation) {
+  REQUIRE_LLVM_TARGET("x86_64-apple-macosx");
+  auto Fixture = makeX86_64MachOEHFrameFixture(false);
+  auto Graph = ObjectReader::read(Fixture.Bytes, Target::X86_64);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 1U);
+  ASSERT_TRUE(layout(*Graph, 0, 0x4000));
+  const_cast<Relocation &>(Graph->relocations().front()).PatchSize = 4;
+  EXPECT_FALSE(normalizeMachOEHFrame(*Graph));
+}
 
 class GeneratedMachOCompactUnwindTest
     : public testing::Test,
@@ -316,6 +401,111 @@ TEST(EHFrameTest, RejectsUnwindlessSemanticFunction) {
 
   EXPECT_TRUE(normalizeMachOEHFrame(Graph));
   EXPECT_FALSE(validateMachOEHFrameCoverage(Graph));
+}
+
+TEST(EHFrameTest, RequiresTypeWrapperCoverage) {
+  REQUIRE_LLVM_TARGET("arm64-apple-macosx");
+  auto Object = makeObject(llvm::Triple("arm64-apple-macosx"), false, false,
+                           "f0", {}, false, false, "generic", {}, true, false,
+                           false, false, false, false, {}, false, true);
+  auto Graph = ObjectReader::read(Object, Target::AArch64);
+  ASSERT_TRUE(Graph);
+  ASSERT_TRUE(compactUnwindToEHFrame(*Graph));
+  ASSERT_TRUE(layout(*Graph, 0, 0x4000));
+  ASSERT_TRUE(normalizeMachOEHFrame(*Graph));
+  ASSERT_TRUE(validateMachOEHFrameCoverage(*Graph));
+
+  const auto Starts = machOEHFrameStarts(*Graph, 0);
+  ASSERT_TRUE(Starts);
+  const auto T0 =
+      std::find_if(Graph->symbols().begin(), Graph->symbols().end(),
+                   [](const auto &Symbol) { return Symbol.Name == "_t0"; });
+  const auto F0 =
+      std::find_if(Graph->symbols().begin(), Graph->symbols().end(),
+                   [](const auto &Symbol) { return Symbol.Name == "_f0"; });
+  ASSERT_NE(T0, Graph->symbols().end());
+  ASSERT_NE(F0, Graph->symbols().end());
+  const uint64_t T0Address =
+      Graph->sections()[T0->Section].Address + T0->Offset;
+  const uint64_t F0Address =
+      Graph->sections()[F0->Section].Address + F0->Offset;
+  ASSERT_NE(std::find(Starts->begin(), Starts->end(), T0Address),
+            Starts->end());
+  ASSERT_NE(std::find(Starts->begin(), Starts->end(), F0Address),
+            Starts->end());
+
+  const auto EH =
+      std::find_if(Graph->sections().begin(), Graph->sections().end(),
+                   [](const auto &Section) {
+                     return Section.Purpose == SectionPurpose::EHFrame;
+                   });
+  ASSERT_NE(EH, Graph->sections().end());
+  const SectionId EHId = static_cast<SectionId>(EH - Graph->sections().begin());
+  auto Content = Graph->sections()[EHId].Content;
+  bool Mutated = false;
+  for (size_t Offset = 0; Offset + 16 <= Content.size();) {
+    const uint32_t Length = read32le(Content, Offset);
+    if (Length == 0)
+      break;
+    const uint32_t CIE = read32le(Content, Offset + 4);
+    if (CIE != 0) {
+      const size_t Field = Offset + 8;
+      int64_t Delta = static_cast<int64_t>(read64le(Content, Field));
+      if (static_cast<int64_t>(Graph->sections()[EHId].Address + Field) +
+              Delta ==
+          static_cast<int64_t>(T0Address)) {
+        Delta = static_cast<int64_t>(F0Address -
+                                     (Graph->sections()[EHId].Address + Field));
+        write64le(Content, Field, static_cast<uint64_t>(Delta));
+        Mutated = true;
+        break;
+      }
+    }
+    Offset += Length + 4;
+  }
+  ASSERT_TRUE(Mutated);
+  LinkGraph Corrupted(Graph->target(), Graph->endianness(), Graph->format());
+  ASSERT_TRUE(Corrupted.beginInput("corrupted-eh-frame"));
+  for (SectionId I = 0; I < Graph->sections().size(); ++I) {
+    auto SectionValue = Graph->sections()[I];
+    if (I == EHId)
+      SectionValue.Content = std::move(Content);
+    ASSERT_TRUE(Corrupted.addSection(std::move(SectionValue)));
+  }
+  for (const auto &Symbol : Graph->symbols())
+    ASSERT_TRUE(Corrupted.addSymbol(Symbol));
+  for (const auto &Relocation : Graph->relocations())
+    ASSERT_TRUE(Corrupted.addRelocation(Relocation));
+  for (const auto &Rebase : Graph->rebases())
+    ASSERT_TRUE(Corrupted.addRebase(Rebase));
+  for (const auto &Reference : Graph->ehFrameReferences())
+    ASSERT_TRUE(Corrupted.addEHFrameReference(Reference));
+  EXPECT_FALSE(validateMachOEHFrameCoverage(Corrupted));
+}
+
+TEST(EHFrameTest, CollapsesAliasedSemanticFunctionAddresses) {
+  REQUIRE_LLVM_TARGET("arm64-apple-macosx");
+  auto Object = makeObject(llvm::Triple("arm64-apple-macosx"), false, false,
+                           "f0", {}, false, false, "generic", {}, true, false,
+                           false, false, false, false, {}, false, true);
+  auto Covered = ObjectReader::read(Object, Target::AArch64);
+  ASSERT_TRUE(Covered);
+  ASSERT_TRUE(compactUnwindToEHFrame(*Covered));
+  ASSERT_TRUE(layout(*Covered, 0, 0x4000));
+  auto &Symbols = const_cast<std::vector<Symbol> &>(Covered->symbols());
+  const auto T0 =
+      std::find_if(Symbols.begin(), Symbols.end(),
+                   [](const auto &Symbol) { return Symbol.Name == "_t0"; });
+  ASSERT_NE(T0, Symbols.end());
+  const SectionId T0Section = T0->Section;
+  const uint64_t T0Offset = T0->Offset;
+  const uint64_t T0Size = T0->Size;
+  Symbols.push_back(
+      Symbol{"_t1", T0Section, T0Offset, T0Size, true, std::nullopt, true});
+  ASSERT_TRUE(normalizeMachOEHFrame(*Covered));
+  EXPECT_TRUE(validateMachOEHFrameCoverage(*Covered));
+  Symbols.back().Offset = T0Offset + 1;
+  EXPECT_FALSE(validateMachOEHFrameCoverage(*Covered));
 }
 
 TEST(EHFrameTest, DecodesInt64SLEB128) {

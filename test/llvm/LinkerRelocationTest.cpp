@@ -14,6 +14,7 @@
 #include "LinkerTestUtils.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
+#include "linker/object_reader.h"
 #include "linker/relocation.h"
 
 #include <gtest/gtest.h>
@@ -47,6 +48,37 @@ namespace {
 
 using namespace WasmEdge::LLVM::Linker;
 using namespace WasmEdge::LLVM::Test;
+
+struct FailingRelocationCase {
+  const char *Triple;
+  Target Architecture;
+  Endianness WrongEndian;
+  uint32_t AbsoluteType;
+  uint8_t Width;
+  const char *Features;
+};
+
+struct PortableRelocationCase {
+  const char *Triple;
+  Target Architecture;
+  ObjectFormat Format;
+  uint32_t Type;
+};
+
+[[maybe_unused]] std::string failingRelocationCaseName(
+    const testing::TestParamInfo<FailingRelocationCase> &Info) {
+  return architectureName(Info.param.Architecture);
+}
+
+[[maybe_unused]] std::string portableRelocationCaseName(
+    const testing::TestParamInfo<PortableRelocationCase> &Info) {
+  return architectureName(Info.param.Architecture);
+}
+
+std::vector<WasmEdge::Byte> makeX86_64AssemblyObject(std::string Assembly) {
+  return makeAssemblyObject(llvm::Triple("x86_64-unknown-linux-gnu"),
+                            std::move(Assembly));
+}
 
 TEST(RelocationFieldTest, ReadsAndWritesUnsignedBoundariesWithExactBytes) {
   struct Case {
@@ -339,6 +371,55 @@ TEST(RelocationTest, AppliesMachOSignedSuffixBiasExactly) {
   }
 }
 
+TEST(RelocationTest, RelocatesGeneratedMachOSignedSuffixExactly) {
+  REQUIRE_LLVM_TARGET("x86_64-apple-macosx");
+  const auto Original = makeObject(llvm::Triple("x86_64-apple-macosx"));
+  auto Parsed =
+      llvm::object::ObjectFile::createObjectFile(llvm::MemoryBufferRef(
+          llvm::StringRef(reinterpret_cast<const char *>(Original.data()),
+                          Original.size()),
+          "signed.o"));
+  ASSERT_TRUE(static_cast<bool>(Parsed));
+  const auto *MachO = llvm::dyn_cast<llvm::object::MachOObjectFile>(&**Parsed);
+  ASSERT_NE(MachO, nullptr);
+  size_t RelocationOffset = 0;
+  for (const auto &Section : MachO->sections()) {
+    if (Section.relocation_begin() == Section.relocation_end())
+      continue;
+    const auto Ref = Section.relocation_begin()->getRawDataRefImpl();
+    llvm::object::DataRefImpl SectionRef;
+    SectionRef.d.a = Ref.d.a;
+    RelocationOffset = MachO->getSection64(SectionRef).reloff + Ref.d.b * 8;
+    break;
+  }
+  ASSERT_NE(RelocationOffset, 0U);
+  for (const uint32_t Type :
+       {llvm::MachO::X86_64_RELOC_SIGNED_1, llvm::MachO::X86_64_RELOC_SIGNED_2,
+        llvm::MachO::X86_64_RELOC_SIGNED_4}) {
+    auto Object = Original;
+    const uint32_t Word = read32le(Object, RelocationOffset + 4);
+    write32le(Object, RelocationOffset + 4,
+              (Word & UINT32_C(0x0FFFFFFF)) | (Type << 28));
+    auto Graph = ObjectReader::read(Object, Target::X86_64);
+    ASSERT_TRUE(Graph) << Type;
+    ASSERT_EQ(Graph->relocations().size(), 1U);
+    EXPECT_EQ(Graph->relocations()[0].Type, Type);
+    ASSERT_TRUE(layout(*Graph, 0, 4096));
+    const auto Relocation = Graph->relocations()[0];
+    ASSERT_TRUE(applyRelocations(*Graph));
+    const auto &Symbol = Graph->symbols()[Relocation.Symbol];
+    const uint64_t S =
+        Graph->sections()[Symbol.Section].Address + Symbol.Offset;
+    const uint64_t P =
+        Graph->sections()[Relocation.Section].Address + Relocation.Offset;
+    auto Value =
+        Internal::readSigned(Graph->sections()[Relocation.Section].Content,
+                             Relocation.Offset, 4, Endianness::Little);
+    ASSERT_TRUE(Value);
+    EXPECT_EQ(*Value, static_cast<int64_t>(S) - static_cast<int64_t>(P) - 4);
+  }
+}
+
 TEST(RelocationTest, DecodesImplicitAddendForX86_64Absolute) {
   std::vector<WasmEdge::Byte> Bytes(24);
   ASSERT_TRUE(
@@ -545,6 +626,31 @@ TEST(RelocationTest, RejectsMutationAndLayoutAfterRelocation) {
   auto LayoutResult = layout(Graph);
   ASSERT_FALSE(LayoutResult);
   EXPECT_EQ(LayoutResult.error().Message, "cannot layout relocated link graph");
+}
+
+TEST(RelocationTest, ReadsLayoutsAndRelocatesX86_64ObjectEndToEnd) {
+  REQUIRE_LLVM_TARGET("x86_64-unknown-linux-gnu");
+  const auto Object = makeX86_64ELFReaderFixture();
+  ASSERT_EQ(Object.size(), 848U);
+  auto Graph = ObjectReader::read(Object, Target::X86_64);
+  ASSERT_TRUE(Graph) << Graph.error().Message;
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  ASSERT_TRUE(applyRelocations(*Graph));
+  const auto Text =
+      std::find_if(Graph->sections().begin(), Graph->sections().end(),
+                   [](const Section &Value) { return Value.Name == ".text"; });
+  ASSERT_NE(Text, Graph->sections().end());
+  ASSERT_GE(Text->Content.size(), 7U);
+  EXPECT_EQ(Text->Content[1], 0x8DU);
+  auto Displacement =
+      Internal::readSigned(Text->Content, 3, 4, Endianness::Little);
+  ASSERT_TRUE(Displacement);
+  const auto &Relocation = Graph->relocations()[0];
+  const auto &Symbol = Graph->symbols()[Relocation.Symbol];
+  EXPECT_EQ(*Displacement,
+            static_cast<int64_t>(Graph->sections()[Symbol.Section].Address +
+                                 Symbol.Offset) -
+                static_cast<int64_t>(Text->Address + Relocation.Offset) - 4);
 }
 
 LinkGraph makeELFRelocationGraph(
@@ -828,6 +934,252 @@ TEST(ARMRelocationTest, RejectsMalformedThumbCallInstructionAtomically) {
   const auto MisalignedSnapshot = Misaligned;
   EXPECT_FALSE(applyRelocations(Misaligned));
   expectGraphStateEquals(Misaligned, MisalignedSnapshot);
+}
+
+TEST(ARMRelocationTest, ReadsGeneratedThumbAndCantUnwindObject) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes =
+      makeAssemblyObject(llvm::Triple("armv7-unknown-linux-gnueabihf"),
+                         R"(.syntax unified
+.thumb
+.section .text,"ax",%progbits
+.globl caller
+.thumb_func
+.type caller,%function
+caller:
+.fnstart
+  bl target
+  bx lr
+.cantunwind
+.fnend
+.section .text.target,"ax",%progbits
+.thumb_func
+.type target,%function
+target:
+  bx lr
+)",
+                         "+thumb-mode");
+  auto Object =
+      llvm::object::ObjectFile::createObjectFile(llvm::MemoryBufferRef(
+          llvm::StringRef(reinterpret_cast<const char *>(ObjectBytes.data()),
+                          ObjectBytes.size()),
+          "thumb.o"));
+  ASSERT_TRUE(static_cast<bool>(Object));
+  std::set<uint64_t> Types;
+  for (const auto &Section : (*Object)->sections()) {
+    for (const auto &Relocation : Section.relocations()) {
+      Types.insert(Relocation.getType());
+    }
+  }
+  EXPECT_EQ(Types, (std::set<uint64_t>{llvm::ELF::R_ARM_THM_CALL,
+                                       llvm::ELF::R_ARM_PREL31}));
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  const auto TargetSymbol =
+      std::find_if(Graph->symbols().begin(), Graph->symbols().end(),
+                   [](const auto &Value) { return Value.Name == "target"; });
+  ASSERT_NE(TargetSymbol, Graph->symbols().end());
+  EXPECT_TRUE(TargetSymbol->Thumb);
+  EXPECT_EQ(TargetSymbol->Offset & 1, 0U);
+  const auto Exidx = std::find_if(
+      Graph->sections().begin(), Graph->sections().end(),
+      [](const auto &Section) { return Section.Name == ".ARM.exidx"; });
+  ASSERT_NE(Exidx, Graph->sections().end());
+  EXPECT_EQ(Exidx->Kind, SectionKind::Unwind);
+  EXPECT_FALSE(Exidx->Content.empty());
+  ASSERT_TRUE(Exidx->LinkedSection);
+  EXPECT_EQ(Graph->sections()[*Exidx->LinkedSection].Name, ".text");
+  const auto ExidxId =
+      static_cast<SectionId>(Exidx - Graph->sections().begin());
+  EXPECT_TRUE(std::any_of(Graph->relocations().begin(),
+                          Graph->relocations().end(), [&](const auto &Value) {
+                            return Value.Section == ExidxId &&
+                                   Value.Type == llvm::ELF::R_ARM_PREL31;
+                          }));
+}
+
+TEST(ARMRelocationTest, RelocatesGeneratedThumbAndCantUnwindObject) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes =
+      makeAssemblyObject(llvm::Triple("armv7-unknown-linux-gnueabihf"),
+                         R"(.syntax unified
+.thumb
+.section .text,"ax",%progbits
+.globl caller
+.thumb_func
+.type caller,%function
+caller:
+.fnstart
+  bl target
+  bx lr
+.cantunwind
+.fnend
+.section .text.target,"ax",%progbits
+.thumb_func
+.type target,%function
+target:
+  bx lr
+)",
+                         "+thumb-mode");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  EXPECT_TRUE(applyRelocations(*Graph));
+}
+
+TEST(ARMRelocationTest, KeepsLinkBitForGeneratedConditionalCall) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes =
+      makeAssemblyObject(llvm::Triple("armv7-unknown-linux-gnueabihf"),
+                         R"(.syntax unified
+.arm
+.section .text,"ax",%progbits
+.globl caller
+.type caller,%function
+caller:
+  cmp r0, #0
+  bleq target
+  bne target
+  bx lr
+.section .text.target,"ax",%progbits
+.type target,%function
+target:
+  bx lr
+)",
+                         "");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  std::vector<uint32_t> Types;
+  for (const auto &Relocation : Graph->relocations())
+    Types.push_back(Relocation.Type);
+  ASSERT_EQ(Types, (std::vector<uint32_t>{llvm::ELF::R_ARM_JUMP24,
+                                          llvm::ELF::R_ARM_JUMP24}));
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  ASSERT_TRUE(applyRelocations(*Graph));
+  const auto Text =
+      std::find_if(Graph->sections().begin(), Graph->sections().end(),
+                   [](const auto &Section) { return Section.Name == ".text"; });
+  ASSERT_NE(Text, Graph->sections().end());
+  const auto Call =
+      Internal::readUnsigned(Text->Content, 4, 4, Endianness::Little);
+  const auto Jump =
+      Internal::readUnsigned(Text->Content, 8, 4, Endianness::Little);
+  ASSERT_TRUE(Call);
+  ASSERT_TRUE(Jump);
+  EXPECT_EQ(*Call & UINT32_C(0xFF000000), UINT32_C(0x0B000000));
+  EXPECT_EQ(*Jump & UINT32_C(0xFF000000), UINT32_C(0x1A000000));
+}
+
+TEST(ARMRelocationTest, AcceptsGeneratedPersonalityMarker) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes =
+      makeObject(llvm::Triple("armv7-unknown-linux-gnueabihf"), false, false,
+                 "f0", {}, true, true, "generic", "+thumb-mode", true);
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  for (const auto &Relocation : Graph->relocations())
+    EXPECT_NE(Relocation.Type, llvm::ELF::R_ARM_NONE);
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  EXPECT_TRUE(applyRelocations(*Graph));
+}
+
+TEST(ARMRelocationTest, RejectsGeneratedPersonalityReference) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes = makeAssemblyObject(
+      llvm::Triple("armv7-unknown-linux-gnueabihf"), R"(.syntax unified
+.thumb
+.text
+.globl handler
+.thumb_func
+handler:
+  bx lr
+.section .ARM.extab,"a",%progbits
+.align 2
+  .word __aeabi_unwind_cpp_pr0(prel31)
+)",
+      "+thumb-mode");
+  auto Result = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error().Message, "undefined symbol");
+  EXPECT_EQ(Result.error().SymbolName, "__aeabi_unwind_cpp_pr0");
+}
+
+TEST(ARMRelocationTest, RejectsMarkersOutsideTheEHABIPersonalities) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+#if LLVM_VERSION_MAJOR < 11
+  GTEST_SKIP() << "the ARM assembler does not accept relocation names in "
+                  ".reloc before LLVM 11";
+#endif
+  for (const char *Name : {"other_marker", "__aeabi_unwind_cpp_pr0"}) {
+    SCOPED_TRACE(Name);
+    const auto ObjectBytes = makeAssemblyObject(
+        llvm::Triple("armv7-unknown-linux-gnueabihf"),
+        std::string(".syntax unified\n.text\n.globl handler\nhandler:\n"
+                    "  .reloc ., R_ARM_NONE, ") +
+            Name + "\n  bx lr\n");
+    auto Result = ObjectReader::read(ObjectBytes, Target::ARM);
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error().Message, "undefined symbol");
+    EXPECT_EQ(Result.error().SymbolName, Name);
+  }
+}
+
+TEST(ARMRelocationTest, RejectsGeneratedDivisionImport) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes = makeAssemblyObject(
+      llvm::Triple("armv7-unknown-linux-gnueabihf"), R"(.syntax unified
+.thumb
+.text
+.globl divide
+.thumb_func
+divide:
+  bl __aeabi_uldivmod
+  bx lr
+)",
+      "+thumb-mode");
+  auto Result = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error().Message, "undefined symbol");
+  EXPECT_EQ(Result.error().SymbolName, "__aeabi_uldivmod");
+}
+
+TEST(ARMRelocationTest, RelocatesSelfCallAndPackedDataAtZeroImageBase) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes = makeAssemblyObject(
+      llvm::Triple("armv7-unknown-linux-gnueabihf"), R"(.syntax unified
+.arm
+.text
+.globl self
+.type self,%function
+self:
+  bl self
+.section .data.packed,"aw",%progbits
+.byte 0
+.long self
+.long self-.
+)");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  ASSERT_TRUE(layout(*Graph));
+  EXPECT_TRUE(applyRelocations(*Graph));
+}
+
+TEST(ARMRelocationTest, RelocatesThumbSelfCallAtZeroImageBase) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabihf");
+  const auto ObjectBytes = makeAssemblyObject(
+      llvm::Triple("armv7-unknown-linux-gnueabihf"), R"(.syntax unified
+.thumb
+.text
+.globl self
+.thumb_func
+self:
+  bl self
+)",
+      "+thumb-mode");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  ASSERT_TRUE(layout(*Graph));
+  EXPECT_TRUE(applyRelocations(*Graph));
 }
 
 TEST(ARMRelocationTest, AcceptsNoneOnlyAtZeroWidth) {
@@ -1150,6 +1502,83 @@ TEST(AArch64RelocationTest, EncodesAdrpAddAndLoadPairsExactly) {
   }
 }
 
+TEST(AArch64RelocationTest, RelocatesGeneratedAdrpLow12PairsExactly) {
+  REQUIRE_LLVM_TARGET("aarch64-unknown-linux-gnu");
+  auto Graph = ObjectReader::read(
+      makeAssemblyObject(llvm::Triple("aarch64-unknown-linux-gnu"),
+                         R"(.text
+.globl f
+.type f,%function
+f:
+  adrp x0, data
+  add x0, x0, :lo12:data
+  adrp x1, data
+  ldr x1, [x1, :lo12:data]
+  ret
+.data
+.p2align 3
+data:
+  .xword 0
+)"),
+      Target::AArch64);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 4U);
+  const std::array<uint32_t, 4> Types{{
+      llvm::ELF::R_AARCH64_ADR_PREL_PG_HI21,
+      llvm::ELF::R_AARCH64_ADD_ABS_LO12_NC,
+      llvm::ELF::R_AARCH64_ADR_PREL_PG_HI21,
+      llvm::ELF::R_AARCH64_LDST64_ABS_LO12_NC,
+  }};
+  for (size_t I = 0; I < Types.size(); ++I) {
+    EXPECT_EQ(Graph->relocations()[I].Type, Types[I]);
+  }
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  ASSERT_TRUE(applyRelocations(*Graph));
+  const auto &First = Graph->relocations()[0];
+  const auto &Symbol = Graph->symbols()[First.Symbol];
+  const uint64_t TargetAddress =
+      Graph->sections()[Symbol.Section].Address + Symbol.Offset;
+  const uint32_t Low12 = static_cast<uint32_t>(TargetAddress & 0xFFF);
+  const auto &Text = Graph->sections()[First.Section];
+  EXPECT_EQ(*Internal::readUnsigned(Text.Content, 4, 4, Endianness::Little),
+            UINT32_C(0x91000000) | (Low12 << 10));
+  EXPECT_EQ(*Internal::readUnsigned(Text.Content, 12, 4, Endianness::Little),
+            UINT32_C(0xF9400021) | ((Low12 >> 3) << 10));
+}
+
+TEST(AArch64RelocationTest, RelocatesGeneratedFPSIMDLow12Loads) {
+  REQUIRE_LLVM_TARGET("aarch64-unknown-linux-gnu");
+  auto Graph = ObjectReader::read(
+      makeAssemblyObject(llvm::Triple("aarch64-unknown-linux-gnu"),
+                         R"(.text
+.globl f
+.type f,%function
+f:
+  adrp x0, hdata
+  ldr h0, [x0, :lo12:hdata]
+  adrp x1, sdata
+  ldr s0, [x1, :lo12:sdata]
+  ret
+.data
+.p2align 1
+hdata:
+  .hword 0
+.p2align 2
+sdata:
+  .word 0
+)"),
+      Target::AArch64);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 4U);
+  EXPECT_EQ(Graph->relocations()[1].Type,
+            llvm::ELF::R_AARCH64_LDST16_ABS_LO12_NC);
+  EXPECT_EQ(Graph->relocations()[3].Type,
+            llvm::ELF::R_AARCH64_LDST32_ABS_LO12_NC);
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  auto Result = applyRelocations(*Graph);
+  ASSERT_TRUE(Result) << Result.error().Message;
+}
+
 TEST(AArch64RelocationTest, DecodesCOFFImplicitAddendsExactly) {
   constexpr uint64_t ImageBase = UINT64_C(0x180000000);
   struct Case {
@@ -1297,6 +1726,88 @@ TEST(RISCVRelocationTest, AppliesAbsoluteCallAndUnwindRelocations) {
   EXPECT_EQ(*Internal::readSigned(Unwind.sections()[0].Content, 0, 4,
                                   Endianness::Little),
             -0xFC);
+}
+
+TEST(RISCVRelocationTest, ReadsGeneratedSymbolDifferenceObject) {
+#if LLVM_VERSION_MAJOR < 15
+  GTEST_SKIP() << "the RISC-V assembler cannot represent cross-section "
+                  "symbol differences before LLVM 15; direct relocation logic "
+                  "is tested separately";
+#endif
+  REQUIRE_LLVM_TARGET("riscv64-unknown-linux-gnu");
+  constexpr std::string_view Assembly = R"(
+    .pushsection .rodata.symbol_begin,"a",@progbits
+  begin:
+    .byte 0
+    .popsection
+    .pushsection .rodata.symbol_end,"a",@progbits
+  end:
+    .byte 0
+    .popsection
+    .pushsection .rodata.symbol_difference,"a",@progbits
+    .globl symbol_difference
+  symbol_difference:
+    .word end - begin
+    .popsection
+  )";
+  const auto Object =
+      makeObject(llvm::Triple("riscv64-unknown-linux-gnu"), false, false, "f0",
+                 {}, true, true, "generic-rv64", "+a", false, false, false,
+                 false, false, false, Assembly.data());
+  auto Graph = ObjectReader::read(Object, Target::RISCV64);
+  ASSERT_TRUE(Graph);
+  std::set<uint32_t> Types;
+  for (const auto &Relocation : Graph->relocations()) {
+    if (Relocation.Type == llvm::ELF::R_RISCV_ADD32 ||
+        Relocation.Type == llvm::ELF::R_RISCV_SUB32) {
+      Types.insert(Relocation.Type);
+      EXPECT_EQ(Relocation.PatchSize, 4U);
+    }
+  }
+  EXPECT_EQ(Types, (std::set<uint32_t>{llvm::ELF::R_RISCV_ADD32,
+                                       llvm::ELF::R_RISCV_SUB32}));
+}
+
+TEST(RISCVRelocationTest, ReadsGeneratedByteSymbolDifferenceObject) {
+#if LLVM_VERSION_MAJOR < 15
+  GTEST_SKIP() << "the RISC-V assembler cannot represent cross-section "
+                  "symbol differences before LLVM 15; direct relocation logic "
+                  "is tested separately";
+#endif
+  REQUIRE_LLVM_TARGET("riscv64-unknown-linux-gnu");
+  constexpr std::string_view Assembly = R"(
+    .pushsection .rodata.symbol_begin,"a",@progbits
+  begin:
+    .byte 0
+    .popsection
+    .pushsection .rodata.symbol_end,"a",@progbits
+  end:
+    .byte 0
+    .popsection
+    .pushsection .rodata.symbol_difference,"a",@progbits
+  symbol_difference:
+    .byte end - begin
+    .popsection
+  )";
+  const auto Object =
+      makeObject(llvm::Triple("riscv64-unknown-linux-gnu"), false, false, "f0",
+                 {}, true, true, "generic-rv64", "+a", false, false, false,
+                 false, false, false, Assembly.data());
+  auto Graph = ObjectReader::read(Object, Target::RISCV64);
+  ASSERT_TRUE(Graph);
+  std::set<uint32_t> Types;
+  for (const auto &Relocation : Graph->relocations()) {
+    if (Relocation.Type == llvm::ELF::R_RISCV_ADD8 ||
+        Relocation.Type == llvm::ELF::R_RISCV_SET8 ||
+        Relocation.Type == llvm::ELF::R_RISCV_SUB8) {
+      Types.insert(Relocation.Type);
+      EXPECT_EQ(Relocation.PatchSize, 1U);
+    }
+  }
+  EXPECT_TRUE(Types == (std::set<uint32_t>{llvm::ELF::R_RISCV_ADD8,
+                                           llvm::ELF::R_RISCV_SUB8}) ||
+              Types == (std::set<uint32_t>{llvm::ELF::R_RISCV_SET8,
+                                           llvm::ELF::R_RISCV_SUB8}));
 }
 
 TEST(RISCVRelocationTest, AppliesSymbolDifferencePairsModulo32InEitherOrder) {
@@ -1549,6 +2060,68 @@ TEST(RISCVRelocationTest, EncodesCallPltAndPcrelLo12SExactly) {
             UINT32_C(0x2252AA23));
 }
 
+TEST(RISCVRelocationTest, RelocatesCompressedMisalignedSites) {
+  REQUIRE_LLVM_TARGET("riscv64-unknown-linux-gnu");
+#if LLVM_VERSION_MAJOR < 11
+  GTEST_SKIP() << "the RISC-V assembler resolves local calls without a "
+                  "relocation before LLVM 11";
+#endif
+  const auto ObjectBytes =
+      makeAssemblyObject(llvm::Triple("riscv64-unknown-linux-gnu"), R"(
+.text
+.globl caller
+caller:
+  c.nop
+  call target
+.Lhi:
+  auipc a0, %pcrel_hi(gvar)
+  lw a1, %pcrel_lo(.Lhi)(a0)
+  ret
+.globl target
+target:
+  ret
+.data
+.globl gvar
+gvar:
+  .word 0
+)",
+                         "+c");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::RISCV64);
+  ASSERT_TRUE(Graph);
+  std::set<uint64_t> Offsets;
+  for (const auto &Relocation : Graph->relocations())
+    Offsets.insert(Relocation.Offset);
+  EXPECT_NE(Offsets.find(2), Offsets.end());
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  EXPECT_TRUE(applyRelocations(*Graph));
+}
+
+TEST(RISCVRelocationTest, RelocatesFloatingPointLow12LoadsAndStores) {
+  REQUIRE_LLVM_TARGET("riscv64-unknown-linux-gnu");
+  const auto ObjectBytes =
+      makeAssemblyObject(llvm::Triple("riscv64-unknown-linux-gnu"), R"(
+.text
+.globl fpaccess
+fpaccess:
+.Lstore:
+  auipc a0, %pcrel_hi(gvar)
+  fsd fa0, %pcrel_lo(.Lstore)(a0)
+.Lload:
+  auipc a1, %pcrel_hi(gvar)
+  fld fa1, %pcrel_lo(.Lload)(a1)
+  ret
+.data
+.globl gvar
+gvar:
+  .dword 0
+)",
+                         "+d");
+  auto Graph = ObjectReader::read(ObjectBytes, Target::RISCV64);
+  ASSERT_TRUE(Graph);
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  EXPECT_TRUE(applyRelocations(*Graph));
+}
+
 TEST(RISCVRelocationTest, ChecksRoundedHighSignedRange) {
   constexpr uint64_t PatchAddress = UINT64_C(0x200000000);
   struct Case {
@@ -1761,6 +2334,174 @@ TEST(S390XRelocationTest, ChecksDoubledDisplacementRangeAndAlignment) {
   EXPECT_FALSE(applyRelocations(Little));
 }
 
+class FailingGeneratedRelocationTest
+    : public testing::Test,
+      public testing::WithParamInterface<FailingRelocationCase> {};
+
+TEST_P(FailingGeneratedRelocationTest,
+       RejectsWrongEndiannessAndArchitectureMismatch) {
+  const auto &Test = GetParam();
+  REQUIRE_LLVM_TARGET(Test.Triple);
+  const auto ObjectBytes =
+      makeObject(llvm::Triple(Test.Triple), false, false, "representative", {},
+                 true, true, "generic", Test.Features, false, false, true, true,
+                 true, Test.Architecture != Target::ARM);
+  LinkGraph WrongEndianGraph(Test.Architecture, Test.WrongEndian);
+  ASSERT_TRUE(WrongEndianGraph.beginInput("wrong-endian.o"));
+  const auto WrongEndianSnapshot = WrongEndianGraph;
+  EXPECT_FALSE(applyRelocations(WrongEndianGraph)) << Test.Triple;
+  expectGraphStateEquals(WrongEndianGraph, WrongEndianSnapshot);
+
+  const auto Mismatch =
+      Test.Architecture == Target::ARM ? Target::AArch64 : Target::ARM;
+  EXPECT_FALSE(ObjectReader::read(ObjectBytes, Mismatch)) << Test.Triple;
+}
+
+TEST_P(FailingGeneratedRelocationTest,
+       RejectsFailingGeneratedRelocationAtomically) {
+  const auto &Test = GetParam();
+  REQUIRE_LLVM_TARGET(Test.Triple);
+  const auto ObjectBytes =
+      makeObject(llvm::Triple(Test.Triple), false, false, "representative", {},
+                 true, true, "generic", Test.Features, false, false, true, true,
+                 true, Test.Architecture != Target::ARM);
+  auto Graph = ObjectReader::read(ObjectBytes, Test.Architecture);
+  ASSERT_TRUE(Graph) << Test.Triple;
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  auto Patch = Graph->addSection(
+      Section{".failure", SectionKind::Data, Test.Width, Test.Width, 0, 0,
+              std::vector<WasmEdge::Byte>(Test.Width)});
+  auto TargetSection = Graph->addSection(
+      Section{".failure.target", SectionKind::Data, 1, 0, UINT64_MAX});
+  ASSERT_TRUE(Patch && TargetSection);
+  auto TargetSymbol =
+      Graph->addSymbol(Symbol{"failure.target", *TargetSection, 0, 0, false});
+  ASSERT_TRUE(TargetSymbol);
+  ASSERT_TRUE(Graph->addRelocation(Relocation{*Patch, 0, Test.AbsoluteType,
+                                              *TargetSymbol, 1, false,
+                                              ObjectFormat::ELF, Test.Width}));
+  const auto Snapshot = *Graph;
+  EXPECT_FALSE(applyRelocations(*Graph)) << Test.Triple;
+  expectGraphStateEquals(*Graph, Snapshot);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Architectures, FailingGeneratedRelocationTest,
+    testing::Values(
+        FailingRelocationCase{"armv7-unknown-linux-gnueabihf", Target::ARM,
+                              Endianness::Big, llvm::ELF::R_ARM_ABS32, 4, ""},
+        FailingRelocationCase{"aarch64-unknown-linux-gnu", Target::AArch64,
+                              Endianness::Big, llvm::ELF::R_AARCH64_ABS64, 8,
+                              ""},
+        FailingRelocationCase{"riscv64-unknown-linux-gnu", Target::RISCV64,
+                              Endianness::Big, llvm::ELF::R_RISCV_64, 8, "+a"},
+        FailingRelocationCase{"s390x-unknown-linux-gnu", Target::S390X,
+                              Endianness::Little, llvm::ELF::R_390_64, 8, ""}),
+    failingRelocationCaseName);
+
+TEST(RelocationTest, AppliesGeneratedELF64PC32AndPLT32RelocationsExactly) {
+  REQUIRE_LLVM_TARGET("x86_64-unknown-linux-gnu");
+  auto Graph = ObjectReader::read(
+      makeX86_64AssemblyObject(
+          ".data\n.globl target_data\ntarget_data:\n.quad 0\n"
+          ".globl absolute\nabsolute:\n.quad target_data + 5\n"
+          ".text\n.globl caller\ncaller:\n"
+          "movl target_data(%rip), %eax\ncall target_func\nret\n"
+          ".section .text.target,\"ax\",@progbits\n"
+          ".globl target_func\ntarget_func:\nret\n"),
+      Target::X86_64);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 3U);
+  std::array<bool, 3> Seen{};
+  for (const auto &Relocation : Graph->relocations()) {
+    ASSERT_TRUE(Relocation.Type == 1 || Relocation.Type == 2 ||
+                Relocation.Type == 4);
+    Seen[Relocation.Type == 1 ? 0 : Relocation.Type == 2 ? 1 : 2] = true;
+    EXPECT_EQ(Relocation.Format, ObjectFormat::ELF);
+    EXPECT_EQ(Relocation.PatchSize, Relocation.Type == 1 ? 8U : 4U);
+    EXPECT_FALSE(Relocation.AddendIsImplicit);
+    EXPECT_EQ(Relocation.Addend, Relocation.Type == 1 ? 5 : -4);
+  }
+  EXPECT_EQ(Seen, (std::array<bool, 3>{true, true, true}));
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  struct ExpectedPatch {
+    SectionId Section;
+    uint64_t Offset;
+    uint8_t Width;
+    uint64_t Bits;
+  };
+  std::vector<ExpectedPatch> Expected;
+  for (const auto &Relocation : Graph->relocations()) {
+    const auto &Symbol = Graph->symbols()[Relocation.Symbol];
+    const uint64_t S =
+        Graph->sections()[Symbol.Section].Address + Symbol.Offset;
+    const uint64_t P =
+        Graph->sections()[Relocation.Section].Address + Relocation.Offset;
+    Expected.push_back(ExpectedPatch{
+        Relocation.Section, Relocation.Offset,
+        static_cast<uint8_t>(Relocation.Type == 1 ? 8 : 4),
+        Relocation.Type == 1 ? S + static_cast<uint64_t>(Relocation.Addend)
+                             : static_cast<uint32_t>(static_cast<int64_t>(S) +
+                                                     Relocation.Addend -
+                                                     static_cast<int64_t>(P))});
+  }
+  ASSERT_TRUE(applyRelocations(*Graph));
+  for (const auto &Patch : Expected) {
+    auto Value =
+        Internal::readUnsigned(Graph->sections()[Patch.Section].Content,
+                               Patch.Offset, Patch.Width, Endianness::Little);
+    ASSERT_TRUE(Value);
+    EXPECT_EQ(*Value, Patch.Bits);
+  }
+  ASSERT_EQ(Graph->rebases().size(), 1U);
+  EXPECT_EQ(Graph->rebases()[0].Width, 8U);
+}
+
+class PortableRelocationTest
+    : public testing::Test,
+      public testing::WithParamInterface<PortableRelocationCase> {};
+
+TEST_P(PortableRelocationTest,
+       ReadsLayoutsAndRelocatesCurrentMachOAndCOFFForms) {
+  const auto &Test = GetParam();
+  REQUIRE_LLVM_TARGET(Test.Triple);
+  const llvm::Triple Triple(Test.Triple);
+  auto Graph = ObjectReader::read(makeObject(Triple), Test.Architecture);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 1U);
+  EXPECT_EQ(Graph->relocations()[0].Format, Test.Format);
+  EXPECT_EQ(Graph->relocations()[0].Type, Test.Type);
+  EXPECT_EQ(Graph->relocations()[0].PatchSize, 4U);
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  const auto &Relocation = Graph->relocations()[0];
+  const auto &Symbol = Graph->symbols()[Relocation.Symbol];
+  const int64_t S = static_cast<int64_t>(
+      Graph->sections()[Symbol.Section].Address + Symbol.Offset);
+  const int64_t P = static_cast<int64_t>(
+      Graph->sections()[Relocation.Section].Address + Relocation.Offset);
+  auto Before =
+      Internal::readSigned(Graph->sections()[Relocation.Section].Content,
+                           Relocation.Offset, 4, Endianness::Little);
+  ASSERT_TRUE(Before);
+  ASSERT_TRUE(applyRelocations(*Graph));
+  auto After =
+      Internal::readSigned(Graph->sections()[Relocation.Section].Content,
+                           Relocation.Offset, 4, Endianness::Little);
+  ASSERT_TRUE(After);
+  EXPECT_EQ(*After, S + *Before - P - 4);
+}
+
+INSTANTIATE_TEST_SUITE_P(MachO, PortableRelocationTest,
+                         testing::Values(PortableRelocationCase{
+                             "x86_64-apple-macosx", Target::X86_64,
+                             ObjectFormat::MachO, 1}),
+                         portableRelocationCaseName);
+INSTANTIATE_TEST_SUITE_P(COFF, PortableRelocationTest,
+                         testing::Values(PortableRelocationCase{
+                             "x86_64-pc-windows-msvc", Target::X86_64,
+                             ObjectFormat::COFF, 4}),
+                         portableRelocationCaseName);
+
 void expectPortableRelocationForms(
     ObjectFormat Format, Target Architecture,
     WasmEdge::Span<const std::pair<uint32_t, uint8_t>> Cases) {
@@ -1899,6 +2640,24 @@ TEST(RelocationTest, AcceptsAArch64COFFAbsolute) {
   EXPECT_EQ(relocationPatchSize(ObjectFormat::COFF, Target::AArch64,
                                 llvm::COFF::IMAGE_REL_ARM64_ADDR64, 8),
             8);
+}
+
+TEST(RelocationTest, RejectsX86_64MachOPortablePersonalityObject) {
+  REQUIRE_LLVM_TARGET("x86_64-apple-macosx");
+  EXPECT_FALSE(
+      ObjectReader::read(makeObject(llvm::Triple("x86_64-apple-macosx"), false,
+                                    false, "f0", {}, false, false, "generic",
+                                    {}, true, false, false, false, false, true),
+                         Target::X86_64));
+}
+
+TEST(RelocationTest, RejectsAArch64COFFPortablePersonalityObject) {
+  REQUIRE_LLVM_TARGET("aarch64-pc-windows-msvc");
+  EXPECT_FALSE(ObjectReader::read(
+      makeObject(llvm::Triple("aarch64-pc-windows-msvc"), false, false, "f0",
+                 {}, false, false, "generic", {}, true, false, false, false,
+                 false, true),
+      Target::AArch64));
 }
 
 void expectRelocationFailure(LinkGraph Graph, std::string_view Message) {

@@ -15,6 +15,7 @@
 #include "linker/compact_unwind.h"
 #include "linker/layout.h"
 #include "linker/link_graph.h"
+#include "linker/object_reader.h"
 #include "linker/relocation.h"
 #include "linker/thunks.h"
 
@@ -1712,6 +1713,224 @@ TEST(BranchThunkTest, LeavesReachableBranchesAlone) {
   ASSERT_TRUE(Inserted);
   EXPECT_FALSE(*Inserted);
   EXPECT_EQ(Graph.sections().size(), 1U);
+}
+
+struct TextSplitCase {
+  const char *Triple;
+  const char *TextName;
+  const char *Assembly;
+  size_t Pieces;
+};
+
+std::vector<SectionId> textPieces(const LinkGraph &Graph,
+                                  std::string_view Name) {
+  std::vector<SectionId> Pieces;
+  for (SectionId Id = 0; Id < Graph.sections().size(); ++Id)
+    if (Graph.sections()[Id].Name == Name && !Graph.sections()[Id].Anchor)
+      Pieces.push_back(Id);
+  std::sort(Pieces.begin(), Pieces.end(), [&](SectionId L, SectionId R) {
+    return Graph.sections()[L].InputAddress < Graph.sections()[R].InputAddress;
+  });
+  return Pieces;
+}
+
+TEST(BranchThunkTest, SplitsLargeTextAtFunctionStarts) {
+  constexpr std::array<std::pair<uint64_t, uint64_t>, 5> Branches{{
+      {0, 24},
+      {4, 16},
+      {8, 16},
+      {16, 0},
+      {24, 16},
+  }};
+  for (const auto &Test : {
+           TextSplitCase{"aarch64-unknown-linux-gnu", ".text", R"(.text
+.p2align 2
+.globl f0
+.type f0,%function
+f0:
+  .cfi_startproc
+  bl f2
+  bl .Lhidden
+  b .Lhidden
+  ret
+  .cfi_endproc
+.size f0, .-f0
+.p2align 2
+.Lhidden:
+  .cfi_startproc
+  bl f0
+  ret
+  .cfi_endproc
+.p2align 2
+.globl f2
+.type f2,%function
+f2:
+  .cfi_startproc
+  bl .Lhidden
+  ret
+  .cfi_endproc
+.size f2, .-f2
+)",
+                         3},
+           TextSplitCase{"arm64-apple-macosx", "__text", R"(.text
+.p2align 2
+.globl _f0
+_f0:
+  .cfi_startproc
+  bl _f2
+  bl Lhidden
+  b Lhidden
+  ret
+  .cfi_endproc
+.p2align 2
+Lhidden:
+  .cfi_startproc
+  bl _f0
+  ret
+  .cfi_endproc
+.p2align 2
+.globl _f2
+_f2:
+  .cfi_startproc
+  bl Lhidden
+  ret
+  .cfi_endproc
+.subsections_via_symbols
+)",
+                         2},
+       }) {
+    SCOPED_TRACE(Test.Triple);
+    REQUIRE_LLVM_TARGET(Test.Triple);
+    auto Graph = ObjectReader::read(
+        makeAssemblyObject(llvm::Triple(Test.Triple), Test.Assembly),
+        Target::AArch64);
+    ASSERT_TRUE(Graph);
+    const uint64_t Base =
+        Graph->sections()[textPieces(*Graph, Test.TextName).front()]
+            .InputAddress;
+    auto Split = splitTextSections(*Graph, 8);
+    ASSERT_TRUE(Split);
+    EXPECT_TRUE(*Split);
+    const auto Pieces = textPieces(*Graph, Test.TextName);
+    ASSERT_EQ(Pieces.size(), Test.Pieces);
+    Section Padding{"__padding",
+                    SectionKind::Text,
+                    4,
+                    256,
+                    0,
+                    0,
+                    std::vector<WasmEdge::Byte>(256)};
+    Padding.Anchor = SectionAnchor{Pieces.front(), true};
+    ASSERT_TRUE(Graph->addSection(std::move(Padding)));
+    ASSERT_TRUE(layout(*Graph));
+
+    auto PieceOf = [&](uint64_t Original) {
+      const Section *Result = &Graph->sections()[Pieces.front()];
+      for (const SectionId Piece : Pieces)
+        if (Graph->sections()[Piece].InputAddress - Base <= Original)
+          Result = &Graph->sections()[Piece];
+      return Result;
+    };
+    auto AddressOf = [&](uint64_t Original) {
+      const auto *Piece = PieceOf(Original);
+      return Piece->Address + Original - (Piece->InputAddress - Base);
+    };
+    if (Graph->format() == ObjectFormat::ELF) {
+      std::vector<uint64_t> Frames;
+      for (const auto &Rel : Graph->relocations()) {
+        if (Graph->sections()[Rel.Section].Purpose != SectionPurpose::EHFrame)
+          continue;
+        const auto &Target = Graph->symbols()[Rel.Symbol];
+        Frames.push_back(Graph->sections()[Target.Section].Address +
+                         Target.Offset + static_cast<uint64_t>(Rel.Addend));
+      }
+      std::sort(Frames.begin(), Frames.end());
+      EXPECT_EQ(Frames, (std::vector<uint64_t>{AddressOf(0), AddressOf(16),
+                                               AddressOf(24)}));
+    }
+    ASSERT_TRUE(applyRelocations(*Graph));
+    for (const auto &[From, To] : Branches) {
+      SCOPED_TRACE(From);
+      const auto *Piece = PieceOf(From);
+      const uint32_t Instruction =
+          read32le(Piece->Content, From - (Piece->InputAddress - Base));
+      const uint64_t Destination =
+          AddressOf(From) +
+          static_cast<uint64_t>(
+              llvm::SignExtend64<26>(Instruction & 0x03FFFFFFU) * 4);
+      EXPECT_EQ(Destination, AddressOf(To));
+    }
+  }
+}
+
+TEST(BranchThunkTest, KeepsTextWholeForDataReferencesInsideFunctions) {
+  REQUIRE_LLVM_TARGET("aarch64-unknown-linux-gnu");
+  auto Graph = ObjectReader::read(
+      makeAssemblyObject(llvm::Triple("aarch64-unknown-linux-gnu"), R"(.text
+.globl f0
+.type f0,%function
+f0:
+  ret
+.size f0, .-f0
+.globl f1
+.type f1,%function
+f1:
+  nop
+.Linside:
+  ret
+.size f1, .-f1
+.section .rodata
+.word .Linside - .
+)"),
+      Target::AArch64);
+  ASSERT_TRUE(Graph);
+  auto Split = splitTextSections(*Graph, 4);
+  ASSERT_TRUE(Split);
+  EXPECT_FALSE(*Split);
+  EXPECT_EQ(textPieces(*Graph, ".text").size(), 1U);
+}
+
+TEST(BranchThunkTest, KeepsResolvedConditionalBranchesInOnePiece) {
+  REQUIRE_LLVM_TARGET("aarch64-unknown-linux-gnu");
+  auto Graph = ObjectReader::read(
+      makeAssemblyObject(llvm::Triple("aarch64-unknown-linux-gnu"), R"(.text
+.globl f0
+.type f0,%function
+f0:
+  cbz x0, .Linside
+  ret
+.size f0, .-f0
+.globl f1
+.type f1,%function
+f1:
+  nop
+.Linside:
+  ret
+.size f1, .-f1
+.globl f2
+.type f2,%function
+f2:
+  ret
+.size f2, .-f2
+)"),
+      Target::AArch64);
+  ASSERT_TRUE(Graph);
+  const auto Pieces = textPieces(*Graph, ".text");
+  ASSERT_EQ(Pieces.size(), 1U);
+  const SectionId Original = Pieces.front();
+  auto Split = splitTextSections(*Graph, 4);
+  ASSERT_TRUE(Split);
+  EXPECT_TRUE(*Split);
+  EXPECT_EQ(textPieces(*Graph, ".text").size(), 2U);
+  for (const auto &Value : Graph->symbols()) {
+    if (Value.Name == "f1") {
+      EXPECT_EQ(Value.Section, Original);
+    }
+    if (Value.Name == "f2") {
+      EXPECT_NE(Value.Section, Original);
+      EXPECT_EQ(Value.Offset, 0U);
+    }
+  }
 }
 
 } // namespace

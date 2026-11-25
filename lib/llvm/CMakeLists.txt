@@ -36,6 +36,10 @@ set(WASMEDGE_LLVM_LINKER_SOURCES
   linker/eh_frame.cpp
   linker/layout.cpp
   linker/link_graph.cpp
+  linker/object_reader.cpp
+  linker/object_reader_coff.cpp
+  linker/object_reader_elf.cpp
+  linker/object_reader_macho.cpp
   linker/relocation.cpp
   linker/relocation_aarch64.cpp
   linker/relocation_arm.cpp

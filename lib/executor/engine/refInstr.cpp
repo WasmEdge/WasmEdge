@@ -242,17 +242,15 @@ Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const AST::Instruction &Instr,
                                       const bool IsDefault) const noexcept {
-  std::vector<ValVariant> Vals;
+  uint32_t N = 0;
   if (!IsDefault) {
     const auto &CompType = getCompositeTypeByIdx(StackMgr.getModule(), TypeIdx);
-    const uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
-    Vals = StackMgr.pop(N);
+    N = static_cast<uint32_t>(CompType.getFieldTypes().size());
   }
-  EXPECTED_TRY(
-      auto Ref,
-      structNew(StackMgr.getModule(), TypeIdx, Vals).map_error([&](auto E) {
-        return logError(E, Instr);
-      }));
+  EXPECTED_TRY(auto Ref,
+               structNew(StackMgr.getModule(), TypeIdx, StackMgr.getTopSpan(N))
+                   .map_error([&](auto E) { return logError(E, Instr); }));
+  StackMgr.eraseValueStack(N, 0);
   StackMgr.push(Ref);
   return {};
 }
@@ -293,13 +291,11 @@ Executor::runArrayNewOp(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
     StackMgr.getTop().emplace<RefVariant>(Ref);
     return {};
   }
-  std::vector<ValVariant> Vals;
-  if (InitCnt > 1) {
-    Vals = StackMgr.pop(Length);
-  }
-  EXPECTED_TRY(
-      auto Ref,
-      arrayNew(StackMgr.getModule(), TypeIdx, Length, Vals).map_error(Report));
+  const uint32_t N = InitCnt > 1 ? Length : 0;
+  EXPECTED_TRY(auto Ref, arrayNew(StackMgr.getModule(), TypeIdx, Length,
+                                  StackMgr.getTopSpan(N))
+                             .map_error(Report));
+  StackMgr.eraseValueStack(N, 0);
   StackMgr.push(Ref);
   return {};
 }

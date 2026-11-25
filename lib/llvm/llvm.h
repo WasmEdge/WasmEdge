@@ -1960,7 +1960,7 @@ public:
                                    Reloc, CodeModel);
   }
 
-#if LLVM_VERSION_MAJOR < 16
+#if LLVM_VERSION_MAJOR < 16 || UINTPTR_MAX == UINT32_MAX
   void setModuleDataLayout(Module &M) noexcept {
     auto DL = LLVMCreateTargetDataLayout(Ref);
     LLVMSetModuleDataLayout(M.unwrap(), DL);

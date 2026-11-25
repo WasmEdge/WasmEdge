@@ -148,7 +148,7 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
 #endif
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
-#if LLVM_VERSION_MAJOR < 16
+#if LLVM_VERSION_MAJOR < 16 || UINTPTR_MAX == UINT32_MAX
   TM.setModuleDataLayout(LLModule);
 #endif
 

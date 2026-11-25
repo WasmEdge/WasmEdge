@@ -23,31 +23,39 @@
 
 #include <climits>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
 
-/// A vector wrapper, but swipe the secret key info on destroy.
+/// A vector wrapper, but wipe the secret key info on destroy.
 class SecretVec {
 public:
   SecretVec() noexcept = default;
   SecretVec(const SecretVec &) = default;
-  SecretVec &operator=(const SecretVec &) = default;
-  SecretVec &operator=(SecretVec &&) noexcept = default;
+
+  SecretVec &operator=(const SecretVec &Rhs);
+
+  SecretVec &operator=(SecretVec &&Rhs) noexcept {
+    if (this != &Rhs) {
+      cleanse();
+      Data.swap(Rhs.Data);
+    }
+    return *this;
+  }
+
   SecretVec(SecretVec &&) noexcept = default;
 
   SecretVec(Span<const uint8_t> Data) noexcept
       : Data(Data.begin(), Data.end()) {}
 
+  SecretVec(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
+
   SecretVec(size_t Size) noexcept : Data(Size) {}
 
-  ~SecretVec() noexcept {
-    if (auto *Ptr = Data.data(); Ptr != nullptr && Data.capacity() != 0) {
-      OPENSSL_cleanse(Ptr, Data.capacity());
-    }
-  }
+  ~SecretVec() noexcept { cleanse(); }
 
   void resize(size_t Size) {
     if (Size <= Data.size()) {
@@ -65,9 +73,7 @@ public:
     for (size_t I = 0; I < Data.size(); ++I) {
       NewData[I] = Data[I];
     }
-    if (auto *Ptr = Data.data(); Ptr != nullptr && Data.capacity() != 0) {
-      OPENSSL_cleanse(Ptr, Data.capacity());
-    }
+    cleanse();
     Data.swap(NewData);
   }
 
@@ -98,8 +104,18 @@ public:
   }
 
 private:
+  void cleanse() noexcept {
+    if (auto *Ptr = Data.data(); Ptr != nullptr && Data.capacity() != 0) {
+      OPENSSL_cleanse(Ptr, Data.capacity());
+    }
+  }
+
   std::vector<uint8_t> Data;
 };
+
+inline SecretVec &SecretVec::operator=(const SecretVec &Rhs) {
+  return *this = SecretVec(Rhs);
+}
 
 } // namespace WasiCrypto
 } // namespace Host

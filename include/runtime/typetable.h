@@ -18,10 +18,11 @@
 #include "common/errcode.h"
 #include "common/span.h"
 
+#include <array>
 #include <atomic>
 #include <cstdint>
-#include <memory>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -35,6 +36,8 @@ public:
   /// Largest total field size of a struct type.
   static constexpr uint64_t kMaxFieldBytes = (UINT64_C(1) << 32) - 64;
 
+  /// A table that holds at most `Cap` sub types. `Cap` is at most
+  /// `kDefaultCap`. The constructor does not allocate.
   explicit CanonicalTypeTable(uint32_t Cap = kDefaultCap) noexcept;
   ~CanonicalTypeTable() noexcept;
   CanonicalTypeTable(const CanonicalTypeTable &) = delete;
@@ -97,12 +100,17 @@ private:
     size_t operator()(const std::vector<uint64_t> &Key) const noexcept;
   };
 
+  static constexpr uint32_t kMaxBlocks = kDefaultCap / kBlockSize;
+
   const uint32_t Cap;
-  std::unique_ptr<AST::SubType *[]> Blocks;
-  std::unique_ptr<std::vector<uint32_t> *[]> Layouts;
+  std::array<AST::SubType *, kMaxBlocks> Blocks = {};
+  std::array<std::vector<uint32_t> *, kMaxBlocks> Layouts = {};
   std::atomic<uint32_t> Size = 0;
   std::mutex Mutex;
-  std::unordered_map<std::vector<uint64_t>, uint32_t, KeyHash> Groups;
+  /// Created on the first registration, because some standard libraries
+  /// allocate in the constructor of an unordered map.
+  std::optional<std::unordered_map<std::vector<uint64_t>, uint32_t, KeyHash>>
+      Groups;
 };
 
 } // namespace Runtime

@@ -5,6 +5,7 @@
 
 #include "common/hash.h"
 
+#include <algorithm>
 #include <new>
 #include <optional>
 
@@ -23,15 +24,10 @@ uint64_t encodeTypeCodes(const ValType &VT) noexcept {
 } // namespace
 
 CanonicalTypeTable::CanonicalTypeTable(uint32_t C) noexcept
-    : Cap(C), Blocks(std::make_unique<AST::SubType *[]>(
-                  (static_cast<uint64_t>(C) + kBlockSize - 1) / kBlockSize)),
-      Layouts(std::make_unique<std::vector<uint32_t> *[]>(
-          (static_cast<uint64_t>(C) + kBlockSize - 1) / kBlockSize)) {}
+    : Cap(std::min(C, kDefaultCap)) {}
 
 CanonicalTypeTable::~CanonicalTypeTable() noexcept {
-  const uint64_t Count =
-      (static_cast<uint64_t>(Cap) + kBlockSize - 1) / kBlockSize;
-  for (uint64_t I = 0; I < Count; ++I) {
+  for (uint32_t I = 0; I < kMaxBlocks; ++I) {
     delete[] Blocks[I];
     delete[] Layouts[I];
   }
@@ -47,6 +43,10 @@ uint32_t CanonicalTypeTable::getFieldSize(const ValType &StorageType) noexcept {
 namespace {
 std::atomic<CanonicalTypeTable *> GlobalTable = nullptr;
 std::mutex GlobalTableMutex;
+struct alignas(CanonicalTypeTable) TableStorage {
+  unsigned char Bytes[sizeof(CanonicalTypeTable)];
+};
+TableStorage DefaultTable;
 } // namespace
 
 CanonicalTypeTable &CanonicalTypeTable::getGlobal() noexcept {
@@ -56,7 +56,7 @@ CanonicalTypeTable &CanonicalTypeTable::getGlobal() noexcept {
   std::unique_lock Lock(GlobalTableMutex);
   auto *Table = GlobalTable.load(std::memory_order_relaxed);
   if (Table == nullptr) {
-    Table = new CanonicalTypeTable();
+    Table = new (DefaultTable.Bytes) CanonicalTypeTable();
     GlobalTable.store(Table, std::memory_order_release);
   }
   return *Table;
@@ -151,7 +151,10 @@ Expect<uint32_t> CanonicalTypeTable::registerRecGroup(
   }
 
   std::unique_lock Lock(Mutex);
-  if (auto It = Groups.find(Key); It != Groups.end()) {
+  if (!Groups) {
+    Groups.emplace();
+  }
+  if (auto It = Groups->find(Key); It != Groups->end()) {
     return It->second;
   }
   const uint32_t First = Size.load(std::memory_order_relaxed);
@@ -243,7 +246,7 @@ Expect<uint32_t> CanonicalTypeTable::registerRecGroup(
     Slot[Id % kBlockSize] = std::move(Copy);
     LayoutSlot[Id % kBlockSize] = std::move(Positions);
   }
-  Groups.emplace(std::move(Key), First);
+  Groups->emplace(std::move(Key), First);
   Size.store(First + N, std::memory_order_release);
   return First;
 } catch (const std::bad_alloc &) {

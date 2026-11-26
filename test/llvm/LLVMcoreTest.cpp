@@ -1088,14 +1088,19 @@ TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
   auto *Heap = Runtime::RefHeap::getGlobal();
   ASSERT_NE(Heap, nullptr);
   const uint32_t Off = Ref.getOffset();
-  ASSERT_TRUE(Heap->getDataView(Off, Runtime::HeapKind::Struct));
+  auto View = Heap->getDataView(Off, Runtime::HeapKind::Struct);
+  ASSERT_TRUE(View);
   constexpr uint32_t FieldBase = sizeof(Runtime::HeapHeader);
-  auto Tag = Heap->load<uint32_t>(Off, FieldBase);
-  ASSERT_TRUE(Tag);
-  EXPECT_EQ(*Tag, 0u);
-  auto Next = Heap->load<RefVariant>(Off, FieldBase + 16u);
-  ASSERT_TRUE(Next);
-  EXPECT_TRUE(Next->isNull())
+  const auto *TagBytes = View->getSpan(FieldBase, sizeof(uint32_t));
+  ASSERT_NE(TagBytes, nullptr);
+  uint32_t Tag;
+  std::memcpy(&Tag, TagBytes, sizeof(Tag));
+  EXPECT_EQ(Tag, 0u);
+  const auto *NextBytes = View->getSpan(FieldBase + 16u, sizeof(RefVariant));
+  ASSERT_NE(NextBytes, nullptr);
+  RefVariant Next;
+  std::memcpy(&Next, NextBytes, sizeof(Next));
+  EXPECT_TRUE(Next.isNull())
       << "the default-initialized concrete reference field did not resolve "
          "to a null bottom type through the callee's own type section";
 

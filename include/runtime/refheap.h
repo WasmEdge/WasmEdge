@@ -218,44 +218,27 @@ public:
   /// Offset of the live slot whose object starts at `Obj`, or 0.
   WASMEDGE_EXPORT uint32_t getOffset(const void *Obj) const noexcept;
 
-  /// Checked address of `Size` bytes at `Pos` in the live data slot at `Off`.
-  Expect<uint8_t *> getDataSpan(uint32_t Off, uint32_t Pos,
-                                uint32_t Size) const noexcept;
-
-  /// A live data slot that one check found: its header and its size.
+  /// A live data slot that one check found: the address and the size of the
+  /// slot. The slot starts with its header, and the fields follow.
   struct DataView {
-    HeapHeader *Header;
+    uint8_t *Slot;
     uint32_t Size;
+    HeapHeader &getHeader() const noexcept {
+      return *reinterpret_cast<HeapHeader *>(Slot);
+    }
     /// Address of `Bytes` bytes at the slot position `Pos`, or null if they
     /// do not fit in the slot.
     uint8_t *getSpan(uint64_t Pos, uint64_t Bytes) const noexcept {
       if (Pos > Size || Bytes > Size - Pos) {
         return nullptr;
       }
-      return reinterpret_cast<uint8_t *>(Header) + Pos;
+      return Slot + Pos;
     }
-    uint32_t getOffset() const noexcept { return Header->SelfOffset; }
+    uint32_t getOffset() const noexcept { return getHeader().SelfOffset; }
   };
   /// The live data slot of `Kind` at `Off`. Fails with MemoryOutOfBounds if
   /// `Off` is not the start of such a slot.
   Expect<DataView> getDataView(uint32_t Off, HeapKind Kind) const noexcept;
-
-  template <typename T>
-  Expect<T> load(uint32_t Off, uint32_t Pos) const noexcept {
-    static_assert(std::is_trivially_copyable_v<T>);
-    EXPECTED_TRY(auto *P, getDataSpan(Off, Pos, sizeof(T)));
-    T V;
-    std::memcpy(&V, P, sizeof(T));
-    return V;
-  }
-
-  template <typename T>
-  Expect<void> store(uint32_t Off, uint32_t Pos, T V) const noexcept {
-    static_assert(std::is_trivially_copyable_v<T>);
-    EXPECTED_TRY(auto *P, getDataSpan(Off, Pos, sizeof(T)));
-    std::memcpy(P, &V, sizeof(T));
-    return {};
-  }
 
   /// Construct a `T` in a new slot, with `TailBytes` more bytes after it.
   template <typename T, typename... ArgsT>

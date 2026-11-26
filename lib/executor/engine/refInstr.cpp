@@ -662,7 +662,7 @@ Executor::arrayNewElem(const Runtime::Instance::ModuleInstance *ModInst,
 
 Expect<uint32_t> Executor::arrayLen(const RefVariant &Ref) const noexcept {
   EXPECTED_TRY(const auto View, getDataView(Ref, Runtime::HeapKind::Array));
-  return View.Header->Length;
+  return View.getHeader().Length;
 }
 
 namespace {
@@ -673,7 +673,7 @@ Expect<uint8_t *> getElemSpan(const Runtime::RefHeap::DataView &View,
                               const uint32_t Idx, const uint32_t Cnt,
                               const uint32_t ElemSize) noexcept {
   if (static_cast<uint64_t>(Idx) + static_cast<uint64_t>(Cnt) >
-      View.Header->Length) {
+      View.getHeader().Length) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   return getFieldSpan(View, static_cast<uint64_t>(Idx) * ElemSize,

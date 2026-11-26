@@ -522,7 +522,7 @@ Expect<RefHeap::DataView> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
       Blocks[Off >> kBlockShift].LiveBits.load(std::memory_order_relaxed);
   Bits[SlotIdx / 64].fetch_or(UINT64_C(1) << (SlotIdx % 64),
                               std::memory_order_release);
-  return DataView{Header, SlotSize};
+  return DataView{Slot, SlotSize};
 } catch (const std::bad_alloc &) {
   return Unexpect(ErrCode::Value::RefHeapFull);
 }
@@ -741,27 +741,17 @@ uint32_t RefHeap::getOffset(const void *Obj) const noexcept {
   return 0;
 }
 
-Expect<uint8_t *> RefHeap::getDataSpan(uint32_t Off, uint32_t Pos,
-                                       uint32_t Size) const noexcept {
-  uint32_t BlockIdx, SlotIdx, SlotSize;
-  if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize) ||
-      static_cast<uint64_t>(Pos) + Size > SlotSize) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
-  return getDataAddr(Off) + Pos;
-}
-
 Expect<RefHeap::DataView> RefHeap::getDataView(uint32_t Off,
                                                HeapKind Kind) const noexcept {
   uint32_t BlockIdx, SlotIdx, SlotSize;
   if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  auto *Header = reinterpret_cast<HeapHeader *>(getDataAddr(Off));
-  if (Header->Kind != Kind) {
+  uint8_t *Slot = getDataAddr(Off);
+  if (reinterpret_cast<const HeapHeader *>(Slot)->Kind != Kind) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  return DataView{Header, SlotSize};
+  return DataView{Slot, SlotSize};
 }
 
 void RefHeap::free(uint32_t Off) noexcept {

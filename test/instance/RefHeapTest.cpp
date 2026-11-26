@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <new>
+#include <optional>
 #include <set>
 #include <thread>
 #include <vector>
@@ -28,6 +29,40 @@
 #endif
 
 namespace {
+
+using WasmEdge::Runtime::RefHeap;
+
+/// Address of `Size` bytes at `Pos` in the live data slot at `Off`, or null.
+uint8_t *dataSpan(const RefHeap &Heap, uint32_t Off, uint64_t Pos,
+                  uint64_t Size) {
+  const auto *Header = Heap.getHeader(Off);
+  if (Header == nullptr) {
+    return nullptr;
+  }
+  auto View = Heap.getDataView(Off, Header->Kind);
+  return View ? View->getSpan(Pos, Size) : nullptr;
+}
+
+template <typename T>
+std::optional<T> loadData(const RefHeap &Heap, uint32_t Off, uint32_t Pos) {
+  const auto *P = dataSpan(Heap, Off, Pos, sizeof(T));
+  if (P == nullptr) {
+    return std::nullopt;
+  }
+  T V;
+  std::memcpy(&V, P, sizeof(T));
+  return V;
+}
+
+template <typename T>
+bool storeData(const RefHeap &Heap, uint32_t Off, uint32_t Pos, T V) {
+  auto *P = dataSpan(Heap, Off, Pos, sizeof(T));
+  if (P == nullptr) {
+    return false;
+  }
+  std::memcpy(P, &V, sizeof(T));
+  return true;
+}
 
 struct Counted {
   explicit Counted(int &C, uint64_t V) noexcept : Count(C), Value(V) {}
@@ -157,22 +192,20 @@ TEST_P(RefHeapModes, DataSlots) {
   EXPECT_EQ(*A % 16, 0U);
   EXPECT_EQ(*B % 16, 0U);
 
-  auto Span = Heap->getDataSpan(*A, 0, 40);
+  auto Span = dataSpan(*Heap, *A, 0, 40);
   ASSERT_TRUE(Span);
   auto *Header = Heap->getHeader(*A);
   ASSERT_NE(Header, nullptr);
-  EXPECT_EQ(reinterpret_cast<uint8_t *>(Header), *Span);
+  EXPECT_EQ(reinterpret_cast<uint8_t *>(Header), Span);
   EXPECT_EQ(Header->Kind, HeapKind::Struct);
   EXPECT_EQ(Header->SelfOffset, *A);
 
-  EXPECT_EQ(Heap->getDataSpan(*A, 0, 4096).error(),
-            ErrCode::Value::MemoryOutOfBounds);
-  EXPECT_FALSE(Heap->getDataSpan(*A + 16, 0, 16));
-  EXPECT_FALSE(Heap->getDataSpan(0, 0, 16));
+  EXPECT_EQ(dataSpan(*Heap, *A, 0, 4096), nullptr);
+  EXPECT_FALSE(dataSpan(*Heap, *A + 16, 0, 16));
+  EXPECT_FALSE(dataSpan(*Heap, 0, 0, 16));
 
   Heap->free(*A);
-  EXPECT_EQ(Heap->getDataSpan(*A, 0, 16).error(),
-            ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(dataSpan(*Heap, *A, 0, 16), nullptr);
   EXPECT_EQ(Heap->getHeader(*A), nullptr);
   auto C = Heap->allocate(HeapKind::Struct, 48);
   ASSERT_TRUE(C);
@@ -184,21 +217,21 @@ TEST_P(RefHeapModes, LargeData) {
   ASSERT_TRUE(Heap) << "heap creation failed";
   auto A = Heap->allocate(HeapKind::Array, 200000);
   ASSERT_TRUE(A);
-  EXPECT_TRUE(Heap->getDataSpan(*A, 0, 200000));
-  EXPECT_TRUE(Heap->getDataSpan(*A, 199999, 1));
-  EXPECT_FALSE(Heap->getDataSpan(*A, 0, 4 * 65536 + 1));
-  EXPECT_FALSE(Heap->getDataSpan(*A, 4 * 65536, 1));
+  EXPECT_TRUE(dataSpan(*Heap, *A, 0, 200000));
+  EXPECT_TRUE(dataSpan(*Heap, *A, 199999, 1));
+  EXPECT_FALSE(dataSpan(*Heap, *A, 0, 4 * 65536 + 1));
+  EXPECT_FALSE(dataSpan(*Heap, *A, 4 * 65536, 1));
 
   Heap->free(*A);
-  EXPECT_FALSE(Heap->getDataSpan(*A, 0, 16));
+  EXPECT_FALSE(dataSpan(*Heap, *A, 0, 16));
   std::vector<uint32_t> Small;
   for (uint32_t I = 0; I < 65536 / 64; ++I) {
     auto S = Heap->allocate(HeapKind::Struct, 64);
     ASSERT_TRUE(S);
     Small.push_back(*S);
   }
-  EXPECT_FALSE(Heap->getDataSpan(*A, 0, 128));
-  EXPECT_FALSE(Heap->getDataSpan(*A, 65536, 16));
+  EXPECT_FALSE(dataSpan(*Heap, *A, 0, 128));
+  EXPECT_FALSE(dataSpan(*Heap, *A, 65536, 16));
 }
 
 TEST_P(RefHeapModes, ObjectSlots) {
@@ -252,13 +285,13 @@ TEST_P(RefHeapModes, Forged) {
   ASSERT_TRUE(Heap) << "heap creation failed";
   auto D = Heap->allocate(HeapKind::Struct, 32);
   ASSERT_TRUE(D);
-  EXPECT_FALSE(Heap->getDataSpan(UINT32_C(0xFFFFFFF0), 0, 16));
-  EXPECT_FALSE(Heap->getDataSpan(*D, UINT32_C(0xFFFFFFF0), 32));
-  EXPECT_FALSE(Heap->getDataSpan(*D, 16, UINT32_C(0xFFFFFFF8)));
+  EXPECT_FALSE(dataSpan(*Heap, UINT32_C(0xFFFFFFF0), 0, 16));
+  EXPECT_FALSE(dataSpan(*Heap, *D, UINT32_C(0xFFFFFFF0), 32));
+  EXPECT_FALSE(dataSpan(*Heap, *D, 16, UINT32_C(0xFFFFFFF8)));
   for (uint32_t Off = 1; Off < 4096; Off += 2) {
-    ASSERT_FALSE(Heap->getDataSpan(*D + Off, 0, 1)) << Off;
+    ASSERT_FALSE(dataSpan(*Heap, *D + Off, 0, 1)) << Off;
   }
-  EXPECT_FALSE(Heap->getDataSpan(*D | RefHeap::kTagObject, 0, 1));
+  EXPECT_FALSE(dataSpan(*Heap, *D | RefHeap::kTagObject, 0, 1));
 
   std::set<uint32_t> Live;
   for (int I = 0; I < 3; ++I) {
@@ -317,7 +350,7 @@ TEST_P(RefHeapModes, EmptyBlocksReturn) {
   }
   auto A = Heap->allocate(HeapKind::Array, 3 * 65536);
   ASSERT_TRUE(A);
-  EXPECT_TRUE(Heap->getDataSpan(*A, 0, 3 * 65536));
+  EXPECT_TRUE(dataSpan(*Heap, *A, 0, 3 * 65536));
   Heap->free(*A);
   for (uint32_t I = 0; I < 3 * 65536 / 128; ++I) {
     ASSERT_TRUE(Heap->allocate(HeapKind::Struct, 128)) << I;
@@ -388,7 +421,7 @@ TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
   Fresh->free(*Large);
   AllowedNews = -1;
   EXPECT_EQ(Fresh->getHeader(*Large), nullptr);
-  EXPECT_FALSE(Fresh->getDataSpan(*Large, 0, 32));
+  EXPECT_FALSE(dataSpan(*Fresh, *Large, 0, 32));
   auto Again = Fresh->allocate(HeapKind::Array, 2 * 65536);
   ASSERT_TRUE(Again);
   EXPECT_EQ(*Again, *Large);
@@ -554,12 +587,12 @@ TEST_P(RefHeapModes, LoadStore) {
   ASSERT_TRUE(Heap) << "heap creation failed";
   auto A = Heap->allocate(HeapKind::Struct, 64);
   ASSERT_TRUE(A);
-  ASSERT_TRUE(Heap->store<uint64_t>(*A, 32, UINT64_C(0x0123456789ABCDEF)));
-  auto V = Heap->load<uint64_t>(*A, 32);
+  ASSERT_TRUE(storeData<uint64_t>(*Heap, *A, 32, UINT64_C(0x0123456789ABCDEF)));
+  auto V = loadData<uint64_t>(*Heap, *A, 32);
   ASSERT_TRUE(V);
   EXPECT_EQ(*V, UINT64_C(0x0123456789ABCDEF));
-  EXPECT_FALSE(Heap->load<uint32_t>(*A, 62));
-  EXPECT_FALSE(Heap->store<uint32_t>(*A, 62, 1));
+  EXPECT_FALSE(loadData<uint32_t>(*Heap, *A, 62));
+  EXPECT_FALSE(storeData<uint32_t>(*Heap, *A, 62, 1));
 }
 
 TEST_P(RefHeapModes, Threads) {
@@ -612,7 +645,7 @@ TEST_P(RefHeapModes, LargeSlotRace) {
   std::thread Reader([&]() {
     while (!Stop.load(std::memory_order_relaxed)) {
       const uint32_t Off = Probe.load(std::memory_order_relaxed);
-      if (Off != 0 && Heap->getDataSpan(Off, 65536, 1)) {
+      if (Off != 0 && dataSpan(*Heap, Off, 65536, 1)) {
         Hits.fetch_add(1, std::memory_order_relaxed);
       }
     }
@@ -695,20 +728,20 @@ TEST(RefHeap, ChunkRunContiguous) {
   auto A = Heap->allocate(HeapKind::Array, Size);
   ASSERT_TRUE(A);
   EXPECT_EQ(*A, RefHeap::kChunkSize);
-  auto Span = Heap->getDataSpan(*A, 0, Size);
+  auto Span = dataSpan(*Heap, *A, 0, Size);
   ASSERT_TRUE(Span);
-  std::memset(*Span, 0x5A, Size);
-  auto Last = Heap->load<uint8_t>(*A, Size - 1);
+  std::memset(Span, 0x5A, Size);
+  auto Last = loadData<uint8_t>(*Heap, *A, Size - 1);
   ASSERT_TRUE(Last);
   EXPECT_EQ(*Last, 0x5AU);
-  EXPECT_FALSE(Heap->getDataSpan(*A, 0, Size + 65536));
+  EXPECT_FALSE(dataSpan(*Heap, *A, 0, Size + 65536));
   auto B = Heap->allocate(HeapKind::Array, 10 * 65536);
   ASSERT_TRUE(B);
   EXPECT_EQ(*B, UINT32_C(2) << 16);
-  auto BSpan = Heap->getDataSpan(*B, 0, 10 * 65536);
+  auto BSpan = dataSpan(*Heap, *B, 0, 10 * 65536);
   ASSERT_TRUE(BSpan);
-  std::memset(*BSpan, 0x3C, 10 * 65536);
-  EXPECT_EQ(Heap->getOffset(*BSpan + sizeof(HeapHeader)), *B);
+  std::memset(BSpan, 0x3C, 10 * 65536);
+  EXPECT_EQ(Heap->getOffset(BSpan + sizeof(HeapHeader)), *B);
 }
 
 TEST(RefHeap, ChunkObjectParts) {
@@ -844,7 +877,7 @@ TEST_P(RefHeapModes, WithTail) {
   EXPECT_EQ(Off & 15, 0U);
   const uint32_t End =
       static_cast<uint32_t>(sizeof(HeapHeader) + sizeof(Tailed) + 64);
-  EXPECT_TRUE(Heap->getDataSpan(Off, 0, End));
+  EXPECT_TRUE(dataSpan(*Heap, Off, 0, End));
   auto S = Heap->makeSharedWithTail<Tailed>(0);
   ASSERT_TRUE(S);
   EXPECT_EQ((*S)->Head, 7U);
@@ -920,16 +953,16 @@ TEST_P(RefHeapModes, MakeData) {
   EXPECT_EQ(Header->Length, 3U);
   for (uint32_t Pos = sizeof(HeapHeader); Pos < sizeof(HeapHeader) + 24U;
        ++Pos) {
-    auto B = Heap->load<uint8_t>(Off, Pos);
+    auto B = loadData<uint8_t>(*Heap, Off, Pos);
     ASSERT_TRUE(B);
     EXPECT_EQ(*B, 0U);
   }
-  ASSERT_TRUE(Heap->store<uint64_t>(Off, sizeof(HeapHeader) + 8U,
-                                    UINT64_C(0x1122334455667788)));
-  auto V = Heap->load<uint64_t>(Off, sizeof(HeapHeader) + 8U);
+  ASSERT_TRUE(storeData<uint64_t>(*Heap, Off, sizeof(HeapHeader) + 8U,
+                                  UINT64_C(0x1122334455667788)));
+  auto V = loadData<uint64_t>(*Heap, Off, sizeof(HeapHeader) + 8U);
   ASSERT_TRUE(V);
   EXPECT_EQ(*V, UINT64_C(0x1122334455667788));
-  EXPECT_FALSE(Heap->load<uint8_t>(Off, 64U));
+  EXPECT_FALSE(loadData<uint8_t>(*Heap, Off, 64U));
 }
 
 TEST_P(RefHeapModes, EmptyDataSlot) {

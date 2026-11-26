@@ -622,6 +622,36 @@ TEST(VMJITTest, RegisterASTModule) {
   ASSERT_EQ(Res->size(), 1U);
   EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
 }
+
+TEST(VMJITTest, RunWasmFile) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM TestVM(Conf);
+  auto Res = TestVM.runWasmFile(ConstFuncWasm, "f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+  const auto *ModInst = TestVM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  EXPECT_TRUE(ModInst->findFuncExports("f")->isCompiledFunction());
+}
+
+TEST(VMJITTest, RunWasmFileFromASTModule) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  auto Res = TestVM.runWasmFile(**Module, "f");
+  ASSERT_TRUE(Res);
+  EXPECT_FALSE((*Module)->getSymbol());
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+  const auto *ModInst = TestVM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  EXPECT_TRUE(ModInst->findFuncExports("f")->isCompiledFunction());
+  expectConstResult(TestVM, 7U);
+}
 #endif
 
 } // namespace

@@ -377,9 +377,19 @@ private:
                     Span<const ValVariant> Params = {},
                     Span<const ValType> ParamTypes = {});
   Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(std::shared_ptr<AST::Module> Module, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const AST::Component::Component &Component,
                     std::string_view Func, Span<const ValVariant> Params = {},
                     Span<const ValType> ParamTypes = {});
+
+  /// Instantiate the validated module as the active one and execute.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeInstantiateAndExecute(const AST::Module &Module, std::string_view Func,
+                              Span<const ValVariant> Params,
+                              Span<const ValType> ParamTypes);
 
   Expect<void> unsafeLoadWasm(const std::filesystem::path &Path);
   Expect<void> unsafeLoadWasm(Span<const Byte> Code);

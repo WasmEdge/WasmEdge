@@ -289,7 +289,7 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   if (Kind == WasmUnitKind::Component) {
     return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
   }
-  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
+  return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -302,7 +302,7 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   if (Kind == WasmUnitKind::Component) {
     return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
   }
-  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
+  return unsafeRunWasmFile(Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -322,11 +322,39 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
+#ifdef WASMEDGE_USE_LLVM
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+    // JIT hooks the compiled executable into the AST module, so run an owned
+    // copy instead of mutating the caller's module.
+    return unsafeRunWasmFile(std::make_shared<AST::Module>(Module), Func,
+                             Params, ParamTypes);
+  }
+#endif
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
-  if (&Module == Mod.get()) {
+  return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(std::shared_ptr<AST::Module> Module,
+                      std::string_view Func, Span<const ValVariant> Params,
+                      Span<const ValType> ParamTypes) {
+  unsafeRevertStageToValidated();
+  EXPECTED_TRY(ValidatorEngine.validate(*Module));
+  if (Module == Mod) {
     Stage = VMStage::Validated;
   }
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+    EXPECTED_TRY(unsafeLoadJITExecutable(Module));
+  }
+  return unsafeInstantiateAndExecute(*Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeInstantiateAndExecute(const AST::Module &Module,
+                                std::string_view Func,
+                                Span<const ValVariant> Params,
+                                Span<const ValType> ParamTypes) {
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // This one-shot path takes no shared ownership of the module, so it is

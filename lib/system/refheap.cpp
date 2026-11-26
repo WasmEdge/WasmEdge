@@ -527,42 +527,40 @@ Expect<RefHeap::DataView> RefHeap::allocateData(HeapKind Kind, uint64_t Size,
   return Unexpect(ErrCode::Value::RefHeapFull);
 }
 
-bool RefHeap::findDataSlot(uint32_t Off, uint32_t &BlockIdx, uint32_t &SlotIdx,
-                           uint32_t &SlotSize) const noexcept {
+std::optional<RefHeap::SlotRecord>
+RefHeap::findDataSlot(uint32_t Off) const noexcept {
   if (Off == 0 || (Off & 15) != 0) {
-    return false;
+    return std::nullopt;
   }
   const uint32_t B = Off >> kBlockShift;
   if (B >= DataBlocks) {
-    return false;
+    return std::nullopt;
   }
   const uint64_t Info = Blocks[B].Info.load(std::memory_order_acquire);
   const auto S = static_cast<uint32_t>(Info);
   if (S == 0) {
-    return false;
+    return std::nullopt;
   }
+  uint32_t SlotIdx = 0;
   if (S <= kMaxSmallSize) {
     if ((Off & kBlockMask) % S != 0) {
-      return false;
+      return std::nullopt;
     }
     SlotIdx = (Off & kBlockMask) / S;
-  } else {
-    if ((Off & kBlockMask) != 0 || (Info >> 32) != B) {
-      return false;
-    }
-    SlotIdx = 0;
+  } else if ((Off & kBlockMask) != 0 || (Info >> 32) != B) {
+    return std::nullopt;
   }
   const auto *Bits = Blocks[B].LiveBits.load(std::memory_order_acquire);
   if (Bits == nullptr ||
       ((Bits[SlotIdx / 64].load(std::memory_order_acquire) >> (SlotIdx % 64)) &
-       1) == 0 ||
-      reinterpret_cast<const HeapHeader *>(getDataAddr(Off))->Kind ==
-          HeapKind::Free) {
-    return false;
+       1) == 0) {
+    return std::nullopt;
   }
-  BlockIdx = B;
-  SlotSize = S;
-  return true;
+  uint8_t *Addr = getDataAddr(Off);
+  if (reinterpret_cast<const HeapHeader *>(Addr)->Kind == HeapKind::Free) {
+    return std::nullopt;
+  }
+  return SlotRecord{Addr, B, SlotIdx, S};
 }
 
 const RefHeap::Part *RefHeap::findSlot(uint32_t Off) const noexcept {
@@ -689,11 +687,8 @@ HeapHeader *RefHeap::getHeader(uint32_t Off) const noexcept {
     }
     return reinterpret_cast<HeapHeader *>(getObjectAddr(Off));
   }
-  uint32_t BlockIdx, SlotIdx, SlotSize;
-  if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
-    return nullptr;
-  }
-  return reinterpret_cast<HeapHeader *>(getDataAddr(Off));
+  const auto Slot = findDataSlot(Off);
+  return Slot ? reinterpret_cast<HeapHeader *>(Slot->Addr) : nullptr;
 }
 
 void *RefHeap::decodeObject(HeapKind Kind, uint32_t Off) const noexcept {
@@ -717,8 +712,7 @@ uint32_t RefHeap::getOffset(const void *Obj) const noexcept {
     return Off;
   };
   auto CheckData = [this](uint32_t Off) noexcept -> uint32_t {
-    uint32_t BlockIdx, SlotIdx, SlotSize;
-    return findDataSlot(Off, BlockIdx, SlotIdx, SlotSize) ? Off : 0;
+    return findDataSlot(Off) ? Off : 0;
   };
   if (Mode == HeapMode::Chunk) {
     bool Object = false;
@@ -743,15 +737,11 @@ uint32_t RefHeap::getOffset(const void *Obj) const noexcept {
 
 Expect<RefHeap::DataView> RefHeap::getDataView(uint32_t Off,
                                                HeapKind Kind) const noexcept {
-  uint32_t BlockIdx, SlotIdx, SlotSize;
-  if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
+  const auto Slot = findDataSlot(Off);
+  if (!Slot || reinterpret_cast<const HeapHeader *>(Slot->Addr)->Kind != Kind) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  uint8_t *Slot = getDataAddr(Off);
-  if (reinterpret_cast<const HeapHeader *>(Slot)->Kind != Kind) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
-  return DataView{Slot, SlotSize};
+  return DataView{Slot->Addr, Slot->SlotSize};
 }
 
 void RefHeap::free(uint32_t Off) noexcept {
@@ -783,11 +773,11 @@ void RefHeap::freeObject(uint32_t Off) noexcept {
 
 void RefHeap::freeData(uint32_t Off) noexcept {
   std::unique_lock Lock(DataMutex);
-  uint32_t BlockIdx, SlotIdx, SlotSize;
-  if (!findDataSlot(Off, BlockIdx, SlotIdx, SlotSize)) {
+  const auto Found = findDataSlot(Off);
+  if (!Found) {
     return;
   }
-  uint8_t *Slot = getDataAddr(Off);
+  const auto [Slot, BlockIdx, SlotIdx, SlotSize] = *Found;
   try {
     reserveRelease(BlockIdx, SlotSize);
   } catch (const std::bad_alloc &) {

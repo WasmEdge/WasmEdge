@@ -25,6 +25,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <set>
 #include <shared_mutex>
 #include <type_traits>
@@ -418,9 +419,16 @@ private:
   const Part *findSlot(uint32_t Off) const noexcept;
   /// Part of the live object slot at `Off`, or null.
   const Part *findPart(uint32_t Off) const noexcept;
-  /// Index of the live bit of the data slot at `Off`, or false.
-  bool findDataSlot(uint32_t Off, uint32_t &BlockIdx, uint32_t &SlotIdx,
-                    uint32_t &SlotSize) const noexcept;
+  /// A live data slot that one address resolution found: its address, its
+  /// block, the index of its live bit, and its size.
+  struct SlotRecord {
+    uint8_t *Addr;
+    uint32_t BlockIdx;
+    uint32_t SlotIdx;
+    uint32_t SlotSize;
+  };
+  /// The live data slot that starts at `Off`, or nothing.
+  std::optional<SlotRecord> findDataSlot(uint32_t Off) const noexcept;
 
   HeapMode Mode;
   uint8_t *DataBase = nullptr;

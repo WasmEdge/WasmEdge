@@ -1624,7 +1624,7 @@ void FunctionCompiler::compileIndirectCallOp(
     auto Raw = Builder.createAnd(
         Off, LLContext.getInt32(~Runtime::RefHeap::kTagObject));
     LLVM::Value SlotPtr;
-    if (Runtime::RefHeap::getDefaultMode() == Runtime::HeapMode::Flat) {
+    if (Runtime::RefHeap::getGlobalMode() == Runtime::HeapMode::Flat) {
       SlotPtr = Builder.createInBoundsGEP1(
           Context.Int8Ty,
           LoadDesc(offsetof(RefHeapDescriptor, ObjectBase), Context.Int8PtrTy),

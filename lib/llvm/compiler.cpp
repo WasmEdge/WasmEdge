@@ -9,6 +9,7 @@
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
+#include "runtime/refheap.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -255,6 +256,10 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     return Unexpect(ErrCode::Value::NotValidated);
+  }
+  if (unlikely(Runtime::RefHeap::getGlobal() == nullptr)) {
+    spdlog::error(ErrCode::Value::RefHeapFull);
+    return Unexpect(ErrCode::Value::RefHeapFull);
   }
 
   std::unique_lock Lock(Mutex);

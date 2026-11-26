@@ -131,14 +131,25 @@ RefHeap *RefHeap::getGlobal() noexcept {
   auto *Heap = GlobalHeap.load(std::memory_order_relaxed);
   if (Heap == nullptr) {
     auto Res = create(Limits{});
+    if (!Res && getDefaultMode() == HeapMode::Flat &&
+        isModeSupported(HeapMode::Chunk)) {
+      Limits L;
+      L.Mode = HeapMode::Chunk;
+      Res = create(L);
+    }
     Heap = Res ? Res->release() : nullptr;
     GlobalHeap.store(Heap, std::memory_order_release);
   }
   return Heap;
 }
 
+HeapMode RefHeap::getGlobalMode() noexcept {
+  const auto *Heap = getGlobal();
+  return Heap != nullptr ? Heap->getMode() : getDefaultMode();
+}
+
 bool RefHeap::attachGlobal(RefHeap *Heap) noexcept {
-  if (Heap == nullptr || Heap->getMode() != getDefaultMode()) {
+  if (Heap == nullptr || !isModeSupported(Heap->getMode())) {
     return false;
   }
   std::unique_lock Lock(GlobalHeapMutex);

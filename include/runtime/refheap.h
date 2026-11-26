@@ -129,8 +129,14 @@ public:
   static constexpr uint32_t kChunkSize = UINT32_C(1) << kChunkShift;
   static constexpr uint32_t kChunkCount = UINT32_C(1) << (32 - kChunkShift);
 
-  /// Address mode of the heap that `getGlobal` creates.
+  /// Address mode that `getGlobal` tries first.
   static HeapMode getDefaultMode() noexcept;
+
+  /// Address mode of the global heap. If the global heap cannot be created,
+  /// the default mode. Once getGlobal gives a heap, the mode stays the same
+  /// for the rest of the process, so a compilation that starts with a heap
+  /// uses one mode for its code and its version word.
+  static HeapMode getGlobalMode() noexcept;
 
   /// Whether this host can create a heap in `Mode`. Chunk mode needs memory
   /// that the allocator gives as zero pages and that it can make
@@ -180,11 +186,12 @@ public:
   static Expect<std::unique_ptr<RefHeap>> create(const Limits &L) noexcept;
 
   /// The heap shared by the whole process, or null if it cannot be created.
-  /// It is never destroyed.
+  /// If a flat heap cannot reserve its address ranges, the global heap uses
+  /// chunk mode. It is never destroyed.
   WASMEDGE_EXPORT static RefHeap *getGlobal() noexcept;
 
   /// Use `Heap` as the global heap of this runtime copy. Fails if this copy
-  /// already uses a different global heap.
+  /// already uses a different global heap, or cannot use the mode of `Heap`.
   WASMEDGE_EXPORT static bool attachGlobal(RefHeap *Heap) noexcept;
 
   ~RefHeap() noexcept;

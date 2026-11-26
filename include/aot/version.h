@@ -32,9 +32,9 @@ inline uint32_t getBinaryVersion(Runtime::HeapMode Mode) noexcept {
                                           : kBinaryVersion;
 }
 
-/// Version word of a binary for the heap mode of this runtime.
+/// Version word of a binary for the mode of the global heap.
 inline uint32_t getBinaryVersion() noexcept {
-  return getBinaryVersion(Runtime::RefHeap::getDefaultMode());
+  return getBinaryVersion(Runtime::RefHeap::getGlobalMode());
 }
 
 } // namespace AOT

@@ -14,12 +14,18 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <new>
 #include <set>
 #include <thread>
 #include <vector>
+
+#if WASMEDGE_OS_LINUX
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 
 namespace {
 
@@ -530,7 +536,45 @@ TEST(RefHeap, Global) {
   auto *Heap = RefHeap::getGlobal();
   ASSERT_NE(Heap, nullptr);
   EXPECT_EQ(RefHeap::getGlobal(), Heap);
-  EXPECT_EQ(Heap->getMode(), RefHeap::getDefaultMode());
+  EXPECT_EQ(Heap->getMode(), RefHeap::getGlobalMode());
+}
+
+TEST(RefHeap, GlobalFallsBackToChunk) {
+#if WASMEDGE_OS_LINUX
+  if (!RefHeap::isModeSupported(HeapMode::Flat) ||
+      !RefHeap::isModeSupported(HeapMode::Chunk)) {
+    GTEST_SKIP() << "this host does not support both address modes";
+  }
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+  auto Child = []() {
+    std::FILE *Statm = std::fopen("/proc/self/statm", "r");
+    unsigned long Pages = 0;
+    if (Statm == nullptr || std::fscanf(Statm, "%lu", &Pages) != 1) {
+      std::exit(2);
+    }
+    std::fclose(Statm);
+    const rlim_t Size = static_cast<rlim_t>(Pages) *
+                            static_cast<rlim_t>(sysconf(_SC_PAGESIZE)) +
+                        (static_cast<rlim_t>(4) << 30);
+    const rlimit Limit{Size, Size};
+    if (setrlimit(RLIMIT_AS, &Limit) != 0) {
+      std::exit(3);
+    }
+    auto *Heap = RefHeap::getGlobal();
+    if (Heap == nullptr || Heap->getMode() != HeapMode::Chunk ||
+        RefHeap::getGlobalMode() != HeapMode::Chunk) {
+      std::exit(4);
+    }
+    Runtime::Instance::ModuleInstance Mod("host"sv);
+    if (!Mod.addHostFunc("nop"sv, std::make_unique<NopHost>())) {
+      std::exit(5);
+    }
+    std::exit(0);
+  };
+  EXPECT_EXIT(Child(), ::testing::ExitedWithCode(0), "");
+#else
+  GTEST_SKIP() << "the address space limit needs Linux";
+#endif
 }
 
 TEST(RefHeap, Modes) {

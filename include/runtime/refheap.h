@@ -348,7 +348,7 @@ private:
     bool Object = false;
   };
 
-  RefHeap(const Limits &L) noexcept;
+  RefHeap(const Limits &L);
   void initDescriptor() noexcept;
 
   static uint8_t *loadChunk(const std::atomic<uint8_t *> *Table,

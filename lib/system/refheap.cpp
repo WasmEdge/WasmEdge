@@ -53,7 +53,7 @@ bool RefHeap::isModeSupported(HeapMode M) noexcept {
 #endif
 }
 
-RefHeap::RefHeap(const Limits &L) noexcept
+RefHeap::RefHeap(const Limits &L)
     : Mode(L.Mode), DataBlocks(static_cast<uint32_t>(
                         std::min(L.DataBytes, k4G) / kBlockSize)),
       PartLimit(static_cast<uint32_t>(
@@ -72,8 +72,13 @@ Expect<std::unique_ptr<RefHeap>> RefHeap::create(const Limits &L) noexcept {
   if (!isModeSupported(L.Mode)) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
-  std::unique_ptr<RefHeap> Heap(new (std::nothrow) RefHeap(L));
-  if (!Heap || !Heap->Blocks) {
+  std::unique_ptr<RefHeap> Heap;
+  try {
+    Heap.reset(new RefHeap(L));
+  } catch (const std::bad_alloc &) {
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  if (!Heap->Blocks) {
     return Unexpect(ErrCode::Value::RefHeapFull);
   }
   if (L.Mode == HeapMode::Flat) {

@@ -319,6 +319,27 @@ TEST_P(RefHeapModes, EmptyBlocksReturn) {
   EXPECT_FALSE(Heap->allocate(HeapKind::Struct, 64));
 }
 
+TEST_P(RefHeapModes, CreationFailure) {
+  const uint64_t Before = NewCount;
+  bool Created = false;
+  for (int N = 0; N < 16 && !Created; ++N) {
+    RefHeap::Limits L{4 * 65536, UINT64_C(1) << 30};
+    L.Mode = GetParam();
+    AllowedNews = N;
+    auto Res = RefHeap::create(L);
+    AllowedNews = -1;
+    if (Res) {
+      Created = true;
+    } else {
+      EXPECT_EQ(Res.error(), ErrCode::Value::RefHeapFull) << N;
+    }
+  }
+  if (NewCount == Before) {
+    GTEST_SKIP() << "the replaced operator new does not reach the heap";
+  }
+  EXPECT_TRUE(Created);
+}
+
 TEST_P(RefHeapModes, AllocationFailureKeepsBlocks) {
   auto Heap =
       makeHeap(GetParam(), RefHeap::Limits{4 * 65536, UINT64_C(1) << 30});

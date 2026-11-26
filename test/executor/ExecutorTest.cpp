@@ -19,6 +19,7 @@
 #include "executor/coredump.h"
 #include "executor/restore.h"
 #include "loader/serialize.h"
+#include "runtime/matcher.h"
 #include "runtime/refheap.h"
 #include "runtime/typetable.h"
 #include "vm/vm.h"
@@ -1183,6 +1184,20 @@ TEST(CanonicalTypeTable, RefTest) {
       Runtime::Instance::FunctionInstance::create(std::make_unique<I32Echo>());
   ASSERT_TRUE(Standalone);
   EXPECT_EQ(Test(Standalone->get()), 1U);
+}
+
+TEST(RefVariant, FunctionMatchesOwnType) {
+  Runtime::Instance::ModuleInstance Host("host"sv);
+  ASSERT_TRUE(Host.addHostFunc("echo"sv, std::make_unique<I32Echo>()));
+  ASSERT_TRUE(Host.addHostFunc("nop"sv, std::make_unique<NopHost>()));
+  const auto *Nop = Host.findFuncExports("nop"sv);
+  ASSERT_NE(Nop, nullptr);
+  ASSERT_EQ(Nop->getTypeIndex(), 1U);
+  const auto Forged = RefVariant::makeFunc(ValType(TypeCode::Ref, 0U), Nop);
+  EXPECT_FALSE(
+      Runtime::Matcher::matchRef(&Host, ValType(TypeCode::Ref, 0U), Forged));
+  EXPECT_TRUE(
+      Runtime::Matcher::matchRef(&Host, ValType(TypeCode::Ref, 1U), Forged));
 }
 
 std::array<WasmEdge::Byte, 41> RefTestFuncWasm{

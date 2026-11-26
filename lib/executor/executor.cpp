@@ -228,7 +228,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         } else {
           auto *Inst = Ref.getFuncInst();
           if (Inst != nullptr && Inst->getModule() != nullptr) {
-            Id = Inst->getModule()->getCanonicalTypeId(RefType.getTypeIndex());
+            Id = Inst->getModule()->getCanonicalTypeId(Inst->getTypeIndex());
+          } else if (Inst != nullptr) {
+            Id = Inst->getHostCanonicalTypeId().value_or(UINT32_MAX);
           }
         }
         if (Id < Table.size()) {

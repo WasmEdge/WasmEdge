@@ -55,25 +55,14 @@ public:
     Span<const AST::SubType *const> GotTypeList = ExpTypeList;
     const AST::SubType *HostType = nullptr;
     std::optional<uint32_t> GotId;
-    if (!VT.isAbsHeapType()) {
-      if (const auto *Header = getDataHeader(Ref)) {
-        if (Header->TypeId >= CanonicalTypeTable::getGlobal().size()) {
-          return false;
-        }
-        GotId = Header->TypeId;
-      } else {
-        const auto *Inst = Ref.getFuncInst();
-        if (Inst == nullptr) {
-          return false;
-        }
-        const auto *GotMod = Inst->getModule() ? Inst->getModule() : ModInst;
-        if (GotMod == nullptr ||
-            VT.getTypeIndex() >= GotMod->getTypeList().size()) {
-          return false;
-        }
-        GotId = GotMod->getCanonicalTypeId(VT.getTypeIndex());
+    if (const auto *Header =
+            VT.isAbsHeapType() ? nullptr : getDataHeader(Ref)) {
+      if (Header->TypeId >= CanonicalTypeTable::getGlobal().size()) {
+        return false;
       }
-    } else if (VT.getHeapTypeCode() == TypeCode::FuncRef) {
+      GotId = Header->TypeId;
+    } else if (!VT.isAbsHeapType() ||
+               VT.getHeapTypeCode() == TypeCode::FuncRef) {
       const auto *FuncInst = retrieveFuncRef(Ref);
       if (FuncInst == nullptr) {
         return false;

@@ -445,14 +445,10 @@ protected:
   Expect<RefHeap::DataView> newStruct(uint32_t TypeIdx, uint64_t FieldBytes) {
     return newData(HeapKind::Struct, TypeIdx, 0, FieldBytes);
   }
-  template <typename... Args>
-  Expect<ExceptionInstance *> newException(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    EXPECTED_TRY(auto Inst,
-                 ExceptionInstance::create(std::forward<Args>(Values)...));
-    OwnedExceptionInsts.push_back(std::move(Inst));
-    return OwnedExceptionInsts.back().get();
-  }
+  /// Make an exception instance that this module owns. Fails with
+  /// RefHeapFull if the instance or its owner entry cannot be allocated.
+  Expect<ExceptionInstance *> newException(TagInstance *Tag,
+                                           std::vector<ValVariant> &&Payload);
 
   /// Import instances into this module instance.
   void importFunction(FunctionInstance *Func) {
@@ -693,19 +689,10 @@ protected:
   }
 
   /// Make a data slot of the defined type `TypeIdx` that this module owns,
-  /// and return a checked view of it.
+  /// and return a checked view of it. Fails with RefHeapFull if the slot or
+  /// its owner entry cannot be allocated.
   Expect<RefHeap::DataView> newData(HeapKind Kind, uint32_t TypeIdx,
-                                    uint32_t Length, uint64_t FieldBytes) {
-    auto *Heap = RefHeap::getGlobal();
-    if (Heap == nullptr) {
-      return Unexpect(ErrCode::Value::RefHeapFull);
-    }
-    EXPECTED_TRY(auto Data, Heap->makeData(Kind, getCanonicalTypeId(TypeIdx),
-                                           Length, FieldBytes));
-    std::unique_lock Lock(Mutex);
-    OwnedDataSlots.push_back(std::move(Data.Slot));
-    return Data.View;
-  }
+                                    uint32_t Length, uint64_t FieldBytes);
 
   /// Unsafely add and export the existing instance to this module.
   template <typename T, typename OwnerT>

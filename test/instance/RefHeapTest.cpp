@@ -507,6 +507,29 @@ public:
   Expect<void> body(const Runtime::CallingFrame &) { return {}; }
 };
 
+class DataModule : public Runtime::Instance::ModuleInstance {
+public:
+  using ModuleInstance::ModuleInstance;
+  using ModuleInstance::newStruct;
+};
+
+TEST(RefHeap, NewDataReportsOwnerFailure) {
+  DataModule Mod("data"sv);
+  ASSERT_TRUE(Mod.addHostFunc("nop"sv, std::make_unique<NopHost>()));
+  ASSERT_TRUE(Mod.newStruct(0, 16));
+  ASSERT_TRUE(Mod.newStruct(0, 16));
+  const uint64_t Before = NewCount;
+  AllowedNews = 0;
+  auto Failed = Mod.newStruct(0, 16);
+  AllowedNews = -1;
+  if (NewCount == Before) {
+    GTEST_SKIP() << "the replaced operator new does not reach the module";
+  }
+  ASSERT_FALSE(Failed);
+  EXPECT_EQ(Failed.error(), ErrCode::Value::RefHeapFull);
+  ASSERT_TRUE(Mod.newStruct(0, 16));
+}
+
 TEST(RefHeap, HostModuleKeepsFirstAddError) {
   Runtime::Instance::ModuleInstance Mod("host"sv);
   auto First = Mod.addHostFunc("bad"sv, std::make_unique<UnknownTypeHost>());

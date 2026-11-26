@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <new>
 #include <shared_mutex>
 #include <unordered_set>
 #include <utility>
@@ -686,4 +687,40 @@ Executor::getDataView(const RefVariant &Ref,
 }
 
 } // namespace Executor
+
+namespace Runtime::Instance {
+
+Expect<RefHeap::DataView> ModuleInstance::newData(HeapKind Kind,
+                                                  uint32_t TypeIdx,
+                                                  uint32_t Length,
+                                                  uint64_t FieldBytes) {
+  auto *Heap = RefHeap::getGlobal();
+  if (Heap == nullptr) {
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  EXPECTED_TRY(auto Data, Heap->makeData(Kind, getCanonicalTypeId(TypeIdx),
+                                         Length, FieldBytes));
+  std::unique_lock Lock(Mutex);
+  try {
+    OwnedDataSlots.push_back(std::move(Data.Slot));
+  } catch (const std::bad_alloc &) {
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  return Data.View;
+}
+
+Expect<ExceptionInstance *>
+ModuleInstance::newException(TagInstance *Tag,
+                             std::vector<ValVariant> &&Payload) {
+  std::unique_lock Lock(Mutex);
+  EXPECTED_TRY(auto Inst, ExceptionInstance::create(Tag, std::move(Payload)));
+  try {
+    OwnedExceptionInsts.push_back(std::move(Inst));
+  } catch (const std::bad_alloc &) {
+    return Unexpect(ErrCode::Value::RefHeapFull);
+  }
+  return OwnedExceptionInsts.back().get();
+}
+
+} // namespace Runtime::Instance
 } // namespace WasmEdge

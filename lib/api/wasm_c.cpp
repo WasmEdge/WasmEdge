@@ -725,30 +725,30 @@ struct wasm_extern_t : public wasm::Extern,
 struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm_func_callback_t cb) noexcept
-      : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
+      : wasm_ref_base_t<wasm_func_t>(s) {
     make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm_func_callback_with_env_t cb, void *env,
               void (*fin)(void *)) noexcept
-      : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
+      : wasm_ref_base_t<wasm_func_t>(s) {
     make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm::Func::callback cb) noexcept
-      : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
+      : wasm_ref_base_t<wasm_func_t>(s) {
     make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm::Func::callback_with_env cb, void *env,
               void (*fin)(void *)) noexcept
-      : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
+      : wasm_ref_base_t<wasm_func_t>(s) {
     make_inst(std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
   }
   // Non-owning view (for wasm_instance_exports and the funcref values).
   wasm_func_t(wasm::Store *s,
               WasmEdge::Runtime::Instance::FunctionInstance *fi) noexcept
-      : wasm_ref_base_t<wasm_func_t>(s), owned(false) {
+      : wasm_ref_base_t<wasm_func_t>(s) {
     inst = fi;
   }
   static wasm_func_t *checked(wasm_func_t *f) noexcept {
@@ -759,7 +759,6 @@ struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
     return f;
   }
   const wasm::ExternKind mkind = wasm::ExternKind::FUNC;
-  bool owned;
   WasmEdge::Runtime::UniqueHeapPtr<
       WasmEdge::Runtime::Instance::FunctionInstance>
       holder;

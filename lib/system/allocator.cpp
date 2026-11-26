@@ -75,7 +75,8 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint64_t PageCount) noexcept {
   if (PageCount > std::numeric_limits<size_t>::max() / kPageSize) {
     return nullptr;
   }
-  auto Result = reinterpret_cast<uint8_t *>(std::malloc(kPageSize * PageCount));
+  auto Result = reinterpret_cast<uint8_t *>(
+      std::malloc(PageCount == 0 ? 1 : kPageSize * PageCount));
   if (Result == nullptr) {
     return nullptr;
   }

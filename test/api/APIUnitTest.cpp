@@ -2681,6 +2681,12 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
+  MemLim = WasmEdge_LimitCreate(UINT64_C(1) << 40, true);
+  MemType = WasmEdge_MemoryTypeCreate(MemLim);
+  MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
+  WasmEdge_LimitDelete(MemLim);
+  WasmEdge_MemoryTypeDelete(MemType);
+  EXPECT_EQ(MemCxt, nullptr);
   MemCxt = WasmEdge_MemoryInstanceCreateWithPageLimit(nullptr, 2);
   EXPECT_EQ(MemCxt, nullptr);
   MemLim = WasmEdge_LimitCreate(1, false);

@@ -2983,15 +2983,8 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) noexcept {
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(
     const WasmEdge_MemoryTypeContext *MemType) noexcept {
-  try {
-    if (MemType) {
-      return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-          *fromMemTypeCxt(MemType)));
-    }
-  } catch (...) {
-    handleCAPIError();
-  }
-  return nullptr;
+  return WasmEdge_MemoryInstanceCreateWithPageLimit(
+      MemType, WasmEdge::Runtime::Instance::MemoryInstance::kPageLimit64);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
@@ -3000,8 +2993,14 @@ WasmEdge_MemoryInstanceCreateWithPageLimit(
     const uint64_t PageLimit) noexcept {
   try {
     if (MemType) {
-      return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-          *fromMemTypeCxt(MemType), PageLimit));
+      auto MemInst =
+          std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+              *fromMemTypeCxt(MemType), PageLimit);
+      if (MemInst->getDataPtr() == nullptr) {
+        spdlog::error(WasmEdge::ErrCode::Value::AllocationFailed);
+        return nullptr;
+      }
+      return toMemCxt(MemInst.release());
     }
   } catch (...) {
     handleCAPIError();

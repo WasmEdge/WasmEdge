@@ -2398,6 +2398,22 @@ TEST(ExecutorRegression, TableGrowAllocationFailure) {
   EXPECT_EQ((*Result)[0].first.get<uint64_t>(), UINT64_MAX);
 }
 
+/// A memory whose initial size cannot be allocated must fail instantiation.
+TEST(ExecutorRegression, MemoryAllocationFailure) {
+  // (module (memory i64 0x10000000000))
+  std::array<WasmEdge::Byte, 18> Wasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
+                                      0x00, 0x00, 0x05, 0x08, 0x01, 0x04,
+                                      0x80, 0x80, 0x80, 0x80, 0x80, 0x20};
+  Configure Conf;
+  Conf.getRuntimeConfigure().setMaxMemoryPage(UINT64_C(1) << 40);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  auto Result = VM.instantiate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::AllocationFailed);
+}
+
 /// A name registered by another party while a named module is being
 /// instantiated must fail the instantiation instead of being ignored.
 TEST(ExecutorRegression, RegisterModuleLateNameConflict) {

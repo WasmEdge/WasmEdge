@@ -3041,7 +3041,14 @@ void wasm::Memory::destroy() {
 wasm::own<wasm::Memory> wasm::Memory::make(wasm::Store *store,
                                            const wasm::MemoryType *type) {
   if (store && type) {
-    return wasm::make_own(new (std::nothrow) wasm_memory_t(store, *type));
+    auto memory =
+        wasm::make_own(new (std::nothrow) wasm_memory_t(store, *type));
+    if (memory &&
+        static_cast<wasm_memory_t *>(memory.get())->inst->getDataPtr() ==
+            nullptr) {
+      return nullptr;
+    }
+    return memory;
   }
   return nullptr;
 }

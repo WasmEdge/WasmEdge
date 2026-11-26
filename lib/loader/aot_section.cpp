@@ -5,6 +5,8 @@
 #include "common/spdlog.h"
 #include "system/allocator.h"
 
+#include <limits>
+
 #if (WASMEDGE_OS_LINUX && !defined(__ARM_EABI__)) || WASMEDGE_OS_MACOS
 extern "C" {
 extern void __register_frame(void *);
@@ -33,6 +35,12 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   for (const auto &Section : AOTSec.getSections()) {
     const auto Offset = std::get<1>(Section);
     const auto Size = std::get<2>(Section);
+    if (Size > std::numeric_limits<size_t>::max() - PageSize ||
+        Offset > std::numeric_limits<size_t>::max() - PageSize - Size) {
+      spdlog::error(ErrCode::Value::IntegerTooLarge);
+      spdlog::error("    AOT section exceeds the address space."sv);
+      return Unexpect(ErrCode::Value::IntegerTooLarge);
+    }
     BinarySize = std::max(BinarySize, Offset + Size);
   }
   BinarySize = roundUpPageBoundary(BinarySize, PageSize);

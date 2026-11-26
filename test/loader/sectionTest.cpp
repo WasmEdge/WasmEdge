@@ -17,6 +17,7 @@
 
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -651,6 +652,17 @@ TEST(SectionTest, LoadAOTSectionSymbolAddress) {
     WasmEdge::Loader::AOTSection Exec;
     EXPECT_FALSE(Exec.load(Sec));
   }
+}
+
+TEST(SectionTest, RejectsAOTSectionBeyondAddressSpace) {
+  WasmEdge::AST::AOTSection Sec;
+  Sec.setIntrinsicsAddress(0);
+  Sec.getSections().emplace_back(
+      UINT8_C(2),
+      static_cast<uint64_t>(std::numeric_limits<size_t>::max()) - 0x0FFFU,
+      UINT64_C(0x2000), std::vector<WasmEdge::Byte>(0x2000, 0x00U));
+  WasmEdge::Loader::AOTSection Exec;
+  EXPECT_FALSE(Exec.load(Sec));
 }
 
 TEST(SectionTest, LoadAOTSectionFailureAfterEHFrame) {

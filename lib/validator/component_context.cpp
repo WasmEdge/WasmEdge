@@ -1459,7 +1459,7 @@ ValType Context::flattenBorrow(const Scope *Home, const ResourceMap *Remap,
   return ValType(TypeCode::I32);
 }
 
-// True iff the type transitively contains a list, map, or string.
+// True iff the type contains a string, a map, or a list of no fixed length.
 bool Context::needsMemory(const QualValType &Q) noexcept {
   if (const auto Prim = getPrimValType(Q)) {
     return *Prim == PrimValType::String;
@@ -1471,7 +1471,7 @@ bool Context::needsMemory(const QualValType &Q) noexcept {
     return false;
   }
   const auto &D = *Def;
-  if (D.isListTy() || D.isMapTy()) {
+  if ((D.isListTy() && !D.getList().Len.has_value()) || D.isMapTy()) {
     return true;
   }
   bool Found = false;

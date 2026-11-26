@@ -345,7 +345,7 @@ public:
   /// component defines when lowered into it, else an i32 handle.
   ValType flattenBorrow(const Scope *Home, const ResourceMap *Remap,
                         uint32_t Idx, bool IsLower) const noexcept;
-  /// True iff the type transitively contains a list or string.
+  /// True iff the type contains a string, a map, or a list of no fixed length.
   bool needsMemory(const QualValType &Q) noexcept;
   /// Flatten a function type lifted from or lowered into this component; the
   /// flags report which side needs a memory.

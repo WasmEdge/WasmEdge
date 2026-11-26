@@ -591,6 +591,39 @@ TEST(VMCleanupTest, CleanupRestoresBuiltinHosts) {
   EXPECT_NE(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"), nullptr);
 }
 
+#ifdef WASMEDGE_USE_LLVM
+TEST(VMJITTest, RegisterModule) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.registerModule("ext", ConstFuncWasm));
+  const auto *ModInst = TestVM.getStoreManager().findModule("ext");
+  ASSERT_NE(ModInst, nullptr);
+  EXPECT_TRUE(ModInst->findFuncExports("f")->isCompiledFunction());
+  auto Res = TestVM.execute("ext", "f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+}
+
+TEST(VMJITTest, RegisterASTModule) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.registerModule("ext", **Module));
+  EXPECT_FALSE((*Module)->getSymbol());
+  const auto *ModInst = TestVM.getStoreManager().findModule("ext");
+  ASSERT_NE(ModInst, nullptr);
+  EXPECT_TRUE(ModInst->findFuncExports("f")->isCompiledFunction());
+  auto Res = TestVM.execute("ext", "f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+}
+#endif
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -509,6 +509,10 @@ std::optional<WasmEdge::RefVariant> make_externref(const wasm::Ref *ref) {
   return val;
 }
 
+std::optional<WasmEdge::RefVariant>
+make_table_value(const WasmEdge::Runtime::Instance::TableInstance &inst,
+                 const wasm::Ref *ref);
+
 } // namespace
 
 // wasm_config_t implementation.
@@ -813,18 +817,7 @@ struct wasm_table_t : public wasm::Table, public wasm_ref_base_t<wasm_table_t> {
             WasmEdge::AST::TableType(
                 conv_reftype_to_wasmedge(tt.element()->kind()), tt.limits().min,
                 tt.limits().max))) {
-    if (inst->getTableType().getRefType().isFuncRefType()) {
-      if (r && static_cast<const wasm_ref_t *>(r)->category ==
-                   wasm_category_enum::FUNC) {
-        inst->fillRefs(WasmEdge::RefVariant::makeFunc(
-                           static_cast<const wasm_func_t *>(r)->inst),
-                       0, inst->getSize());
-      } else {
-        inst->fillRefs(WasmEdge::RefVariant(
-                           WasmEdge::ValType(WasmEdge::TypeCode::FuncRef)),
-                       0, inst->getSize());
-      }
-    } else if (const auto val = make_externref(r)) {
+    if (const auto val = make_table_value(*inst, r)) {
       inst->fillRefs(*val, 0, inst->getSize());
     } else {
       delete inst;
@@ -1182,6 +1175,23 @@ make_refvariant(const wasm::Ref *ref, const WasmEdge::ValType &vt,
     return WasmEdge::RefVariant(WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
   }
   return make_externref(ref);
+}
+
+// Make the value of an element of the table `inst` from a wasm::Ref. Gives
+// nothing if the table holds neither funcref nor externref, if a non-null
+// `ref` does not fit the table, or if `ref` cannot be boxed.
+std::optional<WasmEdge::RefVariant>
+make_table_value(const WasmEdge::Runtime::Instance::TableInstance &inst,
+                 const wasm::Ref *ref) {
+  const auto &vt = inst.getTableType().getRefType();
+  if (!vt.isFuncRefType() && !vt.isExternRefType()) {
+    return std::nullopt;
+  }
+  auto val = make_refvariant(ref, vt, nullptr);
+  if (val && ref != nullptr && val->isNull()) {
+    return std::nullopt;
+  }
+  return val;
 }
 
 // Make the wasm::Val of a reference. The wasm::Val constructors only build
@@ -3032,31 +3042,11 @@ wasm::own<wasm::Ref> wasm::Table::get(wasm::Table::size_t index) const {
 
 bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
   auto *inst = static_cast<wasm_table_t *>(this)->inst;
-  if (inst->getTableType().getRefType().isExternRefType()) {
-    // For the externref of the element type, set the ref.
-    const auto val = make_externref(ref);
-    if (val && inst->setRefAddr(static_cast<uint32_t>(index), *val)) {
-      return true;
-    }
-  } else if (inst->getTableType().getRefType().isFuncRefType()) {
-    // Funcref slot: ref was produced via wasm_func_as_ref, so we can recover
-    // the wasm_func_t through the wasm::Func subobject.
-    if (ref) {
-      auto *cfunc =
-          static_cast<const wasm_func_t *>(static_cast<const wasm::Func *>(
-              static_cast<const wasm::Extern *>(ref)));
-      if (cfunc->inst && inst->setRefAddr(index, WasmEdge::RefVariant::makeFunc(
-                                                     cfunc->inst))) {
-        return true;
-      }
-    } else {
-      if (inst->setRefAddr(index, WasmEdge::RefVariant(WasmEdge::ValType(
-                                      WasmEdge::TypeCode::FuncRef)))) {
-        return true;
-      }
-    }
+  if (index >= inst->getSize()) {
+    return false;
   }
-  return false;
+  const auto val = make_table_value(*inst, ref);
+  return val && inst->setRefAddr(index, *val);
 }
 
 wasm::Table::size_t wasm::Table::size() const {
@@ -3066,25 +3056,14 @@ wasm::Table::size_t wasm::Table::size() const {
 
 bool wasm::Table::grow(wasm::Table::size_t delta, const wasm::Ref *ref) {
   auto *inst = static_cast<wasm_table_t *>(this)->inst;
-  WasmEdge::RefVariant val(inst->getTableType().getRefType());
-  if (ref != nullptr) {
-    if (inst->getTableType().getRefType().isExternRefType()) {
-      if (auto ext = make_externref(ref)) {
-        val = *ext;
-      }
-    } else if (inst->getTableType().getRefType().isFuncRefType()) {
-      auto *cfunc =
-          static_cast<const wasm_func_t *>(static_cast<const wasm::Func *>(
-              static_cast<const wasm::Extern *>(ref)));
-      if (cfunc->inst) {
-        val = WasmEdge::RefVariant::makeFunc(cfunc->inst);
-      }
-    }
-    if (val.isNull()) {
-      return false;
-    }
+  if (delta == 0) {
+    return true;
   }
-  return inst->growTable(static_cast<uint32_t>(delta), val);
+  if (!inst->canGrow(delta)) {
+    return false;
+  }
+  const auto val = make_table_value(*inst, ref);
+  return val && inst->growTable(delta, *val);
 }
 
 // <<<<<<<< wasm::Table functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

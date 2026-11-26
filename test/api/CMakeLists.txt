@@ -23,6 +23,8 @@ add_test(wasmedgeAPIWasmCUnitTests wasmedgeAPIWasmCUnitTests)
 target_include_directories(wasmedgeAPIWasmCUnitTests
   PUBLIC
   ${PROJECT_SOURCE_DIR}/thirdparty/wasm
+  PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(wasmedgeAPIWasmCUnitTests

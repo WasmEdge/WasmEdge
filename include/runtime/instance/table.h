@@ -94,11 +94,8 @@ public:
            Offset + Length <= Limit;
   }
 
-  /// Grow table with initialization value.
-  bool growTable(const uint64_t Count, const RefVariant &Val) noexcept {
-    if (Count == 0) {
-      return true;
-    }
+  /// Whether the limits of the table allow it to grow by `Count` elements.
+  bool canGrow(const uint64_t Count) const noexcept {
     uint64_t MaxSizeCaped = getMaxAddress(TabType.getLimit().getAddrType());
     const uint64_t Min = TabType.getLimit().getMin();
     assuming(MaxSizeCaped >= Min);
@@ -106,7 +103,15 @@ public:
       const uint64_t Max = TabType.getLimit().getMax();
       MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
-    if (Count > MaxSizeCaped - Min) {
+    return Count <= MaxSizeCaped - Min;
+  }
+
+  /// Grow table with initialization value.
+  bool growTable(const uint64_t Count, const RefVariant &Val) noexcept {
+    if (Count == 0) {
+      return true;
+    }
+    if (!canGrow(Count)) {
       return false;
     }
     return growRefs(Count, Val);

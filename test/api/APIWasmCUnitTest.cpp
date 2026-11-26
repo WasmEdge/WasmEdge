@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "runtime/refheap.h"
 #include "wasm.h"
 
 #include "gtest/gtest.h"
@@ -1025,6 +1026,30 @@ TEST(APIWasmCTest, Table) {
   EXPECT_TRUE(wasm_table_grow(table, 1, nullptr));
   EXPECT_EQ(2U, wasm_table_size(table));
   EXPECT_FALSE(wasm_table_grow(nullptr, 1, nullptr));
+
+  // A rejected set or grow does not box its reference.
+  {
+    auto *Heap = WasmEdge::Runtime::RefHeap::getGlobal();
+    ASSERT_NE(nullptr, Heap);
+    int Before = 0;
+    int After = 0;
+    auto BoxBefore = Heap->boxExtern(&Before);
+    ASSERT_TRUE(BoxBefore);
+    wasm_foreign_t *unboxed = wasm_foreign_new(store);
+    ASSERT_NE(nullptr, unboxed);
+    wasm_ref_t *unboxed_ref = wasm_foreign_as_ref(unboxed);
+    EXPECT_FALSE(wasm_table_set(table, 100, unboxed_ref));
+    EXPECT_TRUE(wasm_table_grow(table, 0, unboxed_ref));
+    EXPECT_FALSE(wasm_table_grow(table, 10, unboxed_ref));
+    EXPECT_EQ(2U, wasm_table_size(table));
+    auto BoxAfter = Heap->boxExtern(&After);
+    ASSERT_TRUE(BoxAfter);
+    EXPECT_EQ(Heap->getOffset(*BoxAfter),
+              Heap->getOffset(*BoxBefore) +
+                  WasmEdge::Runtime::RefHeap::getSlotSize(
+                      WasmEdge::Runtime::HeapKind::ExternBox));
+    wasm_foreign_delete(unboxed);
+  }
 
   // as_extern.
   wasm_extern_t *as_ext = wasm_table_as_extern(table);

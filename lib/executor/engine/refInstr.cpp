@@ -545,36 +545,36 @@ Executor::structNew(const Runtime::Instance::ModuleInstance *ModInstArg,
                                 View.getOffset());
 }
 
-Expect<ValVariant>
-Executor::structGet(const Runtime::Instance::ModuleInstance *ModInst,
-                    const RefVariant Ref, const uint32_t TypeIdx,
-                    const uint32_t Off, const bool IsSigned) const noexcept {
+Expect<Executor::StructField>
+Executor::getStructField(const Runtime::Instance::ModuleInstance *ModInst,
+                         const RefVariant &Ref, const uint32_t TypeIdx,
+                         const uint32_t Off) const noexcept {
   EXPECTED_TRY(const auto View, getDataView(Ref, Runtime::HeapKind::Struct));
   const auto &VType = getStructStorageTypeByIdx(ModInst, TypeIdx, Off);
   const auto Positions =
       Runtime::CanonicalTypeTable::getGlobal().getFieldPositions(
           ModInst->getCanonicalTypeId(TypeIdx));
   assuming(Off < Positions.size());
-  EXPECTED_TRY(const uint8_t *Field,
+  EXPECTED_TRY(uint8_t *Addr,
                getFieldSpan(View, Positions[Off],
                             Runtime::CanonicalTypeTable::getFieldSize(VType)));
-  return readField(Field, VType, IsSigned);
+  return StructField{VType, Addr};
+}
+
+Expect<ValVariant>
+Executor::structGet(const Runtime::Instance::ModuleInstance *ModInst,
+                    const RefVariant Ref, const uint32_t TypeIdx,
+                    const uint32_t Off, const bool IsSigned) const noexcept {
+  EXPECTED_TRY(const auto Field, getStructField(ModInst, Ref, TypeIdx, Off));
+  return readField(Field.Addr, Field.Type, IsSigned);
 }
 
 Expect<void>
 Executor::structSet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const ValVariant Val,
                     const uint32_t TypeIdx, const uint32_t Off) const noexcept {
-  EXPECTED_TRY(const auto View, getDataView(Ref, Runtime::HeapKind::Struct));
-  const auto &VType = getStructStorageTypeByIdx(ModInst, TypeIdx, Off);
-  const auto Positions =
-      Runtime::CanonicalTypeTable::getGlobal().getFieldPositions(
-          ModInst->getCanonicalTypeId(TypeIdx));
-  assuming(Off < Positions.size());
-  EXPECTED_TRY(uint8_t *Field,
-               getFieldSpan(View, Positions[Off],
-                            Runtime::CanonicalTypeTable::getFieldSize(VType)));
-  writeField(Field, VType, Val);
+  EXPECTED_TRY(const auto Field, getStructField(ModInst, Ref, TypeIdx, Off));
+  writeField(Field.Addr, Field.Type, Val);
   return {};
 }
 

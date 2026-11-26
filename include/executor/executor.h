@@ -581,6 +581,18 @@ private:
   Expect<Runtime::RefHeap::DataView>
   getDataView(const RefVariant &Ref,
               const Runtime::HeapKind Kind) const noexcept;
+
+  /// A field of a struct: its storage type and its checked address.
+  struct StructField {
+    const ValType &Type;
+    uint8_t *Addr;
+  };
+  /// Helper function for getting the field `Off` of the struct reference
+  /// `Ref` of the defined type `TypeIdx`.
+  Expect<StructField>
+  getStructField(const Runtime::Instance::ModuleInstance *ModInst,
+                 const RefVariant &Ref, const uint32_t TypeIdx,
+                 const uint32_t Off) const noexcept;
   /// @}
 
   /// \name Interpreter - Run instructions functions

@@ -19,6 +19,8 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinn_chattts.cpp
   wasinn_mlx.cpp
   wasinn_bitnet.cpp
+  wasinn_sigmastar_ipu.cpp
+  sigs_qwen2.cpp
 )
 
 include(WASINNDeps)
@@ -97,6 +99,29 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       target_compile_definitions(wasmedgePluginWasiNN PRIVATE GGML_HIP=${GGML_HIP} GPU_TARGETS=${GPU_TARGETS})
       target_link_libraries(wasmedgePluginWasiNN PRIVATE hip::host roc::hipblas)
     endif()
+  endif()
+
+  # SigmaStar IPU backend: link sgs_transformers + MI runtime (vendor SDK).
+  if(BACKEND STREQUAL "sigmastar_ipu")
+    if(NOT DEFINED SGS_LIB_DIR OR NOT DEFINED SGS_INCLUDE_DIR OR NOT DEFINED SGS_SDK_INCLUDE_DIR)
+      message(FATAL_ERROR "sigmastar_ipu backend requires -DSGS_LIB_DIR, -DSGS_INCLUDE_DIR, -DSGS_SDK_INCLUDE_DIR")
+    endif()
+    target_include_directories(wasmedgePluginWasiNN PRIVATE
+      ${SGS_INCLUDE_DIR}
+      ${SGS_SDK_INCLUDE_DIR}
+    )
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+      ${SGS_LIB_DIR}/libsgs_transformers.a
+      ${SGS_LIB_DIR}/libutils_npy.a
+      ${SGS_LIB_DIR}/libutils_buffer.a
+      ${SGS_LIB_DIR}/libutils_common.a
+      ${SGS_LIB_DIR}/libsgsalgo_sampler.a
+      ${SGS_LIB_DIR}/libsgsalgo_processor.a
+    )
+    target_link_directories(wasmedgePluginWasiNN PRIVATE ${SIGMASTAR_MI_LIB_DIR})
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+      mi_ipu mi_sys mi_common cam_os_wrapper cam_fs_wrapper stdc++fs pthread
+    )
   endif()
 endforeach()
 

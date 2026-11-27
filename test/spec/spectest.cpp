@@ -118,7 +118,7 @@ static void parseSIMDLanes(WasmEdge::uint128_t &V128,
   if constexpr (Endian::native == Endian::big) {
     std::reverse(V, V + 16 / N);
   }
-  std::memcpy(&V128, &V, 16);
+  std::memcpy(static_cast<void *>(&V128), &V, 16);
 }
 
 // Helper function to parse parameters from JSON to a vector of values.

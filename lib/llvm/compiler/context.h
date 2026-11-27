@@ -181,7 +181,7 @@ struct Compiler::CompileContext {
     auto Ty = Globals[Index];
     auto Array = Builder.createExtractValue(ModCtx, 4);
     auto VPtr = Builder.createLoad(
-        Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
+        Int128PtrTy, Builder.createInBoundsGEP1(Int128PtrTy, Array,
                                                 LLContext.getInt64(Index)));
     VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                      LLVM::Metadata(LLContext, {}));

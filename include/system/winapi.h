@@ -1120,6 +1120,13 @@ using PROC_ = int(WASMEDGE_WINAPI_WINAPI_CC *)();
 using CONTEXT_ = struct _CONTEXT;
 using PCONTEXT_ = CONTEXT_ *;
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+using RUNTIME_FUNCTION_ = struct _IMAGE_ARM64_RUNTIME_FUNCTION_ENTRY {
+  DWORD_ BeginAddress;
+  DWORD_ UnwindData;
+};
+static_assert(sizeof(RUNTIME_FUNCTION_) == 8);
+#else
 using RUNTIME_FUNCTION_ = struct _IMAGE_RUNTIME_FUNCTION_ENTRY {
   DWORD_ BeginAddress;
   DWORD_ EndAddress;
@@ -1128,6 +1135,8 @@ using RUNTIME_FUNCTION_ = struct _IMAGE_RUNTIME_FUNCTION_ENTRY {
     DWORD_ UnwindData;
   } DUMMYUNIONNAME;
 };
+static_assert(sizeof(RUNTIME_FUNCTION_) == 12);
+#endif
 using PRUNTIME_FUNCTION_ = RUNTIME_FUNCTION_ *;
 
 using SYMBOL_INFOW_ = struct _SYMBOL_INFOW {
@@ -1347,6 +1356,11 @@ VirtualFree(WasmEdge::winapi::LPVOID_ lpAddress,
             WasmEdge::winapi::DWORD_ dwFreeType);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+FlushInstructionCache(WasmEdge::winapi::HANDLE_ hProcess,
+                      WasmEdge::winapi::LPCVOID_ lpBaseAddress,
+                      WasmEdge::winapi::SIZE_T_ dwSize);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 VirtualProtect(WasmEdge::winapi::LPVOID_ lpAddress,
                WasmEdge::winapi::SIZE_T_ dwSize,
                WasmEdge::winapi::DWORD_ flNewProtect,
@@ -1356,6 +1370,7 @@ VirtualProtect(WasmEdge::winapi::LPVOID_ lpAddress,
 
 namespace WasmEdge::winapi {
 using ::CoTaskMemFree;
+using ::FlushInstructionCache;
 using ::LocalFree;
 using ::VirtualAlloc;
 using ::VirtualFree;

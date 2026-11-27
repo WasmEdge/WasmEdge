@@ -133,7 +133,8 @@ TEST(VMSnapshotTest, RoundTrip) {
       ASSERT_TRUE(Module);
       ASSERT_TRUE(TestVM.getValidator().validate(**Module));
       LLVM::Compiler Compiler(Conf);
-      auto CompiledData = Compiler.compile(**Module);
+      auto CompiledData =
+          Compiler.compile(**Module, LLVM::Compiler::Consumer::CodeGen);
       ASSERT_TRUE(CompiledData);
       LLVM::CodeGen CodeGen(Conf);
       ASSERT_TRUE(

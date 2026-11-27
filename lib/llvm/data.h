@@ -18,6 +18,7 @@ struct WasmEdge::LLVM::Data::DataContext {
 #endif
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
+  bool NativeLinker = false;
   DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
   void resetModule() noexcept {
     LLModule = LLVM::Module(getLLContext(), "wasm");

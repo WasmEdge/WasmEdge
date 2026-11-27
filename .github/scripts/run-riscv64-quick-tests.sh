@@ -80,6 +80,7 @@ QUICK_TESTS="
 
 run_test() {
   local test_name="$1"
+  shift
   local test_bin test_dir rel_lib
 
   test_bin=$(find build/test -type f -executable -name "${test_name}" 2>/dev/null | head -1)
@@ -96,9 +97,9 @@ run_test() {
     ( cd "${test_dir}" && timeout "$TIMEOUT" qemu-riscv64-static \
       -L /usr/riscv64-linux-gnu \
       -E LD_LIBRARY_PATH="/usr/lib/riscv64-linux-gnu:${rel_lib}" \
-      "./${test_name}" )
+      "./${test_name}" "$@" )
   else
-    ( cd "${test_dir}" && timeout "$TIMEOUT" env LD_LIBRARY_PATH="${rel_lib}" "./${test_name}" )
+    ( cd "${test_dir}" && timeout "$TIMEOUT" env LD_LIBRARY_PATH="${rel_lib}" "./${test_name}" "$@" )
   fi
 }
 
@@ -111,6 +112,40 @@ for test_name in ${QUICK_TESTS}; do
     failed=$((failed + 1))
   fi
 done
+
+# Run a filter that must execute at least one test and skip none, so a
+# renamed test cannot pass this gate by matching nothing.
+run_required() {
+  local name="$1" filter="$2" output
+  output=$(mktemp)
+  if run_test wasmedgeLLVMCoreTests --gtest_filter="$filter" | tee "$output" &&
+    grep -Eq '^\[  PASSED  \] [1-9][0-9]* tests?\.' "$output" &&
+    ! grep -q '\[  SKIPPED \]' "$output"; then
+    echo "PASSED: wasmedgeLLVMCoreTests (${name})"
+  else
+    echo "FAILED: wasmedgeLLVMCoreTests (${name})"
+    failed=$((failed + 1))
+  fi
+  rm -f "$output"
+}
+
+if [ ! -x build/test/llvm/wasmedgeLLVMCoreTests ]; then
+  echo "FAILED: wasmedgeLLVMCoreTests (required binary not found)"
+  failed=$((failed + 1))
+else
+  run_required "native linker AOT tests" 'AOTLinker.NativeLinker*'
+  output=$(mktemp)
+  if run_test wasmedgeLLVMCoreTests \
+      --gtest_filter='LinkerHostTest.*:RISCVRelocationTest.*' |
+      tee "$output" &&
+    grep -Eq '^\[  PASSED  \] [1-9][0-9]* tests?\.' "$output"; then
+    echo "PASSED: wasmedgeLLVMCoreTests (RISC-V linker subset)"
+  else
+    echo "FAILED: wasmedgeLLVMCoreTests (RISC-V linker subset)"
+    failed=$((failed + 1))
+  fi
+  rm -f "$output"
+fi
 
 echo "=== Quick Test Suite Complete ==="
 if [ "$failed" -gt 0 ]; then

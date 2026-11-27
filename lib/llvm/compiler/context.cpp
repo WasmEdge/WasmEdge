@@ -42,24 +42,29 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
       Int8PtrTy(Int8Ty.getPointerTo()), Int32PtrTy(Int32Ty.getPointerTo()),
       Int64PtrTy(Int64Ty.getPointerTo()), Int128PtrTy(Int128Ty.getPointerTo()),
       Int8PtrPtrTy(Int8PtrTy.getPointerTo()),
-      ModCtxTy(
-          LLVM::Type::getStructType("ModCtx",
-                                    std::initializer_list<LLVM::Type>{
-                                        // MemoryPtrs
-                                        Int8PtrTy.getPointerTo(),
-                                        // MemorySizes
-                                        Int64PtrTy.getPointerTo(),
-                                        // TableRefs
-                                        Int64x2Ty.getPointerTo().getPointerTo(),
-                                        // TableSizes
-                                        Int64PtrTy.getPointerTo(),
-                                        // Globals
-                                        Int128PtrTy.getPointerTo(),
-                                        // ModuleInst
-                                        Int8PtrTy,
-                                        // Tags
-                                        Int8PtrPtrTy,
-                                    })),
+      ModCtxTy(LLVM::Type::getStructType(
+          "ModCtx",
+          std::initializer_list<LLVM::Type>{
+#if WASMEDGE_ALLOCATOR_IS_STABLE
+              // MemoryPtrs
+              Int8PtrTy.getPointerTo(),
+#else
+              // MemoryPtrs
+              Int8PtrPtrTy.getPointerTo(),
+#endif
+              // MemorySizes
+              Int64PtrTy.getPointerTo(),
+              // TableRefs
+              Int64x2Ty.getPointerTo().getPointerTo().getPointerTo(),
+              // TableSizes
+              Int64PtrTy.getPointerTo(),
+              // Globals
+              Int128PtrTy.getPointerTo(),
+              // ModuleInst
+              Int8PtrTy,
+              // Tags
+              Int8PtrPtrTy,
+          })),
       ModCtxPtrTy(ModCtxTy.getPointerTo()),
       ExecCtxTy(LLVM::Type::getStructType(
           "ExecCtx",

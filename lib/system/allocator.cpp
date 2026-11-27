@@ -19,6 +19,10 @@
 #include <cstring>
 #endif
 
+#if !WASMEDGE_OS_WINDOWS && defined(HAVE_MMAP)
+#include <unistd.h>
+#endif
+
 namespace WasmEdge {
 
 namespace {
@@ -184,13 +188,29 @@ void Allocator::release_chunk(uint8_t *Pointer,
 #endif
 }
 
+uint64_t Allocator::chunk_page_size() noexcept {
+#if !WASMEDGE_OS_WINDOWS && defined(HAVE_MMAP)
+  if (const long Size = sysconf(_SC_PAGESIZE); Size > 0) {
+    return static_cast<uint64_t>(Size);
+  }
+#endif
+  return UINT64_C(4096);
+}
+
 bool Allocator::set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept {
 #if WASMEDGE_OS_WINDOWS
   winapi::DWORD_ OldPerm;
   return winapi::VirtualProtect(Pointer, Size, winapi::PAGE_EXECUTE_READ_,
-                                &OldPerm) != 0;
+                                &OldPerm) != 0 &&
+         winapi::FlushInstructionCache(winapi::GetCurrentProcess(), Pointer,
+                                       Size) != 0;
 #elif defined(HAVE_MMAP)
-  return mprotect(Pointer, Size, PROT_EXEC | PROT_READ) == 0;
+  if (mprotect(Pointer, Size, PROT_EXEC | PROT_READ) != 0) {
+    return false;
+  }
+  __builtin___clear_cache(reinterpret_cast<char *>(Pointer),
+                          reinterpret_cast<char *>(Pointer + Size));
+  return true;
 #else
   return true;
 #endif

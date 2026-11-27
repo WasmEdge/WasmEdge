@@ -76,6 +76,13 @@ if(DEFINED WASMEDGE_USE_CXX11_ABI)
   unset(WASMEDGE_USE_CXX11_ABI CACHE)
   unset(WASMEDGE_USE_CXX11_ABI)
 endif()
+if(WASMEDGE_USE_LLVM AND CMAKE_SIZEOF_VOID_P EQUAL 4 AND
+    CMAKE_SYSTEM_PROCESSOR MATCHES "^([iI][3-6]86|x86|X86|x86_64|AMD64|amd64)$")
+  message(FATAL_ERROR "AOT compilation does not support 32-bit x86 with "
+    "either linker. Configure with -DWASMEDGE_USE_LLVM=OFF.")
+endif()
+include(CMakeDependentOption)
+cmake_dependent_option(WASMEDGE_USE_LLD "Link liblld as the default AOT linker and add the --enable-native-linker option. When OFF, lld is not required and AOT output always uses the native linker." ON "WASMEDGE_USE_LLVM" OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)

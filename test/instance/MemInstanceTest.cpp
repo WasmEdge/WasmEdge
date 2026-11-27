@@ -12,7 +12,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/config.h"
 #include "common/configure.h"
+#include "common/defines.h"
 #include "common/spdlog.h"
 #include "common/types.h"
 #include "runtime/instance/memory.h"
@@ -50,6 +52,31 @@ TEST(AllocatorTest, ShrinkAndRegrow) {
       std::all_of(Pointer, Pointer + PageSize, [](Byte B) { return B == 0; }));
   Allocator::release(Pointer, 1);
 }
+
+#if WASMEDGE_OS_WINDOWS ||                                                     \
+    (defined(HAVE_MMAP) &&                                                     \
+     (defined(__x86_64__) || defined(__aarch64__) ||                           \
+      (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)))
+TEST(AllocatorTest, ResizeStaysInReservedRegion) {
+  constexpr uint64_t MaxPageCount =
+      UINT64_C(0x200000000) / Runtime::Instance::MemoryInstance::kPageSize;
+  EXPECT_EQ(Allocator::allocate(MaxPageCount + 1), nullptr);
+  auto *Pointer = Allocator::allocate(1);
+  ASSERT_NE(Pointer, nullptr);
+  EXPECT_EQ(Allocator::resize(Pointer, 1, MaxPageCount + 1), nullptr);
+  Allocator::release(Pointer, 1);
+}
+
+TEST(MemInstanceTest, GrowStaysInReservedRegion) {
+  constexpr uint64_t MaxPageCount =
+      UINT64_C(0x200000000) / Runtime::Instance::MemoryInstance::kPageSize;
+  Runtime::Instance::MemoryInstance Mem(AST::MemoryType(AST::Limit(1, true)));
+  EXPECT_FALSE(Mem.growPage(MaxPageCount));
+  EXPECT_EQ(Mem.getPageSize(), 1U);
+  ASSERT_TRUE(Mem.growPage(1));
+  EXPECT_EQ(Mem.getPageSize(), 2U);
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Memory page limit tests (formerly MemLimitTest).
@@ -94,6 +121,26 @@ TEST(TableInstanceTest, ShrinkAndRegrow) {
   EXPECT_EQ(*SizePtr, 0U);
   ASSERT_TRUE(Table.growTable(1));
   EXPECT_TRUE(Table.getRefAddr(0)->isNull());
+}
+
+TEST(TableInstanceTest, SizeLimit) {
+  Runtime::Instance::TableInstance Clamped(AST::TableType(TypeCode::FuncRef, 5),
+                                           2);
+  EXPECT_EQ(Clamped.getSize(), 2U);
+  EXPECT_EQ(*Clamped.getSizePtr(), 2U);
+  EXPECT_FALSE(Clamped.growTable(1));
+
+  Runtime::Instance::TableInstance Table(
+      AST::TableType(TypeCode::FuncRef, 1, 8), 4);
+  EXPECT_EQ(Table.getSizeLimit(), 4U);
+  EXPECT_FALSE(Table.growTable(4));
+  ASSERT_TRUE(Table.growTable(3));
+  EXPECT_EQ(Table.getSize(), 4U);
+  EXPECT_FALSE(Table.growTable(1));
+
+  Runtime::Instance::TableInstance Unlimited(
+      AST::TableType(TypeCode::FuncRef, 1, 8));
+  EXPECT_TRUE(Unlimited.growTable(7));
 }
 
 TEST(MemInstanceTest, Limit__Pages) {

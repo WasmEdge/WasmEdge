@@ -33,6 +33,13 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
     ModInst.addMemory(MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
     const auto Index = ModInst.getMemoryNum() - 1;
     Runtime::Instance::MemoryInstance *MemInst = *ModInst.getMemory(Index);
+    if (MemInst->getDataPtr() == nullptr) {
+      const auto &Lim = MemType.getLimit();
+      spdlog::error(ErrCode::Value::AllocationFailed);
+      spdlog::error(
+          ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+      return Unexpect(ErrCode::Value::AllocationFailed);
+    }
     // Set the memory pointers of instantiated memories.
 #if WASMEDGE_ALLOCATOR_IS_STABLE
     ModInst.MemoryPtrs[Index] = MemInst->getDataPtr();

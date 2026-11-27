@@ -93,8 +93,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
-  // This function will always success.
-  instantiate(*ModInst, MemSec);
+  EXPECTED_TRY(instantiate(*ModInst, MemSec)
+                   .map_error(ReportError(ASTNodeAttr::Sec_Memory)));
 
   // Instantiate TagSection (TagSec)
   const AST::TagSection &TagSec = Mod.getTagSection();

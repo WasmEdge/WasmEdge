@@ -1026,6 +1026,17 @@ TEST(APIWasmCTest, Table) {
   EXPECT_EQ(2U, wasm_table_size(table));
   EXPECT_FALSE(wasm_table_grow(nullptr, 1, nullptr));
 
+  // grow: the table size limit of the engine applies.
+  wasm_limits_t limits_nomax = {1, wasm_limits_max_default};
+  wasm_tabletype_t *ttype_nomax =
+      wasm_tabletype_new(wasm_valtype_new(WASM_EXTERNREF), &limits_nomax);
+  wasm_table_t *table_nomax = wasm_table_new(store, ttype_nomax, nullptr);
+  ASSERT_NE(nullptr, table_nomax);
+  EXPECT_FALSE(wasm_table_grow(table_nomax, 10000000, nullptr));
+  EXPECT_EQ(1U, wasm_table_size(table_nomax));
+  wasm_table_delete(table_nomax);
+  wasm_tabletype_delete(ttype_nomax);
+
   // as_extern.
   wasm_extern_t *as_ext = wasm_table_as_extern(table);
   ASSERT_NE(nullptr, as_ext);

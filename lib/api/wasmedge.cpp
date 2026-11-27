@@ -1008,6 +1008,22 @@ WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetMaxTableSize(WasmEdge_ConfigureContext *Cxt,
+                                  const uint64_t Size) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setMaxTableSize(Size);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxTableSize(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().getMaxTableSize();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetMaxStackSize(WasmEdge_ConfigureContext *Cxt,
                                   const uint64_t Size) noexcept {
   if (Cxt) {
@@ -2804,6 +2820,21 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_FunctionInstanceDelete(
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
 WasmEdge_TableInstanceCreate(
     const WasmEdge_TableTypeContext *TabType) noexcept {
+  return WasmEdge_TableInstanceCreateWithSizeLimit(
+      TabType, WasmEdge::getMaxAddress(WasmEdge::AddressType::I64));
+}
+
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
+WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
+                                     const WasmEdge_Value Value) noexcept {
+  return WasmEdge_TableInstanceCreateWithInitAndSizeLimit(
+      TabType, Value, WasmEdge::getMaxAddress(WasmEdge::AddressType::I64));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
+WasmEdge_TableInstanceCreateWithSizeLimit(
+    const WasmEdge_TableTypeContext *TabType,
+    const uint64_t SizeLimit) noexcept {
   try {
     if (TabType) {
       const AST::TableType &TType = *fromTabTypeCxt(TabType);
@@ -2812,8 +2843,10 @@ WasmEdge_TableInstanceCreate(
         return nullptr;
       }
       auto TabInst =
-          std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(TType);
-      if (TabInst->getSize() != TType.getLimit().getMin()) {
+          std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
+              TType, SizeLimit);
+      if (TabInst->getSize() !=
+          std::min(TType.getLimit().getMin(), SizeLimit)) {
         spdlog::error(WasmEdge::ErrCode::Value::AllocationFailed);
         return nullptr;
       }
@@ -2825,9 +2858,10 @@ WasmEdge_TableInstanceCreate(
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
-WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
-                                     const WasmEdge_Value Value) noexcept {
+WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
+WasmEdge_TableInstanceCreateWithInitAndSizeLimit(
+    const WasmEdge_TableTypeContext *TabType, const WasmEdge_Value Value,
+    const uint64_t SizeLimit) noexcept {
   try {
     if (TabType) {
       // A reference matches by its value. The new table is out of any module.
@@ -2849,9 +2883,10 @@ WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
         return nullptr;
       }
       auto TabInst =
-          std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(TType,
-                                                                       Val);
-      if (TabInst->getSize() != TType.getLimit().getMin()) {
+          std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
+              TType, Val, SizeLimit);
+      if (TabInst->getSize() !=
+          std::min(TType.getLimit().getMin(), SizeLimit)) {
         spdlog::error(WasmEdge::ErrCode::Value::AllocationFailed);
         return nullptr;
       }
@@ -2948,10 +2983,24 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) noexcept {
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(
     const WasmEdge_MemoryTypeContext *MemType) noexcept {
+  return WasmEdge_MemoryInstanceCreateWithPageLimit(
+      MemType, WasmEdge::Runtime::Instance::MemoryInstance::kPageLimit64);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
+WasmEdge_MemoryInstanceCreateWithPageLimit(
+    const WasmEdge_MemoryTypeContext *MemType,
+    const uint64_t PageLimit) noexcept {
   try {
     if (MemType) {
-      return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-          *fromMemTypeCxt(MemType)));
+      auto MemInst =
+          std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+              *fromMemTypeCxt(MemType), PageLimit);
+      if (MemInst->getDataPtr() == nullptr) {
+        spdlog::error(WasmEdge::ErrCode::Value::AllocationFailed);
+        return nullptr;
+      }
+      return toMemCxt(MemInst.release());
     }
   } catch (...) {
     handleCAPIError();

@@ -88,6 +88,11 @@ struct DriverToolOptions : public DriverProposalOptions,
                 "instance. Upper bound can be specified as --memory-page-limit "
                 "`PAGE_COUNT`."sv),
             PO::MetaVar("PAGE_COUNT"sv)),
+        TabLim(PO::Description(
+                   "Limitation of elements in every table instance, default "
+                   "value is 10000000. Upper bound can be specified as "
+                   "--table-size-limit `TABLE_SIZE`."sv),
+               PO::MetaVar("TABLE_SIZE"sv)),
         StackLim(PO::Description(
                      "Limitation of stack size (in bytes) for execution, "
                      "default value is 0 for the engine default (8 MiB for "
@@ -117,6 +122,7 @@ struct DriverToolOptions : public DriverProposalOptions,
   PO::Option<uint64_t> TimeLim;
   PO::List<uint64_t> GasLim;
   PO::List<uint64_t> MemLim;
+  PO::List<uint64_t> TabLim;
   PO::Option<uint64_t> StackLim;
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
@@ -151,7 +157,8 @@ public:
     Parser.add_option("dir"sv, Dir)
         .add_option("env"sv, Env)
         .add_option("module"sv, LinkedModules)
-        .add_option("memory-page-limit"sv, MemLim);
+        .add_option("memory-page-limit"sv, MemLim)
+        .add_option("table-size-limit"sv, TabLim);
   }
 
   void addOptions(PO::ArgumentParser &Parser) noexcept {
@@ -178,6 +185,8 @@ std::optional<std::filesystem::path>
 getInputPath(const struct DriverToolOptions &Opt) noexcept;
 void setMemoryPageLimit(const struct DriverToolOptions &Opt,
                         Configure &Conf) noexcept;
+void setTableSizeLimit(const struct DriverToolOptions &Opt,
+                       Configure &Conf) noexcept;
 bool registerLinkedModules(const struct DriverToolOptions &Opt,
                            VM::VM &VM) noexcept;
 

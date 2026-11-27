@@ -1098,6 +1098,10 @@ E(InvalidMemPages64, 0x0229, "memory size")
 E(InvalidTableSize64, 0x022A, "table size")
 // Offset out of range (Mem64 proposal)
 E(InvalidOffset, 0x022B, "offset out of range")
+// #Tables > implementation limit
+E(TooManyTables, 0x022C, "too many tables")
+// #Memories > implementation limit
+E(TooManyMemories, 0x022D, "too many memories")
 // @}
 
 // Component model validation phase

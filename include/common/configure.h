@@ -116,10 +116,14 @@ public:
   /// and the native stack of compiled code.
   static constexpr uint64_t DefaultInterpreterStackSize = UINT64_C(8) << 20;
   static constexpr uint64_t DefaultCompiledStackSize = UINT64_C(512) << 10;
+  /// Maximum numbers of memories and tables in a module, imports included.
+  static constexpr uint32_t DefaultMaxMemoryCount = 100;
+  static constexpr uint32_t DefaultMaxTableCount = 100;
 
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        MaxTableSize(RHS.MaxTableSize.load(std::memory_order_relaxed)),
         MaxStackSize(RHS.MaxStackSize.load(std::memory_order_relaxed)),
         Mode(RHS.Mode.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
@@ -132,6 +136,14 @@ public:
 
   uint64_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
+  }
+
+  void setMaxTableSize(const uint64_t Size) noexcept {
+    MaxTableSize.store(Size, std::memory_order_relaxed);
+  }
+
+  uint64_t getMaxTableSize() const noexcept {
+    return MaxTableSize.load(std::memory_order_relaxed);
   }
 
   void setMaxStackSize(const uint64_t Size) noexcept {
@@ -176,6 +188,7 @@ public:
 
 private:
   std::atomic<uint64_t> MaxMemPage = 65536;
+  std::atomic<uint64_t> MaxTableSize = 10000000;
   // Max stack bytes per execution: heap stack (interpreter) or native stack
   // (compiled). 0 selects the engine default.
   std::atomic<uint64_t> MaxStackSize = 0;

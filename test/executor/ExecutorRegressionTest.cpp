@@ -2288,6 +2288,72 @@ TEST(ExecutorRegression, ScalarNaNResultsAreArithmeticJIT) {
 }
 #endif
 
+/// The table size limit of the configuration bounds the initial size and the
+/// growth of a table.
+void checkTableSizeLimit(const Configure &Conf) {
+  // (module
+  //   (table 5 funcref)
+  //   (func (export "grow") (param i32) (result i32)
+  //     ref.null func
+  //     local.get 0
+  //     table.grow 0)
+  //   (func (export "get") (param i32) (result funcref)
+  //     local.get 0
+  //     table.get 0))
+  std::array<WasmEdge::Byte, 68> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x02, 0x60,
+      0x01, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x70, 0x03, 0x03, 0x02,
+      0x00, 0x01, 0x04, 0x04, 0x01, 0x70, 0x00, 0x05, 0x07, 0x0e, 0x02, 0x04,
+      0x67, 0x72, 0x6f, 0x77, 0x00, 0x00, 0x03, 0x67, 0x65, 0x74, 0x00, 0x01,
+      0x0a, 0x12, 0x02, 0x09, 0x00, 0xd0, 0x70, 0x20, 0x00, 0xfc, 0x0f, 0x00,
+      0x0b, 0x06, 0x00, 0x20, 0x00, 0x25, 0x00, 0x0b};
+
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I32)};
+  const auto Grow = [&ParamTypes](VM::VM &VM, uint32_t Count) -> uint32_t {
+    auto Result = VM.execute("grow", {ValVariant(Count)}, ParamTypes);
+    EXPECT_TRUE(Result);
+    return Result ? (*Result)[0].first.get<uint32_t>() : 0U;
+  };
+
+  // A minimum above the limit creates the table with the limit as its size.
+  Configure ClampConf(Conf);
+  ClampConf.getRuntimeConfigure().setMaxTableSize(2);
+  VM::VM ClampVM(ClampConf);
+  ASSERT_TRUE(ClampVM.loadWasm(Wasm));
+  ASSERT_TRUE(ClampVM.validate());
+  ASSERT_TRUE(ClampVM.instantiate());
+  EXPECT_EQ(
+      ClampVM.getActiveModule()->findFuncExports("get")->isCompiledFunction(),
+      Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT);
+  EXPECT_EQ(Grow(ClampVM, 0U), 2U);
+  EXPECT_EQ(Grow(ClampVM, 1U), UINT32_MAX);
+  EXPECT_TRUE(ClampVM.execute("get", {ValVariant(UINT32_C(1))}, ParamTypes));
+  auto Result = ClampVM.execute("get", {ValVariant(UINT32_C(2))}, ParamTypes);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::TableOutOfBounds);
+
+  // The growth stops at the limit.
+  Configure GrowConf(Conf);
+  GrowConf.getRuntimeConfigure().setMaxTableSize(8);
+  VM::VM GrowVM(GrowConf);
+  ASSERT_TRUE(GrowVM.loadWasm(Wasm));
+  ASSERT_TRUE(GrowVM.validate());
+  ASSERT_TRUE(GrowVM.instantiate());
+  EXPECT_EQ(Grow(GrowVM, 3U), 5U);
+  EXPECT_EQ(Grow(GrowVM, 1U), UINT32_MAX);
+  EXPECT_EQ(Grow(GrowVM, 0U), 8U);
+}
+
+TEST(ExecutorRegression, TableSizeLimit) { checkTableSizeLimit(Configure()); }
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, TableSizeLimitJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkTableSizeLimit(Conf);
+}
+#endif
+
 } // namespace
 
 /// A table whose initial size cannot be allocated must fail instantiation.
@@ -2297,6 +2363,7 @@ TEST(ExecutorRegression, TableAllocationFailure) {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x0c, 0x01,
       0x70, 0x04, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x40};
   Configure Conf;
+  Conf.getRuntimeConfigure().setMaxTableSize(UINT64_MAX);
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
@@ -2320,6 +2387,7 @@ TEST(ExecutorRegression, TableGrowAllocationFailure) {
       0x14, 0x01, 0x12, 0x00, 0xd0, 0x70, 0x42, 0x80, 0x80, 0x80, 0x80, 0x80,
       0x80, 0x80, 0x80, 0xc0, 0x00, 0xfc, 0x0f, 0x00, 0x0b};
   Configure Conf;
+  Conf.getRuntimeConfigure().setMaxTableSize(UINT64_MAX);
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
@@ -2328,6 +2396,22 @@ TEST(ExecutorRegression, TableGrowAllocationFailure) {
   ASSERT_TRUE(Result);
   ASSERT_EQ(Result->size(), 1U);
   EXPECT_EQ((*Result)[0].first.get<uint64_t>(), UINT64_MAX);
+}
+
+/// A memory whose initial size cannot be allocated must fail instantiation.
+TEST(ExecutorRegression, MemoryAllocationFailure) {
+  // (module (memory i64 0x10000000000))
+  std::array<WasmEdge::Byte, 18> Wasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
+                                      0x00, 0x00, 0x05, 0x08, 0x01, 0x04,
+                                      0x80, 0x80, 0x80, 0x80, 0x80, 0x20};
+  Configure Conf;
+  Conf.getRuntimeConfigure().setMaxMemoryPage(UINT64_C(1) << 40);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  auto Result = VM.instantiate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::AllocationFailed);
 }
 
 /// A name registered by another party while a named module is being

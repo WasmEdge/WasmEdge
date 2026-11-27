@@ -175,6 +175,30 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the size limit of table instances.
+///
+/// Limit the element count in table instances. The default limit is 10000000
+/// elements.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the maximum table size.
+/// \param Size the maximum table size.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetMaxTableSize(WasmEdge_ConfigureContext *Cxt,
+                                  const uint64_t Size) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the setting of the size limit of table instances.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the maximum table size
+/// setting.
+///
+/// \returns the table size limitation value.
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxTableSize(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the stack size limit of execution.
 ///
 /// Limit the stack bytes of one execution; exceeding it traps. 0 selects the

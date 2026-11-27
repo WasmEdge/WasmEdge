@@ -30,6 +30,7 @@
 #if !WASMEDGE_OS_WINDOWS
 #include <pthread.h>
 #include <signal.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #endif
 
@@ -5739,6 +5740,171 @@ TEST(WasiTest, PollOneoffReuseAfterFailedModify) {
   closeFd(PipeFds[1]);
   closeFd(OtherPipeFds[0]);
   closeFd(OtherPipeFds[1]);
+}
+
+TEST(WasiTest, PollOneoffDropWriteInterestAcrossRealloc) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int SockFds[2] = {-1, -1};
+  ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, SockFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, SockFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+
+  const uint32_t MaxSubs = 64;
+  const uint32_t FdPtr = 0;
+  const uint32_t NEventsPtr = 4;
+  const uint32_t InPtr = 8;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * MaxSubs;
+
+  uint32_t DgramFd = 0;
+  EXPECT_TRUE(WasiSockOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+          static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_DGRAM), FdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  ASSERT_TRUE(MemInst.loadValue(DgramFd, FdPtr));
+
+  auto SetClockSub = [](__wasi_subscription_t &Sub, __wasi_userdata_t UserData,
+                        uint64_t TimeoutNs) {
+    Sub.userdata = WasmEdge::EndianValue(UserData).le();
+    Sub.u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Sub.u.u.clock.id = WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Sub.u.u.clock.timeout = WasmEdge::EndianValue(TimeoutNs).le();
+    Sub.u.u.clock.precision = WasmEdge::EndianValue<uint64_t>(1).le();
+    Sub.u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+  };
+
+  auto RunPoll = [&](uint32_t Count) -> __wasi_size_t {
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents = 0;
+    EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    return NEvents;
+  };
+
+  // Round 1: subscribe to both FD_READ and FD_WRITE on fd 0.
+  {
+    auto *Subs = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    std::fill_n(Subs, MaxSubs, __wasi_subscription_t{});
+    Subs[0].userdata = WasmEdge::EndianValue<__wasi_userdata_t>(0x11).le();
+    Subs[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subs[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    Subs[1].userdata = WasmEdge::EndianValue<__wasi_userdata_t>(0x22).le();
+    Subs[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le();
+    Subs[1].u.u.fd_write.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    const __wasi_size_t NEvents = RunPoll(2);
+    ASSERT_GE(NEvents, 1U);
+    auto *Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    bool SawWrite = false;
+    for (__wasi_size_t I = 0; I < NEvents; ++I) {
+      EXPECT_EQ(Events[I].error, __WASI_ERRNO_SUCCESS);
+      if (WasmEdge::EndianValue(Events[I].userdata).le() == UINT64_C(0x22)) {
+        SawWrite = true;
+      }
+    }
+    EXPECT_TRUE(SawWrite);
+  }
+
+  // Round 2: drop FD_WRITE on fd 0 and grow subscriptions to reallocate Events.
+  {
+    auto *Subs = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    std::fill_n(Subs, MaxSubs, __wasi_subscription_t{});
+    Subs[0].userdata = WasmEdge::EndianValue<__wasi_userdata_t>(0x33).le();
+    Subs[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subs[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    const auto TimeoutNs =
+        std::chrono::nanoseconds(std::chrono::milliseconds(10)).count();
+    for (uint32_t I = 1; I < 32; ++I) {
+      SetClockSub(Subs[I], 0x1000 + I, TimeoutNs);
+    }
+    const __wasi_size_t NEvents = RunPoll(32);
+    ASSERT_GE(NEvents, 1U);
+    auto *Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    for (__wasi_size_t I = 0; I < NEvents; ++I) {
+      EXPECT_EQ(Events[I].error, __WASI_ERRNO_SUCCESS);
+      EXPECT_EQ(WasmEdge::EndianValue(Events[I].type).le(),
+                __WASI_EVENTTYPE_CLOCK);
+      EXPECT_NE(WasmEdge::EndianValue(Events[I].userdata).le(), UINT64_C(0x22));
+    }
+  }
+
+  // Round 3: verify FD_READ on fd 0 and FD_WRITE on DgramFd still work.
+  ASSERT_EQ(::write(SockFds[1], "ping", 4), 4);
+  {
+    auto *Subs = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    std::fill_n(Subs, MaxSubs, __wasi_subscription_t{});
+    Subs[0].userdata = WasmEdge::EndianValue<__wasi_userdata_t>(0x44).le();
+    Subs[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subs[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    Subs[1].userdata = WasmEdge::EndianValue<__wasi_userdata_t>(0x55).le();
+    Subs[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le();
+    Subs[1].u.u.fd_write.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(DgramFd).le();
+    const auto TimeoutNs =
+        std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
+    for (uint32_t I = 2; I < MaxSubs; ++I) {
+      SetClockSub(Subs[I], 0x2000 + I, TimeoutNs);
+    }
+    const __wasi_size_t NEvents = RunPoll(MaxSubs);
+    ASSERT_GE(NEvents, 1U);
+    auto *Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    bool SawReady = false;
+    for (__wasi_size_t I = 0; I < NEvents; ++I) {
+      EXPECT_EQ(Events[I].error, __WASI_ERRNO_SUCCESS);
+      const auto Data = WasmEdge::EndianValue(Events[I].userdata).le();
+      if (Data == UINT64_C(0x44) || Data == UINT64_C(0x55)) {
+        SawReady = true;
+      }
+    }
+    EXPECT_TRUE(SawReady);
+  }
+  char Buf[4];
+  ASSERT_EQ(::read(SockFds[0], Buf, sizeof(Buf)), 4);
+
+  // Close DgramFd while pooled Poller holds OldFdDatas entry, then poll again.
+  EXPECT_TRUE(WasiFdClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DgramFd}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  {
+    auto *Subs = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    std::fill_n(Subs, MaxSubs, __wasi_subscription_t{});
+    Subs[0].userdata = WasmEdge::EndianValue<__wasi_userdata_t>(0x66).le();
+    Subs[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le();
+    Subs[0].u.u.fd_write.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    const __wasi_size_t NEvents = RunPoll(1);
+    ASSERT_EQ(NEvents, 1U);
+    auto *Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(WasmEdge::EndianValue(Events[0].userdata).le(), UINT64_C(0x66));
+  }
+
+  Env.fini();
+  closeFd(SockFds[0]);
+  closeFd(SockFds[1]);
 }
 #endif
 

@@ -1446,7 +1446,8 @@ WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
   WasiEvents = E;
   try {
     Events.reserve(E.size());
-    KEvents.reserve(Events.size());
+    KEvents.reserve(E.size());
+    TimerEvents.reserve(E.size());
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
@@ -1462,8 +1463,6 @@ void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
   Event.Valid = false;
   Event.userdata = UserData;
   Event.type = __WASI_EVENTTYPE_CLOCK;
-
-  const uint64_t Ident = NextTimerId++;
 
   // Identify which clock we are checking (Realtime vs Monotonic)
   clockid_t SysClockId = toClockId(ClockId);
@@ -1505,8 +1504,8 @@ void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
   }
 
   struct kevent KEvent;
-  EV_SET(&KEvent, Ident, EVFILT_TIMER, EV_ADD | EV_ENABLE, FFlags, Timeout,
-         &Event);
+  EV_SET(&KEvent, TimerEvents.size(), EVFILT_TIMER, EV_ADD | EV_ENABLE, FFlags,
+         Timeout, nullptr);
 
   if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
       unlikely(Ret < 0)) {
@@ -1514,9 +1513,25 @@ void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
     Event.error = fromErrNo(errno);
     return;
   }
+  TimerEvents.emplace_back(&Event);
 }
 
-void Poller::close(const INode &) noexcept {}
+void Poller::close(const INode &Node) noexcept {
+  FdDatas.erase(Node.Fd);
+  if (auto Iter = OldFdDatas.find(Node.Fd); Iter != OldFdDatas.end()) {
+    if (Iter->second.ReadEvent) {
+      struct kevent KEvent;
+      EV_SET(&KEvent, Node.Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+      ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+    }
+    if (Iter->second.WriteEvent) {
+      struct kevent KEvent;
+      EV_SET(&KEvent, Node.Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+      ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+    }
+    OldFdDatas.erase(Iter);
+  }
+}
 
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {
@@ -1543,7 +1558,7 @@ void Poller::read(const INode &Node, TriggerType Trigger,
     }
 
     struct kevent KEvent;
-    EV_SET(&KEvent, Node.Fd, EVFILT_READ, Flags, 0, 0, &Event);
+    EV_SET(&KEvent, Node.Fd, EVFILT_READ, Flags, 0, 0, nullptr);
 
     if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
         unlikely(Ret < 0)) {
@@ -1588,7 +1603,7 @@ void Poller::write(const INode &Node, TriggerType Trigger,
     }
 
     struct kevent KEvent;
-    EV_SET(&KEvent, Node.Fd, EVFILT_WRITE, Flags, 0, 0, &Event);
+    EV_SET(&KEvent, Node.Fd, EVFILT_WRITE, Flags, 0, 0, nullptr);
 
     if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
         unlikely(Ret < 0)) {
@@ -1641,27 +1656,65 @@ void Poller::wait() noexcept {
     }
   }
 
-  const bool HasResult =
-      std::any_of(Events.begin(), Events.end(),
-                  [](const OptionalEvent &Event) { return Event.Valid; });
-  const struct timespec NoWait = {0, 0};
-  KEvents.resize(Events.size());
-  const int Count = ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(),
-                             HasResult ? &NoWait : nullptr);
-  if (unlikely(Count < 0)) {
-    const auto Error = fromErrNo(errno);
-    for (auto &Event : Events) {
-      if (!Event.Valid) {
-        Event.Valid = true;
-        Event.error = Error;
+  int Count = 0;
+  if (!Events.empty()) {
+    const bool HasResult =
+        std::any_of(Events.begin(), Events.end(),
+                    [](const OptionalEvent &Event) { return Event.Valid; });
+    const struct timespec NoWait = {0, 0};
+    KEvents.resize(Events.size());
+    Count = ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(),
+                     HasResult ? &NoWait : nullptr);
+    if (unlikely(Count < 0)) {
+      const auto Error = fromErrNo(errno);
+      for (auto &Event : Events) {
+        if (!Event.Valid) {
+          Event.Valid = true;
+          Event.error = Error;
+        }
       }
     }
   }
 
+  auto ResolveEvent =
+      [this](const struct kevent &KEvent) noexcept -> OptionalEvent * {
+    switch (KEvent.filter) {
+    case EVFILT_TIMER:
+      if (unlikely(KEvent.ident >= TimerEvents.size())) {
+        return nullptr;
+      }
+      return TimerEvents[KEvent.ident];
+    case EVFILT_READ: {
+      const auto Iter = FdDatas.find(static_cast<int>(KEvent.ident));
+      if (unlikely(Iter == FdDatas.end())) {
+        return nullptr;
+      }
+      return Iter->second.ReadEvent;
+    }
+    case EVFILT_WRITE: {
+      const auto Iter = FdDatas.find(static_cast<int>(KEvent.ident));
+      if (unlikely(Iter == FdDatas.end())) {
+        return nullptr;
+      }
+      return Iter->second.WriteEvent;
+    }
+    default:
+      return nullptr;
+    }
+  };
+
   for (int I = 0; I < Count; ++I) {
     auto &KEvent = KEvents[I];
-    auto &Event = *reinterpret_cast<OptionalEvent *>(KEvent.udata);
+    auto *EventPtr = ResolveEvent(KEvent);
+    if (unlikely(EventPtr == nullptr)) {
+      continue;
+    }
+    auto &Event = *EventPtr;
     Event.Valid = true;
+    if (unlikely(KEvent.flags & EV_ERROR)) {
+      Event.error = fromErrNo(static_cast<int>(KEvent.data));
+      continue;
+    }
     Event.error = __WASI_ERRNO_SUCCESS;
     switch (Event.type) {
     case __WASI_EVENTTYPE_CLOCK:
@@ -1712,7 +1765,7 @@ void Poller::wait() noexcept {
     }
   }
 
-  for (uint64_t I = 0; I < NextTimerId; ++I) {
+  for (size_t I = 0; I < TimerEvents.size(); ++I) {
     struct kevent KEvent;
     EV_SET(&KEvent, I, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
     ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
@@ -1721,13 +1774,14 @@ void Poller::wait() noexcept {
   std::swap(FdDatas, OldFdDatas);
   FdDatas.clear();
   KEvents.clear();
-  NextTimerId = 0;
+  TimerEvents.clear();
   return;
 }
 
 void Poller::reset() noexcept {
   WasiEvents = {};
   Events.clear();
+  TimerEvents.clear();
 }
 
 bool Poller::ok() noexcept { return FdHolder::ok(); }

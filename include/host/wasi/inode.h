@@ -978,7 +978,7 @@ private:
 
 #if WASMEDGE_OS_MACOS
   std::vector<struct kevent> KEvents;
-  uint64_t NextTimerId = 0;
+  std::vector<OptionalEvent *> TimerEvents;
 #endif
 #if WASMEDGE_OS_WINDOWS
   std::unordered_map<winapi::HANDLE_, OptionalEvent *> ConsoleReadEvent;

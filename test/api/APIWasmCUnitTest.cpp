@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasm.h"
+#include "wasm.hh"
 
 #include "gtest/gtest.h"
 
@@ -1027,6 +1028,111 @@ TEST(APIWasmCTest, GlobalSetChecksMutabilityAndKind) {
   wasm_globaltype_delete(var_type);
   wasm_store_delete(store);
   wasm_engine_delete(engine);
+}
+
+TEST(APIWasmCTest, GlobalNewChecksKind) {
+  wasm_engine_t *engine = wasm_engine_new();
+  wasm_store_t *store = wasm_store_new(engine);
+
+  wasm_globaltype_t *gtype =
+      wasm_globaltype_new(wasm_valtype_new(WASM_I64), WASM_VAR);
+  wasm_val_t wrong_f64 = f64Val(1.0);
+  wasm_global_t *global = wasm_global_new(store, gtype, &wrong_f64);
+  EXPECT_EQ(nullptr, global);
+  wasm_global_delete(global);
+  wasm_val_t wrong_i32 = i32Val(-1);
+  global = wasm_global_new(store, gtype, &wrong_i32);
+  EXPECT_EQ(nullptr, global);
+  wasm_global_delete(global);
+
+  wasm_val_t right = i64Val(7);
+  global = wasm_global_new(store, gtype, &right);
+  ASSERT_NE(nullptr, global);
+  wasm_val_t got{};
+  wasm_global_get(global, &got);
+  EXPECT_EQ(WASM_I64, got.kind);
+  EXPECT_EQ(7, got.of.i64);
+
+  wasm_global_delete(global);
+  wasm_globaltype_delete(gtype);
+  wasm_store_delete(store);
+  wasm_engine_delete(engine);
+}
+
+TEST(APIWasmCTest, FuncCallChecksArguments) {
+  auto engine = wasm::Engine::make();
+  auto store = wasm::Store::make(engine.get());
+  auto type =
+      wasm::FuncType::make(wasm::ownvec<wasm::ValType>::make(
+                               wasm::ValType::make(wasm::ValKind::I64)),
+                           wasm::ownvec<wasm::ValType>::make(
+                               wasm::ValType::make(wasm::ValKind::I64)));
+  auto func = wasm::Func::make(
+      store.get(), type.get(),
+      [](const wasm::vec<wasm::Val> &args,
+         wasm::vec<wasm::Val> &results) -> wasm::own<wasm::Trap> {
+        results[0] = args[0].copy();
+        return nullptr;
+      });
+  ASSERT_NE(nullptr, func);
+  auto results = wasm::vec<wasm::Val>::make(wasm::Val());
+
+  auto wrong_i32 = wasm::vec<wasm::Val>::make(wasm::Val::i32(-1));
+  EXPECT_NE(nullptr, func->call(wrong_i32, results));
+  auto wrong_f64 = wasm::vec<wasm::Val>::make(wasm::Val::f64(1.0));
+  EXPECT_NE(nullptr, func->call(wrong_f64, results));
+  auto too_many =
+      wasm::vec<wasm::Val>::make(wasm::Val::i64(1), wasm::Val::i64(2));
+  EXPECT_NE(nullptr, func->call(too_many, results));
+  auto none = wasm::vec<wasm::Val>::make();
+  EXPECT_NE(nullptr, func->call(none, results));
+
+  auto right = wasm::vec<wasm::Val>::make(wasm::Val::i64(-1));
+  EXPECT_EQ(nullptr, func->call(right, results));
+  EXPECT_EQ(wasm::ValKind::I64, results[0].kind());
+  EXPECT_EQ(-1, results[0].i64());
+}
+
+TEST(APIWasmCTest, HostFuncChecksResults) {
+  wasm_engine_t *engine = wasm_engine_new();
+  wasm_store_t *store = wasm_store_new(engine);
+
+  wasm_functype_t *ftype = wasm_functype_new_0_1(wasm_valtype_new(WASM_I64));
+  wasm_func_t *func = wasm_func_new(
+      store, ftype,
+      [](const wasm_val_vec_t *, wasm_val_vec_t *results) -> wasm_trap_t * {
+        results->data[0] = f64Val(1.0);
+        return nullptr;
+      });
+  wasm_functype_delete(ftype);
+  ASSERT_NE(nullptr, func);
+  wasm_val_vec_t args = WASM_EMPTY_VEC;
+  wasm_val_t res = i64Val(0);
+  wasm_val_vec_t results = {1, &res};
+  wasm_trap_t *trap = wasm_func_call(func, &args, &results);
+  EXPECT_NE(nullptr, trap);
+  wasm_trap_delete(trap);
+  wasm_func_delete(func);
+  wasm_store_delete(store);
+  wasm_engine_delete(engine);
+
+  auto cpp_engine = wasm::Engine::make();
+  auto cpp_store = wasm::Store::make(cpp_engine.get());
+  auto cpp_type =
+      wasm::FuncType::make(wasm::ownvec<wasm::ValType>::make(),
+                           wasm::ownvec<wasm::ValType>::make(
+                               wasm::ValType::make(wasm::ValKind::I64)));
+  auto cpp_func =
+      wasm::Func::make(cpp_store.get(), cpp_type.get(),
+                       [](const wasm::vec<wasm::Val> &,
+                          wasm::vec<wasm::Val> &rets) -> wasm::own<wasm::Trap> {
+                         rets[0] = wasm::Val::f64(1.0);
+                         return nullptr;
+                       });
+  ASSERT_NE(nullptr, cpp_func);
+  auto cpp_args = wasm::vec<wasm::Val>::make();
+  auto cpp_results = wasm::vec<wasm::Val>::make(wasm::Val());
+  EXPECT_NE(nullptr, cpp_func->call(cpp_args, cpp_results));
 }
 
 TEST(APIWasmCTest, Table) {

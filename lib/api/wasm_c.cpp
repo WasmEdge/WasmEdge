@@ -332,8 +332,15 @@ public:
       }
 
       // Get the results.
+      bool kinds_match = true;
       if (!trap) {
         for (size_t i = 0; i < Rets.size(); ++i) {
+          if (static_cast<wasm_valkind_t>(
+                  make_valtype_from_wasmedge(rtypes[i])->kind()) !=
+              returns.data[i].kind) {
+            kinds_match = false;
+            break;
+          }
           Rets[i] = conv_cval_to_wasmedge(returns.data[i], rtypes[i], nullptr);
         }
       }
@@ -342,6 +349,9 @@ public:
       }
       if (trap) {
         wasm_trap_delete(trap);
+        return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
+      }
+      if (!kinds_match) {
         return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
       }
     } else {
@@ -367,6 +377,10 @@ public:
         return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
       }
       for (size_t i = 0; i < Rets.size(); ++i) {
+        if (make_valtype_from_wasmedge(rtypes[i])->kind() !=
+            returns[i].kind()) {
+          return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
+        }
         Rets[i] = conv_cppval_to_wasmedge(returns[i], rtypes[i], nullptr);
       }
     }
@@ -2860,8 +2874,19 @@ wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &args,
                      lookupFuncIdx(self->inst));
   }
 
+  if (args.size() != ptypes.size()) {
+    return buildTrap(self->store, WasmEdge::ErrCode::Value::FuncSigMismatch,
+                     lookupFuncIdx(self->inst));
+  }
+  for (size_t i = 0; i < ptypes.size(); ++i) {
+    if (make_valtype_from_wasmedge(ptypes[i])->kind() != args[i].kind()) {
+      return buildTrap(self->store, WasmEdge::ErrCode::Value::FuncSigMismatch,
+                       lookupFuncIdx(self->inst));
+    }
+  }
+
   std::vector<WasmEdge::ValVariant> params(ptypes.size());
-  for (size_t i = 0; i < ptypes.size() && i < args.size(); ++i) {
+  for (size_t i = 0; i < ptypes.size(); ++i) {
     params[i] =
         conv_cppval_to_wasmedge(args[i], ptypes[i], self->inst->getModule());
   }
@@ -2891,7 +2916,7 @@ void wasm::Global::destroy() {
 wasm::own<wasm::Global> wasm::Global::make(wasm::Store *store,
                                            const wasm::GlobalType *type,
                                            const wasm::Val &val) {
-  if (store && type) {
+  if (store && type && type->content()->kind() == val.kind()) {
     return wasm::make_own(new (std::nothrow) wasm_global_t(store, *type, val));
   }
   return nullptr;

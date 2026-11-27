@@ -80,6 +80,110 @@ jobs:
         run: |
             black --check --verbose --diff ./utils/install.py
 
+      - name: Check fish shell environment generation
+        working-directory: utils
+        run: |
+          python3 - <<'PYTEST'
+          import os, sys, tempfile, shutil
+          from os.path import join, exists
+
+          test_dir = tempfile.mkdtemp(prefix="wasmedge-fish-unit-")
+          sys.path.insert(0, os.path.abspath("."))
+          import install
+
+          class FakeArgs:
+              path = join(test_dir, ".wasmedge")
+              modify_shell_profile = True
+
+          class FakeCompat:
+              ld_library_path = "LD_LIBRARY_PATH"
+              platform = "Linux"
+
+          try:
+              install.HOME = test_dir
+              install.SHELL = "fish"
+              install.set_env(FakeArgs, FakeCompat)
+
+              env_fish = join(FakeArgs.path, "env.fish")
+              assert exists(env_fish), "env.fish must exist"
+              with open(env_fish) as f:
+                  c = f.read()
+                  assert "fish_add_path -p" in c
+                  assert "contains" in c
+                  assert "set -gx" in c
+                  assert "case :" not in c
+                  assert "WASMEDGE_LIB_DIR" in c
+
+              cfg_fish = join(test_dir, ".config", "fish", "config.fish")
+              os.makedirs(os.path.dirname(cfg_fish), exist_ok=True)
+              # Commented hook must not prevent adding the active source line
+              with open(cfg_fish, "w") as f:
+                  f.write(f'# source "{env_fish}"\n')
+
+              install.shell_configure(FakeArgs, FakeCompat)
+              assert exists(cfg_fish), "config.fish must exist"
+              expected_line = f'source "{env_fish}"'
+              with open(cfg_fish) as f:
+                  lines = [line.strip() for line in f]
+                  assert lines.count(expected_line) == 1, "Active hook must be appended despite commented line"
+
+              install.shell_configure(FakeArgs, FakeCompat)
+              with open(cfg_fish) as f:
+                  lines = [line.strip() for line in f]
+                  assert lines.count(expected_line) == 1, "Must not duplicate active source hook"
+
+              bash_path = join(test_dir, ".wasmedge_bash")
+              FakeArgs.path = bash_path
+              install.SHELL = "bash"
+              install.set_env(FakeArgs, FakeCompat)
+              assert not exists(join(bash_path, "env.fish")), "env.fish must not be created for bash"
+          finally:
+              shutil.rmtree(test_dir)
+          PYTEST
+
+          bash - <<'BASHTEST'
+          set -euo pipefail
+          test_dir="$(mktemp -d)"
+          trap 'rm -rf "$test_dir"' EXIT
+
+          export __HOME__="$test_dir"
+          source ./install_v2.sh
+
+          export IPATH="$test_dir/.wasmedge"
+          export _LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
+          mkdir -p "$IPATH" "$__HOME__/.config/fish"
+
+          # Pre-populate config.fish with a commented-out hook
+          cfg_fish="$__HOME__/.config/fish/config.fish"
+          expected_line="source \"$IPATH/env.fish\""
+          printf '# %s\n' "$expected_line" > "$cfg_fish"
+
+          export SHELL="/usr/bin/fish"
+          setup_fish_env
+
+          test -f "$IPATH/env.fish"
+          grep -qF 'fish_add_path -p' "$IPATH/env.fish"
+          grep -qF 'if not contains' "$IPATH/env.fish"
+          grep -qF 'set -gx' "$IPATH/env.fish"
+          grep -qF 'WASMEDGE_LIB_DIR' "$IPATH/env.fish"
+          ! grep -qF 'case :' "$IPATH/env.fish"
+
+          # Active hook must be appended despite commented line, and idempotent on re-run
+          test "$(grep -Fx -c "$expected_line" "$cfg_fish")" -eq 1
+          setup_fish_env
+          test "$(grep -Fx -c "$expected_line" "$cfg_fish")" -eq 1
+
+          # end_message must reference env.fish for fish
+          end_message | grep -qF "$IPATH/env.fish"
+
+          # Non-fish shells must not create env.fish
+          export IPATH="$test_dir/.wasmedge_bash"
+          mkdir -p "$IPATH"
+          export SHELL="/bin/bash"
+          setup_fish_env
+          test ! -f "$IPATH/env.fish"
+          BASHTEST
+
   # Test install.sh on Linux containers
   test-install-sh-linux:
     needs: get-latest-version

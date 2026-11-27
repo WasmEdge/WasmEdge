@@ -347,6 +347,9 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
       case ExternalType::Table:
         fmt::print(" - table[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
         break;
+      case ExternalType::Tag:
+        fmt::print(" - tag[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
+        break;
       default:
         break;
       }

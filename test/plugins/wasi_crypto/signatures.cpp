@@ -172,6 +172,18 @@ TEST_F(WasiCryptoTest, Signatures) {
         __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
     WASI_CRYPTO_EXPECT_TRUE(signatureClose(RsaSigHandle));
   }
+  for (auto Alg : {"ECDSA_K256_SHA256"sv, "ECDSA_P256_SHA256"sv}) {
+    SCOPED_TRACE(Alg);
+    for (const auto &Sig :
+         {""_u8v, "deadbeef"_u8v, "3045022100"_u8v,
+          "304502210080d5d4769ae4f3998dd6b8b01177de855204122a361f2189"
+          "f9567c806de2673e02202fbfd3ff018338875b1d144f583eb6e8dc16cf"
+          "6eeb2bb5c19a3202464abb58bd00"_u8v}) {
+      WASI_CRYPTO_EXPECT_FAILURE(
+          signatureImport(Alg, Sig, __WASI_SIGNATURE_ENCODING_DER),
+          __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    }
+  }
 }
 
 } // namespace WasiCrypto

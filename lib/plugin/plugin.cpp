@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "plugin/plugin.h"
+#include "common/config.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/version.h"
@@ -180,10 +181,10 @@ public:
         break;
       }
     }
-
-    Result = Plugin::registerPlugin(&Descriptor);
   }
-  bool result() const noexcept { return Result; }
+  const Plugin::PluginDescriptor *descriptor() const noexcept {
+    return &Descriptor;
+  }
 
 private:
   static Runtime::Instance::ModuleInstance *
@@ -227,8 +228,6 @@ private:
   static std::unordered_map<const PluginModule::ModuleDescriptor *,
                             const WasmEdge_ModuleDescriptor *>
       DescriptionLookup;
-
-  bool Result = false;
 };
 std::unordered_map<const PluginModule::ModuleDescriptor *,
                    const WasmEdge_ModuleDescriptor *>
@@ -290,40 +289,38 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       spdlog::error(
           "Address matched to a shared object but not to any symbol "sv
           "within the object. dli_fname is null."sv);
-      return std::vector<std::filesystem::path>();
+      return Result;
     }
     auto LibPath = u8path(DLInfo.dli_fname).parent_path().lexically_normal();
     const auto UsrStr = "/usr"sv;
     const auto LibStr = "/lib"sv;
     const auto &PathStr = LibPath.native();
-    if ((PathStr.size() >= UsrStr.size() &&
-         std::equal(UsrStr.begin(), UsrStr.end(), PathStr.begin())) ||
-        (PathStr.size() >= LibStr.size() &&
-         std::equal(LibStr.begin(), LibStr.end(), PathStr.begin()))) {
-      // The installation path of the WasmEdge library is under "/usr".
-      // Plug-in path will be in "LIB_PATH/wasmedge".
-      // If the installation path is under "/usr/lib" or "/usr/lib64", the
-      // traced library path will be "/lib" or "/lib64".
-      Result.push_back(LibPath / u8path("wasmedge"sv));
-    } else {
+    // If the installation path is under "/usr/lib" or "/usr/lib64", the traced
+    // library path will be "/lib" or "/lib64".
+    if (PathStr.compare(0, UsrStr.size(), UsrStr) != 0 &&
+        PathStr.compare(0, LibStr.size(), LibStr) != 0) {
       // The installation path of the WasmEdge library is not under "/usr", such
       // as "$HOME/.wasmedge". Plug-in path will be in "LIB_PATH/../plugin".
       Result.push_back(LibPath / u8path(".."sv) / u8path("plugin"sv));
     }
+    // The installed plug-ins are in "LIB_PATH/wasmedge".
+    Result.push_back(LibPath / u8path(kPluginInstallDir));
   } else {
     spdlog::error(ErrCode::Value::NonNullRequired);
     spdlog::error("Address could not be matched to any shared object. "sv
                   "Detailed error information is not available."sv);
-    return std::vector<std::filesystem::path>();
+    return Result;
   }
 #elif WASMEDGE_OS_WINDOWS
   // Global plugin directory.
   if (std::filesystem::path Path; GetFunctionModuleFileName(
           reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), Path)) {
     Result.push_back(Path.parent_path());
+    // The installed plug-ins are in "..\lib\wasmedge" of the module directory.
+    Result.push_back(
+        (Path.parent_path() / u8path(kPluginInstallDir)).lexically_normal());
   } else {
     spdlog::error("Failed to get the path of the current module."sv);
-    return std::vector<std::filesystem::path>();
   }
 
   // Local home plugin directory.
@@ -379,6 +376,11 @@ WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
 }
 
 bool Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
+  std::unique_lock Lock(Mutex);
+  return unsafeRegisterPlugin(Desc);
+}
+
+bool Plugin::unsafeRegisterPlugin(const PluginDescriptor *Desc) noexcept {
   if (Desc->APIVersion != CurrentAPIVersion) {
     spdlog::debug(
         "Plugin: API version {} of plugin {} is not match to current {}."sv,
@@ -436,7 +438,7 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 
   if (auto GetDescriptor =
           Lib->get<Plugin::PluginDescriptor const *()>("GetDescriptor")) {
-    Result = Plugin::registerPlugin(GetDescriptor());
+    Result = unsafeRegisterPlugin(GetDescriptor());
   }
 
   if (!Result) {
@@ -454,10 +456,10 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
       // it would leak since registerPlugin() would reject the duplicate.
       return false;
     } else {
-      Result =
+      Result = unsafeRegisterPlugin(
           CAPIPluginRegisters
               .emplace_back(std::make_unique<CAPIPluginRegister>(Descriptor))
-              ->result();
+              ->descriptor());
       if (unlikely(!Result)) {
         CAPIPluginRegisters.pop_back();
       }
@@ -478,7 +480,7 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 void Plugin::registerBuiltInPlugins() noexcept {
   std::unique_lock Lock(Mutex);
   // BUILTIN-PLUGIN: Register wasi-logging here. May be refactored in 0.15.0.
-  registerPlugin(&Host::WasiLoggingModule::PluginDescriptor);
+  unsafeRegisterPlugin(&Host::WasiLoggingModule::PluginDescriptor);
 }
 
 Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {

@@ -6,6 +6,7 @@
 #include "executor/executor.h"
 #include "runtime/instance/module.h"
 #include "wasmedge/wasmedge.h"
+#include <mutex>
 
 #pragma GCC diagnostic push
 #ifdef __clang__
@@ -72,8 +73,15 @@ class wasm_bpf_program {
   std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{nullptr,
                                                              bpf_object__close};
   std::unique_ptr<bpf_buffer> buffer;
+  /// The map fd that `buffer` was opened for.
+  int32_t buffer_fd = -1;
   std::unordered_set<std::unique_ptr<bpf_link, int32_t (*)(bpf_link *obj)>>
       links;
+  /// Protects `buffer`, `buffer_fd`, `links`, and `polling`. Not held while
+  /// polling.
+  std::mutex mutex;
+  /// True while a poll runs; a second poll on this program gets -EBUSY.
+  bool polling = false;
 
 public:
   /// Find a BPF map fd by name.

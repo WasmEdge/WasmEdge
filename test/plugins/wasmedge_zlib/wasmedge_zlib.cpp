@@ -1075,7 +1075,7 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasiWiredModule Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(1, 1)));
@@ -1089,9 +1089,16 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
                                "wasmedge_zlib_hardening_test.gz")
                                   .string();
   ASSERT_LT(TmpPath.size() + 1, 1000U);
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(
+      std::vector<std::string>{"/:" +
+                               std::filesystem::temp_directory_path().string()},
+      "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
 
   const uint32_t PathPtr = 16;
-  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  std::strcpy(MemInst.getPointer<char *>(PathPtr),
+              "/wasmedge_zlib_hardening_test.gz");
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
   const uint32_t ModeRPtr = 1040;
@@ -1156,7 +1163,7 @@ TEST(WasmEdgeZlibTest, HardeningGZOversizedRequestsMatchZlib) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasiWiredModule Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(1, 1)));
@@ -1170,8 +1177,15 @@ TEST(WasmEdgeZlibTest, HardeningGZOversizedRequestsMatchZlib) {
                                "wasmedge_zlib_oversized_test.gz")
                                   .string();
   ASSERT_LT(TmpPath.size() + 1, 1000U);
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(
+      std::vector<std::string>{"/:" +
+                               std::filesystem::temp_directory_path().string()},
+      "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
   const uint32_t PathPtr = 16;
-  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  std::strcpy(MemInst.getPointer<char *>(PathPtr),
+              "/wasmedge_zlib_oversized_test.gz");
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
   const uint32_t ModeRPtr = 1040;
@@ -1287,7 +1301,7 @@ TEST(WasmEdgeZlibTest, HardeningGZPutsEmptyStringHonorsMode) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasiWiredModule Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(1, 1)));
@@ -1301,9 +1315,16 @@ TEST(WasmEdgeZlibTest, HardeningGZPutsEmptyStringHonorsMode) {
       (std::filesystem::temp_directory_path() / "wasmedge_zlib_gzputs_mode.gz")
           .string();
   ASSERT_LT(TmpPath.size() + 1, 1000U);
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(
+      std::vector<std::string>{"/:" +
+                               std::filesystem::temp_directory_path().string()},
+      "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
 
   const uint32_t PathPtr = 16;
-  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  std::strcpy(MemInst.getPointer<char *>(PathPtr),
+              "/wasmedge_zlib_gzputs_mode.gz");
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
   const uint32_t ModeRPtr = 1040;
@@ -1484,7 +1505,7 @@ TEST(WasmEdgeZlibTest, GZOpenFailureReturnsNullHandle) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasiWiredModule Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(1, 1)));
@@ -1494,13 +1515,15 @@ TEST(WasmEdgeZlibTest, GZOpenFailureReturnsNullHandle) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  const std::string MissingPath =
-      (std::filesystem::temp_directory_path() / "wasmedge_zlib_absent_dir_zzz" /
-       "definitely_absent.gz")
-          .string();
-  ASSERT_LT(MissingPath.size() + 1, 900U);
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(
+      std::vector<std::string>{"/:" +
+                               std::filesystem::temp_directory_path().string()},
+      "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
   const uint32_t PathPtr = 16;
-  std::strcpy(MemInst.getPointer<char *>(PathPtr), MissingPath.c_str());
+  std::strcpy(MemInst.getPointer<char *>(PathPtr),
+              "/wasmedge_zlib_absent_dir_zzz/definitely_absent.gz");
   const uint32_t ModePtr = 1000;
   std::strcpy(MemInst.getPointer<char *>(ModePtr), "rb");
 
@@ -3740,7 +3763,7 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasiWiredModule Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(1, 1)));
@@ -3754,8 +3777,15 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
                                "wasmedge_zlib_gzbuffer_test.gz")
                                   .string();
   ASSERT_LT(TmpPath.size() + 1, 1000U);
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(
+      std::vector<std::string>{"/:" +
+                               std::filesystem::temp_directory_path().string()},
+      "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
   const uint32_t PathPtr = 16;
-  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  std::strcpy(MemInst.getPointer<char *>(PathPtr),
+              "/wasmedge_zlib_gzbuffer_test.gz");
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
 
@@ -4156,7 +4186,8 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenMediatedByWasi) {
   std::filesystem::remove(SandboxDir / "wasi.gz", EC);
 
   WasmEdge::Host::WasiModule WasiMod;
-  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  WasiMod.init(std::vector<std::string>{"/:" + SandboxDir.string()}, "test", {},
+               {});
   Mod.wireWASIModule(&WasiMod);
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
@@ -4242,7 +4273,8 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiAcceptsAbsoluteGuestPaths) {
   std::filesystem::remove(SandboxDir / "wasi_abs.gz", EC);
 
   WasmEdge::Host::WasiModule WasiMod;
-  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  WasiMod.init(std::vector<std::string>{"/:" + SandboxDir.string()}, "test", {},
+               {});
   Mod.wireWASIModule(&WasiMod);
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
@@ -4398,7 +4430,8 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiHonorsOpenModes) {
   std::filesystem::remove(SandboxDir / "gfresh.gz", EC);
 
   WasmEdge::Host::WasiModule WasiMod;
-  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  WasiMod.init(std::vector<std::string>{"/:" + SandboxDir.string()}, "test", {},
+               {});
   Mod.wireWASIModule(&WasiMod);
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
@@ -4657,7 +4690,8 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiFollowsSandboxSymlinks) {
   std::filesystem::remove(OutsideFile, EC);
 
   WasmEdge::Host::WasiModule WasiMod;
-  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  WasiMod.init(std::vector<std::string>{"/:" + SandboxDir.string()}, "test", {},
+               {});
   Mod.wireWASIModule(&WasiMod);
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
@@ -4789,7 +4823,8 @@ TEST(WasmEdgeZlibTest, HardeningGZDOpenTemporarilyDisabled) {
   std::filesystem::remove(SandboxDir / "disabled.gz", EC);
 
   WasmEdge::Host::WasiModule WasiMod;
-  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  WasiMod.init(std::vector<std::string>{"/:" + SandboxDir.string()}, "test", {},
+               {});
   Mod.wireWASIModule(&WasiMod);
   auto *Env = const_cast<WasmEdge::Host::WASI::Environ *>(WasiMod.getEnv());
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
@@ -4845,7 +4880,8 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiStreamingWithoutSeekTellRights) {
   std::filesystem::remove(SandboxDir / "append.gz", EC);
 
   WasmEdge::Host::WasiModule WasiMod;
-  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  WasiMod.init(std::vector<std::string>{"/:" + SandboxDir.string()}, "test", {},
+               {});
   Mod.wireWASIModule(&WasiMod);
   auto *Env = const_cast<WasmEdge::Host::WASI::Environ *>(WasiMod.getEnv());
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);

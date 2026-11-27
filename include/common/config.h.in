@@ -25,6 +25,11 @@ static inline constexpr std::string_view kCacheRoot [[maybe_unused]] =
     CMAKE_INSTALL_FULL_LOCALSTATEDIR "/cache/wasmedge"sv;
 #undef CMAKE_INSTALL_FULL_LOCALSTATEDIR
 
+#cmakedefine WASMEDGE_PLUGIN_INSTALL_DIR "@WASMEDGE_PLUGIN_INSTALL_DIR@"
+static inline constexpr std::string_view kPluginInstallDir [[maybe_unused]] =
+    WASMEDGE_PLUGIN_INSTALL_DIR ""sv;
+#undef WASMEDGE_PLUGIN_INSTALL_DIR
+
 #cmakedefine HAVE_MMAP @HAVE_MMAP@
 #cmakedefine HAVE_PWD_H @HAVE_PWD_H@
 

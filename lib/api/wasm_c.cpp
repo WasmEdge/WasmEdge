@@ -1144,15 +1144,10 @@ make_refvariant(const wasm::Ref *ref, const WasmEdge::ValType &vt,
                 const WasmEdge::Runtime::Instance::ModuleInstance *mod) {
   if (vt.isFuncRefType()) {
     auto *inst = retrieve_funcinst(ref);
-    if (inst && vt.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex) {
-      WasmEdge::Span<const WasmEdge::AST::SubType *const> gottypes;
-      if (inst->getModule()) {
-        gottypes = inst->getModule()->getTypeList();
-      }
-      if (!mod || !WasmEdge::AST::TypeMatcher::matchType(
-                      mod->getTypeList(), vt, gottypes, inst->getDefType())) {
-        inst = nullptr;
-      }
+    if (inst && vt.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex &&
+        !WasmEdge::Runtime::Matcher::matchRef(mod, vt,
+                                              WasmEdge::RefVariant(inst))) {
+      inst = nullptr;
     }
     if (inst) {
       return WasmEdge::RefVariant(inst);

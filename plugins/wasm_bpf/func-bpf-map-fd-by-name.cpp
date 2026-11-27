@@ -3,7 +3,6 @@
 
 #include "func-bpf-map-fd-by-name.h"
 #include "util.h"
-#include <shared_mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -16,12 +15,11 @@ Expect<int32_t> BpfMapFdByName::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   checkAndSetCstr(memory, name, name_str);
-  std::shared_lock guard(this->state->lock);
-  auto program_ptr = state->handles.find(program);
-  if (program_ptr == state->handles.end()) {
+  auto program_ref = state->find(program);
+  if (!program_ref) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  return program_ptr->second->bpf_map_fd_by_name(name_str);
+  return program_ref->bpf_map_fd_by_name(name_str);
 }
 
 } // namespace Host

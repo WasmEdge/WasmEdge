@@ -5,7 +5,7 @@
 
 #include "mlx/base.h"
 
-#include "host/wasi/vfs_io.h"
+#include "host/filesystem.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -26,7 +26,7 @@ void saveWeights(const std::unordered_map<std::string, mx::array> &Weights,
 void saveWeights(const mx::array &Weights, const std::string &Path);
 
 std::string loadBytesFromFile(const std::string &Path,
-                              const Host::WASI::Environ *Env);
+                              const Host::FileSystem *FS);
 
 void fillPlaceholders(std::ostringstream &Oss, const std::string &Fmt,
                       size_t &Pos);

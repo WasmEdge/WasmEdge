@@ -171,6 +171,7 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(bpf_map *events) {
 
 /// Get the file descriptor of a map by name.
 int32_t wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
+  std::lock_guard guard(mutex);
   return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
 /// \brief Load all BPF programs and maps in an object file.
@@ -187,6 +188,7 @@ int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
 /// \brief Attach a specific BPF program by name and target.
 int32_t wasm_bpf_program::attach_bpf_program(const char *name,
                                              const char *attach_target) {
+  std::lock_guard guard(mutex);
   bpf_link *link;
   if (!attach_target) {
     // Auto-attach based on bpf_program__section_name. This works well for most
@@ -234,26 +236,44 @@ int32_t wasm_bpf_program::bpf_buffer_poll(
     int32_t sample_func, uint32_t ctx, void *data, size_t max_size,
     int32_t timeout_ms, uint32_t wasm_buf_ptr) {
   int32_t res;
-  if (!buffer.get()) {
-    // create buffer
-    auto map = map_ptr_by_fd(fd);
-    buffer = bpf_buffer__new(map);
-    if (!buffer) {
-      return -1;
+  {
+    std::lock_guard guard(mutex);
+    if (polling) {
+      return -EBUSY;
     }
-    res = buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
-    if (res < 0) {
-      return res;
+    if (!buffer.get()) {
+      // create buffer
+      auto map = map_ptr_by_fd(fd);
+      if (!map) {
+        return -EBADF;
+      }
+      auto new_buffer = bpf_buffer__new(map);
+      if (!new_buffer) {
+        return -1;
+      }
+      res =
+          new_buffer->bpf_buffer__open(fd, bpf_buffer_sample, new_buffer.get());
+      if (res < 0) {
+        return res;
+      }
+      buffer = std::move(new_buffer);
+      buffer_fd = fd;
+    } else if (buffer_fd != fd) {
+      return -EINVAL;
     }
-  }
-  buffer->set_callback_params(executor, module_instance,
-                              static_cast<uint32_t>(sample_func), data,
-                              max_size, ctx, wasm_buf_ptr);
-  if (!buffer->is_valid()) {
-    return -EINVAL;
+    buffer->set_callback_params(executor, module_instance,
+                                static_cast<uint32_t>(sample_func), data,
+                                max_size, ctx, wasm_buf_ptr);
+    if (!buffer->is_valid()) {
+      return -EINVAL;
+    }
+    polling = true;
   }
   // poll the buffer
-  return buffer->bpf_buffer__poll(timeout_ms);
+  res = buffer->bpf_buffer__poll(timeout_ms);
+  std::lock_guard guard(mutex);
+  polling = false;
+  return res;
 }
 
 } // namespace Host

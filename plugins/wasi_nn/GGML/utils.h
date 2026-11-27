@@ -10,8 +10,6 @@ const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
 const std::string_view Base64ImageTagSuffix = "\">"sv;
 const std::string_view VisionPromptImagePlaceholder = "<image>"sv;
 
-struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
-                              int32_t NSeqMax = 1) noexcept;
 std::optional<std::tuple<size_t, size_t, size_t>>
 findBase64ImagePayload(std::string_view Prompt,
                        bool IsDebugLog = false) noexcept;

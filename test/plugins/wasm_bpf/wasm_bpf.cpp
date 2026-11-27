@@ -84,6 +84,90 @@ TEST(WasmBpfTest, Module) {
   EXPECT_NE(module->findFuncExports("wasm_bpf_map_operate"), nullptr);
 }
 
+TEST(WasmBpfTest, InvalidObjectAndUnknownHandle) {
+  auto module = createModule();
+  ASSERT_TRUE(module);
+
+  WasmEdge::Runtime::Instance::ModuleInstance moduleInst("");
+  moduleInst.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *memoryInst = moduleInst.findMemoryExports("memory");
+  ASSERT_NE(memoryInst, nullptr);
+  WasmEdge::Executor::Executor executor((WasmEdge::Configure()));
+  WasmEdge::Runtime::CallingFrame CallFrame(&executor, &moduleInst);
+
+  // Bytes that are not an ELF object, followed by an empty string.
+  const uint32_t objectOffset = 1;
+  const uint32_t objectSize = 64;
+  fillMemContent(*memoryInst, objectOffset, objectSize, 'A');
+  const uint32_t emptyStringOffset = objectOffset + objectSize;
+  fillMemContent(*memoryInst, emptyStringOffset, 1);
+
+  auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
+  auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
+  auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
+  auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
+  auto *pollFunc = module->findFuncExports("wasm_bpf_buffer_poll");
+  auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
+  ASSERT_NE(mapOptFunc, nullptr);
+  ASSERT_NE(loadFunc, nullptr);
+  ASSERT_NE(closeFunc, nullptr);
+  ASSERT_NE(attachFunc, nullptr);
+  ASSERT_NE(mapFdFunc, nullptr);
+  ASSERT_NE(pollFunc, nullptr);
+
+  // Loading an invalid object returns the null handle.
+  std::array<WasmEdge::ValVariant, 1> result;
+  ASSERT_TRUE(loadFunc->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          WasmEdge::ValVariant(objectOffset), WasmEdge::ValVariant(objectSize)},
+      result));
+  EXPECT_EQ(result[0].get<int64_t>(), 0);
+
+  // Every function that takes a handle rejects an unknown one.
+  const int64_t unknownHandle = 0x1234;
+  EXPECT_FALSE(
+      closeFunc->getHostFunc().run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       WasmEdge::ValVariant(unknownHandle)},
+                                   result));
+  EXPECT_FALSE(attachFunc->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          WasmEdge::ValVariant(unknownHandle),
+          WasmEdge::ValVariant(emptyStringOffset),
+          WasmEdge::ValVariant(emptyStringOffset)},
+      result));
+  EXPECT_FALSE(
+      mapFdFunc->getHostFunc().run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       WasmEdge::ValVariant(unknownHandle),
+                                       WasmEdge::ValVariant(emptyStringOffset)},
+                                   result));
+  EXPECT_FALSE(pollFunc->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          WasmEdge::ValVariant(unknownHandle), WasmEdge::ValVariant(INT32_C(0)),
+          WasmEdge::ValVariant(INT32_C(0)), WasmEdge::ValVariant(UINT32_C(0)),
+          WasmEdge::ValVariant(objectOffset), WasmEdge::ValVariant(objectSize),
+          WasmEdge::ValVariant(INT32_C(0))},
+      result));
+
+  // A map operation on an fd that is not a BPF map returns an error code.
+  ASSERT_TRUE(mapOptFunc->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          WasmEdge::ValVariant(INT32_C(-1)), WasmEdge::ValVariant(INT32_C(1)),
+          WasmEdge::ValVariant(objectOffset),
+          WasmEdge::ValVariant(objectOffset),
+          WasmEdge::ValVariant(objectOffset),
+          WasmEdge::ValVariant(UINT64_C(0))},
+      result));
+  EXPECT_LT(result[0].get<int32_t>(), 0);
+}
+
 static const size_t TASK_COMM_LEN = 16;
 static const size_t MAX_FILENAME_LEN = 127;
 struct event {

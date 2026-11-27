@@ -101,9 +101,8 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
       EXPECTED_TRY(loadSection(Mod.getDataSection()).map_error(ReportError));
       break;
     case 0x0C:
-      // This section is for BulkMemoryOperations or ReferenceTypes proposal.
-      if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
-          !Conf.hasProposal(Proposal::ReferenceTypes)) {
+      // This section is for BulkMemoryOperations proposal.
+      if (!Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         return logNeedProposal(ErrCode::Value::MalformedSection,
                                Proposal::BulkMemoryOperations,
                                FMgr.getLastOffset(), ASTNodeAttr::Module);

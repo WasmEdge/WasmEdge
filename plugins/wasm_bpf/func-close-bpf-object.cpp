@@ -2,14 +2,14 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "func-close-bpf-object.h"
-#include <shared_mutex>
+#include <mutex>
 
 namespace WasmEdge {
 namespace Host {
 
 Expect<int32_t> CloseBpfObject::body(const WasmEdge::Runtime::CallingFrame &,
                                      handle_t program) {
-  std::shared_lock guard(this->state->lock);
+  std::unique_lock guard(this->state->lock);
   auto &handles = this->state->handles;
   if (!handles.count(program)) {
     return Unexpect(ErrCode::Value::HostFuncError);

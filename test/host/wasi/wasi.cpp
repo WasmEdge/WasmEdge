@@ -10,6 +10,7 @@
 #include "system/winapi.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <condition_variable>
@@ -18,6 +19,7 @@
 #include <ctime>
 #include <fcntl.h>
 #include <fstream>
+#include <future>
 #include <gtest/gtest.h>
 #include <iterator>
 #include <mutex>
@@ -25,6 +27,11 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#if !WASMEDGE_OS_WINDOWS
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+#endif
 
 using namespace std::literals;
 
@@ -3898,12 +3905,15 @@ TEST(WasiTest, ReadOnlyPreopenReducesChildRights) {
   WasmEdge::Host::WASI::Environ Env;
   Env.init({"/:" + Root.string() + ":readonly"}, "test"s, {}, {});
 
-  auto CanRead = Env.pathCanRead("sub/data.txt");
-  ASSERT_TRUE(CanRead);
-  EXPECT_TRUE(*CanRead);
-  auto CanWrite = Env.pathCanWrite("sub/data.txt");
-  ASSERT_TRUE(CanWrite);
-  EXPECT_FALSE(*CanWrite);
+  // The filesystem of the guest grants reading, but not writing.
+  EXPECT_TRUE(Env.open("sub/data.txt", static_cast<__wasi_oflags_t>(0),
+                       __WASI_RIGHTS_FD_READ,
+                       static_cast<__wasi_fdflags_t>(0)));
+  auto Write =
+      Env.open("sub/data.txt", static_cast<__wasi_oflags_t>(0),
+               __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
+  ASSERT_FALSE(Write);
+  EXPECT_EQ(Write.error(), __WASI_ERRNO_NOTCAPABLE);
 
   constexpr __wasi_fd_t RootFd = 3;
   constexpr __wasi_rights_t CompatibleRequestedRights =
@@ -4169,9 +4179,10 @@ TEST(WasiTest, ReadWritePreopenKeepsChildRights) {
   } EnvGuard{Env};
   Env.init({"/:" + Root.string()}, "test"s, {}, {});
 
-  auto CanWrite = Env.pathCanWrite("sub/data.txt");
-  ASSERT_TRUE(CanWrite);
-  EXPECT_TRUE(*CanWrite);
+  // The filesystem of the guest grants writing.
+  EXPECT_TRUE(Env.open("sub/data.txt", static_cast<__wasi_oflags_t>(0),
+                       __WASI_RIGHTS_FD_WRITE,
+                       static_cast<__wasi_fdflags_t>(0)));
 
   constexpr __wasi_fd_t RootFd = 3;
   constexpr __wasi_rights_t RequestedRights =
@@ -4215,6 +4226,301 @@ TEST(WasiTest, ReadWritePreopenKeepsChildRights) {
   EXPECT_TRUE(fs::is_directory(Root / "sub" / "created-dir"));
   ASSERT_TRUE(Env.pathRemoveDirectory(DirFd, "created-dir"));
   EXPECT_FALSE(fs::exists(Root / "sub" / "created-dir"));
+}
+
+TEST(WasiTest, PreopenDoubleColonSeparator) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::absolute(fs::path(
+      "wasmedge-wasi-separator-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count())));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root, Error));
+  ASSERT_FALSE(Error);
+  {
+    std::ofstream Data(Root / "data.txt", std::ios::binary);
+    ASSERT_TRUE(Data);
+    Data << "data";
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+  const auto NoFlags = static_cast<__wasi_oflags_t>(0);
+  const auto NoFdFlags = static_cast<__wasi_fdflags_t>(0);
+
+  {
+    Env.init({"/::" + Root.string()}, "test"s, {}, {});
+    EXPECT_TRUE(
+        Env.open("data.txt", NoFlags, __WASI_RIGHTS_FD_WRITE, NoFdFlags));
+    Env.fini();
+  }
+
+  // The filesystem of the guest grants reading, but not writing.
+  {
+    Env.init({"/::" + Root.string() + "::readonly"}, "test"s, {}, {});
+    EXPECT_TRUE(
+        Env.open("data.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags));
+    auto Write =
+        Env.open("data.txt", NoFlags, __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+    ASSERT_FALSE(Write);
+    EXPECT_EQ(Write.error(), __WASI_ERRNO_NOTCAPABLE);
+    Env.fini();
+  }
+
+  {
+    ASSERT_TRUE(Env.initWithFds({"/::" + Root.string() + "::readonly"}, "test"s,
+                                {}, {}, 1, 1, 2));
+    EXPECT_TRUE(
+        Env.open("data.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags));
+    auto Write =
+        Env.open("data.txt", NoFlags, __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+    ASSERT_FALSE(Write);
+    EXPECT_EQ(Write.error(), __WASI_ERRNO_NOTCAPABLE);
+    Env.fini();
+  }
+
+#if !WASMEDGE_OS_WINDOWS
+  {
+    ASSERT_TRUE(fs::create_directory(Root / "c:d", Error));
+    ASSERT_FALSE(Error);
+    {
+      std::ofstream Data(Root / "c:d" / "inner.txt", std::ios::binary);
+      ASSERT_TRUE(Data);
+      Data << "data";
+    }
+    Env.init({"a:b::" + (Root / "c:d").string()}, "test"s, {}, {});
+    EXPECT_TRUE(
+        Env.open("a:b/inner.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags));
+    __wasi_prestat_t PreStat{};
+    ASSERT_TRUE(Env.fdPrestatGet(3, PreStat));
+    std::array<uint8_t, 3> GuestName{};
+    ASSERT_EQ(WasmEdge::EndianValue(PreStat.u.dir.pr_name_len).le(),
+              GuestName.size());
+    ASSERT_TRUE(Env.fdPrestatDirName(3, GuestName));
+    EXPECT_EQ(std::string_view(reinterpret_cast<const char *>(GuestName.data()),
+                               GuestName.size()),
+              "a:b"sv);
+    Env.fini();
+  }
+#endif
+}
+
+TEST(WasiTest, PreopenRejectsUnknownMode) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::path(
+      "wasmedge-wasi-mode-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "a", Error));
+  ASSERT_FALSE(Error);
+
+  WasmEdge::Host::WASI::Environ Env;
+  __wasi_fdstat_t Stat{};
+
+  {
+    Env.init({"/:" + Root.string() + ":ro"}, "test"s, {}, {});
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+
+  {
+    Env.init({"/:" + (Root / "a").string() + ":b"}, "test"s, {}, {});
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+
+  {
+    Env.init({"/::" + Root.string() + "::ro"}, "test"s, {}, {});
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+
+  {
+    ASSERT_TRUE(Env.initWithFds({"/:" + Root.string() + ":ro"}, "test"s, {}, {},
+                                1, 1, 2));
+    auto Res = Env.fdFdstatGet(3, Stat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+}
+
+TEST(WasiTest, FileSystemOfGuest) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::path(
+      "wasmedge-wasi-filesystem-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "root" / "logs", Error));
+  ASSERT_TRUE(fs::create_directories(Root / "logs", Error));
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init(
+      {"/:" + (Root / "root").string(), "/logs:" + (Root / "logs").string()},
+      "test"s, {}, {});
+  const WasmEdge::Host::FileSystem &FS = Env;
+  const auto NoFlags = static_cast<__wasi_oflags_t>(0);
+  const auto NoFdFlags = static_cast<__wasi_fdflags_t>(0);
+
+  // The preopened directory with the longest guest name takes the path, and
+  // the leading "/" and "./" of the path are not significant.
+  auto File = FS.open("/logs/a.txt", __WASI_OFLAGS_CREAT,
+                      __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_TRUE(File);
+  const std::string_view Content = "hello"sv;
+  const WasmEdge::Span<const uint8_t> ContentBytes(
+      reinterpret_cast<const uint8_t *>(Content.data()), Content.size());
+  ASSERT_TRUE((*File)->write(ContentBytes));
+  File->reset();
+  EXPECT_EQ(fs::file_size(Root / "logs" / "a.txt", Error), Content.size());
+  EXPECT_FALSE(fs::exists(Root / "root" / "logs" / "a.txt"));
+  File = FS.open("./b.txt", __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_WRITE,
+                 NoFdFlags);
+  ASSERT_TRUE(File);
+  File->reset();
+  EXPECT_TRUE(fs::exists(Root / "root" / "b.txt"));
+
+  // The file is read back with seeking, which the directory grants on top. A
+  // read ends at the end of the file, and the file has the rights asked for.
+  File = FS.open("logs/a.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_TRUE(File);
+  auto Pos = (*File)->seek(1, __WASI_WHENCE_SET);
+  ASSERT_TRUE(Pos);
+  EXPECT_EQ(*Pos, 1U);
+  std::array<uint8_t, 8> Buffer{};
+  auto Read = (*File)->read(Buffer);
+  ASSERT_TRUE(Read);
+  EXPECT_EQ(*Read, 4U);
+  EXPECT_EQ(std::string_view(reinterpret_cast<const char *>(Buffer.data()), 4),
+            "ello"sv);
+  auto Tell = (*File)->tell();
+  ASSERT_TRUE(Tell);
+  EXPECT_EQ(*Tell, 5U);
+  Read = (*File)->read(Buffer);
+  ASSERT_TRUE(Read);
+  EXPECT_EQ(*Read, 0U);
+  auto ReadOnly = (*File)->write(ContentBytes);
+  ASSERT_FALSE(ReadOnly);
+  EXPECT_EQ(ReadOnly.error(), __WASI_ERRNO_NOTCAPABLE);
+  File->reset();
+  auto Absent =
+      FS.open("/logs/absent.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_FALSE(Absent);
+  EXPECT_EQ(Absent.error(), __WASI_ERRNO_NOENT);
+
+  // Binary data is written whole, and read back until the buffer is full.
+  std::vector<uint8_t> Data(200000);
+  for (std::size_t I = 0; I < Data.size(); ++I) {
+    Data[I] = static_cast<uint8_t>(I * 31U);
+  }
+  File = FS.open("/data.bin", __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                 __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_TRUE(File);
+  ASSERT_TRUE((*File)->write(Data));
+  ASSERT_TRUE((*File)->seek(0, __WASI_WHENCE_SET));
+  std::vector<uint8_t> DataRead(Data.size());
+  Read = (*File)->read(DataRead);
+  ASSERT_TRUE(Read);
+  EXPECT_EQ(*Read, Data.size());
+  EXPECT_EQ(DataRead, Data);
+  File->reset();
+
+  EXPECT_TRUE(FS.createDirectory("/logs/sub"));
+  EXPECT_TRUE(fs::is_directory(Root / "logs" / "sub"));
+
+  // The path of a preopened directory itself is the existing directory.
+  auto Preopen = FS.createDirectory("/");
+  ASSERT_FALSE(Preopen);
+  EXPECT_EQ(Preopen.error(), __WASI_ERRNO_EXIST);
+  auto DirFile = FS.open("logs/", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_FALSE(DirFile);
+  EXPECT_EQ(DirFile.error(), __WASI_ERRNO_ISDIR);
+
+  // A path leaving the preopened directories is denied.
+  auto Escape = FS.open("/logs/../a.txt", __WASI_OFLAGS_CREAT,
+                        __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_FALSE(Escape);
+  EXPECT_EQ(Escape.error(), __WASI_ERRNO_PERM);
+
+#if !WASMEDGE_OS_WINDOWS
+  // The file is not in the file descriptor table of the guest: releasing it
+  // closes the descriptor of the host.
+  File = FS.open("logs/a.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_TRUE(File);
+  auto Handle = (*File)->getNativeHandle();
+  ASSERT_TRUE(Handle);
+  EXPECT_NE(::fcntl(static_cast<int>(*Handle), F_GETFD), -1);
+  File->reset();
+  EXPECT_EQ(::fcntl(static_cast<int>(*Handle), F_GETFD), -1);
+
+  // Creating exclusively fails on a dangling symbolic link, as open() does.
+  fs::create_symlink("missing.txt", Root / "logs" / "dangling.txt", Error);
+  ASSERT_FALSE(Error);
+  auto Exclusive =
+      FS.open("/logs/dangling.txt", __WASI_OFLAGS_CREAT | __WASI_OFLAGS_EXCL,
+              __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_FALSE(Exclusive);
+  EXPECT_EQ(Exclusive.error(), __WASI_ERRNO_EXIST);
+  EXPECT_FALSE(fs::exists(Root / "logs" / "missing.txt"));
+#endif
+
+  // Without a preopened directory containing the path, nothing is opened.
+  WasmEdge::Host::WASI::Environ LogsEnv;
+  LogsEnv.init({"/logs:" + (Root / "logs").string()}, "test"s, {}, {});
+  auto NoPreopen =
+      static_cast<const WasmEdge::Host::FileSystem &>(LogsEnv).open(
+          "other/c.txt", __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_WRITE,
+          NoFdFlags);
+  ASSERT_FALSE(NoPreopen);
+  EXPECT_EQ(NoPreopen.error(), __WASI_ERRNO_NOTCAPABLE);
+  EXPECT_FALSE(fs::exists(Root / "logs" / "other"));
+
+  // Among the preopened directories of equal names, the last one takes the
+  // path, as in the WASI libc.
+  WasmEdge::Host::WASI::Environ TieEnv;
+  TieEnv.init(
+      {".:" + (Root / "root").string(), "/:" + (Root / "logs").string()},
+      "test"s, {}, {});
+  auto Tie = static_cast<const WasmEdge::Host::FileSystem &>(TieEnv).open(
+      "tie.txt", __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_TRUE(Tie);
+  Tie->reset();
+  EXPECT_TRUE(fs::exists(Root / "logs" / "tie.txt"));
+  EXPECT_FALSE(fs::exists(Root / "root" / "tie.txt"));
+  Env.fini();
+  LogsEnv.fini();
+  TieEnv.fini();
 }
 
 TEST(WasiTest, Directory) {
@@ -4645,6 +4951,41 @@ std::string readFile(const std::filesystem::path &Path) {
   return std::string(std::istreambuf_iterator<char>(File), {});
 }
 } // namespace
+
+// fd_write on an append fd leaves the offset at the end of the file, and
+// fd_pwrite does not move it.
+TEST(WasiTest, FdWriteAppendMovesOffsetToEnd) {
+  SymlinkTestRoot Root("wasmedge-wasi-append-offset");
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  auto FdResult = Env.pathOpen(
+      RootFd, "append.txt"sv, static_cast<__wasi_lookupflags_t>(0),
+      __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+      __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL,
+      static_cast<__wasi_rights_t>(0), __WASI_FDFLAGS_APPEND);
+  ASSERT_TRUE(FdResult);
+  const __wasi_fd_t Fd = *FdResult;
+
+  const std::array<uint8_t, 2> Data = {'a', 'b'};
+  std::array<WasmEdge::Span<const uint8_t>, 1> IOVs = {Data};
+  __wasi_size_t NWritten = 0;
+  __wasi_filesize_t Offset = 0;
+
+  ASSERT_TRUE(Env.fdWrite(Fd, IOVs, NWritten));
+  ASSERT_TRUE(Env.fdSeek(Fd, 0, __WASI_WHENCE_SET, Offset));
+  ASSERT_TRUE(Env.fdWrite(Fd, IOVs, NWritten));
+  ASSERT_TRUE(Env.fdTell(Fd, Offset));
+  EXPECT_EQ(Offset, UINT64_C(4));
+
+  ASSERT_TRUE(Env.fdPwrite(Fd, IOVs, 0, NWritten));
+  ASSERT_TRUE(Env.fdTell(Fd, Offset));
+  EXPECT_EQ(Offset, UINT64_C(4));
+
+  EXPECT_TRUE(Env.fdClose(Fd));
+  Env.fini();
+}
 
 // path_remove_directory acts on a symlink itself and never removes its target.
 TEST(WasiTest, PathRemoveDirectoryDoesNotFollowSymlink) {
@@ -5103,6 +5444,511 @@ TEST(WasiTest, CustomFds) {
         << "Should fail to initialize with invalid stderr fd";
   }
 }
+
+#if !WASMEDGE_OS_WINDOWS
+TEST(WasiTest, PollOneoffReuseAfterEmptyPoll) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+
+  auto PollReadTimeout = [&]() {
+    const uint32_t Count = 2;
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+    Subscriptions[0].u.tag =
+        WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subscriptions[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+    Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscriptions[1].u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscriptions[1].u.u.clock.timeout =
+        WasmEdge::EndianValue(
+            std::chrono::nanoseconds(std::chrono::milliseconds(100)).count())
+            .le();
+    Subscriptions[1].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+    Subscriptions[1].u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    EXPECT_EQ(NEvents, 1);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Events[0].userdata,
+              WasmEdge::EndianValue(0x2020202020202020).le());
+  };
+
+  // poll read and 100 milliseconds, expect timeout
+  PollReadTimeout();
+
+  // poll nothing, only the reuse of the poller after it is checked
+  EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     InPtr, OutPtr, UINT32_C(0), NEventsPtr},
+                                 Errno));
+
+  // poll read and 100 milliseconds again on the reused poller, expect timeout
+  PollReadTimeout();
+
+  Env.fini();
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+}
+
+TEST(WasiTest, PollOneoffFailedSubscriptionDoesNotBlock) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+  const __wasi_fd_t BadFd = 100;
+
+  auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+  Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+  Subscriptions[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+  Subscriptions[0].u.u.fd_read.file_descriptor =
+      WasmEdge::EndianValue(BadFd).le();
+  Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+  Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+  Subscriptions[1].u.u.fd_read.file_descriptor =
+      WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+
+  struct sigaction Action = {};
+  struct sigaction OldAction = {};
+  Action.sa_handler = [](int) {};
+  sigemptyset(&Action.sa_mask);
+  ASSERT_EQ(::sigaction(SIGUSR1, &Action, &OldAction), 0);
+
+  // run poll_oneoff on another thread and expect it to return within 2
+  // seconds, interrupt the wait with signals if it blocks, and abort if it
+  // still does not return
+  auto PollWithoutBlocking = [&](uint32_t Count) {
+    std::promise<void> Returned;
+    auto ReturnedFuture = Returned.get_future();
+    std::thread Poll([&]() {
+      sigset_t Set;
+      sigemptyset(&Set);
+      sigaddset(&Set, SIGUSR1);
+      ::pthread_sigmask(SIG_UNBLOCK, &Set, nullptr);
+      EXPECT_TRUE(
+          WasiPollOneoff.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 InPtr, OutPtr, Count, NEventsPtr},
+                             Errno));
+      Returned.set_value();
+    });
+    const bool Blocked = ReturnedFuture.wait_for(std::chrono::seconds(2)) !=
+                         std::future_status::ready;
+    EXPECT_FALSE(Blocked);
+    for (int I = 0;
+         I < 200 && ReturnedFuture.wait_for(10ms) != std::future_status::ready;
+         ++I) {
+      ::pthread_kill(Poll.native_handle(), SIGUSR1);
+    }
+    if (ReturnedFuture.wait_for(0ms) != std::future_status::ready) {
+      GTEST_LOG_(FATAL) << "poll_oneoff did not return";
+    }
+    Poll.join();
+    return !Blocked;
+  };
+  auto ExpectBadFdEvent = [&](__wasi_size_t ExpectedCount) {
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, ExpectedCount);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_BADF);
+    EXPECT_EQ(Events[0].userdata,
+              WasmEdge::EndianValue(0x1010101010101010).le());
+  };
+
+  // poll a bad fd and an idle pipe, expect only the error without blocking
+  if (PollWithoutBlocking(2)) {
+    ExpectBadFdEvent(1);
+  }
+
+  // poll a bad fd only, expect the error without blocking
+  if (PollWithoutBlocking(1)) {
+    ExpectBadFdEvent(1);
+  }
+
+  // poll a bad fd and a ready pipe, expect both results
+  ASSERT_EQ(::write(PipeFds[1], "x", 1), 1);
+  if (PollWithoutBlocking(2)) {
+    ExpectBadFdEvent(2);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[1].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[1].error, __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Events[1].userdata,
+              WasmEdge::EndianValue(0x2020202020202020).le());
+  }
+
+  EXPECT_EQ(::sigaction(SIGUSR1, &OldAction, nullptr), 0);
+  Env.fini();
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+}
+
+TEST(WasiTest, PollOneoffReuseAfterFailedModify) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  int OtherPipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_EQ(::pipe(OtherPipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+
+  auto PollReadAndClock = [&](uint32_t Count) {
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+    Subscriptions[0].u.tag =
+        WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+    Subscriptions[0].u.u.fd_read.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+    Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+    Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscriptions[1].u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscriptions[1].u.u.clock.timeout =
+        WasmEdge::EndianValue(
+            std::chrono::nanoseconds(std::chrono::milliseconds(100)).count())
+            .le();
+    Subscriptions[1].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+    Subscriptions[1].u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, 1);
+  };
+  auto PollClock = [&]() {
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+    Subscriptions[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+    Subscriptions[0].u.u.clock.id =
+        WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+    Subscriptions[0].u.u.clock.timeout =
+        WasmEdge::EndianValue(
+            std::chrono::nanoseconds(std::chrono::milliseconds(10)).count())
+            .le();
+    Subscriptions[0].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+    Subscriptions[0].u.u.clock.flags =
+        WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, UINT32_C(1), NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, 1);
+  };
+  auto ExpectTimeout = [&]() {
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  };
+
+  // poll read and 100 milliseconds, expect timeout
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  // replace the open file behind the fd, and keep the replaced open file
+  // readable through another fd
+  const int KeptFd = ::dup(PipeFds[0]);
+  ASSERT_GE(KeptFd, 0);
+  ASSERT_EQ(::dup2(OtherPipeFds[0], PipeFds[0]), PipeFds[0]);
+  ASSERT_EQ(::write(PipeFds[1], "x", 1), 1);
+
+  // poll read and 100 milliseconds, expect timeout without an event from the
+  // replaced open file
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  // poll read and 100 milliseconds again, expect timeout
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  // poll read on the new open file, expect readable
+  ASSERT_EQ(::write(OtherPipeFds[1], "x", 1), 1);
+  PollReadAndClock(1);
+  {
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  }
+  char Buffer;
+  ASSERT_EQ(::read(OtherPipeFds[0], &Buffer, 1), 1);
+
+  // put the readable replaced open file back behind the fd, and register it
+  ASSERT_EQ(::dup2(KeptFd, PipeFds[0]), PipeFds[0]);
+  PollReadAndClock(1);
+  {
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+    EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  }
+
+  // replace the open file behind the fd again, and poll only a clock in the
+  // next round, so the fd is not subscribed when its registration is removed
+  ASSERT_EQ(::dup2(OtherPipeFds[0], PipeFds[0]), PipeFds[0]);
+  PollClock();
+  ExpectTimeout();
+
+  // poll read and 100 milliseconds, expect timeout without an event from the
+  // replaced open file, which is still readable
+  PollReadAndClock(2);
+  ExpectTimeout();
+
+  Env.fini();
+  closeFd(KeptFd);
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+  closeFd(OtherPipeFds[0]);
+  closeFd(OtherPipeFds[1]);
+}
+#endif
+
+#if WASMEDGE_OS_LINUX
+TEST(WasiTest, PollOneoffInterruptedWait) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  struct sigaction Action = {};
+  struct sigaction OldAction = {};
+  Action.sa_handler = [](int) {};
+  Action.sa_flags = SA_RESTART;
+  ::sigemptyset(&Action.sa_mask);
+  ASSERT_EQ(::sigaction(SIGUSR1, &Action, &OldAction), 0);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * 2;
+  auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+  Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+  Subscriptions[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+  Subscriptions[0].u.u.fd_read.file_descriptor =
+      WasmEdge::EndianValue<__wasi_fd_t>(0).le();
+  Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+  Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+  Subscriptions[1].u.u.clock.id =
+      WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+  Subscriptions[1].u.u.clock.timeout =
+      WasmEdge::EndianValue(
+          std::chrono::nanoseconds(std::chrono::milliseconds(300)).count())
+          .le();
+  Subscriptions[1].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+  Subscriptions[1].u.u.clock.flags =
+      WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+
+  // poll read on an empty pipe and 300 milliseconds, interrupt the wait with a
+  // signal, the timer ends the wait if no signal interrupts it
+  std::atomic<bool> Done = false;
+  std::thread Poll([&]() {
+    sigset_t Set;
+    ::sigemptyset(&Set);
+    ::sigaddset(&Set, SIGUSR1);
+    ::pthread_sigmask(SIG_UNBLOCK, &Set, nullptr);
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, UINT32_C(2), NEventsPtr},
+                                   Errno));
+    Done = true;
+  });
+  for (int I = 0; !Done && I < 1000; ++I) {
+    ::pthread_kill(Poll.native_handle(), SIGUSR1);
+    std::this_thread::sleep_for(10ms);
+  }
+  Poll.join();
+  EXPECT_EQ(::sigaction(SIGUSR1, &OldAction, nullptr), 0);
+
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  __wasi_size_t NEvents;
+  EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+  ASSERT_EQ(NEvents, 2);
+  auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+  EXPECT_EQ(Events[0].type,
+            WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+  EXPECT_EQ(Events[0].error, __WASI_ERRNO_INTR);
+  EXPECT_EQ(Events[0].userdata, WasmEdge::EndianValue(0x1010101010101010).le());
+  EXPECT_EQ(Events[1].type, WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+  EXPECT_EQ(Events[1].error, __WASI_ERRNO_INTR);
+  EXPECT_EQ(Events[1].userdata, WasmEdge::EndianValue(0x2020202020202020).le());
+
+  // let the timer of the interrupted round expire, then poll read on a ready
+  // pipe with the same poller, expect only the read event
+  std::this_thread::sleep_for(400ms);
+  ASSERT_EQ(::write(PipeFds[1], "x", 1), 1);
+  EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     InPtr, OutPtr, UINT32_C(1), NEventsPtr},
+                                 Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+  ASSERT_EQ(NEvents, 1);
+  EXPECT_EQ(Events[0].type,
+            WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+  EXPECT_EQ(Events[0].error, __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Events[0].userdata, WasmEdge::EndianValue(0x1010101010101010).le());
+
+  Env.fini();
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+}
+
+TEST(WasiTest, PollOneoffWriteReuseAfterFailedModify) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  int PipeFds[2];
+  int OtherPipeFds[2];
+  ASSERT_EQ(::pipe(PipeFds), 0);
+  ASSERT_EQ(::pipe(OtherPipeFds), 0);
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, 0, PipeFds[1], 2));
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t);
+
+  auto PollWrite = [&](__wasi_errno_t Expected) {
+    const uint32_t Count = 1;
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+    Subscriptions[0].u.tag =
+        WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le();
+    Subscriptions[0].u.u.fd_write.file_descriptor =
+        WasmEdge::EndianValue<__wasi_fd_t>(1).le();
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    ASSERT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    ASSERT_EQ(NEvents, 1);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le());
+    EXPECT_EQ(Events[0].error, Expected);
+  };
+
+  // poll write on an empty pipe, expect writable
+  PollWrite(__WASI_ERRNO_SUCCESS);
+
+  // replace the open file behind the fd, and keep the replaced open file
+  // writable through another fd
+  const int KeptFd = ::dup(PipeFds[1]);
+  ASSERT_GE(KeptFd, 0);
+  ASSERT_EQ(::dup2(OtherPipeFds[1], PipeFds[1]), PipeFds[1]);
+
+  // poll write, expect the new open file to be registered and writable
+  PollWrite(__WASI_ERRNO_SUCCESS);
+
+  // poll write again, expect writable
+  PollWrite(__WASI_ERRNO_SUCCESS);
+
+  Env.fini();
+  closeFd(KeptFd);
+  closeFd(PipeFds[0]);
+  closeFd(PipeFds[1]);
+  closeFd(OtherPipeFds[0]);
+  closeFd(OtherPipeFds[1]);
+}
+#endif
 
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

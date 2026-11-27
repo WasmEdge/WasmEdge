@@ -43,6 +43,15 @@ public:
     return nullptr;
   }
 
+  /// Get the filesystem of the WASI module on this frame, which a host function
+  /// opens the files of the guest with. Null when the module imports no WASI.
+  const Host::FileSystem *getFileSystem() const noexcept {
+    if (const auto *WasiMod = getWASIModule()) {
+      return WasiMod->getFileSystem();
+    }
+    return nullptr;
+  }
+
   /// Helper function for getting the memory instance by index from the module.
   Instance::MemoryInstance *getMemoryByIndex(uint32_t Index) const noexcept {
     if (Module) {

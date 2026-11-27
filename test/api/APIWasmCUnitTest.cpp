@@ -1421,6 +1421,11 @@ wasm_trap_t *funcRefCallback(void *env, const wasm_val_vec_t *args,
   return nullptr;
 }
 
+wasm_trap_t *nineCallback(const wasm_val_vec_t *, wasm_val_vec_t *results) {
+  results->data[0] = i32Val(9);
+  return nullptr;
+}
+
 TEST(APIWasmCTest, FuncRef) {
   // (module
   //   (type $s (struct))
@@ -1482,6 +1487,11 @@ TEST(APIWasmCTest, FuncRef) {
       wasm_func_new_with_env(store, cb_type, funcRefCallback, &seen, nullptr);
   wasm_functype_delete(cb_type);
   ASSERT_NE(nullptr, cb);
+  wasm_functype_t *nine_type =
+      wasm_functype_new_0_1(wasm_valtype_new(WASM_I32));
+  wasm_func_t *nine = wasm_func_new(store, nine_type, nineCallback);
+  wasm_functype_delete(nine_type);
+  ASSERT_NE(nullptr, nine);
   wasm_extern_t *import_data[1] = {wasm_func_as_extern(cb)};
   wasm_extern_vec_t imports = {1, import_data};
   wasm_instance_t *instance =
@@ -1568,6 +1578,11 @@ TEST(APIWasmCTest, FuncRef) {
   EXPECT_EQ(nullptr, wasm_func_call(func_typed_id, &args, &results));
   EXPECT_EQ(7, callFuncRef(res));
   wasm_val_delete(&res);
+  arg.of.ref = wasm_func_as_ref(nine);
+  res = i32Val(0);
+  EXPECT_EQ(nullptr, wasm_func_call(func_typed_id, &args, &results));
+  EXPECT_EQ(9, callFuncRef(res));
+  wasm_val_delete(&res);
   arg.of.ref = wasm_func_as_ref(func_get);
   res = i32Val(0);
   EXPECT_EQ(nullptr, wasm_func_call(func_typed_id, &args, &results));
@@ -1617,6 +1632,7 @@ TEST(APIWasmCTest, FuncRef) {
 
   wasm_extern_vec_delete(&exports);
   wasm_instance_delete(instance);
+  wasm_func_delete(nine);
   wasm_func_delete(cb);
   wasm_module_delete(module);
   wasm_store_delete(store);

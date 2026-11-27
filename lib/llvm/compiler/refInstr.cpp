@@ -443,94 +443,23 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
         {Context.getModuleInst(Builder, ModCtx), Ref, VType}));
     break;
   }
-  case OpCode::Any__convert_extern: {
+  case OpCode::Any__convert_extern:
+  case OpCode::Extern__convert_any: {
+    // A non-null reference is the same value seen from inside and outside.
     std::array<uint8_t, 16> RawRef = {0};
-    auto Ref = stackPop();
-    auto PtrVal = Builder.createExtractElement(Ref, LLContext.getInt64(1));
-    auto IsNullBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.null");
-    auto NotNullBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.not_null");
-    auto IsExtrefBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.is_extref");
-    auto EndBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.end");
-    auto CondIsNull = Builder.createICmpEQ(PtrVal, LLContext.getInt64(0));
-    Builder.createCondBr(CondIsNull, IsNullBB, NotNullBB);
-
-    Builder.positionAtEnd(IsNullBB);
-    auto VT = ValType(TypeCode::RefNull, TypeCode::NullRef);
+    auto VT = ValType(TypeCode::RefNull,
+                      Instr.getOpCode() == OpCode::Any__convert_extern
+                          ? TypeCode::NullRef
+                          : TypeCode::NullExternRef);
     std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
-    auto Ret1 = Builder.createBitCast(
-        LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
-    Builder.createBr(EndBB);
-
-    Builder.positionAtEnd(NotNullBB);
-    auto Ret2 =
-        Builder.createBitCast(Builder.createInsertElement(
-                                  Builder.createBitCast(Ref, Context.Int8x16Ty),
-                                  LLContext.getInt8(0), LLContext.getInt64(1)),
-                              Context.Int64x2Ty);
-    auto HType = Builder.createExtractElement(
-        Builder.createBitCast(Ret2, Context.Int8x16Ty), LLContext.getInt64(3));
-    auto CondIsExtref = Builder.createOr(
-        Builder.createICmpEQ(HType, LLContext.getInt8(static_cast<uint8_t>(
-                                        TypeCode::ExternRef))),
-        Builder.createICmpEQ(HType, LLContext.getInt8(static_cast<uint8_t>(
-                                        TypeCode::NullExternRef))));
-    Builder.createCondBr(CondIsExtref, IsExtrefBB, EndBB);
-
-    Builder.positionAtEnd(IsExtrefBB);
-    VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
-    std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
-    auto Ret3 = Builder.createInsertElement(
+    auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+    stackPush(Builder.createSelect(
+        Builder.createICmpEQ(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            LLContext.getInt64(0)),
         Builder.createBitCast(LLVM::Value::getConstVector8(LLContext, RawRef),
                               Context.Int64x2Ty),
-        PtrVal, LLContext.getInt64(1));
-    Builder.createBr(EndBB);
-
-    Builder.positionAtEnd(EndBB);
-    auto Ret = Builder.createPHI(Context.Int64x2Ty);
-    Ret.addIncoming(Ret1, IsNullBB);
-    Ret.addIncoming(Ret2, NotNullBB);
-    Ret.addIncoming(Ret3, IsExtrefBB);
-    stackPush(Ret);
-    break;
-  }
-  case OpCode::Extern__convert_any: {
-    std::array<uint8_t, 16> RawRef = {0};
-    auto Ref = stackPop();
-    auto IsNullBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.null");
-    auto NotNullBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.not_null");
-    auto EndBB =
-        LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.end");
-    auto CondIsNull = Builder.createICmpEQ(
-        Builder.createExtractElement(Ref, LLContext.getInt64(1)),
-        LLContext.getInt64(0));
-    Builder.createCondBr(CondIsNull, IsNullBB, NotNullBB);
-
-    Builder.positionAtEnd(IsNullBB);
-    auto VT = ValType(TypeCode::RefNull, TypeCode::NullExternRef);
-    std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
-    auto Ret1 = Builder.createBitCast(
-        LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
-    Builder.createBr(EndBB);
-
-    Builder.positionAtEnd(NotNullBB);
-    auto Ret2 =
-        Builder.createBitCast(Builder.createInsertElement(
-                                  Builder.createBitCast(Ref, Context.Int8x16Ty),
-                                  LLContext.getInt8(1), LLContext.getInt64(1)),
-                              Context.Int64x2Ty);
-    Builder.createBr(EndBB);
-
-    Builder.positionAtEnd(EndBB);
-    auto Ret = Builder.createPHI(Context.Int64x2Ty);
-    Ret.addIncoming(Ret1, IsNullBB);
-    Ret.addIncoming(Ret2, NotNullBB);
-    stackPush(Ret);
+        Ref));
     break;
   }
   case OpCode::Ref__i31: {

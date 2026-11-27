@@ -144,6 +144,15 @@ TEST_F(WasiCryptoTest, KxDh) {
                              __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
   WASI_CRYPTO_EXPECT_TRUE(publickeyClose(P256PkHandle));
   WASI_CRYPTO_EXPECT_TRUE(keypairClose(P256KpHandle));
+
+  // A low-order peer key makes the derivation fail.
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      LowOrderPkHandle,
+      publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv,
+                      std::vector<uint8_t>(32), __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_FAILURE(kxDh(LowOrderPkHandle, X25519SkHandle),
+                             __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(LowOrderPkHandle));
   WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(X25519SkHandle));
 }
 

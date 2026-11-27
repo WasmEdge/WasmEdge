@@ -406,6 +406,9 @@ public:
   const SubType &getDefType() const noexcept { return *Type; }
   void setDefType(const SubType *DefType) noexcept { Type = DefType; }
 
+  // Check whether the Defined Type is set.
+  bool hasDefType() const noexcept { return Type != nullptr; }
+
   // Getter for the size of the value associated with the tag.
   uint32_t getAssocValSize() const noexcept {
     if (Type && Type->getCompositeType().isFunc()) {
@@ -417,8 +420,8 @@ public:
   }
 
 private:
-  uint32_t TypeIdx;
-  const SubType *Type;
+  uint32_t TypeIdx = 0;
+  const SubType *Type = nullptr;
 };
 
 /// AST Type match helper class.
@@ -532,6 +535,11 @@ public:
                      Got.getTypeIndex(), Equal);
   }
 
+  /// Matcher: Match the bottom reference type to a value type.
+  static bool matchBottomRef(const ValType &Exp, bool IsNullable) noexcept {
+    return IsNullable ? Exp.isNullableRefType() : Exp.isRefType();
+  }
+
   /// Matcher: Match two table types.
   static bool matchType(Span<const SubType *const> ExpTypeList,
                         const TableType &Exp,
@@ -609,6 +617,21 @@ public:
     default:
       return TypeCode::NullRef;
     }
+  }
+
+  /// Matcher: Get the top type of the hierarchy of a reference type.
+  static TypeCode getTopHeapType(Span<const SubType *const> TypeList,
+                                 const ValType &Type) noexcept {
+    return getTopHeapType(
+        Type.isAbsHeapType()
+            ? Type.getHeapTypeCode()
+            : TypeList[Type.getTypeIndex()]->getCompositeType().expand());
+  }
+
+  /// Matcher: Get the bottom type of the hierarchy of a reference type.
+  static TypeCode getBottomHeapType(Span<const SubType *const> TypeList,
+                                    const ValType &Type) noexcept {
+    return getBottomHeapType(getTopHeapType(TypeList, Type));
   }
 
 private:

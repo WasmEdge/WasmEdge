@@ -8,6 +8,7 @@
 #include "driver/unitool.h"
 #include "po/argument_parser.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <filesystem>
@@ -711,11 +712,94 @@ TEST(ValidateSubcommand, DisableProposalFlags) {
   EXPECT_EQ(callValidate({"--disable-function-reference", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({"--disable-exception-handling", Path}), EXIT_SUCCESS);
 
-  EXPECT_EQ(callValidate({"--disable-import-export-mut-globals", Path}),
+  EXPECT_NE(callValidate({"--disable-import-export-mut-globals", Path}),
             EXIT_SUCCESS);
   EXPECT_NE(callValidate({"--disable-import-export-mut-globals",
                           parseTestPath().c_str()}),
             EXIT_SUCCESS);
+}
+
+TEST(ValidateSubcommand, ProposalDependencies) {
+  // (module
+  //   (memory 1)
+  //   (func i32.const 0 i32.const 0 i32.const 0 memory.copy))
+  const std::array<uint8_t, 39> BulkWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03,
+      0x01, 0x00, 0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00,
+      0x41, 0x00, 0x41, 0x00, 0xfc, 0x0a, 0x00, 0x00, 0x0b};
+  // (module (func (param externref)))
+  const std::array<uint8_t, 25> RefTypesWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x05, 0x01, 0x60, 0x01, 0x6f, 0x00, 0x03, 0x02, 0x01,
+      0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  // (module (type (func)) (func (param (ref null 0))))
+  const std::array<uint8_t, 29> FuncRefWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09,
+      0x02, 0x60, 0x00, 0x00, 0x60, 0x01, 0x63, 0x00, 0x00, 0x03,
+      0x02, 0x01, 0x01, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  // (module (func (param anyref)))
+  const std::array<uint8_t, 25> GCWasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                                       0x00, 0x01, 0x05, 0x01, 0x60, 0x01, 0x6e,
+                                       0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
+                                       0x01, 0x02, 0x00, 0x0b};
+  // (module (func (param exnref)))
+  const std::array<uint8_t, 25> ExceptionWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x05, 0x01, 0x60, 0x01, 0x69, 0x00, 0x03, 0x02, 0x01,
+      0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  // (module (func (param v128)))
+  const std::array<uint8_t, 25> SIMDWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x05, 0x01, 0x60, 0x01, 0x7b, 0x00, 0x03, 0x02, 0x01,
+      0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  // (module (func unreachable i8x16.relaxed_swizzle drop))
+  const std::array<uint8_t, 29> RelaxSIMDWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09,
+      0x01, 0x07, 0x00, 0x00, 0xfd, 0x80, 0x02, 0x1a, 0x0b};
+
+  const std::vector<std::string> Paths{
+      writeWasmToFile(BulkWasm.data(), BulkWasm.size(), "dep_bulk.wasm"),
+      writeWasmToFile(RefTypesWasm.data(), RefTypesWasm.size(), "dep_ref.wasm"),
+      writeWasmToFile(FuncRefWasm.data(), FuncRefWasm.size(), "dep_func.wasm"),
+      writeWasmToFile(GCWasm.data(), GCWasm.size(), "dep_gc.wasm"),
+      writeWasmToFile(ExceptionWasm.data(), ExceptionWasm.size(),
+                      "dep_exn.wasm"),
+      writeWasmToFile(SIMDWasm.data(), SIMDWasm.size(), "dep_simd.wasm"),
+      writeWasmToFile(RelaxSIMDWasm.data(), RelaxSIMDWasm.size(),
+                      "dep_relax.wasm")};
+
+  // Each flag rejects the modules, by index in Paths, of its proposal and of
+  // the proposals depending on it.
+  const std::vector<std::pair<const char *, std::vector<size_t>>> Cases{
+      {"--disable-bulk-memory", {0, 1, 2, 3, 4}},
+      {"--disable-reference-types", {1, 2, 3, 4}},
+      {"--disable-function-reference", {2, 3}},
+      {"--disable-gc", {3}},
+      {"--disable-exception-handling", {4}},
+      {"--disable-simd", {5, 6}},
+      {"--disable-relaxed-simd", {6}}};
+
+  for (const auto &Path : Paths) {
+    EXPECT_EQ(callValidate({Path.c_str()}), EXIT_SUCCESS);
+  }
+  for (const auto &[Flag, Rejected] : Cases) {
+    SCOPED_TRACE(Flag);
+    for (size_t I = 0; I < Paths.size(); I++) {
+      SCOPED_TRACE(Paths[I]);
+      const bool IsRejected =
+          std::find(Rejected.begin(), Rejected.end(), I) != Rejected.end();
+      EXPECT_EQ(callValidate({Flag, Paths[I].c_str()}) != EXIT_SUCCESS,
+                IsRejected);
+      EXPECT_EQ(callValidate({"--enable-all", Flag, Paths[I].c_str()}) !=
+                    EXIT_SUCCESS,
+                IsRejected);
+    }
+  }
+  for (const auto &Path : Paths) {
+    std::filesystem::remove(Path);
+  }
 }
 
 TEST(ValidateSubcommand, EnableProposalFlags) {

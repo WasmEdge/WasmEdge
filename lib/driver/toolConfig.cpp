@@ -22,7 +22,7 @@ namespace Driver {
 Configure
 createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   Configure Conf;
-  // WASM standard configuration has the highest priority.
+  // The WASM standard and the enable-all options set the base proposals.
   if (Opt.PropWASM1.value()) {
     Conf.setWASMStandard(Standard::WASM_1);
   }
@@ -31,6 +31,11 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   }
   if (Opt.PropWASM3.value()) {
     Conf.setWASMStandard(Standard::WASM_3);
+  }
+  if (Opt.PropAll.value()) {
+    Conf.setWASMStandard(Standard::WASM_3);
+    Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::WideArithmetic);
   }
 
   // Proposals adjustment.
@@ -46,12 +51,6 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   if (Opt.PropMultiValue.value()) {
     Conf.removeProposal(Proposal::MultiValue);
   }
-  if (Opt.PropBulkMemOps.value()) {
-    Conf.removeProposal(Proposal::BulkMemoryOperations);
-  }
-  if (Opt.PropSIMD.value()) {
-    Conf.removeProposal(Proposal::SIMD);
-  }
   if (Opt.PropTailCall.value()) {
     Conf.removeProposal(Proposal::TailCall);
   }
@@ -61,41 +60,48 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   if (Opt.PropMultiMem.value()) {
     Conf.removeProposal(Proposal::MultiMemories);
   }
-  if (Opt.PropRelaxedSIMD.value()) {
-    Conf.removeProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.removeProposal(Proposal::ExceptionHandling);
-  }
   if (Opt.PropMemory64.value()) {
     Conf.removeProposal(Proposal::Memory64);
   }
 
-  // Handle the proposal removal which has dependency.
-  // The GC proposal depends on the func-ref proposal, and the func-ref proposal
-  // depends on the ref-types proposal.
+  // Handle the proposal removal which has dependency. The dependent proposals
+  // go first, to warn only about the proposals removed implicitly.
+  auto RemoveProposal = [&Conf](const Proposal Prop) noexcept {
+    const auto Removed = Conf.removeProposal(Prop);
+    for (size_t I = 0; I < Removed.size(); I++) {
+      if (Removed.test(I)) {
+        spdlog::warn(
+            "Disabling the {} proposal also disables the {} proposal."sv,
+            ProposalStr[Prop], ProposalStr[static_cast<Proposal>(I)]);
+      }
+    }
+  };
+  if (Opt.PropRelaxedSIMD.value()) {
+    RemoveProposal(Proposal::RelaxSIMD);
+  }
+  if (Opt.PropSIMD.value()) {
+    RemoveProposal(Proposal::SIMD);
+  }
   if (Opt.PropGC.value()) {
-    Conf.removeProposal(Proposal::GC);
+    RemoveProposal(Proposal::GC);
   }
   if (Opt.PropFunctionReference.value()) {
-    // This will automatically not work if the GC proposal not disabled.
-    Conf.removeProposal(Proposal::FunctionReferences);
+    RemoveProposal(Proposal::FunctionReferences);
+  }
+  if (Opt.PropExceptionHandling.value()) {
+    RemoveProposal(Proposal::ExceptionHandling);
   }
   if (Opt.PropRefTypes.value()) {
-    // This will automatically not work if the GC or func-ref proposal not
-    // disabled.
-    Conf.removeProposal(Proposal::ReferenceTypes);
+    RemoveProposal(Proposal::ReferenceTypes);
+  }
+  if (Opt.PropBulkMemOps.value()) {
+    RemoveProposal(Proposal::BulkMemoryOperations);
   }
 
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
   if (Opt.PropWideArithmetic.value()) {
-    Conf.addProposal(Proposal::WideArithmetic);
-  }
-  if (Opt.PropAll.value()) {
-    Conf.setWASMStandard(Standard::WASM_3);
-    Conf.addProposal(Proposal::Threads);
     Conf.addProposal(Proposal::WideArithmetic);
   }
 

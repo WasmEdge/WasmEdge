@@ -181,8 +181,9 @@ Hkdf<ShaNid>::openStateImpl(Span<const uint8_t> Key, int Mode) noexcept {
   opensslCheck(EVP_PKEY_derive_init(Ctx.get()));
   opensslCheck(EVP_PKEY_CTX_set_hkdf_md(Ctx.get(), getShaCtx()));
   opensslCheck(EVP_PKEY_CTX_hkdf_mode(Ctx.get(), Mode));
-  ensureOrReturn(EVP_PKEY_CTX_set1_hkdf_key(Ctx.get(), Key.data(), Key.size()),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(
+      opensslOk(EVP_PKEY_CTX_set1_hkdf_key(Ctx.get(), Key.data(), Key.size())),
+      __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return Ctx;
 }

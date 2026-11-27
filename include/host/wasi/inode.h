@@ -930,6 +930,17 @@ private:
   std::unordered_map<int, FdData> OldFdDatas;
 #endif
 
+#if WASMEDGE_OS_LINUX
+  /// Replace the epoll instance with one that holds only the subscriptions of
+  /// this round, dropping registrations that no fd can remove any more.
+  WasiExpect<void> rebuild() noexcept;
+  /// The trigger type of the read and write subscriptions in this round.
+  TriggerType RoundTrigger = TriggerType::Level;
+  /// A registration could not be removed, so the epoll instance must be
+  /// rebuilt before the next wait.
+  bool NeedRebuild = false;
+#endif
+
 #if WASMEDGE_OS_WINDOWS
   struct SocketData {
     OptionalEvent *ReadEvent = nullptr;

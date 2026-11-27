@@ -723,6 +723,13 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
           static_cast<uint32_t>(Checker.getGlobals().size())));
       return Unexpect(ErrCode::Value::InvalidGlobalIdx);
     }
+    // Mutable global exports are for the ImportExportMutGlobals proposal.
+    if (Checker.getGlobals()[Id].second == ValMut::Var &&
+        unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
+      spdlog::error(ErrCode::Value::InvalidMut);
+      spdlog::error(ErrInfo::InfoProposal(Proposal::ImportExportMutGlobals));
+      return Unexpect(ErrCode::Value::InvalidMut);
+    }
     return {};
   default:
     return {};
@@ -976,10 +983,11 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     // Only these instructions are accepted.
     switch (Instr.getOpCode()) {
     case OpCode::Global__get: {
-      // For the initialization case, global indices must be imported globals.
+      // For the initialization case, global indices must be imported globals
+      // unless the ExtendedConst proposal is enabled.
       auto GlobIdx = Instr.getTargetIndex();
       uint32_t ValidGlobalSize = Checker.getNumImportGlobals();
-      if (Conf.hasProposal(Proposal::FunctionReferences)) {
+      if (Conf.hasProposal(Proposal::ExtendedConst)) {
         ValidGlobalSize = static_cast<uint32_t>(Checker.getGlobals().size());
       }
       if (GlobIdx >= ValidGlobalSize) {

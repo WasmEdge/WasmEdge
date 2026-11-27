@@ -8,8 +8,8 @@
 #include "tensorflow/lite/c/c_api.h"
 
 #include <cstdint>
+#include <deque>
 #include <unordered_set>
-#include <vector>
 
 namespace WasmEdge {
 namespace Host {
@@ -26,6 +26,8 @@ enum class ErrNo : uint32_t {
 
 struct Context {
   Context() = default;
+  Context(const Context &) = delete;
+  Context &operator=(const Context &) = delete;
   ~Context() { reset(); }
   void reset() noexcept {
     if (Interp) {
@@ -37,7 +39,9 @@ struct Context {
 };
 
 struct TFLiteEnv {
-  TFLiteEnv() noexcept { TFLiteContext.reserve(16U); }
+  TFLiteEnv() = default;
+  TFLiteEnv(const TFLiteEnv &) = delete;
+  TFLiteEnv &operator=(const TFLiteEnv &) = delete;
 
   Context *getContext(const uint32_t ID) noexcept {
     auto It = RecycledIdx.find(ID);
@@ -65,7 +69,7 @@ struct TFLiteEnv {
 
 private:
   std::unordered_set<uint32_t> RecycledIdx;
-  std::vector<Context> TFLiteContext;
+  std::deque<Context> TFLiteContext;
 };
 
 } // namespace WasmEdgeTensorflowLite

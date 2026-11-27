@@ -14,9 +14,8 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  std::shared_lock lock(state->lock);
-  auto program_ptr = state->handles.find(program);
-  if (program_ptr == state->handles.end()) {
+  auto program_ref = state->find(program);
+  if (!program_ref) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -24,7 +23,7 @@ Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
   const char *attach_target_str = nullptr;
   checkAndSetCstr(memory, name, name_str);
   checkAndSetCstr(memory, attach_target, attach_target_str);
-  return program_ptr->second->attach_bpf_program(name_str, attach_target_str);
+  return program_ref->attach_bpf_program(name_str, attach_target_str);
 }
 
 } // namespace Host

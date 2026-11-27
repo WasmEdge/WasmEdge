@@ -130,6 +130,8 @@ jobs:
         # Source helper functions
         . ./.github/scripts/installer-test-helpers.sh
 
+        verify_bootstrap_downloads
+
         # Use the local install.py script
         export INSTALL_PY_PATH="$(pwd)/utils/install.py"
 

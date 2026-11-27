@@ -140,13 +140,16 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
 #elif WASMEDGE_OS_MACOS
   if (EHFrameAddress) {
     auto Iter = EHFrameAddress;
-    const auto End = EHFrameAddress + EHFrameSize - 4;
+    const auto End = EHFrameAddress + EHFrameSize;
 
-    while (Iter < End) {
+    while (End - Iter > 4) {
+      const uint32_t Length = *reinterpret_cast<const uint32_t *>(Iter);
+      if (Length == 0 || Length > static_cast<uint64_t>(End - Iter) - 4) {
+        break;
+      }
       if (Iter != EHFrameAddress) {
         __register_frame(Iter);
       }
-      const uint32_t Length = *reinterpret_cast<const uint32_t *>(Iter);
       Iter += Length + 4;
     }
   }
@@ -170,13 +173,16 @@ void AOTSection::unload() noexcept {
 #elif WASMEDGE_OS_MACOS
     if (Registered && EHFrameAddress) {
       auto Iter = EHFrameAddress;
-      const auto End = EHFrameAddress + EHFrameSize - 4;
+      const auto End = EHFrameAddress + EHFrameSize;
 
-      while (Iter < End) {
+      while (End - Iter > 4) {
+        const uint32_t Length = *reinterpret_cast<const uint32_t *>(Iter);
+        if (Length == 0 || Length > static_cast<uint64_t>(End - Iter) - 4) {
+          break;
+        }
         if (Iter != EHFrameAddress) {
           __deregister_frame(Iter);
         }
-        const uint32_t Length = *reinterpret_cast<const uint32_t *>(Iter);
         Iter += Length + 4;
       }
     }

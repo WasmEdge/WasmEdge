@@ -14,6 +14,7 @@
 #pragma once
 
 #include "common/configure.h"
+#include "common/defines.h"
 #include "common/enum_ast.hpp"
 #include "common/errcode.h"
 #include "common/span.h"
@@ -21,13 +22,24 @@
 #include "common/timer.h"
 
 #include <atomic>
+#include <optional>
 #include <vector>
+
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#include <sys/resource.h>
+#endif
 
 namespace WasmEdge {
 namespace Statistics {
 
 class Statistics {
 public:
+  struct ProcessResourceUsage {
+    uint64_t UserCPUTime;
+    uint64_t SystemCPUTime;
+    uint64_t PeakResidentSetSize;
+  };
+
   Statistics(const uint64_t Lim = UINT64_MAX)
       : CostTab(UINT16_MAX + 1, 1ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {
   }
@@ -167,6 +179,12 @@ public:
                    Nano(getWasmExecTime()));
       spdlog::info(" Host functions execution time: {} ns"sv,
                    Nano(getHostFuncExecTime()));
+      if (const auto Usage = getProcessResourceUsage()) {
+        spdlog::info(" Process user CPU time: {} ns"sv, Usage->UserCPUTime);
+        spdlog::info(" Process system CPU time: {} ns"sv, Usage->SystemCPUTime);
+        spdlog::info(" Peak resident set size: {} bytes"sv,
+                     Usage->PeakResidentSetSize);
+      }
     }
     if (StatConf.isInstructionCounting()) {
       spdlog::info(" Executed wasm instructions count: {}"sv, getInstrCount());
@@ -188,6 +206,29 @@ public:
   }
 
 private:
+  static std::optional<ProcessResourceUsage>
+  getProcessResourceUsage() noexcept {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+    rusage Usage;
+    if (getrusage(RUSAGE_SELF, &Usage) != 0) {
+      return std::nullopt;
+    }
+    auto TimeValToNano = [](const timeval &Time) noexcept {
+      return static_cast<uint64_t>(Time.tv_sec) * UINT64_C(1000000000) +
+             static_cast<uint64_t>(Time.tv_usec) * UINT64_C(1000);
+    };
+#if WASMEDGE_OS_MACOS
+    const uint64_t PeakRSS = static_cast<uint64_t>(Usage.ru_maxrss);
+#else
+    const uint64_t PeakRSS = static_cast<uint64_t>(Usage.ru_maxrss) * 1024U;
+#endif
+    return ProcessResourceUsage{TimeValToNano(Usage.ru_utime),
+                                TimeValToNano(Usage.ru_stime), PeakRSS};
+#else
+    return std::nullopt;
+#endif
+  }
+
   std::vector<uint64_t> CostTab;
   std::atomic_uint64_t InstrCnt;
   uint64_t CostLimit;

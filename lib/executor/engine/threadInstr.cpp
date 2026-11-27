@@ -38,7 +38,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::runMemoryFenceOp() {
-  std::atomic_thread_fence(std::memory_order_release);
+  std::atomic_thread_fence(std::memory_order_seq_cst);
   return {};
 }
 

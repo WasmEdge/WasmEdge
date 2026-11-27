@@ -1204,6 +1204,8 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   if (!Append) {
     OldOffset.QuadPart += NWritten;
     SetFilePointerEx(Handle, OldOffset, nullptr, FILE_BEGIN_);
+  } else if (NWritten > 0) {
+    SetFilePointerEx(Handle, _LARGE_INTEGER(0), nullptr, FILE_END_);
   }
 
   return Result;

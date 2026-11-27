@@ -74,7 +74,14 @@ WasiCryptoExpect<std::vector<uint8_t>> MlKem<Bits>::PublicKey::exportData(
 
 template <int Bits>
 WasiCryptoExpect<void> MlKem<Bits>::PublicKey::verify() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  int Rc = EVP_PKEY_public_check(CheckCtx.get());
+  ensureOrReturn(Rc >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  if (Rc == 0) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  }
+  return {};
 }
 
 template <int Bits>
@@ -172,13 +179,16 @@ MlKem<Bits>::SecretKey::publicKey() const noexcept {
 template <int Bits>
 WasiCryptoExpect<SecretVec>
 MlKem<Bits>::SecretKey::dh(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::KeyPair>
-MlKem<Bits>::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+MlKem<Bits>::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  int Rc = EVP_PKEY_eq(Ctx.get(), Pk.raw().get());
+  ensureOrReturn(Rc >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Rc == 1, __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+  return Ctx;
 }
 
 template <int Bits>

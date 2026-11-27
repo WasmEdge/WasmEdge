@@ -173,6 +173,17 @@ public:
     }
     if (StatConf.isCostMeasuring()) {
       spdlog::info(" Gas costs: {}"sv, getTotalCost());
+      const uint64_t GasLimit = getCostLimit();
+      if (GasLimit < std::numeric_limits<uint64_t>::max()) {
+        spdlog::info(" Gas limit: {}"sv, GasLimit);
+        if (GasLimit > 0) {
+          const double GasUsage = static_cast<double>(getTotalCost()) * 100.0 /
+                                  static_cast<double>(GasLimit);
+          spdlog::info(" Gas usage: {:.2f} %"sv, GasUsage);
+        } else {
+          spdlog::info(" Gas usage: N/A (limit is 0)"sv);
+        }
+      }
     }
     if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
       const double IPS = getInstrPerSecond();

@@ -51,6 +51,55 @@ WasmEdge_ModuleInstanceContext *createModuleCPP() {
 } // namespace
 
 TEST(wasmedgePluginTests, C_DefaultPaths) {
+  // Without WASMEDGE_PLUGIN_PATH, the plug-in installed next to the WasmEdge
+  // library is loaded. Only the C plug-in is installed there.
+  {
+    ASSERT_EQ(
+        WasmEdge_PluginFind(WasmEdge_StringWrap("wasmedge_plugintest_c", 21U)),
+        nullptr);
+#if WASMEDGE_OS_WINDOWS
+    ::_putenv_s("WASMEDGE_PLUGIN_PATH", "");
+    const auto Dir = std::filesystem::path(WASMEDGE_LIB_DIR "/../lib/wasmedge")
+                         .lexically_normal();
+#else
+    ::unsetenv("WASMEDGE_PLUGIN_PATH");
+    const auto Dir = std::filesystem::path(WASMEDGE_LIB_DIR "/wasmedge");
+#endif
+    const std::filesystem::path File =
+        WASMEDGE_LIB_PREFIX "wasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION;
+    // The first directory created for the test, removed at the end.
+    auto Top = Dir;
+    while (!std::filesystem::exists(Top.parent_path())) {
+      Top = Top.parent_path();
+    }
+    struct DirCleanup {
+      std::filesystem::path Path;
+      std::filesystem::path Library;
+      ~DirCleanup() {
+        // A loaded library cannot be removed on Windows, so move it out first.
+        std::error_code Error;
+        const auto Moved = Library.filename().string() + ".loaded";
+        std::filesystem::rename(Library, Moved, Error);
+        std::filesystem::remove(Moved, Error);
+        std::filesystem::remove_all(Path, Error);
+      }
+    } Cleanup{Top, Dir / File};
+    std::error_code Error;
+    std::filesystem::create_directories(Dir, Error);
+    ASSERT_FALSE(Error);
+    std::filesystem::copy_file(
+        File, Dir / File, std::filesystem::copy_options::overwrite_existing,
+        Error);
+    ASSERT_FALSE(Error);
+    WasmEdge_PluginLoadWithDefaultPaths();
+    EXPECT_NE(
+        WasmEdge_PluginFind(WasmEdge_StringWrap("wasmedge_plugintest_c", 21U)),
+        nullptr);
+    EXPECT_EQ(WasmEdge_PluginFind(
+                  WasmEdge_StringWrap("wasmedge_plugintest_cpp", 23U)),
+              nullptr);
+  }
+
 #if WASMEDGE_OS_WINDOWS
   const std::string Separator = ";";
 #else

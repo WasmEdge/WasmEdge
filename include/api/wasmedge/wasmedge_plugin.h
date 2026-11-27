@@ -86,9 +86,11 @@ extern "C" {
 /// The default paths are:
 ///   1. The paths in the environment variable "WASMEDGE_PLUGIN_PATH",
 ///      separated by ':' (';' on Windows). Empty entries are ignored.
-///   2. The "../plugin/" directory related to the WasmEdge installation path.
-///   3. The "wasmedge/" directory under the library path if WasmEdge is
-///      installed under "/usr".
+///   2. The "../plugin/" directory related to the library path if WasmEdge is
+///      not installed under "/usr", or the library path itself on Windows.
+///   3. The "wasmedge/" directory under the library path, where the plugins
+///      are installed ("../lib/wasmedge/" on Windows).
+///   4. The ".wasmedge/plugin/" directory under the user profile on Windows.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_PluginLoadWithDefaultPaths(void) WASMEDGE_CAPI_NOEXCEPT;
 

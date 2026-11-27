@@ -109,5 +109,16 @@ else()
   )
 endif()
 
+# The directory of the WasmEdge library, for the default plug-in paths.
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  set(WASMEDGE_LIB_DIR $<TARGET_FILE_DIR:wasmedgePluginUnittestsC>)
+else()
+  set(WASMEDGE_LIB_DIR $<TARGET_FILE_DIR:wasmedge_shared>)
+endif()
+target_compile_definitions(wasmedgePluginUnittestsC
+  PRIVATE
+  WASMEDGE_LIB_DIR="${WASMEDGE_LIB_DIR}"
+)
+
 add_test(wasmedgePluginUnittestsC wasmedgePluginUnittestsC)
 add_test(wasmedgePluginUnittestsCPP wasmedgePluginUnittestsCPP)

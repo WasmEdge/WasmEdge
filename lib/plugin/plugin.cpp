@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "plugin/plugin.h"
+#include "common/config.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/version.h"
@@ -288,33 +289,38 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       spdlog::error(
           "Address matched to a shared object but not to any symbol "sv
           "within the object. dli_fname is null."sv);
-      return std::vector<std::filesystem::path>();
+      return Result;
     }
     auto LibPath = u8path(DLInfo.dli_fname).parent_path().lexically_normal();
     const auto UsrStr = "/usr"sv;
     const auto LibStr = "/lib"sv;
     const auto &PathStr = LibPath.native();
+    // If the installation path is under "/usr/lib" or "/usr/lib64", the traced
+    // library path will be "/lib" or "/lib64".
     if (PathStr.compare(0, UsrStr.size(), UsrStr) != 0 &&
         PathStr.compare(0, LibStr.size(), LibStr) != 0) {
       // The installation path of the WasmEdge library is not under "/usr", such
       // as "$HOME/.wasmedge". Plug-in path will be in "LIB_PATH/../plugin".
       Result.push_back(LibPath / u8path(".."sv) / u8path("plugin"sv));
     }
-    Result.push_back(LibPath / u8path("wasmedge"sv));
+    // The installed plug-ins are in "LIB_PATH/wasmedge".
+    Result.push_back(LibPath / u8path(kPluginInstallDir));
   } else {
     spdlog::error(ErrCode::Value::NonNullRequired);
     spdlog::error("Address could not be matched to any shared object. "sv
                   "Detailed error information is not available."sv);
-    return std::vector<std::filesystem::path>();
+    return Result;
   }
 #elif WASMEDGE_OS_WINDOWS
   // Global plugin directory.
   if (std::filesystem::path Path; GetFunctionModuleFileName(
           reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), Path)) {
     Result.push_back(Path.parent_path());
+    // The installed plug-ins are in "..\lib\wasmedge" of the module directory.
+    Result.push_back(
+        (Path.parent_path() / u8path(kPluginInstallDir)).lexically_normal());
   } else {
     spdlog::error("Failed to get the path of the current module."sv);
-    return std::vector<std::filesystem::path>();
   }
 
   // Local home plugin directory.

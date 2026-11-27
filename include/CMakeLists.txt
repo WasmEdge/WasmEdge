@@ -33,6 +33,16 @@ configure_file(api/wasmedge/wasmedge_plugin.h api/wasmedge/wasmedge_plugin.h COP
 configure_file(api/wasmedge/wasmedge_tools.h api/wasmedge/wasmedge_tools.h COPYONLY)
 configure_file(api/wasmedge/wasmedge_value.h api/wasmedge/wasmedge_value.h COPYONLY)
 configure_file(api/wasmedge/wasmedge_vm.h api/wasmedge/wasmedge_vm.h COPYONLY)
+# The plug-in install directory, relative to the directory of the WasmEdge
+# library. The library is installed in the binary directory on Windows.
+if(WIN32)
+  set(WASMEDGE_LIB_INSTALL_DIR ${CMAKE_INSTALL_FULL_BINDIR})
+else()
+  set(WASMEDGE_LIB_INSTALL_DIR ${CMAKE_INSTALL_FULL_LIBDIR})
+endif()
+file(RELATIVE_PATH WASMEDGE_PLUGIN_INSTALL_DIR ${WASMEDGE_LIB_INSTALL_DIR}
+  ${CMAKE_INSTALL_FULL_LIBDIR}/wasmedge
+)
 configure_file(common/config.h.in common/config.h)
 configure_file(common/enum.inc api/wasmedge/enum.inc COPYONLY)
 configure_file(common/enum_configure.h api/wasmedge/enum_configure.h COPYONLY)

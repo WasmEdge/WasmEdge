@@ -20,11 +20,11 @@ ONNXRUNTIME_VERSION="1.22.0"
 case "$(uname -m)" in
   'x86_64')
     ONNXRUNTIME_ARCH="x64"
-    ONNXRUNTIME_SHA256="8344d55f93d5bc5021ce342db50f62079daf39aaafb5d311a451846228be49b3"
+    ONNXRUNTIME_RID="linux-x64"
     ;;
   'aarch64')
     ONNXRUNTIME_ARCH="aarch64"
-    ONNXRUNTIME_SHA256="bb76395092d150b52c7092dc6b8f2fe4d80f0f3bf0416d2f269193e347e24702"
+    ONNXRUNTIME_RID="linux-arm64"
     ;;
   *)
     echo "Unsupported architecture for libpiper: $(uname -m)" >&2
@@ -33,20 +33,31 @@ case "$(uname -m)" in
 esac
 
 ONNXRUNTIME_NAME="onnxruntime-linux-${ONNXRUNTIME_ARCH}-${ONNXRUNTIME_VERSION}"
-ONNXRUNTIME_URL="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME_NAME}.tgz"
+ONNXRUNTIME_PACKAGE="microsoft.ml.onnxruntime.${ONNXRUNTIME_VERSION}.nupkg"
+ONNXRUNTIME_URL="https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ONNXRUNTIME_VERSION}/${ONNXRUNTIME_PACKAGE}"
+ONNXRUNTIME_PACKAGE_SHA256="d571e63a2329baacb713f441e65ad75284de354db6e1ac435fe4bebbb417986a"
 
-rm -rf "${ONNXRUNTIME_NAME}" "${ONNXRUNTIME_NAME}.tgz"
+rm -rf "${ONNXRUNTIME_NAME}" "${ONNXRUNTIME_PACKAGE}"
 DOWNLOADED=0
 for _ in 1 2 3 4 5; do
-  if curl -fL -o "${ONNXRUNTIME_NAME}.tgz" "${ONNXRUNTIME_URL}"; then
+  if curl -fL -o "${ONNXRUNTIME_PACKAGE}" "${ONNXRUNTIME_URL}"; then
     DOWNLOADED=1
     break
   fi
   sleep 10
 done
 [ "${DOWNLOADED}" -eq 1 ]
-echo "${ONNXRUNTIME_SHA256}  ${ONNXRUNTIME_NAME}.tgz" | sha256sum -c
-tar -xzf "${ONNXRUNTIME_NAME}.tgz"
+echo "${ONNXRUNTIME_PACKAGE_SHA256}  ${ONNXRUNTIME_PACKAGE}" | sha256sum -c
+mkdir -p "${ONNXRUNTIME_NAME}/include" "${ONNXRUNTIME_NAME}/lib"
+unzip -q "${ONNXRUNTIME_PACKAGE}" \
+  "build/native/include/*" \
+  "runtimes/${ONNXRUNTIME_RID}/native/libonnxruntime.so" \
+  "runtimes/${ONNXRUNTIME_RID}/native/libonnxruntime_providers_shared.so" \
+  -d .onnxruntime-package
+cp -R .onnxruntime-package/build/native/include/. "${ONNXRUNTIME_NAME}/include/"
+cp .onnxruntime-package/runtimes/${ONNXRUNTIME_RID}/native/libonnxruntime.so "${ONNXRUNTIME_NAME}/lib/"
+cp .onnxruntime-package/runtimes/${ONNXRUNTIME_RID}/native/libonnxruntime_providers_shared.so "${ONNXRUNTIME_NAME}/lib/"
+rm -rf .onnxruntime-package
 ONNXRUNTIME_DIR="$(pwd)/${ONNXRUNTIME_NAME}"
 
 rm -rf piper-source
@@ -101,6 +112,6 @@ else
 fi
 
 cd ../..
-rm -rf piper-source "${ONNXRUNTIME_NAME}" "${ONNXRUNTIME_NAME}.tgz"
+rm -rf piper-source "${ONNXRUNTIME_NAME}" "${ONNXRUNTIME_PACKAGE}"
 
 ldconfig

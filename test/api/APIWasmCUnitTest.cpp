@@ -984,6 +984,51 @@ TEST(APIWasmCTest, Global) {
   EXPECT_TRUE(true);
 }
 
+TEST(APIWasmCTest, GlobalSetChecksMutabilityAndKind) {
+  wasm_engine_t *engine = wasm_engine_new();
+  wasm_store_t *store = wasm_store_new(engine);
+  wasm_val_t got{};
+
+  // A const global keeps its value.
+  wasm_globaltype_t *const_type =
+      wasm_globaltype_new(wasm_valtype_new(WASM_I32), WASM_CONST);
+  wasm_val_t init = i32Val(11);
+  wasm_global_t *const_global = wasm_global_new(store, const_type, &init);
+  ASSERT_NE(nullptr, const_global);
+  wasm_val_t newv = i32Val(99);
+  wasm_global_set(const_global, &newv);
+  wasm_global_get(const_global, &got);
+  EXPECT_EQ(WASM_I32, got.kind);
+  EXPECT_EQ(11, got.of.i32);
+
+  // A var global ignores a value of another kind.
+  wasm_globaltype_t *var_type =
+      wasm_globaltype_new(wasm_valtype_new(WASM_I64), WASM_VAR);
+  wasm_val_t init64 = i64Val(-5);
+  wasm_global_t *var_global = wasm_global_new(store, var_type, &init64);
+  ASSERT_NE(nullptr, var_global);
+  wasm_val_t wrong_i32 = i32Val(-1);
+  wasm_global_set(var_global, &wrong_i32);
+  wasm_global_get(var_global, &got);
+  EXPECT_EQ(WASM_I64, got.kind);
+  EXPECT_EQ(-5, got.of.i64);
+  wasm_val_t wrong_f64 = f64Val(1.0);
+  wasm_global_set(var_global, &wrong_f64);
+  wasm_global_get(var_global, &got);
+  EXPECT_EQ(-5, got.of.i64);
+  wasm_val_t right = i64Val(42);
+  wasm_global_set(var_global, &right);
+  wasm_global_get(var_global, &got);
+  EXPECT_EQ(42, got.of.i64);
+
+  wasm_global_delete(const_global);
+  wasm_global_delete(var_global);
+  wasm_globaltype_delete(const_type);
+  wasm_globaltype_delete(var_type);
+  wasm_store_delete(store);
+  wasm_engine_delete(engine);
+}
+
 TEST(APIWasmCTest, Table) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);

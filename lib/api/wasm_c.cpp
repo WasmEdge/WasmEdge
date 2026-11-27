@@ -2916,7 +2916,12 @@ void wasm::Global::set(const wasm::Val &val) {
   // Replace the kept init value here. If the value type is a reference, this
   // will help to keep the reference count.
   auto *global = static_cast<wasm_global_t *>(this);
-  if (!make_valtype_from_wasmedge(global->inst->getGlobalType().getValType())) {
+  const auto &gt = global->inst->getGlobalType();
+  if (gt.getValMut() != WasmEdge::ValMut::Var) {
+    return;
+  }
+  auto vt = make_valtype_from_wasmedge(gt.getValType());
+  if (!vt || vt->kind() != val.kind()) {
     return;
   }
   global->keepval = val.copy();

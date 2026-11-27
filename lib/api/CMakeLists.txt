@@ -106,6 +106,17 @@ target_link_libraries(wasmedgeCAPI
   wasmedgeDriver
 )
 
+# The C API can load WAT and WAST. The loader finds a text module and sends it
+# to wasmedgeWat. Declare that dependency here, and do not depend on the
+# loader to bring it. A consumer of the API libraries then gets wasmedgeWat and
+# its tree-sitter object library, and it does not list them by hand.
+if(WASMEDGE_BUILD_WAT)
+  target_link_libraries(wasmedgeCAPI
+    PUBLIC
+    wasmedgeWat
+  )
+endif()
+
 if(WASMEDGE_USE_LLVM)
   target_link_libraries(wasmedgeCAPI
     PUBLIC
@@ -180,6 +191,9 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgePO)
   wasmedge_add_static_lib_component_command(wasmedgeLoaderFileMgr)
   wasmedge_add_static_lib_component_command(wasmedgeLoader)
+  if(WASMEDGE_BUILD_WAT)
+    wasmedge_add_static_lib_component_command(wasmedgeWat)
+  endif()
   wasmedge_add_static_lib_component_command(wasmedgeValidator)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)

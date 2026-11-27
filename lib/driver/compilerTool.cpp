@@ -30,15 +30,23 @@ int compileModule(const Configure &Conf, Span<const Byte> Data,
                   const std::filesystem::path &OutputPath) noexcept {
   using namespace std::literals;
 
+  LLVM::Compiler Compiler(Conf);
+  if (auto Res = Compiler.checkConfigure(); !Res) {
+    const auto Err = static_cast<uint32_t>(Res.error());
+    spdlog::error("Compiler Configure failed. Error code: {}"sv, Err);
+    return EXIT_FAILURE;
+  }
+
   Loader::Loader Loader(Conf);
-  std::unique_ptr<AST::Module> Module;
-  if (auto Res = Loader.parseModule(Data)) {
-    Module = std::move(*Res);
+  Loader::Loader::CompileInput Input;
+  if (auto Res = Loader.parseCompileInput(Data)) {
+    Input = std::move(*Res);
   } else {
     const auto Err = static_cast<uint32_t>(Res.error());
     spdlog::error("Parse Module failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;
   }
+  auto &Module = Input.Module;
 
   {
     Validator::Validator ValidatorEngine(Conf);
@@ -49,12 +57,14 @@ int compileModule(const Configure &Conf, Span<const Byte> Data,
     }
   }
 
-  LLVM::Compiler Compiler(Conf);
-  if (auto Res = Compiler.checkConfigure(); !Res) {
+  if (auto Res = Loader.compileBinary(Input)) {
+    Data = *Res;
+  } else {
     const auto Err = static_cast<uint32_t>(Res.error());
-    spdlog::error("Compiler Configure failed. Error code: {}"sv, Err);
+    spdlog::error("Serialize Module failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;
   }
+
   LLVM::CodeGen CodeGen(Conf);
   if (auto Res = Compiler.compile(*Module); !Res) {
     const auto Err = static_cast<uint32_t>(Res.error());
@@ -80,6 +90,15 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
 #ifdef WASMEDGE_USE_LLVM
 
   Configure Conf = createProposalConfigure(Opt);
+  if (Opt.EnableWAT.value()) {
+    Conf.setEnableWAT(true);
+#ifdef WASMEDGE_BUILD_WAT
+    spdlog::warn("WAT text format input is enabled, this is experimental."sv);
+#else
+    spdlog::warn("WAT text format input is not in this build. The option "
+                 "has no effect."sv);
+#endif
+  }
 
   using OptimizationLevel = CompilerConfigure::OptimizationLevel;
   static const std::array<std::pair<std::string_view, OptimizationLevel>, 6>

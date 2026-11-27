@@ -152,6 +152,39 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
     const WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_HostRegistration Host) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the experimental WebAssembly text format input flag.
+///
+/// When the flag is on, the loader accepts WAT text input in addition to a
+/// binary module. This feature is experimental, and the default is off.
+///
+/// The loader finds the format from the first bytes. The input is text if it
+/// starts with '(' after whitespace and ';;' comments, or if it holds only
+/// whitespace and comments. Text with only whitespace and comments is an empty
+/// module. An empty input is a binary module, so an empty text module needs at
+/// least one whitespace character or one comment. A UTF-8 BOM before the text
+/// counts only for the detection: the text format has no BOM, so the parser
+/// rejects it. In a build without the WAT loader (`WASMEDGE_BUILD_WAT=OFF`),
+/// the loader reads only the binary format. The flag is still kept, and
+/// WasmEdge_ConfigureIsEnableWAT returns it.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set.
+/// \param IsEnable true to enable the text format input.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetEnableWAT(WasmEdge_ConfigureContext *Cxt,
+                               const bool IsEnable) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the experimental WebAssembly text format input flag.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to check.
+///
+/// \returns true if the text format input is on, false if not.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsEnableWAT(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the page limit of memory instances.
 ///
 /// Limit the page count (64KiB per page) in memory instances.

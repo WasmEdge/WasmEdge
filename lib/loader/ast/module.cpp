@@ -128,8 +128,7 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
     Offset = FMgr.getOffset();
   }
 
-  setTagFunctionType(Mod.getTagSection(), Mod.getImportSection(),
-                     Mod.getTypeSection());
+  AST::linkTagTypes(Mod);
 
   // Verify that the function section and code section match.
   if (Mod.getFunctionSection().getContent().size() !=

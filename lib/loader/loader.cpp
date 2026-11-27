@@ -4,6 +4,9 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#ifdef WASMEDGE_BUILD_WAT
+#include "wat/parser.h"
+#endif
 
 #include <algorithm>
 #include <cstddef>
@@ -81,6 +84,19 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     return E;
   };
 
+  // Find WAT text in the mapped bytes. A full read only for this test is not
+  // necessary, because maybeWAT reads only the leading whitespace and comments.
+  // The text format loader is experimental, so it is on only by request.
+  // Without it, the text goes to the binary loader.
+  if (isWatInput(FMgr.getSpan())) {
+    // Reset the file manager after the conversion, because the parser reads
+    // the mapped file. A later parse then starts from a clean state.
+    auto Res = parseWatUnit(FMgr.getSpan()).map_error(ReportError);
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, std::move(Res));
+    return Mod;
+  }
+
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -135,11 +151,57 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
 }
 
+// Find if Code is WAT text that the loader reads. The text format loader is
+// experimental, so it is on only by request.
+// A build without the WAT loader reads only the binary format, also with the
+// EnableWAT flag.
+bool Loader::isWatInput([[maybe_unused]] Span<const uint8_t> Code) const {
+#ifdef WASMEDGE_BUILD_WAT
+  return EnableWAT && WAT::maybeWAT(Code);
+#else
+  return false;
+#endif
+}
+
+// Convert the WAT text Code into a module.
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseWatUnit([[maybe_unused]] Span<const uint8_t> Code) {
+#ifdef WASMEDGE_BUILD_WAT
+  // The text is a WASM module, so the input type is WASM.
+  WASMType = InputType::WASM;
+  EXPECTED_TRY(auto Mod, WAT::parseWat(Code, Conf).map_error([](auto E) {
+    spdlog::error(E);
+    return E;
+  }));
+  return std::make_unique<AST::Module>(std::move(Mod));
+#else
+  return Unexpect(ErrCode::Value::MalformedMagic);
+#endif
+}
+
 // Parse module or component from byte code. See "include/loader/loader.h".
 Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Find if the buffer holds WAT text. The text format loader is
+  // experimental, so it is on only by request.
+  if (isWatInput(Code)) {
+    // Drop the state of an earlier parse, which can still hold a mapped
+    // file.
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, parseWatUnit(Code));
+    return Mod;
+  }
+  return parseBinaryUnit(Code);
+}
+
+// Parse a binary module or component from byte code. See
+// "include/loader/loader.h".
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
+Loader::parseBinaryUnit(Span<const uint8_t> Code) {
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
@@ -236,28 +298,40 @@ Expect<std::vector<Byte>> Loader::serializeModule(const AST::Module &Mod) {
   return Ser.serializeModule(Mod);
 }
 
-// Helper function to set the function type for tag.
-void Loader::setTagFunctionType(AST::TagSection &TagSec,
-                                AST::ImportSection &ImportSec,
-                                AST::TypeSection &TypeSec) {
-  auto &TypeVec = TypeSec.getContent();
-  for (auto &TgType : TagSec.getContent()) {
-    auto TypeIdx = TgType.getTypeIdx();
-    // Invalid type index would be checked during validation.
-    if (TypeIdx < TypeVec.size()) {
-      TgType.setDefType(&TypeVec[TypeIdx]);
-    }
+// Parse an input of the AOT compiler. See "include/loader/loader.h".
+Expect<Loader::CompileInput>
+Loader::parseCompileInput(Span<const uint8_t> Code) {
+  CompileInput In;
+  In.Code = Code;
+  In.IsWat = isWatInput(Code);
+  std::lock_guard Lock(Mutex);
+  if (In.IsWat) {
+    // Drop the state of an earlier parse, which can still hold a mapped
+    // file.
+    FMgr.reset();
+    EXPECTED_TRY(In.Module, parseWatUnit(Code));
+    return In;
   }
-  for (auto &Desc : ImportSec.getContent()) {
-    if (Desc.getExternalType() == ExternalType::Tag) {
-      auto &TgType = Desc.getExternalTagType();
-      auto TypeIdx = TgType.getTypeIdx();
-      // Invalid type index would be checked during validation.
-      if (TypeIdx < TypeVec.size()) {
-        TgType.setDefType(&TypeVec[TypeIdx]);
-      }
-    }
+  // The format is known, so the binary parse does not test it again.
+  EXPECTED_TRY(auto Unit, parseBinaryUnit(Code));
+  auto *Mod = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
+  if (Mod == nullptr) {
+    return Unexpect(ErrCode::Value::MalformedVersion);
   }
+  In.Module = std::move(*Mod);
+  return In;
+}
+
+// Give the binary of an input of the AOT compiler. See
+// "include/loader/loader.h".
+Expect<Span<const Byte>> Loader::compileBinary(CompileInput &In) {
+  if (!In.IsWat) {
+    return In.Code;
+  }
+  if (In.Serialized.empty()) {
+    EXPECTED_TRY(In.Serialized, Ser.serializeModule(*In.Module));
+  }
+  return Span<const Byte>(In.Serialized);
 }
 
 } // namespace Loader

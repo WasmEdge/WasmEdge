@@ -37,7 +37,8 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "tree-sitter-src": "tree-sitter-src"
       }
     },
     "systems": {
@@ -52,6 +53,23 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "tree-sitter-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787474899,
+        "narHash": "sha256-W+43VmpHihq651eeKoECtxCSQyTGEv9ySMdmPwDFVhM=",
+        "owner": "tree-sitter",
+        "repo": "tree-sitter",
+        "rev": "d97971e24500218865c05ed1febdee2acf41bae1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tree-sitter",
+        "repo": "tree-sitter",
+        "rev": "d97971e24500218865c05ed1febdee2acf41bae1",
         "type": "github"
       }
     }

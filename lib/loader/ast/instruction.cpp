@@ -185,26 +185,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (Code == OpCode::End) {
       // Post process the End instruction.
       if (BlockStack.size() > 0) {
-        Instrs.back().setExprLast(false);
-        const auto &[BackOp, Pos] = BlockStack.back();
-        if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
-            BackOp == OpCode::If) {
-          Instrs.back().setTryBlockLast(false);
-          Instrs[Pos].setJumpEnd(Cnt - Pos);
-          if (BackOp == OpCode::If) {
-            if (Instrs[Pos].getJumpElse() == 0) {
-              // For an if block without an else branch, set the else jump to
-              // the end jump.
-              Instrs[Pos].setJumpElse(Cnt - Pos);
-            } else {
-              const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
-              Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
-            }
-          }
-        } else if (BackOp == OpCode::Try_table) {
-          Instrs.back().setTryBlockLast(true);
-          Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
-        }
+        AST::closeBlock(Instrs, BlockStack.back().second);
         BlockStack.pop_back();
       } else {
         Instrs.back().setExprLast(true);

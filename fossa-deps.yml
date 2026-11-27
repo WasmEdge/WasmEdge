@@ -14,3 +14,8 @@ remote-dependencies:
     url: "https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"
     metadata:
       homepage: "https://github.com/fmtlib/fmt"
+  - name: "tree-sitter"
+    version: "0.26.13"
+    url: "https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.26.13.tar.gz"
+    metadata:
+      homepage: "https://github.com/tree-sitter/tree-sitter"

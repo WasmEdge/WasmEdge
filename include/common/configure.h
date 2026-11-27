@@ -259,7 +259,8 @@ public:
   Configure(const Configure &RHS) noexcept
       : Proposals(RHS.Proposals), Hosts(RHS.Hosts),
         ForbiddenPlugins(RHS.ForbiddenPlugins), CompilerConf(RHS.CompilerConf),
-        RuntimeConf(RHS.RuntimeConf), StatisticsConf(RHS.StatisticsConf) {}
+        RuntimeConf(RHS.RuntimeConf), StatisticsConf(RHS.StatisticsConf),
+        EnableWAT(RHS.isEnableWAT()) {}
 
   /// Add a proposal and the proposals it depends on. Returns the proposals
   /// added implicitly.
@@ -345,6 +346,21 @@ public:
   bool isForbiddenPlugins(const std::string &PluginName) const noexcept {
     std::shared_lock Lock(Mutex);
     return ForbiddenPlugins.find(PluginName) != ForbiddenPlugins.end();
+  }
+
+  /// The WebAssembly text format loader is experimental. The loader reads
+  /// WAT text only when this flag is on. The default is off, and
+  /// setWASMStandard does not change it. An empty input is a binary module.
+  /// A build without the WAT loader keeps the flag, but it reads only the
+  /// binary format.
+  void setEnableWAT(bool IsEnableWAT) noexcept {
+    std::unique_lock Lock(Mutex);
+    EnableWAT = IsEnableWAT;
+  }
+
+  bool isEnableWAT() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return EnableWAT;
   }
 
   bool hasHostRegistration(const HostRegistration Host) const noexcept {
@@ -514,6 +530,7 @@ private:
   CompilerConfigure CompilerConf;
   RuntimeConfigure RuntimeConf;
   StatisticsConfigure StatisticsConf;
+  bool EnableWAT = false;
 };
 
 } // namespace WasmEdge

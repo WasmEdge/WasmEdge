@@ -17,6 +17,9 @@
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
 #include "driver/fuzzTool.h"
+#ifdef WASMEDGE_BUILD_WAT
+#include "driver/fuzzWAT.h"
+#endif
 #endif
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -488,6 +491,26 @@ private:
   void *Binding;
   void *Data;
 };
+
+#ifdef WASMEDGE_USE_LLVM
+// Compile the module bytes Data into the file OutputPath. The file entry point
+// and the buffer entry point share these stages: the parse, the validation,
+// the binary that the output embeds, the compilation, and the code
+// generation. Each entry point checks the compiler configuration first, so
+// that the file entry point does not read the file for a configuration that
+// the compiler does not support. Data must stay alive until the function
+// returns. The function is not noexcept, so that an exception of a stage
+// reaches the wrap() of the caller, which gives an error.
+WasmEdge::Expect<void> compileBytes(WasmEdge_CompilerContext &Cxt,
+                                    Span<const WasmEdge::Byte> Data,
+                                    const std::filesystem::path &OutputPath) {
+  EXPECTED_TRY(auto Input, Cxt.Load.parseCompileInput(Data));
+  EXPECTED_TRY(Cxt.Valid.validate(*Input.Module));
+  EXPECTED_TRY(auto Binary, Cxt.Load.compileBinary(Input));
+  EXPECTED_TRY(auto Compiled, Cxt.Compiler.compile(*Input.Module));
+  return Cxt.CodeGen.codegen(Binary, std::move(Compiled), OutputPath);
+}
+#endif
 
 } // namespace
 
@@ -987,6 +1010,22 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
   if (Cxt) {
     return Cxt->Conf.hasHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetEnableWAT(WasmEdge_ConfigureContext *Cxt,
+                               const bool IsEnable) noexcept {
+  if (Cxt) {
+    Cxt->Conf.setEnableWAT(IsEnable);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsEnableWAT(const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.isEnableWAT();
   }
   return false;
 }
@@ -1970,25 +2009,9 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt [[maybe_unused]],
 #ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        std::filesystem::path InputPath = genPath(InPath);
-        std::filesystem::path OutputPath = genPath(OutPath);
-        std::vector<WasmEdge::Byte> Data;
-        std::unique_ptr<WasmEdge::AST::Module> Module;
-        return Cxt->Compiler.checkConfigure()
-            .and_then([&]() noexcept { return Cxt->Load.loadFile(InputPath); })
-            .and_then([&](auto Result) noexcept {
-              Data = std::move(Result);
-              return Cxt->Load.parseModule(Data);
-            })
-            .and_then([&](auto Result) noexcept {
-              Module = std::move(Result);
-              return Cxt->Valid.validate(*Module.get());
-            })
-            .and_then(
-                [&]() noexcept { return Cxt->Compiler.compile(*Module.get()); })
-            .and_then([&](auto Result) noexcept {
-              return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
-            });
+        EXPECTED_TRY(Cxt->Compiler.checkConfigure());
+        EXPECTED_TRY(auto Data, Cxt->Load.loadFile(genPath(InPath)));
+        return compileBytes(*Cxt, Data, genPath(OutPath));
       },
       EmptyThen, Cxt);
 #else
@@ -2011,18 +2034,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
 #ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        std::filesystem::path OutputPath = genPath(OutPath);
-        auto Data = genSpan(Bytes.Buf, Bytes.Length);
-        std::unique_ptr<WasmEdge::AST::Module> Module;
-        return Cxt->Load.parseModule(Data)
-            .and_then([&](auto Result) noexcept {
-              Module = std::move(Result);
-              return Cxt->Valid.validate(*Module);
-            })
-            .and_then([&]() noexcept { return Cxt->Compiler.compile(*Module); })
-            .and_then([&](auto Result) noexcept {
-              return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
-            });
+        EXPECTED_TRY(Cxt->Compiler.checkConfigure());
+        return compileBytes(*Cxt, genSpan(Bytes.Buf, Bytes.Length),
+                            genPath(OutPath));
       },
       EmptyThen, Cxt);
 #else
@@ -3892,6 +3906,18 @@ WasmEdge_Driver_FuzzPO(const uint8_t *Data, size_t Size) noexcept {
     return EXIT_FAILURE;
   }
 }
+
+#ifdef WASMEDGE_BUILD_WAT
+WASMEDGE_CAPI_EXPORT extern "C" int
+WasmEdge_Driver_FuzzWAT(const uint8_t *Data, size_t Size) noexcept {
+  try {
+    return WasmEdge::Driver::FuzzWAT(Data, Size);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
+}
+#endif
 #endif
 
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

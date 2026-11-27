@@ -59,3 +59,10 @@ target_link_libraries(wasmedgeLoader
   wasmedgeLoaderFileMgr
   std::filesystem
 )
+
+if(WASMEDGE_BUILD_WAT)
+  target_link_libraries(wasmedgeLoader
+    PUBLIC
+    wasmedgeWat
+  )
+endif()

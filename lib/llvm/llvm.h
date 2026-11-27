@@ -1257,12 +1257,6 @@ public:
 
   Value createRetVoid() noexcept { return LLVMBuildRetVoid(Ref); }
   Value createRet(Value V) noexcept { return LLVMBuildRet(Ref, V.unwrap()); }
-  Value createAggregateRet(Span<const Value> RetVals) noexcept {
-    const auto Data = const_cast<LLVMValueRef *>(
-        reinterpret_cast<const LLVMValueRef *>(RetVals.data()));
-    const auto Size = static_cast<unsigned int>(RetVals.size());
-    return LLVMBuildAggregateRet(Ref, Data, Size);
-  }
   Value createBr(BasicBlock Dest) noexcept {
     return LLVMBuildBr(Ref, Dest.unwrap());
   }
@@ -1793,7 +1787,7 @@ public:
     for (size_t I = 0; I < Vals.size(); ++I) {
       auto VPtr = createConstInBoundsGEP1_64(PtrTy, Ptr, I * Align, Name);
       auto Val = Vals[I];
-      createStore(Val, createBitCast(VPtr, Val.getType().getPointerTo()), Name);
+      createStore(Val, createBitCast(VPtr, Val.getType().getPointerTo()));
     }
   }
 

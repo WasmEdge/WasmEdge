@@ -7,10 +7,12 @@ set -e
 apt-get update
 apt-get -y install python3 python3-dev
 
-# Use latest pip
+# Use pinned pip
 python3 -m venv chattts_venv
 source chattts_venv/bin/activate
-pip install --upgrade pip
+pip install --require-hashes -r /dev/stdin <<'EOF'
+pip==24.3.1 --hash=sha256:3790624780082365f47549d032f3770eeb2b1e8bd1f7b2e02dace1afa361b4ed
+EOF
 
 # Install PyTorch CPU version to save space
 pip --python /usr/bin/python3 install --break-system-packages --index-url https://download.pytorch.org/whl/cpu 'torch<=2.6.0' 'torchaudio<=2.6.0'

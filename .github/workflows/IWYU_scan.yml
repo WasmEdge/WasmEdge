@@ -63,7 +63,7 @@ jobs:
 
   build_fedora:
     permissions:
-      contents: write
+      contents: read
     name: Fedora latest
     needs: get_version
     runs-on: ubuntu-latest
@@ -134,7 +134,7 @@ jobs:
 
   build_macos:
     permissions:
-      contents: write
+      contents: read
     name: macOS
     runs-on: macos-latest
     needs: get_version

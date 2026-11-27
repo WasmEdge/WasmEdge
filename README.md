@@ -19,6 +19,7 @@ WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime.
 [![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml?query=event%3Apush++branch%3Amaster)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/WasmEdge/WasmEdge/badge)](https://scorecard.dev/viewer/?uri=github.com/WasmEdge/WasmEdge)
 
 </div>
 

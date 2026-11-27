@@ -348,9 +348,10 @@ approval:
   which also covers new files not yet added while skipping the ignored
   `build/` (`-r .` scans it and fails once the tree is configured)
 - The codespell command below, which mirrors `misc-linters.yml` and skips
-  `thirdparty/` and the changelog thank-you lists on purpose; use the
-  `codespell==2.4.1` that workflow pins, since older releases lack
-  `--ignore-multiline-regex` and the `2>/dev/null` hides that error
+  `thirdparty/`, `package-lock.json` and the changelog thank-you lists on
+  purpose; use the `codespell==2.4.1` that workflow pins, since older
+  releases lack `--ignore-multiline-regex` and the `2>/dev/null` hides that
+  error
 - `npx commitlint --from <base> --to HEAD --verbose` with the packages
   `commitlint.yml` installs, where `<base>` is the fetched PR target such as
   `origin/master` or `origin/0.17.x`; CI lints only the PR commits, and a
@@ -365,6 +366,7 @@ approval:
 
 ```bash
 git ls-files | grep -v '^thirdparty' | grep -v '/thirdparty/' | grep -v '/dist/' \
+  | grep -v 'package-lock.json' \
   | xargs codespell --ignore-words .github/workflows/ignore_words \
       --ignore-multiline-regex 'Thank all the contributors who made this release possible!\n\n[^\n]*\n' 2>/dev/null
 ```

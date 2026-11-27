@@ -4315,10 +4315,10 @@ TEST(WasiTest, PreopenDoubleColonSeparator) {
 TEST(WasiTest, PreopenKeepsDotPrefixedGuestName) {
   namespace fs = std::filesystem;
 
-  const auto Root = fs::absolute(fs::path(
+  const auto Root = fs::path(
       "wasmedge-wasi-dot-name-" +
       std::to_string(
-          std::chrono::steady_clock::now().time_since_epoch().count())));
+          std::chrono::steady_clock::now().time_since_epoch().count()));
   struct RootCleanup {
     fs::path Path;
     ~RootCleanup() {
@@ -4348,16 +4348,24 @@ TEST(WasiTest, PreopenKeepsDotPrefixedGuestName) {
   };
 
   // A component which begins with a dot is part of the guest name.
-  Env.init({"/root/.cache:" + Root.string()}, "test"s, {}, {});
-  EXPECT_EQ(GuestName(), "root/.cache"sv);
-  EXPECT_TRUE(Env.open("/root/.cache/data.txt", NoFlags, __WASI_RIGHTS_FD_READ,
-                       NoFdFlags));
-  Env.fini();
+  {
+    Env.init({"/root/.cache:" + Root.string()}, "test"s, {}, {});
+    EXPECT_EQ(GuestName(), "root/.cache"sv);
+    EXPECT_TRUE(Env.open("/root/.cache/data.txt", NoFlags,
+                         __WASI_RIGHTS_FD_READ, NoFdFlags));
+    auto NoPreopen =
+        Env.open("/root/data.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+    ASSERT_FALSE(NoPreopen);
+    EXPECT_EQ(NoPreopen.error(), __WASI_ERRNO_NOTCAPABLE);
+    Env.fini();
+  }
 
   // A "." component is still dropped.
-  Env.init({"/root/./cache:" + Root.string()}, "test"s, {}, {});
-  EXPECT_EQ(GuestName(), "root/cache"sv);
-  Env.fini();
+  {
+    Env.init({"/root/./cache:" + Root.string()}, "test"s, {}, {});
+    EXPECT_EQ(GuestName(), "root/cache"sv);
+    Env.fini();
+  }
 }
 
 TEST(WasiTest, PreopenRejectsUnknownMode) {

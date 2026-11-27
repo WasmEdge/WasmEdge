@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "experimental/bit.hpp"
 #include "experimental/simd/backend_array.hpp"
 #include "experimental/simd/detail.hpp"
 
@@ -243,6 +244,9 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
 
   // std::round_to_nearest rounds ties to even, the IEEE default.
 #if defined(__SSE4_1__) || defined(__AVX__)
+  // Tells whether round works on the bit pattern with integer instructions.
+  static constexpr bool integer_rounding = false;
+
   template <std::float_round_style R>
   static storage_type round(const storage_type &A) noexcept {
     constexpr int Mode =
@@ -260,7 +264,10 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
 #else
   // x86 has no rounding instruction before SSE4.1. The rounding works on the
   // bit pattern with integer instructions, so it does not depend on the MXCSR
-  // rounding mode or on denormals-are-zero.
+  // rounding mode or on denormals-are-zero. Its only floating-point
+  // instruction is the exact conversion in integer_unit, so it raises no
+  // floating-point exception.
+  static constexpr bool integer_rounding = true;
   using int_type = integer_from_t<sizeof(T)>;
   static constexpr int mantissa_bits = std::numeric_limits<T>::digits - 1;
   static constexpr int_type exponent_bias =
@@ -271,10 +278,20 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
   // the lowest integer bit of the significand. Other lanes are unspecified.
   static storage_type integer_unit(const storage_type &Exponent) noexcept {
     if constexpr (is_float) {
-      // The float 2^K converts exactly to the integer 2^K.
+      // Without the clamp, some lanes whose result is discarded convert a
+      // fraction or a value that the integer cannot hold, and raise an
+      // exception. The clamp moves each exponent into [bias, bias +
+      // mantissa_bits], so Pow is a normal float power of two from 1 to
+      // 2^mantissa_bits. Each of them converts exactly to a 32-bit integer, so
+      // the conversion raises no exception in any lane. The exponent is at
+      // most 255, so the high 16 bits of its lane are zero and the 16-bit min
+      // and max keep them zero.
+      const __m128i InRange =
+          _mm_min_epi16(_mm_max_epi16(Exponent, _mm_set1_epi32(exponent_bias)),
+                        _mm_set1_epi32(exponent_bias + mantissa_bits));
       const __m128i Pow = _mm_slli_epi32(
           _mm_sub_epi32(_mm_set1_epi32(2 * exponent_bias + mantissa_bits),
-                        Exponent),
+                        InRange),
           mantissa_bits);
       return _mm_cvttps_epi32(_mm_castsi128_ps(Pow));
     } else {
@@ -291,6 +308,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
   template <std::float_round_style R>
   static storage_type round(const storage_type &A) noexcept {
     using ib = signed_backend;
+    using ub = simd_backend<std::make_unsigned_t<int_type>, m128i_abi<N>>;
     const auto Splat = [](auto Value) {
       return ib::broadcast(static_cast<int_type>(Value));
     };
@@ -316,7 +334,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
 
     // 1 <= |A| < 2^mantissa_bits clears the fraction bits, then adds one unit
     // when the rounding goes away from zero.
-    const storage_type Unit = integer_unit(ib::shr(Abs, mantissa_bits));
+    const storage_type Unit = integer_unit(ub::shr(Abs, mantissa_bits));
     const storage_type FractionMask = ib::sub(Unit, Splat(1));
     const storage_type Fraction = bit_and(Abs, FractionMask);
     const storage_type Truncated = _mm_andnot_si128(FractionMask, A);
@@ -328,7 +346,7 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
     } else if constexpr (R == std::round_toward_neg_infinity) {
       Up = _mm_andnot_si128(Positive, HasFraction);
     } else if constexpr (R == std::round_to_nearest) {
-      const storage_type Half = ib::shr(Unit, 1);
+      const storage_type Half = ub::shr(Unit, 1);
       const storage_type Odd = bit_not(ib::eq(bit_and(Truncated, Unit), Zero));
       Up = bit_or(ib::gt(Fraction, Half), bit_and(ib::eq(Fraction, Half), Odd));
     }

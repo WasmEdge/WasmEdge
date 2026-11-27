@@ -67,13 +67,19 @@ public:
   const T &value() const noexcept { return Store; }
   T &value() noexcept { return Store; }
 
-  void default_argument() noexcept { Store = *Default; }
+  bool is_set() const noexcept { return IsSet; }
+
+  void default_argument() noexcept {
+    Store = *Default;
+    IsSet = true;
+  }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = Parser<T>::parse(std::move(Argument)); !Res) {
       return cxx20::unexpected(Res.error());
     } else {
       Store = std::move(*Res);
+      IsSet = true;
     }
     return {};
   }
@@ -84,6 +90,7 @@ private:
   std::string_view Desc{};
   std::string_view Meta{};
   bool Hidden = false;
+  bool IsSet = false;
 };
 
 /// External storage
@@ -123,13 +130,19 @@ public:
   const T &value() const noexcept { return *Store; }
   T &value() noexcept { return *Store; }
 
-  void default_argument() noexcept { *Store = *Default; }
+  bool is_set() const noexcept { return IsSet; }
+
+  void default_argument() noexcept {
+    *Store = *Default;
+    IsSet = true;
+  }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = Parser<T>::parse(std::move(Argument)); !Res) {
       return cxx20::unexpected(Res.error());
     } else {
       *Store = std::move(*Res);
+      IsSet = true;
     }
     return {};
   }
@@ -140,6 +153,7 @@ private:
   std::string_view Desc{};
   std::string_view Meta{};
   bool Hidden = false;
+  bool IsSet = false;
 };
 
 template <> class Option<Toggle, Parser<bool>> {
@@ -171,13 +185,19 @@ public:
   const bool &value() const noexcept { return Store; }
   bool &value() noexcept { return Store; }
 
-  void default_argument() noexcept { Store = true; }
+  bool is_set() const noexcept { return IsSet; }
+
+  void default_argument() noexcept {
+    Store = true;
+    IsSet = true;
+  }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = Parser<bool>::parse(std::move(Argument)); !Res) {
       return cxx20::unexpected(Res.error());
     } else {
       Store = std::move(*Res);
+      IsSet = true;
     }
     return {};
   }
@@ -186,6 +206,7 @@ private:
   bool Store = false;
   std::string_view Desc{};
   bool Hidden = false;
+  bool IsSet = false;
 };
 
 template <> class Option<Toggle *, Parser<bool>> {
@@ -217,13 +238,19 @@ public:
   const bool &value() const noexcept { return *Store; }
   bool &value() noexcept { return *Store; }
 
-  void default_argument() noexcept { *Store = true; }
+  bool is_set() const noexcept { return IsSet; }
+
+  void default_argument() noexcept {
+    *Store = true;
+    IsSet = true;
+  }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = Parser<bool>::parse(std::move(Argument)); !Res) {
       return cxx20::unexpected(Res.error());
     } else {
       *Store = std::move(*Res);
+      IsSet = true;
     }
     return {};
   }
@@ -232,6 +259,7 @@ private:
   bool *Store;
   std::string_view Desc{};
   bool Hidden = false;
+  bool IsSet = false;
 };
 
 } // namespace PO

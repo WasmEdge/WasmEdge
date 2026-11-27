@@ -1315,6 +1315,7 @@ using ::SHGetKnownFolderPath;
 
 namespace WasmEdge::winapi {
 static inline constexpr const DWORD_ MEM_COMMIT_ = 0x00001000;
+static inline constexpr const DWORD_ MEM_DECOMMIT_ = 0x00004000;
 static inline constexpr const DWORD_ MEM_RESERVE_ = 0x00002000;
 static inline constexpr const DWORD_ MEM_RELEASE_ = 0x00008000;
 
@@ -1655,12 +1656,17 @@ static inline constexpr const int AI_V4MAPPED = 0x00000800;
 #endif
 
 static inline constexpr const long IOCPARM_MASK = 0x7f;
+static inline constexpr const long IOC_OUT = static_cast<long>(0x40000000);
 static inline constexpr const long IOC_IN = static_cast<long>(0x80000000);
+static inline constexpr long _IOR(long X, long Y) noexcept {
+  return IOC_OUT | ((static_cast<long>(sizeof(u_long)) & IOCPARM_MASK) << 16) |
+         (X << 8) | Y;
+}
 static inline constexpr long _IOW(long X, long Y) noexcept {
   return IOC_IN | ((static_cast<long>(sizeof(u_long)) & IOCPARM_MASK) << 16) |
          (X << 8) | Y;
 }
-static inline constexpr const long FIONREAD = _IOW('f', 127);
+static inline constexpr const long FIONREAD = _IOR('f', 127);
 static inline constexpr const long FIONBIO = _IOW('f', 126);
 
 static inline constexpr const int IPPROTO_IP = 0;

@@ -2,9 +2,10 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "tts_core.h"
-#include "host/wasi/vfs_io.h"
+#include "host/filesystem.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <exception>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -357,16 +358,17 @@ std::string processTTSPromptText(const std::string &Text) {
   return ProcessedText;
 }
 
+constexpr __wasi_filesize_t MaxSpeakerProfileSize = 16U * 1024U * 1024U;
+
 std::optional<TTSSpeakerProfile>
 getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
-  WasmEdge::FStream::IFStream JsonFile(FilePath, Env.getEnv());
-  if (!JsonFile.is_open()) {
+  const auto JsonText = Env.readFile(FilePath, MaxSpeakerProfileSize);
+  if (!JsonText) {
     return std::nullopt;
   }
   try {
-    nlohmann::json JsonData;
-    JsonFile >> JsonData;
-    JsonFile.close();
+    const nlohmann::json JsonData =
+        nlohmann::json::parse(JsonText->begin(), JsonText->end());
 
     // Initialize the outputs.
     std::string AudioOutputText = "<|audio_start|>\n";
@@ -466,19 +468,49 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
     Token -= 151672;
   }
 
+  if (CxtRef.LlamaOutputTokens.empty()) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "codesToSpeech: no audio codes in the output tokens."sv)
+  }
+  if (GraphRef.TTSModel == nullptr || GraphRef.TTSContext == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "codesToSpeech: tts is enabled but the vocoder model is not "sv
+              "loaded. Please enable tts when loading the model."sv)
+  }
+  const auto NUBatch = llama_n_ubatch(GraphRef.TTSContext.get());
+  if (CxtRef.LlamaOutputTokens.size() > NUBatch) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "codesToSpeech: too many audio codes: {} exceeds the TTS "sv
+              "context's ubatch size {}."sv,
+              CxtRef.LlamaOutputTokens.size(), NUBatch)
+  }
+
   // Put codes into batch.
   const uint32_t NCodes =
       static_cast<uint32_t>(CxtRef.LlamaOutputTokens.size());
-  llama_batch TTSBatch =
-      llama_batch_init(NCodes, /* embd */ 0, /* n_seq_max */ 1);
-  for (uint32_t I = 0; I < NCodes; ++I) {
-    common_batch_add(TTSBatch, CxtRef.LlamaOutputTokens[I], I,
-                     /* seq_ids */ {0}, /* logits */ true);
+  try {
+    llama_batch_ext_ptr TTSBatch(
+        llama_batch_ext_init(GraphRef.TTSContext.get()));
+    for (uint32_t I = 0; I < NCodes; ++I) {
+      const int32_t Idx = llama_batch_ext_add_token(
+          TTSBatch.get(), 0, CxtRef.LlamaOutputTokens[I]);
+      const llama_pos Pos = static_cast<llama_pos>(I);
+      if (Idx < 0 || !llama_batch_ext_set_pos(TTSBatch.get(), Idx, &Pos) ||
+          !llama_batch_ext_set_output_embd(TTSBatch.get(), Idx, true)) {
+        RET_ERROR(ErrNo::RuntimeError,
+                  "codesToSpeech: failed to add audio code to batch."sv)
+      }
+    }
+    const auto Status = llama_process(
+        GraphRef.TTSContext.get(), LLAMA_PROCESS_TYPE_DECODE, TTSBatch.get());
+    if (Status != 0) {
+      RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval: {}."sv,
+                Status)
+    }
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval: {}"sv,
+              E.what())
   }
-  if (llama_decode(GraphRef.TTSContext.get(), TTSBatch) != 0) {
-    RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval."sv)
-  }
-  llama_batch_free(TTSBatch);
 
   // Get embeddings.
   const int NEmbd = llama_model_n_embd(GraphRef.TTSModel.get());
@@ -500,17 +532,18 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
 
   // Save .wav file if path is provided.
   if (!GraphRef.TTSOutputFilePath.empty()) {
-    WasmEdge::FStream::OFStream File(GraphRef.TTSOutputFilePath,
-                                     std::ios_base::out | std::ios_base::binary,
-                                     Env.getEnv());
+    auto File = Env.openFile(GraphRef.TTSOutputFilePath,
+                             __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                             __WASI_RIGHTS_FD_WRITE);
     if (!File) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "codesToSpeech: Failed to open file '{}' for writing"sv,
-                GraphRef.TTSOutputFilePath);
+      LOG_WARN("codesToSpeech: Failed to open file '{}' for writing: {}. "sv
+               "The audio is only in the output."sv,
+               GraphRef.TTSOutputFilePath, File.error())
+    } else if (auto Res = (*File)->write(CxtRef.LlamaOutputs); !Res) {
+      LOG_WARN("codesToSpeech: Failed to write file '{}': {}. "sv
+               "The audio is only in the output."sv,
+               GraphRef.TTSOutputFilePath, Res.error())
     }
-    File.write(reinterpret_cast<const char *>(CxtRef.LlamaOutputs.data()),
-               CxtRef.LlamaOutputs.size());
-    File.close();
   }
 
   return ErrNo::Success;

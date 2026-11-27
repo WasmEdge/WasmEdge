@@ -8,6 +8,7 @@
 #include "tensorflow/c/c_api.h"
 
 #include <cstdint>
+#include <deque>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -45,6 +46,8 @@ struct TensorList {
 
 struct Context {
   Context() noexcept { Stat = TF_NewStatus(); }
+  Context(const Context &) = delete;
+  Context &operator=(const Context &) = delete;
   ~Context() noexcept {
     reset();
     TF_DeleteStatus(Stat);
@@ -91,7 +94,9 @@ struct Context {
 };
 
 struct TFEnv {
-  TFEnv() noexcept { TFContext.reserve(16U); }
+  TFEnv() = default;
+  TFEnv(const TFEnv &) = delete;
+  TFEnv &operator=(const TFEnv &) = delete;
 
   Context *getContext(const uint32_t ID) noexcept {
     auto It = RecycledIdx.find(ID);
@@ -119,7 +124,7 @@ struct TFEnv {
 
 private:
   std::unordered_set<uint32_t> RecycledIdx;
-  std::vector<Context> TFContext;
+  std::deque<Context> TFContext;
 };
 
 } // namespace WasmEdgeTensorflow

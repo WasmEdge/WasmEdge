@@ -37,20 +37,8 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0);
 
   // Push arguments.
-  const auto &PTypes = Func.getFuncType().getParamTypes();
   for (uint32_t I = 0; I < Params.size(); I++) {
-    // For the references, transform to non-null reference type if the value not
-    // null.
-    if (PTypes[I].isRefType() && Params[I].get<RefVariant>().getPtr<void>() &&
-        Params[I].get<RefVariant>().getType().isNullableRefType()) {
-      auto Val = Params[I];
-      auto &Ref = Val.get<RefVariant>();
-      ValType Type = Ref.getType();
-      Ref.setType(Type.toNonNullableRef());
-      StackMgr.push(Val);
-    } else {
-      StackMgr.push(Params[I]);
-    }
+    StackMgr.push(Params[I]);
   }
 
   // Enter and execute function.
@@ -211,13 +199,14 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
                             Instr.getSourceIndex(), Instr);
     case OpCode::Array__new:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(), 1,
-                           StackMgr.pop().get<uint32_t>());
+                           StackMgr.pop().get<uint32_t>(), Instr);
     case OpCode::Array__new_default:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(), 0,
-                           StackMgr.pop().get<uint32_t>());
+                           StackMgr.pop().get<uint32_t>(), Instr);
     case OpCode::Array__new_fixed:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(),
-                           Instr.getSourceIndex(), Instr.getSourceIndex());
+                           Instr.getSourceIndex(), Instr.getSourceIndex(),
+                           Instr);
     case OpCode::Array__new_data:
       return runArrayNewDataOp(StackMgr, Instr.getTargetIndex(),
                                Instr.getSourceIndex(), Instr);

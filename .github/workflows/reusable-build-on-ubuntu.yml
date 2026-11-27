@@ -46,6 +46,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y pkg-config
+      # CTest 4.5.0 runs the tests with megabytes of output about 10 times slower (#5598).
+      # Remove this step once the CMake issue is fixed.
+      - name: Downgrade CMake to 4.4.5
+        if: ${{ matrix.tests && startsWith(matrix.docker_tag, 'ubuntu-20.04') }}
+        run: |
+          apt-get install -y --allow-downgrades 'cmake=4.4.5-*'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

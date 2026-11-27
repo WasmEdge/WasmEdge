@@ -185,6 +185,10 @@ std::vector<uint8_t> ReexportedImportedTagWasm = {
     0x60, 0x01, 0x7f, 0x00, 0x02, 0x08, 0x01, 0x01, 0x6d, 0x01, 0x74,
     0x04, 0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
 
+std::vector<uint8_t> UnknownTypeImportedTagWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02,
+    0x08, 0x01, 0x01, 0x6d, 0x01, 0x74, 0x04, 0x00, 0x05};
+
 std::vector<uint8_t> FibonacciWasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x6,  0x1,
     0x60, 0x1,  0x7f, 0x1,  0x7f, 0x3,  0x2,  0x1,  0x0,  0x7,  0x7,
@@ -280,6 +284,35 @@ std::vector<uint8_t> ConsumerWasm = {
     0x6e, 0x63, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01, 0x08,
     0x63, 0x61, 0x6c, 0x6c, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x01, 0x0a, 0x0a,
     0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+
+/// Binary Wasm module: tables and a global of concrete reference types, and
+/// the functions that give the references to write into them.
+///
+/// (module
+///   (type (struct (field i32)))
+///   (type (func (result i32)))
+///   (type (func (result (ref 0))))
+///   (table (export "tab_struct") 1 (ref null 0))
+///   (table (export "tab_func") 1 (ref null 1))
+///   (table (export "tab_any") 1 anyref)
+///   (global (export "glob_struct") (mut (ref null 0)) (ref.null 0))
+///   (func (export "one") (type 1)
+///     (i32.const 1))
+///   (func (export "new_struct") (type 2)
+///     (struct.new 0 (i32.const 7))))
+std::vector<uint8_t> RefValueWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0e, 0x03, 0x5f,
+    0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x64, 0x00,
+    0x03, 0x03, 0x02, 0x01, 0x02, 0x04, 0x0c, 0x03, 0x63, 0x00, 0x00, 0x01,
+    0x63, 0x01, 0x00, 0x01, 0x6e, 0x00, 0x01, 0x06, 0x07, 0x01, 0x63, 0x00,
+    0x01, 0xd0, 0x00, 0x0b, 0x07, 0x44, 0x06, 0x0a, 0x74, 0x61, 0x62, 0x5f,
+    0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x01, 0x00, 0x08, 0x74, 0x61, 0x62,
+    0x5f, 0x66, 0x75, 0x6e, 0x63, 0x01, 0x01, 0x07, 0x74, 0x61, 0x62, 0x5f,
+    0x61, 0x6e, 0x79, 0x01, 0x02, 0x0b, 0x67, 0x6c, 0x6f, 0x62, 0x5f, 0x73,
+    0x74, 0x72, 0x75, 0x63, 0x74, 0x03, 0x00, 0x03, 0x6f, 0x6e, 0x65, 0x00,
+    0x00, 0x0a, 0x6e, 0x65, 0x77, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74,
+    0x00, 0x01, 0x0a, 0x0e, 0x02, 0x04, 0x00, 0x41, 0x01, 0x0b, 0x07, 0x00,
+    0x41, 0x07, 0xfb, 0x00, 0x00, 0x0b};
 
 void hexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
@@ -593,28 +626,61 @@ TEST(APICoreTest, Value) {
   std::vector<uint32_t> Vec = {1U, 2U, 3U};
   WasmEdge_Value Val = WasmEdge_ValueGenI32(INT32_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenI64(INT64_MAX);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF64(Val),
             -std::numeric_limits<double>::infinity());
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<int128_t>(INT64_MAX) * 2 + 1);
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #else
   int128_t V = {/* Low */ UINT64_MAX, /* High */ INT64_MAX};
   Val = WasmEdge_ValueGenV128(V);
   EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
 #endif
   Val = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
   EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(
+      FuncType,
+      [](void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *,
+         WasmEdge_Value *) -> WasmEdge_Result {
+        return WasmEdge_Result_Success;
+      },
+      nullptr, 0);
+  Val = WasmEdge_ValueGenFuncRef(HostFunc);
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), HostFunc);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  WasmEdge_FunctionInstanceDelete(HostFunc);
+  WasmEdge_FunctionTypeDelete(FuncType);
+
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+
   Val = WasmEdge_ValueGenExternRef(&Vec);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
   EXPECT_EQ(
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
           ->data()[1],
@@ -721,6 +787,37 @@ TEST(APICoreTest, Configure) {
   EXPECT_FALSE(
       WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_Memory64));
   EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_Memory64));
+  // Tests for proposal dependencies.
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_RelaxSIMD));
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_RelaxSIMD);
+  EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_SIMD));
+  WasmEdge_ConfigureRemoveProposal(Conf,
+                                   WasmEdge_Proposal_BulkMemoryOperations);
+  for (auto Prop :
+       {WasmEdge_Proposal_ReferenceTypes, WasmEdge_Proposal_FunctionReferences,
+        WasmEdge_Proposal_GC, WasmEdge_Proposal_ExceptionHandling}) {
+    EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, Prop));
+  }
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+  for (auto Prop : {WasmEdge_Proposal_BulkMemoryOperations,
+                    WasmEdge_Proposal_ReferenceTypes,
+                    WasmEdge_Proposal_FunctionReferences}) {
+    EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, Prop));
+  }
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ExceptionHandling));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_FunctionReferences);
+  EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_GC));
+  EXPECT_TRUE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ReferenceTypes));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  EXPECT_TRUE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ReferenceTypes));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_ExceptionHandling));
   // Tests for host registrations.
   WasmEdge_ConfigureAddHostRegistration(ConfNull,
                                         WasmEdge_HostRegistration_Wasi);
@@ -1141,6 +1238,25 @@ TEST(APICoreTest, ImportType) {
   EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
                 WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7])),
             WasmEdge_Mutability_Const);
+
+  // Test retrieving the type of an imported tag with an unknown type index.
+  WasmEdge_ASTModuleDelete(Mod);
+  Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(
+          UnknownTypeImportedTagWasm.data(),
+          static_cast<uint32_t>(UnknownTypeImportedTagWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  const WasmEdge_ImportTypeContext *UnknownTypeTagImport = nullptr;
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(Mod), 1U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, &UnknownTypeTagImport, 1), 1U);
+  ASSERT_NE(UnknownTypeTagImport, nullptr);
+  const WasmEdge_TagTypeContext *UnknownTypeTagType =
+      WasmEdge_ImportTypeGetTagType(Mod, UnknownTypeTagImport);
+  ASSERT_NE(UnknownTypeTagType, nullptr);
+  EXPECT_EQ(WasmEdge_TagTypeGetFunctionType(UnknownTypeTagType), nullptr);
 
   WasmEdge_LoaderDelete(Loader);
   WasmEdge_ASTModuleDelete(Mod);
@@ -2398,6 +2514,12 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
+  TabLim = WasmEdge_LimitCreate(UINT64_C(1) << 62, true);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_EQ(TabCxt, nullptr);
   TabLim = WasmEdge_LimitCreateWithMax(10, 20, false, false);
   TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
@@ -2414,8 +2536,8 @@ TEST(APICoreTest, Instance) {
   Val = WasmEdge_ValueGenExternRef(&TabCxt);
   TmpVal = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
-  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
-                         WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 6)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 6)));
   TmpVal = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 7)));
@@ -2462,7 +2584,20 @@ TEST(APICoreTest, Instance) {
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
 
-  // Table instance create with init
+  // Table instance create with init (nullable reference)
+  TabLim = WasmEdge_LimitCreate(5, false);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  WasmEdge_LimitDelete(TabLim);
+  Val = WasmEdge_ValueGenI32(100);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_TableInstanceDelete(TabCxt);
+  WasmEdge_TableTypeDelete(TabType);
+
+  // Table instance create with init (non-nullable reference)
   VType = WasmEdge_ValTypeGenExternRef();
   // TODO: Forcibly change to non-nullable. Refine this after providing the
   // corresponding API.
@@ -2478,6 +2613,15 @@ TEST(APICoreTest, Instance) {
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_EQ(TabCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128((static_cast<int128_t>(1) << 64) + 1);
+#else
+  int128_t VTab = {/* Low */ 1, /* High */ 1};
+  Val = WasmEdge_ValueGenV128(VTab);
+#endif
   TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
   EXPECT_EQ(TabCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(&TabType);
@@ -2678,6 +2822,18 @@ TEST(APICoreTest, Instance) {
   WasmEdge_GlobalInstanceDelete(GlobVCxt);
   EXPECT_TRUE(true);
 
+  // Global instance with nullable reference
+  GlobVType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenExternRef(),
+                                        WasmEdge_Mutability_Var);
+  GlobVCxt =
+      WasmEdge_GlobalInstanceCreate(GlobVType, WasmEdge_ValueGenI32(100));
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_NE(GlobVCxt, nullptr);
+  WasmEdge_GlobalInstanceDelete(GlobVCxt);
+  WasmEdge_GlobalTypeDelete(GlobVType);
+
   // Global instance with non-nullable reference
   VType = WasmEdge_ValTypeGenExternRef();
   // TODO: Forcibly change to non-nullable. Refine this after providing the
@@ -2688,6 +2844,15 @@ TEST(APICoreTest, Instance) {
   GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
   EXPECT_EQ(GlobVCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128((static_cast<int128_t>(1) << 64) + 1);
+#else
+  int128_t VGlob = {/* Low */ 1, /* High */ 1};
+  Val = WasmEdge_ValueGenV128(VGlob);
+#endif
   GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
   EXPECT_EQ(GlobVCxt, nullptr);
   Val = WasmEdge_ValueGenExternRef(&GlobVType);
@@ -2702,9 +2867,96 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
                          WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenI32(100);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
   WasmEdge_GlobalInstanceDelete(GlobVCxt);
+}
+
+TEST(APICoreTest, TableGlobalWriteValueType) {
+  WasmEdge_String Name;
+  WasmEdge_Value Val, TmpVal;
+  int Object = 0;
+
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBytes(
+      VM, WasmEdge_BytesWrap(RefValueWasm.data(),
+                             static_cast<uint32_t>(RefValueWasm.size())))));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+  const WasmEdge_ModuleInstanceContext *ModCxt = WasmEdge_VMGetActiveModule(VM);
+
+  // Find the tables and the global of the module.
+  Name = WasmEdge_StringCreateByCString("tab_struct");
+  WasmEdge_TableInstanceContext *TabStruct =
+      WasmEdge_ModuleInstanceFindTable(ModCxt, Name);
+  WasmEdge_StringDelete(Name);
+  ASSERT_NE(TabStruct, nullptr);
+  Name = WasmEdge_StringCreateByCString("tab_func");
+  WasmEdge_TableInstanceContext *TabFunc =
+      WasmEdge_ModuleInstanceFindTable(ModCxt, Name);
+  WasmEdge_StringDelete(Name);
+  ASSERT_NE(TabFunc, nullptr);
+  Name = WasmEdge_StringCreateByCString("tab_any");
+  WasmEdge_TableInstanceContext *TabAny =
+      WasmEdge_ModuleInstanceFindTable(ModCxt, Name);
+  WasmEdge_StringDelete(Name);
+  ASSERT_NE(TabAny, nullptr);
+  Name = WasmEdge_StringCreateByCString("glob_struct");
+  WasmEdge_GlobalInstanceContext *GlobStruct =
+      WasmEdge_ModuleInstanceFindGlobal(ModCxt, Name);
+  WasmEdge_StringDelete(Name);
+  ASSERT_NE(GlobStruct, nullptr);
+
+  // The references: a host object, two functions, and a struct.
+  WasmEdge_Value Host = WasmEdge_ValueGenExternRef(&Object);
+  Name = WasmEdge_StringCreateByCString("one");
+  WasmEdge_Value One = WasmEdge_ValueGenFuncRef(
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, Name));
+  WasmEdge_StringDelete(Name);
+  Name = WasmEdge_StringCreateByCString("new_struct");
+  WasmEdge_Value NewStruct = WasmEdge_ValueGenFuncRef(
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, Name));
+  ASSERT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMExecute(VM, Name, nullptr, 0, &Val, 1)));
+  WasmEdge_StringDelete(Name);
+
+  // A value is written by its own type, not by the type it is passed with.
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabStruct, Val, 0)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabFunc, One, 0)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_GlobalInstanceSetValue(GlobStruct, Val)));
+  ASSERT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceGetData(TabStruct, &TmpVal, 0)));
+
+  // A value of another type than the declared one is refused.
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabStruct, One, 0)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabFunc, NewStruct, 0)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabFunc, TmpVal, 0)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabAny, Host, 0)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_GlobalInstanceSetValue(GlobStruct, One)));
+
+  // A new table or global out of any module follows the same rule.
+  WasmEdge_LimitContext *TabLim = WasmEdge_LimitCreate(1, false);
+  WasmEdge_TableTypeContext *TabType =
+      WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  WasmEdge_GlobalTypeContext *GlobType = WasmEdge_GlobalTypeCreate(
+      WasmEdge_ValTypeGenExternRef(), WasmEdge_Mutability_Var);
+  EXPECT_EQ(WasmEdge_TableInstanceCreateWithInit(TabType, Val), nullptr);
+  EXPECT_EQ(WasmEdge_GlobalInstanceCreate(GlobType, Val), nullptr);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  WasmEdge_GlobalTypeDelete(GlobType);
+  WasmEdge_VMDelete(VM);
 }
 
 TEST(APICoreTest, ModuleInstance) {

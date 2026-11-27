@@ -64,6 +64,32 @@ TEST(WasmEdgeTensorflowTest, Module) {
   EXPECT_NE(TFMod->findFuncExports("clear_output"), nullptr);
 }
 
+TEST(WasmEdgeTensorflowTest, SessionTableGrowth) {
+  // Create the wasmedge_tensorflow module instance.
+  auto TFMod = createModule();
+  ASSERT_TRUE(TFMod);
+  auto &Env = TFMod->getEnv();
+
+  // Existing sessions keep their address when the session table grows.
+  constexpr uint32_t SessionCount = 40U;
+  std::array<decltype(Env.getContext(0U)), SessionCount> Sessions;
+  for (uint32_t I = 0; I < SessionCount; ++I) {
+    EXPECT_EQ(Env.newContext(), I);
+    Sessions[I] = Env.getContext(I);
+    ASSERT_NE(Sessions[I], nullptr);
+  }
+  for (uint32_t I = 0; I < SessionCount; ++I) {
+    EXPECT_EQ(Env.getContext(I), Sessions[I]);
+  }
+  EXPECT_EQ(Env.getContext(SessionCount), nullptr);
+
+  // The deleted session ID is recycled.
+  Env.deleteContext(3U);
+  EXPECT_EQ(Env.getContext(3U), nullptr);
+  EXPECT_EQ(Env.newContext(), 3U);
+  EXPECT_NE(Env.getContext(3U), nullptr);
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

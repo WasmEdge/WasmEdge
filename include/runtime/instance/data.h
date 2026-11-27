@@ -54,13 +54,19 @@ public:
   }
 
   /// Clear data in data instance.
-  void clear() noexcept { Data.clear(); }
+  void clear() noexcept {
+    Data.clear();
+    Dropped = true;
+  }
+
+  bool isDropped() const noexcept { return Dropped; }
 
 private:
   /// \name Data of data instance.
   /// @{
   const uint64_t Off;
   std::vector<Byte> Data;
+  bool Dropped = false;
   /// @}
 };
 

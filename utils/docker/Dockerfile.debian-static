@@ -11,7 +11,7 @@ COPY --from=xx / /
 # Install host dependencies
 RUN apt-get update -y && apt-get install --no-install-recommends -y \
     lsb-release ca-certificates curl wget gnupg \
-    cmake ninja-build git clang xz-utils
+    cmake ninja-build git clang xz-utils file
 
 # Set up llvm's apt repo
 ARG LLVM_VERSION
@@ -85,6 +85,18 @@ RUN cmake -S /src -B /build -G Ninja \
     -DWASMEDGE_USE_LLVM=ON
 
 RUN cmake --build /build -- install
+
+# Link a consumer against the installed static library
+RUN /bin/bash <<EOT
+    set -ex
+    cat <<EOF > /smoke.c
+#include <wasmedge/wasmedge.h>
+int main(void) { return WasmEdge_VersionGet() == 0; }
+EOF
+    xx-clang /smoke.c -I/install/include -L/install/lib -lwasmedge -lstdc++ -lm -lrt -ldl -lpthread -o /smoke
+    xx-verify /smoke
+EOT
+
 RUN cmake --build /build -- package
 RUN mv /build/WasmEdge-*-Linux.tar.gz $(echo build/WasmEdge-*-Linux.tar.gz | sed 's|WasmEdge-\(.*\)-Linux.tar.gz|WasmEdge-\1-debian'$(lsb_release -sr)'_'$(xx-info march)'_static.tar.gz|')
 

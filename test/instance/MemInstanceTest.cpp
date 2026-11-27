@@ -16,6 +16,7 @@
 #include "common/spdlog.h"
 #include "common/types.h"
 #include "runtime/instance/memory.h"
+#include "system/allocator.h"
 #include "vm/vm.h"
 
 #include <array>
@@ -28,9 +29,72 @@ namespace {
 
 using namespace WasmEdge;
 
+TEST(AllocatorTest, ShrinkAndRegrow) {
+  constexpr uint64_t PageSize = Runtime::Instance::MemoryInstance::kPageSize;
+  auto *Pointer = Allocator::allocate(3);
+  ASSERT_NE(Pointer, nullptr);
+  std::fill_n(Pointer, 3 * PageSize, 0xA5);
+  auto *Smaller = Allocator::shrink(Pointer, 3, 1);
+  ASSERT_NE(Smaller, nullptr);
+  EXPECT_TRUE(std::all_of(Smaller, Smaller + PageSize,
+                          [](Byte B) { return B == 0xA5; }));
+  Pointer = Allocator::resize(Smaller, 1, 3);
+  ASSERT_NE(Pointer, nullptr);
+  EXPECT_TRUE(std::all_of(Pointer + PageSize, Pointer + 3 * PageSize,
+                          [](Byte B) { return B == 0; }));
+  Smaller = Allocator::shrink(Pointer, 3, 0);
+  ASSERT_NE(Smaller, nullptr);
+  Pointer = Allocator::resize(Smaller, 0, 1);
+  ASSERT_NE(Pointer, nullptr);
+  EXPECT_TRUE(
+      std::all_of(Pointer, Pointer + PageSize, [](Byte B) { return B == 0; }));
+  Allocator::release(Pointer, 1);
+}
+
 // ---------------------------------------------------------------------------
 // Memory page limit tests (formerly MemLimitTest).
 // ---------------------------------------------------------------------------
+
+TEST(MemInstanceTest, ShrinkAndRegrow) {
+  Runtime::Instance::MemoryInstance Mem(AST::MemoryType(1, 3));
+  const auto *SizePtr = Mem.getPageSizePtr();
+  auto **DataPtr = &Mem.getDataPtr();
+  ASSERT_TRUE(Mem.growPage(2));
+  ASSERT_TRUE(Mem.fillBytes(0xA5, 0, Mem.getSize()));
+  EXPECT_FALSE(Mem.shrinkPage(4));
+  ASSERT_TRUE(Mem.shrinkPage(2));
+  EXPECT_EQ(Mem.getPageSize(), 1U);
+  EXPECT_EQ(*SizePtr, 1U);
+  EXPECT_EQ(DataPtr, &Mem.getDataPtr());
+  ASSERT_TRUE(Mem.growPage(2));
+  const auto Bytes = Mem.getBytes(Mem.kPageSize, 2 * Mem.kPageSize);
+  ASSERT_TRUE(Bytes);
+  EXPECT_TRUE(
+      std::all_of(Bytes->begin(), Bytes->end(), [](Byte B) { return B == 0; }));
+  ASSERT_TRUE(Mem.shrinkPage(3));
+  EXPECT_EQ(*SizePtr, 0U);
+  ASSERT_TRUE(Mem.growPage(1));
+  EXPECT_EQ(*SizePtr, 1U);
+}
+
+TEST(TableInstanceTest, ShrinkAndRegrow) {
+  Runtime::Instance::TableInstance Table(
+      AST::TableType(TypeCode::FuncRef, 1, 3));
+  const auto *SizePtr = Table.getSizePtr();
+  auto **DataPtr = &Table.getDataPtr();
+  ASSERT_TRUE(Table.growTable(2));
+  EXPECT_FALSE(Table.shrinkTable(4));
+  ASSERT_TRUE(Table.shrinkTable(2));
+  EXPECT_EQ(Table.getSize(), 1U);
+  EXPECT_EQ(*SizePtr, 1U);
+  EXPECT_EQ(DataPtr, &Table.getDataPtr());
+  ASSERT_TRUE(Table.growTable(2));
+  EXPECT_EQ(*SizePtr, 3U);
+  ASSERT_TRUE(Table.shrinkTable(3));
+  EXPECT_EQ(*SizePtr, 0U);
+  ASSERT_TRUE(Table.growTable(1));
+  EXPECT_TRUE(Table.getRefAddr(0)->isNull());
+}
 
 TEST(MemInstanceTest, Limit__Pages) {
   using MemInst = WasmEdge::Runtime::Instance::MemoryInstance;

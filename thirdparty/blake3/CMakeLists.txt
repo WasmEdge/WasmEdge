@@ -129,6 +129,7 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     -Wno-shorten-64-to-32
     -Wno-sign-conversion
     -Wno-unused-function
+    -Wno-unused-variable
   )
   if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21")
     target_compile_options(utilBlake3

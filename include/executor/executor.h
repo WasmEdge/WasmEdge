@@ -25,6 +25,7 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
+#include "runtime/matcher.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
 #include "system/stacktrace.h"
@@ -566,10 +567,6 @@ private:
   TypeCode toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
                         const ValType &Type) const;
 
-  /// Helper function for matching a reference against a reference type.
-  bool matchRef(const Runtime::Instance::ModuleInstance *ModInst,
-                const ValType &Exp, const RefVariant &Ref) const noexcept;
-
   /// Helper function for cleaning unused bits of numeric values in ValVariant.
   void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;
 
@@ -667,7 +664,8 @@ private:
                               const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayNewOp(Runtime::StackManager &StackMgr,
                              const uint32_t TypeIdx, const uint32_t InitCnt,
-                             uint32_t Length) const noexcept;
+                             uint32_t Length,
+                             const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayNewDataOp(Runtime::StackManager &StackMgr,
                                  const uint32_t TypeIdx, const uint32_t DataIdx,
                                  const AST::Instruction &Instr) const noexcept;

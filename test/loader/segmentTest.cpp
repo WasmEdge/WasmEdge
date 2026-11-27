@@ -188,6 +188,7 @@ TEST(SegmentTest, LoadElementSegment) {
   //   12. Load element segment with unexpected end of reference type.
   //   13. Load element segment with unexpected end of initialization
   //       expression vector count.
+  //   14. Load element segment with table index without Bulk-Mem proposal.
 
   Vec = {
       0x09U, // Element section
@@ -334,6 +335,19 @@ TEST(SegmentTest, LoadElementSegment) {
             // Missing initialization expressions
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x09U,               // Element section
+      0x06U,               // Content size = 6
+      0x01U,               // Vector length = 1
+      0x01U,               // Table index
+      0x41U, 0x00U, 0x0BU, // Offset expression
+      0x00U                // Function indices list
+  };
+  auto Res = LdrWASM1.parseModule(prefixedVec(Vec));
+  ASSERT_TRUE(Res);
+  ASSERT_EQ((*Res)->getElementSection().getContent().size(), 1U);
+  EXPECT_EQ((*Res)->getElementSection().getContent()[0].getIdx(), 1U);
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
@@ -540,4 +554,5 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
+
 } // namespace

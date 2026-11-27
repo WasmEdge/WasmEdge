@@ -396,8 +396,13 @@ WasmEdge_VMValidate(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 /// After validating a WASM module in the VM context, you can call this function
 /// to instantiate it. You can then call `WasmEdge_VMExecute` to invoke
 /// the exported function in this WASM module.
-/// After calling this function, a new anonymous module instance owned by the VM
-/// is instantiated, and the old one will be destroyed.
+/// After this function succeeds, the validated unit is instantiated as the
+/// anonymous active instance owned by the VM, and the old active instance is
+/// released. If it fails, the old active instance stays.
+/// The VM keeps only one active instance. If the validated unit is a
+/// component, the previous active module instance is released, and the caller
+/// must stop using the pointers returned by `WasmEdge_VMGetActiveModule`
+/// before this call.
 ///
 /// This function is thread-safe.
 ///
@@ -651,12 +656,17 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
 /// API to get the active anonymous module instance to retrieve the exported
 /// instances. The module instance context links to the context owned by the VM
 /// context. The caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
+/// The VM keeps only one active instance, which is either a module instance or
+/// a component instance. After a component is instantiated in the VM, the
+/// previous active module instance is released, and this API returns NULL
+/// until a WASM module is instantiated again.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 ///
-/// \returns pointer to the module instance context. NULL if not found.
+/// \returns pointer to the module instance context. NULL if not found, or if
+/// the active instance in the VM is a component instance.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt)
     WASMEDGE_CAPI_NOEXCEPT;

@@ -10,7 +10,7 @@ else()
   FetchContent_Declare(
     GTest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG 52eb8108c5bdec04579160ae17225d66034bd723  # v1.17.0
+    GIT_TAG 063de7e9578f82b369302001269680b4b1553359  # v1.18.0
     GIT_SHALLOW TRUE
   )
   set(BUILD_GMOCK OFF CACHE BOOL "Builds the googlemock subproject" FORCE)

@@ -137,10 +137,11 @@ Expect<ErrNo> AOTInductor::run(std::vector<at::Tensor> In,
   return ErrNo::Success;
 }
 
-PyModelBackend guessPyModelBackendType(const std::string_view &Model) {
+PyModelBackend guessPyModelBackendType(const std::string_view &Model,
+                                       bool Preloaded) {
   // TODO: Add more model type detection when we supporet more OS.
   // ex .dll, .dylib, etc.
-  if (Model.substr(0, 8) == "preload:"sv) {
+  if (Preloaded && Model.substr(0, 8) == "preload:"sv) {
     if (Model.substr(Model.size() - 3, 3) == ".so"sv) {
       // AOTInductor only accept the shared library.
       return PyModelBackend::AOTInductor;
@@ -157,7 +158,7 @@ PyModelBackend guessPyModelBackendType(const std::string_view &Model) {
   return PyModelBackend::TorchScript;
 }
 
-Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
+Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
                    Span<const Span<uint8_t>> Builders, Device Device) noexcept {
   auto &GraphRef = G.get<Graph>();
   // The graph builder length must be 1.
@@ -174,7 +175,8 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
   try {
     const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                     Weight.size());
-    PyModelBackend ModelType = guessPyModelBackendType(BinModel);
+    const bool Preloaded = Env.isPreloaded(Weight);
+    PyModelBackend ModelType = guessPyModelBackendType(BinModel, Preloaded);
 
     if (ModelType == PyModelBackend::TorchScript) {
       GraphRef.Model = std::make_unique<TorchScript>();
@@ -186,7 +188,7 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
     }
 
     Expect<ErrNo> LoadRes = ErrNo::Success;
-    if (BinModel.substr(0, 8) == "preload:"sv) {
+    if (Preloaded && BinModel.substr(0, 8) == "preload:"sv) {
       const std::string ModelFilePath(BinModel.substr(8));
       LoadRes = GraphRef.Model->loadFromPath(ModelFilePath, Device);
     } else {

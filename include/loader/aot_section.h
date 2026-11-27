@@ -97,6 +97,7 @@ private:
   uint64_t IntrinsicsAddress = 0;
   std::vector<uintptr_t> TypesAddress;
   std::vector<uintptr_t> CodesAddress;
+  bool Registered = false;
 #if WASMEDGE_OS_LINUX
   void *EHFrameAddress = nullptr;
 #elif WASMEDGE_OS_MACOS

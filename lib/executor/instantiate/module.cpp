@@ -129,6 +129,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   EXPECTED_TRY(instantiate(StackMgr, *ModInst, DataSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Data)));
 
+  // Build the context before the active segments: they may write functions of
+  // this module into imported tables, callable even if instantiation fails.
+  ModInst->buildContext();
+
   // Initialize table instances
   EXPECTED_TRY(initTable(StackMgr, ElemSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Element)));
@@ -136,8 +140,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Initialize memory instances
   EXPECTED_TRY(initMemory(StackMgr, DataSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Data)));
-
-  ModInst->buildContext();
 
   // Instantiate StartSection (StartSec)
   const AST::StartSection &StartSec = Mod.getStartSection();
@@ -161,7 +163,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // For a named module, register it in the store.
   if (Name.has_value()) {
-    StoreMgr.registerModule(ModInst.get());
+    EXPECTED_TRY(StoreMgr.registerModule(ModInst.get()).map_error([&](auto E) {
+      spdlog::error(E);
+      return ReportModuleError(E);
+    }));
   }
 
   return ModInst;

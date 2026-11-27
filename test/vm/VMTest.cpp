@@ -17,13 +17,26 @@
 
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "host/filesystem.h"
+#include "host/wasi/wasimodule.h"
+#include "runtime/callingframe.h"
+#ifdef WASMEDGE_USE_LLVM
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
+#endif
 
 #include <gtest/gtest.h>
 
 #include <array>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <random>
+#include <string>
+#include <system_error>
 #include <vector>
 
 namespace {
@@ -38,6 +51,22 @@ static const std::array<WasmEdge::Byte, 34> ConstFuncWasm{
     0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
     0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x07, 0x0b};
 
+// Empty component: preamble only.
+static const std::array<WasmEdge::Byte, 8> EmptyComponentWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00};
+
+// Wasm module with:
+//   (import "wasi_snapshot_preview1" "proc_exit" (func (param i32)))
+//   (func (export "f") (result i32) i32.const 7)
+static const std::array<WasmEdge::Byte, 76> WasiImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02,
+    0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x24, 0x01,
+    0x16, 0x77, 0x61, 0x73, 0x69, 0x5f, 0x73, 0x6e, 0x61, 0x70, 0x73,
+    0x68, 0x6f, 0x74, 0x5f, 0x70, 0x72, 0x65, 0x76, 0x69, 0x65, 0x77,
+    0x31, 0x09, 0x70, 0x72, 0x6f, 0x63, 0x5f, 0x65, 0x78, 0x69, 0x74,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07, 0x05, 0x01, 0x01, 0x66,
+    0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x07, 0x0b};
+
 /// Helper: drive the VM through load, validate, and instantiate.
 void instantiateFixture(VM::VM &TestVM) {
   ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
@@ -46,11 +75,126 @@ void instantiateFixture(VM::VM &TestVM) {
 }
 
 /// Helper: execute the exported function and expect the constant result.
-void expectConstResult(VM::VM &TestVM) {
+void expectConstResult(VM::VM &TestVM, uint32_t Expected) {
   auto Res = TestVM.execute("f");
   ASSERT_TRUE(Res);
   ASSERT_EQ(Res->size(), 1U);
-  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected);
+}
+
+TEST(VMSnapshotTest, RoundTrip) {
+  const Byte Wasm[]{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+      0x00, 0x01, 0x7f, 0x60, 0x00, 0x00, 0x03, 0x05, 0x04, 0x00, 0x00, 0x00,
+      0x01, 0x04, 0x05, 0x01, 0x70, 0x01, 0x01, 0x04, 0x05, 0x04, 0x01, 0x01,
+      0x01, 0x03, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x07, 0x0b, 0x07, 0x23,
+      0x05, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x05, 0x74,
+      0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x67, 0x6c, 0x6f, 0x62, 0x61,
+      0x6c, 0x03, 0x00, 0x01, 0x66, 0x00, 0x02, 0x01, 0x67, 0x00, 0x03, 0x09,
+      0x0b, 0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x03, 0x00, 0x01, 0x01,
+      0x0a, 0x44, 0x04, 0x0a, 0x00, 0x23, 0x00, 0x41, 0x00, 0x28, 0x02, 0x00,
+      0x6a, 0x0b, 0x05, 0x00, 0x41, 0xe3, 0x00, 0x0b, 0x07, 0x00, 0x41, 0x00,
+      0x11, 0x00, 0x00, 0x0b, 0x29, 0x00, 0x41, 0x0b, 0x24, 0x00, 0x41, 0x00,
+      0x41, 0x17, 0x36, 0x02, 0x00, 0x41, 0x02, 0x40, 0x00, 0x1a, 0x41, 0x80,
+      0x80, 0x08, 0x41, 0x2a, 0x36, 0x02, 0x00, 0xd0, 0x70, 0x41, 0x02, 0xfc,
+      0x0f, 0x00, 0x1a, 0x41, 0x00, 0xd2, 0x01, 0x26, 0x00, 0x0b};
+  const auto Dir =
+      std::filesystem::temp_directory_path() / "wasmedge-vm-restore";
+  std::filesystem::create_directories(Dir);
+  struct Cleanup {
+    std::filesystem::path Path;
+    ~Cleanup() {
+      std::error_code EC;
+      std::filesystem::remove_all(Path, EC);
+    }
+  } Guard{Dir};
+  for (unsigned Mode = 0; Mode <
+#ifdef WASMEDGE_USE_LLVM
+                          4
+#else
+                          1
+#endif
+       ;
+       ++Mode) {
+    SCOPED_TRACE(Mode);
+    Configure Conf;
+    Conf.addHostRegistration(HostRegistration::Wasi);
+    if (Mode == 1)
+      Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+    if (Mode == 2)
+      Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+    if (Mode == 3)
+      Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+    VM::VM TestVM(Conf);
+    std::vector<Byte> Code(std::begin(Wasm), std::end(Wasm));
+#ifdef WASMEDGE_USE_LLVM
+    if (Mode == 1) {
+      auto Module = TestVM.getLoader().parseModule(Code);
+      ASSERT_TRUE(Module);
+      ASSERT_TRUE(TestVM.getValidator().validate(**Module));
+      LLVM::Compiler Compiler(Conf);
+      auto CompiledData = Compiler.compile(**Module);
+      ASSERT_TRUE(CompiledData);
+      LLVM::CodeGen CodeGen(Conf);
+      ASSERT_TRUE(
+          CodeGen.codegen(Code, std::move(*CompiledData), Dir / "state.wasm"));
+      const auto Compiled = Loader::Loader::loadFile(Dir / "state.wasm");
+      ASSERT_TRUE(Compiled);
+      Code = *Compiled;
+    }
+#endif
+    ASSERT_TRUE(TestVM.registerModule("registered", Code));
+    const auto NoActive = Dir / "no-active.core";
+    ASSERT_TRUE(TestVM.snapshot(NoActive));
+    ASSERT_TRUE(TestVM.restore(NoActive));
+    ASSERT_TRUE(TestVM.loadWasm(Code));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
+    if (Mode == 1) {
+      ASSERT_TRUE(
+          TestVM.getActiveModule()->findFuncExports("f")->isCompiledFunction());
+    }
+    auto Result = TestVM.execute("f");
+    ASSERT_TRUE(Result);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 7U);
+    const auto Path = Dir / "state.core";
+    ASSERT_TRUE(TestVM.snapshot(Path));
+    const auto Saved = Loader::Loader::loadFile(Path);
+    ASSERT_TRUE(Saved);
+    for (unsigned Iteration = 0; Iteration < 2; ++Iteration) {
+      ASSERT_TRUE(TestVM.execute("g"));
+      ASSERT_TRUE(TestVM.execute("registered", "g"));
+      ASSERT_TRUE(TestVM.restore(Path));
+      for (const bool Registered : {false, true}) {
+        Result = Registered ? TestVM.execute("registered", "f")
+                            : TestVM.execute("f");
+        ASSERT_TRUE(Result);
+        EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 7U);
+      }
+      const auto Again = Dir / "again.core";
+      ASSERT_TRUE(TestVM.snapshot(Again));
+      const auto Restored = Loader::Loader::loadFile(Again);
+      ASSERT_TRUE(Restored);
+      EXPECT_EQ(*Saved, *Restored);
+    }
+  }
+}
+
+TEST(VMSnapshotTest, RejectComponent) {
+  const std::array<Byte, 8> Component{0x00, 0x61, 0x73, 0x6D,
+                                      0x0D, 0x00, 0x01, 0x00};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(Component));
+  ASSERT_TRUE(TestVM.forceValidateForComponent());
+  ASSERT_TRUE(TestVM.instantiate());
+  const auto Snapshot = TestVM.snapshot();
+  ASSERT_FALSE(Snapshot);
+  EXPECT_EQ(Snapshot.error(), ErrCode::Value::CoredumpUnsupported);
+  const auto Restore = TestVM.restore("unused.core");
+  ASSERT_FALSE(Restore);
+  EXPECT_EQ(Restore.error(), ErrCode::Value::CoredumpUnsupported);
 }
 
 TEST(VMStageTest, ValidateBeforeLoadFails) {
@@ -89,7 +233,7 @@ TEST(VMStageTest, HappyPathLoadValidateInstantiateExecute) {
   EXPECT_FALSE(TestVM.holdsModule());
   instantiateFixture(TestVM);
   EXPECT_TRUE(TestVM.holdsModule());
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 
   auto FnList = TestVM.getFunctionList();
   ASSERT_EQ(FnList.size(), 1U);
@@ -102,7 +246,224 @@ TEST(VMStageTest, RegisterWhileInstantiatedAllowsReinstantiate) {
   instantiateFixture(TestVM);
   ASSERT_TRUE(TestVM.registerModule("ext", ConstFuncWasm));
   ASSERT_TRUE(TestVM.instantiate());
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
+}
+
+TEST(VMStageTest, LoadComponentAfterModuleReplacesModule) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
+}
+
+TEST(VMStageTest, LoadModuleAfterComponentReplacesComponent) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  EXPECT_FALSE(TestVM.holdsComponent());
+  auto Res = TestVM.forceValidateForComponent();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM, 7U);
+}
+
+TEST(VMStageTest, LoadASTModuleAfterComponentReplacesComponent) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.loadWasm(**Module));
+  auto Res = TestVM.forceValidateForComponent();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM, 7U);
+}
+
+TEST(VMStageTest, RunWasmFileKeepsNewInstanceAfterCallFails) {
+  // Same as ConstFuncWasm, but the function returns 9.
+  auto OtherConstFuncWasm = ConstFuncWasm;
+  OtherConstFuncWasm[32] = 0x09;
+  Configure Conf;
+  VM::VM FreshVM(Conf);
+  ASSERT_TRUE(FreshVM.runWasmFile(OtherConstFuncWasm, "f"));
+  EXPECT_TRUE(FreshVM.instantiate());
+  expectConstResult(FreshVM, 9U);
+
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  auto Res = TestVM.runWasmFile(OtherConstFuncWasm, "f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
+  expectConstResult(TestVM, 9U);
+  EXPECT_TRUE(TestVM.validate());
+  EXPECT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM, 9U);
+
+  VM::VM FailedVM(Conf);
+  instantiateFixture(FailedVM);
+  auto FailedRes = FailedVM.runWasmFile(OtherConstFuncWasm, "no-such-func");
+  ASSERT_FALSE(FailedRes);
+  EXPECT_EQ(FailedRes.error(), ErrCode::Value::FuncNotFound);
+  expectConstResult(FailedVM, 9U);
+  EXPECT_TRUE(FailedVM.instantiate());
+  expectConstResult(FailedVM, 9U);
+}
+
+TEST(VMStageTest, RunWasmFileFromASTModuleKeepsStage) {
+  Configure Conf;
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
+  expectConstResult(TestVM, 7U);
+  auto Res = TestVM.validate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+
+  instantiateFixture(TestVM);
+  ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
+  EXPECT_TRUE(TestVM.instantiate());
+  expectConstResult(TestVM, 7U);
+}
+
+TEST(VMStageTest, ReloadComponentReleasesComponentInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  EXPECT_FALSE(TestVM.holdsComponent());
+  auto Res = TestVM.executeComponent("f");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+}
+
+TEST(VMStageTest, FailedRunWasmFileFallsBackToStoredUnitStage) {
+  // Same as ConstFuncWasm, but the function body leaves no result.
+  const std::array<Byte, 32> InvalidWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+      0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01,
+      0x01, 0x66, 0x00, 0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  ASSERT_FALSE(TestVM.runWasmFile(InvalidWasm, "f"));
+  expectConstResult(TestVM, 7U);
+  auto Res = TestVM.instantiate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+  EXPECT_FALSE(TestVM.validate());
+
+  VM::VM CompVM(Conf);
+  auto RunRes = CompVM.runWasmFile(EmptyComponentWasm, "f");
+  ASSERT_FALSE(RunRes);
+  EXPECT_EQ(RunRes.error(), ErrCode::Value::RuntimeError);
+  EXPECT_TRUE(CompVM.instantiate());
+  EXPECT_TRUE(CompVM.holdsComponent());
+}
+
+TEST(VMStageTest, RunWasmFileFromPathStoresComponent) {
+  std::filesystem::path Dir;
+  {
+    std::random_device Device;
+    for (int I = 0; I < 100 && Dir.empty(); ++I) {
+      auto Candidate = std::filesystem::temp_directory_path() /
+                       ("wasmedge-vm-stage-path-" + std::to_string(Device()));
+      std::error_code EC;
+      if (std::filesystem::create_directory(Candidate, EC)) {
+        Dir = std::move(Candidate);
+      } else {
+        ASSERT_FALSE(EC) << EC.message();
+      }
+    }
+  }
+  ASSERT_FALSE(Dir.empty());
+  struct Cleanup {
+    std::filesystem::path Path;
+    ~Cleanup() {
+      std::error_code EC;
+      std::filesystem::remove_all(Path, EC);
+    }
+  } Guard{Dir};
+  const auto Path = Dir / "component.wasm";
+  {
+    std::ofstream File(Path, std::ios::binary);
+    File.write(reinterpret_cast<const char *>(EmptyComponentWasm.data()),
+               static_cast<std::streamsize>(EmptyComponentWasm.size()));
+    File.close();
+    ASSERT_TRUE(File);
+  }
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  auto Res = TestVM.runWasmFile(Path, "f");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::RuntimeError);
+  expectConstResult(TestVM, 7U);
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
+}
+
+TEST(VMStageTest, InstantiateComponentReleasesModuleInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  instantiateFixture(TestVM);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  expectConstResult(TestVM, 7U);
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
+  auto Res = TestVM.execute("f");
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
+}
+
+TEST(VMStageTest, RunWasmFileFromASTModuleReleasesComponentInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
+  EXPECT_TRUE(TestVM.holdsModule());
+  EXPECT_FALSE(TestVM.holdsComponent());
+
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+  EXPECT_FALSE(TestVM.holdsModule());
 }
 
 TEST(VMRegistrationTest, RegisterAndExecuteByName) {
@@ -161,11 +522,36 @@ TEST(VMPluginTest, WasiImportModulePresence) {
   EXPECT_EQ(PlainVM.getImportModule(HostRegistration::Wasi), nullptr);
 }
 
+TEST(VMPluginTest, WasiImportGrantsFileSystem) {
+  // The host functions called by a module importing WASI open its files with
+  // the filesystem of the WASI module; a module without WASI has none.
+  Configure Conf;
+  Conf.addHostRegistration(HostRegistration::Wasi);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(WasiImportWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  const auto *WasiMod = dynamic_cast<const Host::WasiModule *>(
+      TestVM.getImportModule(HostRegistration::Wasi));
+  ASSERT_NE(WasiMod, nullptr);
+  ASSERT_NE(TestVM.getActiveModule(), nullptr);
+  const Host::FileSystem *WasiFS = WasiMod->getEnv();
+  EXPECT_EQ(
+      Runtime::CallingFrame(nullptr, TestVM.getActiveModule()).getFileSystem(),
+      WasiFS);
+
+  instantiateFixture(TestVM);
+  ASSERT_NE(TestVM.getActiveModule(), nullptr);
+  EXPECT_EQ(
+      Runtime::CallingFrame(nullptr, TestVM.getActiveModule()).getFileSystem(),
+      nullptr);
+}
+
 TEST(VMCleanupTest, VMIsReusableAfterCleanup) {
   Configure Conf;
   VM::VM TestVM(Conf);
   instantiateFixture(TestVM);
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
 
   TestVM.cleanup();
   auto Res = TestVM.execute("f");
@@ -173,7 +559,26 @@ TEST(VMCleanupTest, VMIsReusableAfterCleanup) {
   EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
 
   instantiateFixture(TestVM);
-  expectConstResult(TestVM);
+  expectConstResult(TestVM, 7U);
+}
+
+TEST(VMCleanupTest, CleanupReleasesComponentInstance) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  EXPECT_TRUE(TestVM.holdsComponent());
+
+  TestVM.cleanup();
+  EXPECT_FALSE(TestVM.holdsComponent());
+  auto Res = TestVM.validate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
+
+  instantiateFixture(TestVM);
+  expectConstResult(TestVM, 7U);
 }
 
 TEST(VMCleanupTest, CleanupRestoresBuiltinHosts) {

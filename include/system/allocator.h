@@ -33,6 +33,10 @@ public:
                                          uint64_t OldPageCount,
                                          uint64_t NewPageCount) noexcept;
 
+  WASMEDGE_EXPORT static uint8_t *shrink(uint8_t *Pointer,
+                                         uint64_t OldPageCount,
+                                         uint64_t NewPageCount) noexcept;
+
   WASMEDGE_EXPORT static void release(uint8_t *Pointer,
                                       uint64_t PageCount) noexcept;
 

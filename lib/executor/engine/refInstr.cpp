@@ -3,6 +3,9 @@
 
 #include "executor/executor.h"
 
+#include <new>
+#include <vector>
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -88,7 +91,8 @@ Expect<void> Executor::runRefIsNullOp(ValVariant &Val) const noexcept {
 Expect<void> Executor::runRefFuncOp(Runtime::StackManager &StackMgr,
                                     uint32_t Idx) const noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr.getModule(), Idx);
-  StackMgr.push(RefVariant(FuncInst->getDefType(), FuncInst));
+  StackMgr.push(
+      RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef), FuncInst));
   return {};
 }
 
@@ -107,8 +111,6 @@ Executor::runRefAsNonNullOp(RefVariant &Ref,
   if (Ref.isNull()) {
     return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
-  ValType Type = Ref.getType();
-  Ref.setType(Type.toNonNullableRef());
   return {};
 }
 
@@ -149,19 +151,27 @@ Executor::runStructSetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
   return {};
 }
 
-Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
-                                     const uint32_t TypeIdx,
-                                     const uint32_t InitCnt,
-                                     uint32_t Length) const noexcept {
+Expect<void>
+Executor::runArrayNewOp(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
+                        const uint32_t InitCnt, uint32_t Length,
+                        const AST::Instruction &Instr) const noexcept {
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
+  auto Report = [&](auto E) { return logError(E, Instr); };
   if (InitCnt == 0) {
-    StackMgr.push(*arrayNew(StackMgr.getModule(), TypeIdx, Length));
+    EXPECTED_TRY(
+        auto InstRef,
+        arrayNew(StackMgr.getModule(), TypeIdx, Length).map_error(Report));
+    StackMgr.push(InstRef);
   } else if (InitCnt == 1) {
-    StackMgr.getTop().emplace<RefVariant>(
-        *arrayNew(StackMgr.getModule(), TypeIdx, Length, {StackMgr.getTop()}));
+    EXPECTED_TRY(auto InstRef, arrayNew(StackMgr.getModule(), TypeIdx, Length,
+                                        {StackMgr.getTop()})
+                                   .map_error(Report));
+    StackMgr.getTop().emplace<RefVariant>(InstRef);
   } else {
-    StackMgr.push(
-        *arrayNew(StackMgr.getModule(), TypeIdx, Length, StackMgr.pop(Length)));
+    EXPECTED_TRY(auto InstRef, arrayNew(StackMgr.getModule(), TypeIdx, Length,
+                                        StackMgr.pop(Length))
+                                   .map_error(Report));
+    StackMgr.push(InstRef);
   }
   return {};
 }
@@ -332,7 +342,8 @@ Expect<void>
 Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
                        ValVariant &Val, const AST::Instruction &Instr,
                        const bool IsCast) const noexcept {
-  if (matchRef(ModInst, Instr.getValType(), Val.get<RefVariant>())) {
+  if (Runtime::Matcher::matchRef(ModInst, Instr.getValType(),
+                                 Val.get<RefVariant>())) {
     if (!IsCast) {
       Val.emplace<uint32_t>(1U);
     }
@@ -353,29 +364,11 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
 
 Expect<void> Executor::runRefConvOp(RefVariant &Ref,
                                     TypeCode TCode) const noexcept {
-  if (TCode == TypeCode::AnyRef) {
-    // Internalize.
-    if (Ref.isNull()) {
-      Ref = RefVariant(ValType(TypeCode::RefNull, TypeCode::NullRef));
-    } else {
-      ValType VT = Ref.getType();
-      VT.setInternalized();
-      if (VT.isExternRefType()) {
-        VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
-      }
-      Ref.setType(VT);
-    }
-  } else {
-    // Externalize.
-    if (Ref.isNull()) {
-      Ref = RefVariant(ValType(TypeCode::RefNull, TypeCode::NullExternRef));
-    } else {
-      // Use the externalize flag because the value type information should be
-      // reserved when a reference being externalized and internalized.
-      ValType VT = Ref.getType();
-      VT.setExternalized();
-      Ref.setType(VT);
-    }
+  // A non-null reference is the same value seen from inside and from outside.
+  if (Ref.isNull()) {
+    Ref = RefVariant(ValType(TypeCode::RefNull, TCode == TypeCode::AnyRef
+                                                    ? TypeCode::NullRef
+                                                    : TypeCode::NullExternRef));
   }
   return {};
 }
@@ -462,23 +455,30 @@ Executor::arrayNew(const Runtime::Instance::ModuleInstance *ModInstArg,
   /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
   auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  if (Args.size() == 0) {
-    // New and fill with default values.
-    auto InitVal = VType.isRefType()
-                       ? ValVariant(RefVariant(toBottomType(ModInstArg, VType)))
-                       : ValVariant(static_cast<uint128_t>(0U));
-    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
-  } else if (Args.size() == 1) {
-    // Create and fill with the argument value.
-    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+  std::vector<ValVariant> Vals;
+  if (Args.size() <= 1) {
+    // New and fill with the argument value or the default value.
+    ValVariant InitVal = static_cast<uint128_t>(0U);
+    if (Args.size() == 1) {
+      InitVal = packVal(VType, Args[0]);
+    } else if (VType.isRefType()) {
+      InitVal = RefVariant(toBottomType(ModInstArg, VType));
+    }
+    if (Length > Vals.max_size()) {
+      return Unexpect(ErrCode::Value::AllocationFailed);
+    }
+    try {
+      Vals.assign(Length, InitVal);
+    } catch (const std::bad_alloc &) {
+      return Unexpect(ErrCode::Value::AllocationFailed);
+    }
   } else {
     // Create with arguments.
-    Inst = ModInst->newArray(
-        TypeIdx,
-        packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+    Vals = packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end()));
   }
+  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
+      ModInst->newArray(TypeIdx, std::move(Vals));
   return RefVariant(Inst->getDefType(), Inst);
 }
 

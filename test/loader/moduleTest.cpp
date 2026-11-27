@@ -253,6 +253,30 @@ TEST(ModuleTest, LoadDupSecModule) {
   EXPECT_FALSE(Ldr.parseModule(Vec));
 }
 
+TEST(ModuleTest, CopyModule) {
+  // 20. Test copy module with tags.
+  std::vector<uint8_t> Vec = {
+      0x00U, 0x61U, 0x73U, 0x6DU,                      // Magic
+      0x01U, 0x00U, 0x00U, 0x00U,                      // Version
+      0x01U, 0x05U, 0x01U, 0x60U, 0x01U, 0x7FU, 0x00U, // Type section
+      0x02U, 0x08U, 0x01U, 0x01U, 0x6DU, 0x01U, 0x74U, // Import section
+      0x04U, 0x00U, 0x00U,                             // Tag import
+      0x0DU, 0x03U, 0x01U, 0x00U, 0x00U                // Tag section
+  };
+  auto Mod = Ldr.parseModule(Vec);
+  ASSERT_TRUE(Mod);
+
+  WasmEdge::AST::Module Copied(**Mod);
+  WasmEdge::AST::Module Assigned;
+  Assigned = **Mod;
+  for (const WasmEdge::AST::Module *Copy : {&Copied, &Assigned}) {
+    const auto &Type = Copy->getTypeSection().getContent()[0];
+    const auto &ImpDesc = Copy->getImportSection().getContent()[0];
+    EXPECT_EQ(&ImpDesc.getExternalTagType().getDefType(), &Type);
+    EXPECT_EQ(&Copy->getTagSection().getContent()[0].getDefType(), &Type);
+  }
+}
+
 TEST(ModuleTest, LoadNativeLibraryMagicNotInAOTMode) {
   const std::vector<std::pair<std::string, std::vector<uint8_t>>> Cases = {
       {"elf", {0x7FU, 0x45U, 0x4CU, 0x46U}},

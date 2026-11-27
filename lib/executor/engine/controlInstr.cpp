@@ -114,8 +114,8 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
                                      bool IsReverse) noexcept {
   // Get the value on top of the stack.
   const auto &Val = StackMgr.getTop().get<RefVariant>();
-  if (matchRef(StackMgr.getModule(), Instr.getBrCast().RType2, Val) !=
-      IsReverse) {
+  if (Runtime::Matcher::matchRef(StackMgr.getModule(), Instr.getBrCast().RType2,
+                                 Val) != IsReverse) {
     return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
   }
   return {};
@@ -202,7 +202,8 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   }
 
   // Check function type.
-  if (!matchRef(ModInst, ValType(TypeCode::Ref, Instr.getTargetIndex()), Ref)) {
+  if (!Runtime::Matcher::matchRef(
+          ModInst, ValType(TypeCode::Ref, Instr.getTargetIndex()), Ref)) {
     auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
     auto &GotFuncType = FuncInst->getFuncType();
     spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);

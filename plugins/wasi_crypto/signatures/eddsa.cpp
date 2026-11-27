@@ -247,7 +247,7 @@ Eddsa::VerificationState::verify(const Signature &Sig) noexcept {
   // data.
   ensureOrReturn(EVP_DigestVerify(Ctx->RawCtx.get(), Sig.ref().data(),
                                   Sig.ref().size(), Ctx->Data.data(),
-                                  Ctx->Data.size()),
+                                  Ctx->Data.size()) == 1,
                  __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
 
   return {};

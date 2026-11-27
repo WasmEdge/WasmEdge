@@ -4,6 +4,7 @@
 #include "opencvmini_func.h"
 #include "common/defines.h"
 #include "common/errcode.h"
+#include "host/filesystem.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -171,7 +172,22 @@ Expect<void> WasmEdgeOpenCVMiniImwrite::body(const Runtime::CallingFrame &Frame,
               std::back_inserter(TargetFileName));
 
   if (auto Img = Env.getMat(MatKey); Img) {
-    cv::imwrite(TargetFileName.c_str(), *Img);
+    // Encode by the extension of the file name as cv::imwrite does, and write
+    // the file with the filesystem of the caller.
+    std::vector<uchar> Data;
+    const auto *FS = Frame.getFileSystem();
+    if (FS == nullptr || !cv::imencode(TargetFileName, *Img, Data)) {
+      spdlog::error("[WasmEdge-OpenCVMini] "sv
+                    "Failed to encode the image for the file."sv);
+      return {};
+    }
+    auto File =
+        FS->open(TargetFileName, __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                 __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
+    if (!File || !(*File)->write(Data)) {
+      spdlog::error("[WasmEdge-OpenCVMini] "sv
+                    "Failed to write the image file."sv);
+    }
   }
 
   return {};

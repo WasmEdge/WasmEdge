@@ -189,7 +189,8 @@ Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
-  if (!matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx), *Ref)) {
+  if (!Runtime::Matcher::matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx),
+                                  *Ref)) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
@@ -245,7 +246,7 @@ Executor::proxyRefFunc(Runtime::StackManager &,
                        const uint32_t FuncIdx) noexcept {
   auto *FuncInst = getFuncInstByIdx(ModInst, FuncIdx);
   assuming(FuncInst);
-  return RefVariant(FuncInst->getDefType(), FuncInst);
+  return RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef), FuncInst);
 }
 
 Expect<RefVariant>
@@ -367,7 +368,8 @@ Executor::proxyRefTest(Runtime::StackManager &,
                        const Runtime::Instance::ModuleInstance *ModInst,
                        const RefVariant Ref, ValType VTTest) noexcept {
   assuming(ModInst);
-  return static_cast<uint32_t>(matchRef(ModInst, VTTest, Ref) ? 1 : 0);
+  return static_cast<uint32_t>(
+      Runtime::Matcher::matchRef(ModInst, VTTest, Ref) ? 1 : 0);
 }
 
 Expect<RefVariant>
@@ -375,7 +377,7 @@ Executor::proxyRefCast(Runtime::StackManager &,
                        const Runtime::Instance::ModuleInstance *ModInst,
                        const RefVariant Ref, ValType VTCast) noexcept {
   assuming(ModInst);
-  if (!matchRef(ModInst, VTCast, Ref)) {
+  if (!Runtime::Matcher::matchRef(ModInst, VTCast, Ref)) {
     return Unexpect(ErrCode::Value::CastFailed);
   }
   return Ref;
@@ -569,7 +571,8 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   // Check the function type; the same module and type index need no matching.
   if ((FuncInst->getModule() != ModInst ||
        FuncInst->getTypeIndex() != FuncTypeIdx) &&
-      !matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx), *Ref)) {
+      !Runtime::Matcher::matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx),
+                                  *Ref)) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 

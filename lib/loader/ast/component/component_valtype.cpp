@@ -65,8 +65,8 @@ Expect<void> Loader::loadType(ComponentValType &Ty) {
   }));
   if (Val < 0) {
     // PrimValType case.
-    if (Val < -64) {
-      // Check for an invalid s33 value larger than 1 byte.
+    if (FMgr.getOffset() - FMgr.getLastOffset() > 1) {
+      // The primitive value type codes are encoded in a single byte.
       return logLoadError(ErrCode::Value::MalformedValType,
                           FMgr.getLastOffset(), ASTNodeAttr::Comp_ValueType);
     }

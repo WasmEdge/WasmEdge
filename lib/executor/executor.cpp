@@ -158,17 +158,22 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
-  // The defined type list may be empty if the function is an independent
-  // function instance, that is, the module instance will be nullptr. In this
-  // case, all value types are number types or abstract heap types.
-  //
-  // If a function belongs to a component instance, its type should already be
-  // converted, so the type list is not needed.
-  WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
-  if (FuncInst->getModule()) {
-    TypeList = FuncInst->getModule()->getTypeList();
+  // A number matches by its type, and a reference by its value as it is seen
+  // by the type passed with it. The null references are checked below.
+  bool IsMatched =
+      Params.size() == PTypes.size() && ParamTypes.size() == PTypes.size();
+  for (uint32_t I = 0; IsMatched && I < PTypes.size(); ++I) {
+    if (!PTypes[I].isRefType()) {
+      IsMatched = ParamTypes[I].getCode() == PTypes[I].getCode();
+    } else {
+      const auto &Ref = Params[I].get<RefVariant>();
+      IsMatched = ParamTypes[I].isRefType() &&
+                  (Ref.isNull() ||
+                   Runtime::Matcher::matchRef(FuncInst->getModule(), PTypes[I],
+                                              Ref, ParamTypes[I]));
+    }
   }
-  if (!AST::TypeMatcher::matchTypes(TypeList, ParamTypes, PTypes)) {
+  if (!IsMatched) {
     spdlog::error(ErrCode::Value::FuncSigMismatch);
     spdlog::error(ErrInfo::InfoMismatch(
         PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),
@@ -177,12 +182,12 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   }
 
   // Check the reference value validation.
-  for (uint32_t I = 0; I < ParamTypes.size(); ++I) {
-    if (ParamTypes[I].isRefType() && (!ParamTypes[I].isNullableRefType() &&
-                                      Params[I].get<RefVariant>().isNull())) {
+  for (uint32_t I = 0; I < PTypes.size(); ++I) {
+    if (PTypes[I].isRefType() && (!PTypes[I].isNullableRefType() &&
+                                  Params[I].get<RefVariant>().isNull())) {
       spdlog::error(ErrCode::Value::NonNullRequired);
       spdlog::error("    Cannot pass a null reference as argument of {}."sv,
-                    ParamTypes[I]);
+                    PTypes[I]);
       return Unexpect(ErrCode::Value::NonNullRequired);
     }
   }
@@ -204,18 +209,21 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     auto Val = StackMgr.pop();
     const auto &RType = RTypes[RTypes.size() - I - 1];
     if (RType.isRefType()) {
-      // For the reference type cases of the return values, they should be
+      // For the reference type cases of the return values, the types should be
       // transformed into abstract heap types due to the opaque of type indices.
-      ValType RefType = Val.get<RefVariant>().getType();
-      if (RefType.isExternalized()) {
-        // First handle the forced externalized value type case.
+      const auto &Ref = Val.get<RefVariant>();
+      ValType RefType = Ref.getType();
+      if (!Ref.isNull() && RType.isExternRefType()) {
+        // The declared type tells that the reference is seen from outside.
         RefType = ValType(TypeCode::Ref, TypeCode::ExternRef);
+      } else if (!Ref.isNull() && RefType.isExternRefType()) {
+        // A reference to a host object is an any reference.
+        RefType = ValType(TypeCode::Ref, TypeCode::AnyRef);
       }
       if (!RefType.isAbsHeapType()) {
         // The instance must not be nullptr because the null references are
         // already dynamic typed into the top abstract heap type.
-        auto *Inst =
-            Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
+        auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
         assuming(Inst);
         // The ModInst may be nullptr only in the independent host function
         // instance. Therefore the module instance here must not be nullptr
@@ -226,7 +234,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         RefType =
             ValType(RefType.getCode(), DefType->getCompositeType().expand());
       }
-      Val.get<RefVariant>().setType(RefType);
+      if (!Ref.isNull()) {
+        RefType.toNonNullableRef();
+      }
       // Should use the value type from the reference here due to the dynamic
       // typing rule of the null references.
       Returns[RTypes.size() - I - 1] = std::make_pair(Val, RefType);

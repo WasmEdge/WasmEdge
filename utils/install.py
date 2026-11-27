@@ -263,7 +263,8 @@ class VersionString:
                 int(x)
                 if x.isdigit()
                 else [
-                    int(y) if y.isdigit() else y for y in re.findall("\d+|[a-zA-Z]+", x)
+                    int(y) if y.isdigit() else y
+                    for y in re.findall(r"\d+|[a-zA-Z]+", x)
                 ]
             )
             for x in re.split(separator, v)
@@ -1154,7 +1155,7 @@ def run_shell_command(cmd):
 
 def get_latest_github_release(repo):
     return run_shell_command(
-        """git ls-remote --refs --tags "https://github.com/{0}.git" |
+        r"""git ls-remote --refs --tags "https://github.com/{0}.git" |
         cut -d '/' -f 3 |
         awk {1} | sort --version-sort | sed 's/_$//' |
         grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' |

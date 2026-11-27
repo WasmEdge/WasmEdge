@@ -229,8 +229,8 @@ LLVM::Value toLLVMConstantZero(
     return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::Ref:
   case TypeCode::RefNull: {
-    // Type the null refs with the bottom heap type of their hierarchy so that
-    // ref.test/ref.cast match them against the concrete types.
+    // Type the null refs with the bottom heap type of their hierarchy, which
+    // is the type an invocation reports for a null result.
     TypeCode HTCode = ValType.getHeapTypeCode();
     if (!ValType.isAbsHeapType()) {
       assuming(ValType.getTypeIndex() < CompositeTypes.size());

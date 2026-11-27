@@ -46,7 +46,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     } else {
       // No init expression case. Use the null reference to initialize.
       // Normalize the type to the bottom abstract heap type so that null
-      // references always carry abstract types, as ref.cast/ref.test assume.
+      // references always carry abstract types, as an invocation reports them.
       auto BotType = toBottomType(StackMgr.getModule(),
                                   TabSeg.getTableType().getRefType());
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
@@ -55,6 +55,13 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     // Set the table pointers of the instantiated table.
     const auto Index = ModInst.getTableNum() - 1;
     auto *TabInst = ModInst.unsafeGetTable(Index);
+    const auto &Lim = TabSeg.getTableType().getLimit();
+    if (TabInst->getSize() != Lim.getMin()) {
+      spdlog::error(ErrCode::Value::AllocationFailed);
+      spdlog::error(
+          ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+      return Unexpect(ErrCode::Value::AllocationFailed);
+    }
     ModInst.TableSizePtrs[Index] = TabInst->getSizePtr();
     ModInst.TableRefPtrs[Index] = &TabInst->getDataPtr();
   }

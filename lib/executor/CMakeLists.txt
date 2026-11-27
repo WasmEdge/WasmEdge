@@ -34,10 +34,12 @@ wasmedge_add_library(wasmedgeExecutor
   helper.cpp
   executor.cpp
   coredump.cpp
+  restore.cpp
 )
 
 target_link_libraries(wasmedgeExecutor
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
+  wasmedgeLoader
 )

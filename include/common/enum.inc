@@ -888,6 +888,11 @@ E(InvalidAOTConfigure, 0x000D, "invalid AOT/JIT configure")
 E(AOTNotImpl, 0x000E, "Not implemented instructions in AOT/JIT")
 // Lazy JIT Compilation Error
 E(LazyCompilationError, 0x000F, "Lazy JIT compilation failure")
+// Coredump Restore Error
+E(CoredumpMalformed, 0x0010, "coredump malformed")
+E(CoredumpMismatch, 0x0011, "coredump mismatch")
+E(CoredumpUnsupported, 0x0012, "coredump state unsupported")
+E(CoredumpAllocationFailed, 0x0013, "coredump allocation failed")
 
 // Load phase
 // @{
@@ -1470,6 +1475,8 @@ E(UncaughtException, 0x0419, "uncaught exception")
 E(PendingException, 0x041A, "pending exception")
 // Call stack exhausted (e.g. unbounded recursion)
 E(CallStackExhausted, 0x041B, "call stack exhausted")
+// Allocation of a table or an array failed
+E(AllocationFailed, 0x041C, "allocation failed")
 // @}
 
 // Component model execution phase

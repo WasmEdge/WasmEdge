@@ -443,6 +443,23 @@ TEST(ComponentLoaderTest, ValueSectionLengthExceedsInput) {
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::UnexpectedEnd);
 }
 
+TEST(ComponentLoaderTest, MultiBytePrimValTypeRejected) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Value section with one `bool true` value whose valtype 0x7f (bool) is
+  // encoded in 2 bytes as 0xff 0x7f.
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+      0x0c, 0x05, 0x01, 0xff, 0x7f, 0x01, 0x01,       // value section
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedValType);
+}
+
 TEST(ComponentLoaderTest, MalformedResultList) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);

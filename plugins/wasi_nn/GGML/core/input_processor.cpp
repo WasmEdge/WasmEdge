@@ -15,6 +15,8 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 namespace {
 
+constexpr __wasi_filesize_t MaxImageSize = UINT32_C(1) << 30;
+
 // Take the ownership of both wrapper members. Video input is not supported:
 // the lazy video bitmap is released before the video context it refers to,
 // and a null bitmap is returned so that callers report a load failure.
@@ -68,13 +70,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         llama_model_params ModelParams = llama_model_default_params();
         ModelParams.n_gpu_layers =
             static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
+        // The mtmd context and the samplers refer to the model. Drop the mtmd
+        // context here; the samplers of the other contexts are rebuilt on
+        // their next use through the model generation.
+        GraphRef.VisionContext.reset();
+        ++GraphRef.ModelGeneration;
         GraphRef.LlamaModel.reset();
         // Due to the model change, the context and sampler should also be
         // reloaded. The new context and sampler will be created in the next
         // block.
         GraphRef.LlamaContext.reset();
         if (CxtRef.LlamaSampler) {
-          // TODO: Trigger the sampler in other contexts to reallocate.
           common_sampler_free(CxtRef.LlamaSampler);
           CxtRef.LlamaSampler = nullptr;
         }
@@ -105,7 +111,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
 
     // Some changes to sampling parameters will require the sampler to be
     // reallocated.
-    if (IsSamplerParamsUpdated || CxtRef.LlamaSampler == nullptr) {
+    if (IsSamplerParamsUpdated || CxtRef.LlamaSampler == nullptr ||
+        CxtRef.SamplerGeneration != GraphRef.ModelGeneration) {
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Reallocate llama sampler due to parameters change."sv)
       if (CxtRef.LlamaSampler) {
@@ -124,21 +131,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
       }
-    }
-
-    // Check whether the batch size changed.
-    if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
-      llama_batch_free(CxtRef.LlamaBatch);
-      CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
-      if (CxtRef.LlamaBatch.token == nullptr) {
-        // Force a reallocation on the next metadata pass and keep compute
-        // away from the empty batch until then.
-        CxtRef.CurrentBatchSize = 0;
-        G.setInvalid();
-        RET_ERROR(ErrNo::RuntimeError,
-                  "setInput: unable to allocate llama_batch."sv)
-      }
-      CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
+      CxtRef.SamplerGeneration = GraphRef.ModelGeneration;
     }
 
     G.setReady();
@@ -167,6 +160,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs.clear();
+  CxtRef.VisionInputChunks.reset();
 
   auto Base64ImagePos = findBase64ImagePayload(Prompt);
 
@@ -245,10 +239,16 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         LOG_DEBUG(GraphRef.EnableDebugLog,
                   "setInput: load the image bitmap from file: {}"sv,
                   CxtRef.Conf.ImagePath)
-        mtmd::bitmap Bitmap =
-            adoptBitmapWrapper(mtmd_helper_bitmap_init_from_file(
-                GraphRef.VisionContext.get(), CxtRef.Conf.ImagePath.c_str(),
-                false, mtmd_helper_init_opt_default()));
+        mtmd::bitmap Bitmap;
+        if (auto Image = Env.readFile(CxtRef.Conf.ImagePath, MaxImageSize);
+            Image) {
+          Bitmap.ptr =
+              adoptBitmapWrapper(mtmd_helper_bitmap_init_from_buf(
+                                     GraphRef.VisionContext.get(),
+                                     Image->data(), Image->size(), false,
+                                     mtmd_helper_init_opt_default()))
+                  .ptr;
+        }
         if (Bitmap.ptr == nullptr) {
           RET_ERROR(ErrNo::InvalidArgument,
                     "setInput: unable to load the image bitmap from file: "sv
@@ -265,16 +265,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
 
     // Tokenize the prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize the mtmd prompt"sv)
-    GraphRef.VisionInputChunks.reset(mtmd_input_chunks_init());
+    CxtRef.VisionInputChunks.reset(mtmd_input_chunks_init());
     mtmd_input_text MtmdText;
     MtmdText.text = Prompt.c_str();
     MtmdText.add_special = AddSpecial;
     MtmdText.parse_special = ParseSpecial;
     std::vector<const mtmd_bitmap *> BitmapsPtr = Bitmaps.c_ptr();
     int32_t Res = mtmd_tokenize(GraphRef.VisionContext.get(),
-                                GraphRef.VisionInputChunks.get(), &MtmdText,
+                                CxtRef.VisionInputChunks.get(), &MtmdText,
                                 BitmapsPtr.data(), BitmapsPtr.size());
     if (Res != 0) {
+      CxtRef.VisionInputChunks.reset();
       RET_ERROR(ErrNo::InvalidArgument,
                 "setInput: unable to tokenize the mtmd prompt."sv)
     }
@@ -284,11 +285,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
     // Get the number of input tokens for the metadata.
     CxtRef.LlamaNInputs = 0;
     for (size_t ChunkIndex = 0;
-         ChunkIndex < mtmd_input_chunks_size(GraphRef.VisionInputChunks.get());
+         ChunkIndex < mtmd_input_chunks_size(CxtRef.VisionInputChunks.get());
          ++ChunkIndex) {
       size_t NTokens = 0;
       const mtmd_input_chunk *Chunk =
-          mtmd_input_chunks_get(GraphRef.VisionInputChunks.get(), ChunkIndex);
+          mtmd_input_chunks_get(CxtRef.VisionInputChunks.get(), ChunkIndex);
       mtmd_input_chunk_get_tokens_text(Chunk, &NTokens);
       CxtRef.LlamaNInputs += NTokens;
     }

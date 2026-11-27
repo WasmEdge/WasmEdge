@@ -90,9 +90,9 @@ void Serializer::serializeInstruction(
     // Serialize the result type.
     serializeBlockType(Instr.getTryCatch().ResType);
     // Serialize the vector of catches.
-    uint32_t VecCnt = static_cast<uint32_t>(Instr.getTryCatch().Catch.size());
-    serializeU32(VecCnt, OutVec);
-    for (auto Catch : Instr.getTryCatch().Catch) {
+    const auto CatchList = Instr.getTryCatch().getCatchList();
+    serializeU32(static_cast<uint32_t>(CatchList.size()), OutVec);
+    for (const auto &Catch : CatchList) {
       // Read the catch flags.
       uint8_t Flags = 0;
       if (Catch.IsRef) {

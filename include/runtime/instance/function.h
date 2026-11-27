@@ -162,11 +162,8 @@ private:
               std::accumulate(Locals.begin(), Locals.end(), UINT32_C(0),
                               [](uint32_t N, const auto &Pair) -> uint32_t {
                                 return N + Pair.first;
-                              })) {
-      // FIXME: Modify the capacity to prevent connecting 2 vectors.
-      Instrs.reserve(Expr.size() + 1);
-      Instrs.assign(Expr.begin(), Expr.end());
-    }
+                              })),
+          Instrs(Expr) {}
   };
 
   /// \name Data of function instance.

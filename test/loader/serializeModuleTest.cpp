@@ -38,11 +38,10 @@ WasmEdge::AST::Module createPopulatedModule() {
   ExportDesc.setExternalIndex(0x00U);
   Module.getExportSection().getContent() = {ExportDesc};
 
-  WasmEdge::AST::Instruction I32Const(WasmEdge::OpCode::I32__const);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
-  I32Const.setNum(static_cast<uint32_t>(42));
   WasmEdge::AST::CodeSegment CodeSeg;
-  CodeSeg.getExpr().getInstrs() = {I32Const, End};
+  CodeSeg.getExpr().getInstrs().appendNum(WasmEdge::OpCode::I32__const,
+                                          static_cast<uint32_t>(42));
+  CodeSeg.getExpr().getInstrs().appendEnd();
   Module.getCodeSection().getContent() = {CodeSeg};
 
   return Module;
@@ -138,10 +137,9 @@ TEST(SerializeModuleTest, HandBuiltSectionOrder) {
   WasmEdge::AST::GlobalSegment GlobalSeg;
   GlobalSeg.getGlobalType().setValType(WasmEdge::TypeCode::I32);
   GlobalSeg.getGlobalType().setValMut(WasmEdge::ValMut::Const);
-  WasmEdge::AST::Instruction I32Const(WasmEdge::OpCode::I32__const);
-  I32Const.setNum(static_cast<uint32_t>(0));
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
-  GlobalSeg.getExpr().getInstrs() = {I32Const, End};
+  GlobalSeg.getExpr().getInstrs().appendNum(WasmEdge::OpCode::I32__const,
+                                            static_cast<uint32_t>(0));
+  GlobalSeg.getExpr().getInstrs().appendEnd();
   Module.getGlobalSection().getContent() = {GlobalSeg};
 
   auto SerRes = Ser.serializeModule(Module);

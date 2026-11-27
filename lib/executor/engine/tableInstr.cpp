@@ -8,7 +8,7 @@ namespace Executor {
 
 Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::TableInstance &TabInst,
-                                     const AST::Instruction &Instr) {
+                                     const AST::Instruction Instr) {
   // Pop Idx from the stack.
   const auto AddrType = TabInst.getTableType().getLimit().getAddrType();
   uint64_t Idx = extractAddr(StackMgr.pop(), AddrType);
@@ -29,7 +29,7 @@ Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runTableSetOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::TableInstance &TabInst,
-                                     const AST::Instruction &Instr) {
+                                     const AST::Instruction Instr) {
   // Pop Ref from the stack.
   RefVariant Ref = StackMgr.pop().get<RefVariant>();
 
@@ -51,7 +51,7 @@ Expect<void>
 Executor::runTableInitOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::TableInstance &TabInst,
                          Runtime::Instance::ElementInstance &ElemInst,
-                         const AST::Instruction &Instr) {
+                         const AST::Instruction Instr) {
   // Pop the length, source, and destination from the stack.
   // Currently, the length and source offset from the element instance are
   // 32-bit.
@@ -80,7 +80,7 @@ Expect<void>
 Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::TableInstance &TabInstDst,
                          Runtime::Instance::TableInstance &TabInstSrc,
-                         const AST::Instruction &Instr) {
+                         const AST::Instruction Instr) {
   // Pop the length, source, and destination from the stack.
   const auto AddrType1 = TabInstSrc.getTableType().getLimit().getAddrType();
   const auto AddrType2 = TabInstDst.getTableType().getLimit().getAddrType();
@@ -128,7 +128,7 @@ Executor::runTableSizeOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runTableFillOp(Runtime::StackManager &StackMgr,
                                       Runtime::Instance::TableInstance &TabInst,
-                                      const AST::Instruction &Instr) {
+                                      const AST::Instruction Instr) {
   // Pop the length, ref_value, and offset from the stack.
   const auto AddrType = TabInst.getTableType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), AddrType);

@@ -186,15 +186,15 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     for (uint32_t I = 0; I < VecCnt; ++I) {
       // For each element in vec(funcidx), make expr(ref.func idx end).
       ElemSeg.getInitExprs().emplace_back();
-      AST::Instruction RefFunc(OpCode::Ref__func);
-      AST::Instruction End(OpCode::End);
-      EXPECTED_TRY(loadInstruction(RefFunc).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return E;
-      }));
-      ElemSeg.getInitExprs().back().getInstrs().emplace_back(
-          std::move(RefFunc));
-      ElemSeg.getInitExprs().back().getInstrs().emplace_back(std::move(End));
+      auto &Instrs = ElemSeg.getInitExprs().back().getInstrs();
+      const uint32_t Offset = static_cast<uint32_t>(FMgr.getOffset());
+      EXPECTED_TRY(loadInstruction(OpCode::Ref__func, Offset, Instrs)
+                       .map_error([](auto E) {
+                         spdlog::error(
+                             ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+                         return E;
+                       }));
+      Instrs.appendEnd(Offset);
     }
     break;
   }

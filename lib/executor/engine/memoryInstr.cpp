@@ -34,7 +34,7 @@ Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runMemoryInitOp(
     Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
-    Runtime::Instance::DataInstance &DataInst, const AST::Instruction &Instr) {
+    Runtime::Instance::DataInstance &DataInst, const AST::Instruction Instr) {
   // Pop the length, source, and destination from the stack.
   // Currently, the length and source offset from the data instance are
   // 32-bit.
@@ -63,7 +63,7 @@ Expect<void>
 Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInstDst,
                           Runtime::Instance::MemoryInstance &MemInstSrc,
-                          const AST::Instruction &Instr) {
+                          const AST::Instruction Instr) {
   // Pop the length, source, and destination from the stack.
   const auto AddrType1 = MemInstSrc.getMemoryType().getLimit().getAddrType();
   const auto AddrType2 = MemInstDst.getMemoryType().getLimit().getAddrType();
@@ -85,7 +85,7 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::Instruction &Instr) {
+                          const AST::Instruction Instr) {
   // Pop the length, value, and offset from the stack.
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), AddrType);

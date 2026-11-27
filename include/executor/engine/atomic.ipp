@@ -15,7 +15,7 @@ namespace Executor {
 template <typename T>
 TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
-                                   const AST::Instruction &Instr) {
+                                   const AST::Instruction Instr) {
   ValVariant RawTimeout = StackMgr.pop();
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
@@ -46,7 +46,7 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
-                                   const AST::Instruction &Instr) {
+                                   const AST::Instruction Instr) {
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
@@ -77,7 +77,7 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
                                     Runtime::Instance::MemoryInstance &MemInst,
-                                    const AST::Instruction &Instr) {
+                                    const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant RawAddress = StackMgr.pop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -125,7 +125,7 @@ T runAtomicOp(std::atomic<T> *AtomicObj, T Value, AtomicOp Op [[maybe_unused]],
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
+                                  const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -161,7 +161,7 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
+                                  const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -197,7 +197,7 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,
-                                 const AST::Instruction &Instr) {
+                                 const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -230,7 +230,7 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
+                                  const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -263,7 +263,7 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
+                                  const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -297,7 +297,7 @@ template <typename T, typename I>
 TypeT<T>
 Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr) {
+                              const AST::Instruction Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -331,7 +331,7 @@ template <typename T, typename I>
 TypeT<T>
 Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
-                                     const AST::Instruction &Instr) {
+                                     const AST::Instruction Instr) {
   ValVariant RawReplacement = StackMgr.pop();
   ValVariant RawExpected = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();

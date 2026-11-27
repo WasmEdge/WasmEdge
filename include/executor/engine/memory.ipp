@@ -15,7 +15,7 @@ namespace Executor {
 template <typename T, uint32_t BitWidth>
 TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
-                             const AST::Instruction &Instr) {
+                             const AST::Instruction Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -34,7 +34,7 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
 template <typename T, uint32_t BitWidth>
 TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr) {
+                              const AST::Instruction Instr) {
   // Pop the value t.const c from the Stack
   T C = StackMgr.pop().get<T>();
 
@@ -56,7 +56,7 @@ template <typename TIn, typename TOut>
 Expect<void>
 Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::Instruction &Instr) {
+                          const AST::Instruction Instr) {
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
@@ -87,7 +87,7 @@ template <typename T>
 Expect<void>
 Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
-                         const AST::Instruction &Instr) {
+                         const AST::Instruction Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -114,7 +114,7 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
 template <typename T>
 Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
-                                     const AST::Instruction &Instr) {
+                                     const AST::Instruction Instr) {
   using VT = SIMDArray<T, 16>;
   VT Result = StackMgr.pop().get<VT>();
   const auto Lane = detail::lane<T>(Instr.getMemoryLane());
@@ -143,7 +143,7 @@ template <typename T>
 Expect<void>
 Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
-                         const AST::Instruction &Instr) {
+                         const AST::Instruction Instr) {
   using VT = SIMDArray<T, 16>;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
   const auto Lane = detail::lane<T>(Instr.getMemoryLane());

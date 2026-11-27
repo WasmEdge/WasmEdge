@@ -67,7 +67,7 @@ struct Request {
   /// An in-flight interpreter stack, or nullptr between invocations.
   const Runtime::StackManager *Stack = nullptr;
   /// Innermost frame's instruction. Ignored when Stack is nullptr.
-  AST::InstrView::iterator PC = nullptr;
+  AST::InstrView::iterator PC;
   /// Emit the layout readable by wasmgdb.
   bool ForWasmgdb = false;
   /// Output path. Empty selects coredump.<unix time> in the working directory.

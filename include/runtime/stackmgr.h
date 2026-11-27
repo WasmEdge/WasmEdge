@@ -210,14 +210,16 @@ public:
   // Get all Value
   Span<const Value> getValueSpan() const { return ValueStack; }
 
-  /// Unsafe leave top label.
+  /// Unsafe leave top label. The `Instr` is the reached End instruction, and
+  /// the `PC` is the continuation after it.
   AST::InstrView::iterator
-  maybePopFrameOrHandler(AST::InstrView::iterator PC) noexcept {
-    if (FrameStack.size() > 1 && PC->isExprLast()) {
+  maybePopFrameOrHandler(const AST::Instruction Instr,
+                         AST::InstrView::iterator PC) noexcept {
+    if (FrameStack.size() > 1 && Instr.isExprLast()) {
       // Noted that there's always a base frame in stack.
       return popFrame();
     }
-    if (PC->isTryBlockLast()) {
+    if (Instr.isTryBlockLast()) {
       FrameStack.back().HandlerStack.pop_back();
     }
     return PC;

@@ -1268,7 +1268,7 @@ void FunctionCompiler::compileTryTableOp(
   Builder.createBr(Block);
 
   LLVM::BasicBlock DispatchBB = {};
-  const auto &Catch = TryDesc.Catch;
+  const auto Catch = TryDesc.getCatchList();
   if (!Catch.empty()) {
     // Emit the dispatch in the outer label context: the catch clause label
     // indices are relative to the block enclosing this try_table.

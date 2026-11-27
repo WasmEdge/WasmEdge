@@ -133,8 +133,8 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
   // For the exception handler, remove the inactive handlers caused by the
   // branches.
   const auto Instrs = Func.getInstrs();
-  if (likely(RetIt) && RetIt != Instrs.begin()) {
-    StackMgr.removeInactiveHandler(RetIt - 1);
+  if (likely(RetIt != AST::InstrView::iterator())) {
+    StackMgr.removeInactiveHandler(RetIt);
   }
 
   if (Func.isHostFunction()) {
@@ -217,10 +217,9 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       StackMgr.push(std::move(R));
     }
 
-    // A tail call pops the replaced caller's frame, whose `From` is one before
-    // its resume point, so step it forward one instruction for `runCallOp`.
-    const AST::InstrView::iterator Continuation = StackMgr.popFrame();
-    return IsTailCall ? Continuation + 1 : Continuation;
+    // Pop the frame and return its resume point. For a tail call, the frame
+    // of the replaced caller is popped instead.
+    return StackMgr.popFrame();
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Execute the function and jump to the
     // continuation.
@@ -301,8 +300,7 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       const auto *ExnInst = PendingExn.Inst;
       StackMgr.pushValVec(PendingExn.getPayload());
       PendingExn = {};
-      EXPECTED_TRY(throwException(StackMgr, TagInst, ResumePC, ExnInst));
-      return ResumePC + 1;
+      return throwException(StackMgr, TagInst, ResumePC, ExnInst);
     }
 
     // Push returns back to the stack.
@@ -310,10 +308,8 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       StackMgr.push(Rets[I]);
     }
 
-    // As in the host case, step a tail-call continuation forward one
-    // instruction for `runCallOp`.
-    const AST::InstrView::iterator Continuation = StackMgr.popFrame();
-    return IsTailCall ? Continuation + 1 : Continuation;
+    // As in the host case, pop the frame and return its resume point.
+    return StackMgr.popFrame();
   } else {
     // WASM interpreter case: Jump to the start of the function body.
 
@@ -335,10 +331,8 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     }
 
     // Push frame.
-    // The PC must -1 here because in the interpreter mode execution, the PC
-    // will increase after the callee returns.
     StackMgr.pushFrame(Func.getModule(),           // Module instance
-                       RetIt - 1,                  // Return PC
+                       RetIt,                      // Return PC
                        ArgsN + Func.getLocalNum(), // Arguments num + local num
                        RetsN,                      // Returns num
                        IsTailCall,                 // For tail-call
@@ -397,10 +391,10 @@ Executor::collectLiveModules(
   return Modules;
 }
 
-Expect<void>
+Expect<AST::InstrView::iterator>
 Executor::branchToLabel(Runtime::StackManager &StackMgr,
                         const AST::Instruction::JumpDescriptor &JumpDesc,
-                        AST::InstrView::iterator &PC) noexcept {
+                        AST::InstrView::iterator From) noexcept {
   // Check the stop token.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Value::Interrupted);
@@ -408,20 +402,20 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
   }
 
   StackMgr.eraseValueStack(JumpDesc.StackEraseBegin, JumpDesc.StackEraseEnd);
-  // PC needs -1 here because the PC will increase in the next iteration.
-  PC += (JumpDesc.PCOffset - 1);
+  // The jump distance is the byte offset relative to the branching record.
+  const AST::InstrView::iterator PC = From + JumpDesc.PCOffset;
   // A branch leaves the innermost blocks without running their `end`, so the
   // handlers it strands are the top of the handler stack right now. Drop them
   // here: once a later try_table is pushed on top they are indistinguishable
   // from active handlers, and their stale VPos would invert the erase range in
-  // popTopHandler. PC + 1 is the instruction being branched to.
-  StackMgr.removeInactiveHandler(PC + 1);
-  return {};
+  // popTopHandler.
+  StackMgr.removeInactiveHandler(PC);
+  return PC;
 }
 
-Expect<void> Executor::throwException(
+Expect<AST::InstrView::iterator> Executor::throwException(
     Runtime::StackManager &StackMgr, Runtime::Instance::TagInstance &TagInst,
-    AST::InstrView::iterator &PC,
+    AST::InstrView::iterator PC,
     const Runtime::Instance::ExceptionInstance *ExnInst) noexcept {
   StackMgr.removeInactiveHandler(PC);
   auto AssocValSize = TagInst.getTagType().getAssocValSize();
@@ -458,11 +452,9 @@ Expect<void> Executor::throwException(
       } else if (C.IsAll) {
         StackMgr.eraseValueStack(AssocValSize, 0);
       }
-      // When an exception is caught, move the PC to the try block and branch to
-      // the label.
-
-      PC = Handler->Try;
-      return branchToLabel(StackMgr, C.Jump, PC);
+      // When an exception is caught, branch to the label from the try_table
+      // instruction.
+      return branchToLabel(StackMgr, C.Jump, Handler->Try);
     }
   }
   if (StackMgr.isTopFrameNativeEntry()) {
@@ -487,7 +479,7 @@ Expect<void> Executor::throwException(
 
 Expect<void>
 Executor::checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr, const uint64_t Val,
+                              const AST::Instruction Instr, const uint64_t Val,
                               const uint64_t Size) const noexcept {
   // This function simply checks that the calculated offset fits in 64 bits.
   uint64_t StartOffset;

@@ -1431,8 +1431,11 @@ TEST_F(CoredumpState, RestoreRejections) {
        [&](auto &D) { Custom(D, "wasmedge.globals").back() = 99; }},
       {ErrCode::Value::CoredumpMalformed,
        [](auto &D) {
-         D.getDataSection().getContent()[0].getExpr().getInstrs()[0].setNum(
-             uint32_t(65536));
+         auto &Instrs =
+             D.getDataSection().getContent()[0].getExpr().getInstrs();
+         Instrs.clear();
+         Instrs.appendNum(OpCode::I32__const, uint32_t(65536));
+         Instrs.appendEnd();
        }},
       {ErrCode::Value::CoredumpMalformed,
        [](auto &D) {
@@ -1887,7 +1890,7 @@ TEST_F(CoredumpState, StackModulesAppended) {
   const auto *B = VM->getStoreManager().findModule("B"sv);
   const std::array Modules{B};
   Runtime::StackManager Stack;
-  Stack.pushFrame(Active, nullptr);
+  Stack.pushFrame(Active, AST::InstrView::iterator());
   Coredump::Request Req;
   Req.Modules = Modules;
   Req.Stack = &Stack;

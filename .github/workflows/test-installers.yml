@@ -80,6 +80,16 @@ jobs:
         run: |
             black --check --verbose --diff ./utils/install.py
 
+      - name: Check installer release candidate ordering
+        working-directory: utils
+        run: |
+          python - <<'PYTEST'
+          from install import VersionString
+          assert VersionString("0.13.0").compare("0.13.0-rc.1") == 1
+          assert VersionString("0.13.0-rc.1").compare("0.13.0") == -1
+          assert VersionString("0.12.0").compare("0.13.0-rc.1") == -1
+          PYTEST
+
   # Test install.sh on Linux containers
   test-install-sh-linux:
     needs: get-latest-version

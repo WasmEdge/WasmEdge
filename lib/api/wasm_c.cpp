@@ -2983,14 +2983,9 @@ bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
       return true;
     }
   } else if (inst->getTableType().getRefType().isFuncRefType()) {
-    // Funcref slot: ref was produced via wasm_func_as_ref, so we can recover
-    // the wasm_func_t through the wasm::Func subobject.
     if (ref) {
-      auto *cfunc =
-          static_cast<const wasm_func_t *>(static_cast<const wasm::Func *>(
-              static_cast<const wasm::Extern *>(ref)));
-      if (cfunc->inst &&
-          inst->setRefAddr(index, WasmEdge::RefVariant(cfunc->inst))) {
+      auto *finst = retrieve_funcinst(ref);
+      if (finst && inst->setRefAddr(index, WasmEdge::RefVariant(finst))) {
         return true;
       }
     } else {
@@ -3009,9 +3004,13 @@ wasm::Table::size_t wasm::Table::size() const {
 }
 
 bool wasm::Table::grow(wasm::Table::size_t delta, const wasm::Ref *ref) {
+  auto *inst = static_cast<wasm_table_t *>(this)->inst;
+  if (ref && inst->getTableType().getRefType().isFuncRefType() &&
+      !retrieve_funcinst(ref)) {
+    return false;
+  }
   size_t orig = size();
-  if (static_cast<wasm_table_t *>(this)->inst->growTable(
-          static_cast<uint32_t>(delta))) {
+  if (inst->growTable(static_cast<uint32_t>(delta))) {
     for (size_t i = orig; i < orig + delta; ++i) {
       set(i, ref);
     }

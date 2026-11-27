@@ -289,7 +289,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       spdlog::error(
           "Address matched to a shared object but not to any symbol "sv
           "within the object. dli_fname is null."sv);
-      return std::vector<std::filesystem::path>();
+      return Result;
     }
     auto LibPath = u8path(DLInfo.dli_fname).parent_path().lexically_normal();
     const auto UsrStr = "/usr"sv;
@@ -309,7 +309,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     spdlog::error(ErrCode::Value::NonNullRequired);
     spdlog::error("Address could not be matched to any shared object. "sv
                   "Detailed error information is not available."sv);
-    return std::vector<std::filesystem::path>();
+    return Result;
   }
 #elif WASMEDGE_OS_WINDOWS
   // Global plugin directory.
@@ -321,7 +321,6 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
         (Path.parent_path() / u8path(kPluginInstallDir)).lexically_normal());
   } else {
     spdlog::error("Failed to get the path of the current module."sv);
-    return std::vector<std::filesystem::path>();
   }
 
   // Local home plugin directory.

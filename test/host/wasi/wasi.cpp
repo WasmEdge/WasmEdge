@@ -22,6 +22,7 @@
 #include <future>
 #include <gtest/gtest.h>
 #include <iterator>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -3590,6 +3591,71 @@ TEST(WasiTest, EpollOneoffSocketV1RWPoll) {
   Server.join();
 }
 #endif
+
+// A relative clock subscription with a huge timeout does not fire before a
+// 10 ms one.
+TEST(WasiTest, PollOneoffClockHugeTimeout) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  Env.init({}, "test"s, {}, {});
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  for (const uint64_t HugeTimeout :
+       {UINT64_C(4294967296000000000), UINT64_C(1) << 63,
+        std::numeric_limits<uint64_t>::max()}) {
+    SCOPED_TRACE(HugeTimeout);
+    const uint32_t Count = 2;
+    const uint32_t NEventsPtr = 0;
+    const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+    const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
+    auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+    const std::array<std::pair<__wasi_userdata_t, uint64_t>, 2> Clocks = {
+        std::pair<__wasi_userdata_t, uint64_t>{UINT64_C(0x1010101010101010),
+                                               HugeTimeout},
+        std::pair<__wasi_userdata_t, uint64_t>{
+            UINT64_C(0x2020202020202020),
+            std::chrono::nanoseconds(std::chrono::milliseconds(10)).count()}};
+    for (size_t I = 0; I < Clocks.size(); ++I) {
+      Subscriptions[I].userdata = WasmEdge::EndianValue(Clocks[I].first).le();
+      Subscriptions[I].u.tag =
+          WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+      Subscriptions[I].u.u.clock.id =
+          WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+      Subscriptions[I].u.u.clock.timeout =
+          WasmEdge::EndianValue(Clocks[I].second).le();
+      Subscriptions[I].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+      Subscriptions[I].u.u.clock.flags =
+          WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+    }
+    EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       InPtr, OutPtr, Count, NEventsPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    __wasi_size_t NEvents;
+    EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+    EXPECT_EQ(NEvents, 1);
+    auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+    EXPECT_EQ(Events[0].type,
+              WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le());
+    EXPECT_EQ(Events[0].userdata,
+              WasmEdge::EndianValue(UINT64_C(0x2020202020202020)).le());
+    EXPECT_EQ(Events[0].error,
+              WasmEdge::EndianValue(__WASI_ERRNO_SUCCESS).le());
+  }
+
+  Env.fini();
+}
 
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;

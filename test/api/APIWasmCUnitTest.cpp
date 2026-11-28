@@ -1038,6 +1038,37 @@ TEST(APIWasmCTest, Table) {
 
   WASM_DECLARE_REF_TEST(table, table, table_fin)
 
+  // A funcref table takes only a function reference or null.
+  wasm_tabletype_t *ftable_type =
+      wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
+  wasm_table_t *ftable = wasm_table_new(store, ftable_type, nullptr);
+  ASSERT_NE(nullptr, ftable);
+  wasm_functype_t *ftype = wasm_functype_new_0_0();
+  wasm_func_t *func = wasm_func_new(store, ftype, trivialCallback);
+  ASSERT_NE(nullptr, func);
+  wasm_memorytype_t *mtype = wasm_memorytype_new(&limits);
+  wasm_memory_t *memory = wasm_memory_new(store, mtype);
+  ASSERT_NE(nullptr, memory);
+  EXPECT_FALSE(wasm_table_set(ftable, 0, foreign_ref));
+  EXPECT_FALSE(wasm_table_set(ftable, 0, wasm_memory_as_ref(memory)));
+  EXPECT_FALSE(wasm_table_set(ftable, 0, wasm_table_as_ref(table)));
+  EXPECT_EQ(nullptr, wasm_table_get(ftable, 0));
+  EXPECT_FALSE(wasm_table_grow(ftable, 1, wasm_memory_as_ref(memory)));
+  EXPECT_EQ(1U, wasm_table_size(ftable));
+  EXPECT_TRUE(wasm_table_set(ftable, 0, wasm_func_as_ref(func)));
+  wasm_ref_t *got_func = wasm_table_get(ftable, 0);
+  ASSERT_NE(nullptr, got_func);
+  EXPECT_NE(nullptr, wasm_ref_as_func(got_func));
+  wasm_ref_delete(got_func);
+  EXPECT_TRUE(wasm_table_grow(ftable, 1, wasm_func_as_ref(func)));
+  EXPECT_EQ(2U, wasm_table_size(ftable));
+  wasm_memory_delete(memory);
+  wasm_memorytype_delete(mtype);
+  wasm_func_delete(func);
+  wasm_functype_delete(ftype);
+  wasm_table_delete(ftable);
+  wasm_tabletype_delete(ftable_type);
+
   wasm_tabletype_delete(ttype);
   wasm_foreign_delete(foreign);
 

@@ -568,8 +568,13 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
         case WASINN::Backend::BitNet:
           return WASINN::BitNet::getOutputSingle(Env, G, C, Index, OutBuffer,
                                                  *BytesWritten);
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_SIGMASTAR_IPU
+        case WASINN::Backend::SigmaStarIPU:
+          return WASINN::SigmaStarIPU::getOutputSingle(Env, G, C, Index,
+                                                       OutBuffer, *BytesWritten);
+#endif
         default:
-          spdlog::error("[WASI-NN] get_output_single: Only GGML and BitNet "
+          spdlog::error("[WASI-NN] get_output_single: Only GGML, BitNet, and SigmaStarIPU "
                         "backend supports get_output_single."sv);
           return WASINN::ErrNo::InvalidArgument;
         }
@@ -650,8 +655,12 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
           return WASINN::GGML::computeSingle(Env, G, C);
         case WASINN::Backend::BitNet:
           return WASINN::BitNet::computeSingle(Env, G, C);
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_SIGMASTAR_IPU
+        case WASINN::Backend::SigmaStarIPU:
+          return WASINN::SigmaStarIPU::computeSingle(Env, G, C);
+#endif
         default:
-          spdlog::error("[WASI-NN] compute_single: Only GGML and BitNet "
+          spdlog::error("[WASI-NN] compute_single: Only GGML, BitNet, and SigmaStarIPU "
                         "backend supports compute_single."sv);
           return WASINN::ErrNo::InvalidArgument;
         }
@@ -691,8 +700,12 @@ WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
           return WASINN::GGML::finiSingle(Env, G, C);
         case WASINN::Backend::BitNet:
           return WASINN::BitNet::finiSingle(Env, G, C);
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_SIGMASTAR_IPU
+        case WASINN::Backend::SigmaStarIPU:
+          return WASINN::SigmaStarIPU::finiSingle(Env, G, C);
+#endif
         default:
-          spdlog::error("[WASI-NN] fini_single: Only GGML and BitNet backend "
+          spdlog::error("[WASI-NN] fini_single: Only GGML, BitNet, and SigmaStarIPU backend "
                         "supports fini_single."sv);
           return WASINN::ErrNo::InvalidArgument;
         }

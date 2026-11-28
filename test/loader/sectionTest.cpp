@@ -688,4 +688,37 @@ TEST(SectionTest, LoadAOTSectionFailureAfterEHFrame) {
     EXPECT_TRUE(Exec.load(Good));
   }
 }
+
+#if WASMEDGE_OS_MACOS
+TEST(SectionTest, LoadAOTSectionEHFrameRecordLength) {
+  // On macOS the unwind section is walked record by record with the lengths
+  // read from it, so a record which does not fit in the section ends the walk.
+  auto CraftAOTSection = [](std::vector<WasmEdge::Byte> EHFrame) {
+    WasmEdge::AST::AOTSection Sec;
+    Sec.setIntrinsicsAddress(0);
+    const uint64_t Size = EHFrame.size();
+    Sec.getSections().emplace_back(UINT8_C(4), UINT64_C(0), Size,
+                                   std::move(EHFrame));
+    return Sec;
+  };
+
+  // A record length which wraps the 32-bit advance to zero.
+  {
+    WasmEdge::AST::AOTSection Sec = CraftAOTSection(
+        {0xFCU, 0xFFU, 0xFFU, 0xFFU, 0x00U, 0x00U, 0x00U, 0x00U});
+    WasmEdge::Loader::AOTSection Exec;
+    EXPECT_TRUE(Exec.load(Sec));
+  }
+
+  // A CIE followed by a record longer than the rest of the section.
+  {
+    WasmEdge::AST::AOTSection Sec = CraftAOTSection(
+        {0x0CU, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+         0x01U, 0x00U, 0x01U, 0x78U, 0x10U, 0x00U, 0x00U, 0x00U,
+         0xFCU, 0xFFU, 0xFFU, 0xFFU, 0x00U, 0x00U, 0x00U, 0x00U});
+    WasmEdge::Loader::AOTSection Exec;
+    EXPECT_TRUE(Exec.load(Sec));
+  }
+}
+#endif
 } // namespace

@@ -94,11 +94,9 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
 } // namespace
 
 // Instantiate imports. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(
-    std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
-        ModuleFinder,
-    Runtime::Instance::ModuleInstance &ModInst,
-    const AST::ImportSection &ImportSec) {
+Expect<void> Executor::instantiate(const CoreModuleFinder &ModuleFinder,
+                                   Runtime::Instance::ModuleInstance &ModInst,
+                                   const AST::ImportSection &ImportSec) {
   // Pairs of recursive types found equal, shared by the imports.
   AST::TypeMatcher::RecTypePairs Equal;
   // Iterate and instantiate import descriptions.

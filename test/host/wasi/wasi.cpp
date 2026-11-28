@@ -1122,6 +1122,9 @@ TEST(WasiTest, PollOneoffSocketV1) {
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
       EXPECT_EQ(Events[0].userdata,
                 WasmEdge::EndianValue(0x1010101010101010).le());
+      EXPECT_EQ(
+          Events[0].fd_readwrite.nbytes,
+          WasmEdge::EndianValue<__wasi_filesize_t>("server"sv.size()).le());
       EXPECT_EQ(Events[0].fd_readwrite.flags, 0);
     };
     auto PollWriteTimeout = [&]() {
@@ -1683,6 +1686,9 @@ TEST(WasiTest, PollOneoffSocketV1RWPoll) {
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
       EXPECT_EQ(Events[0].userdata,
                 WasmEdge::EndianValue(0x1010101010101010).le());
+      EXPECT_EQ(
+          Events[0].fd_readwrite.nbytes,
+          WasmEdge::EndianValue<__wasi_filesize_t>("server"sv.size()).le());
       EXPECT_EQ(Events[1].type,
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le());
       EXPECT_EQ(Events[1].userdata,
@@ -2049,6 +2055,9 @@ TEST(WasiTest, PollOneoffSocketV2) {
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
       EXPECT_EQ(Events[0].userdata,
                 WasmEdge::EndianValue(0x1010101010101010).le());
+      EXPECT_EQ(
+          Events[0].fd_readwrite.nbytes,
+          WasmEdge::EndianValue<__wasi_filesize_t>("server"sv.size()).le());
       EXPECT_EQ(Events[0].fd_readwrite.flags, WasmEdge::EndianValue(0).le());
     };
     auto PollWriteTimeout = [&]() {
@@ -2612,6 +2621,9 @@ TEST(WasiTest, PollOneoffSocketV2RWPoll) {
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
       EXPECT_EQ(Events[0].userdata,
                 WasmEdge::EndianValue(0x1010101010101010).le());
+      EXPECT_EQ(
+          Events[0].fd_readwrite.nbytes,
+          WasmEdge::EndianValue<__wasi_filesize_t>("server"sv.size()).le());
       EXPECT_EQ(Events[1].type,
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le());
       EXPECT_EQ(Events[1].userdata,
@@ -2978,6 +2990,9 @@ TEST(WasiTest, EpollOneoffSocketV1) {
                 WasmEdge::EndianValue(0x1010101010101010).le());
       EXPECT_EQ(Events[0].type,
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+      EXPECT_EQ(
+          Events[0].fd_readwrite.nbytes,
+          WasmEdge::EndianValue<__wasi_filesize_t>("server"sv.size()).le());
       EXPECT_EQ(Events[0].fd_readwrite.flags, WasmEdge::EndianValue(0).le());
     };
     auto PollWriteTimeout = [&]() {
@@ -3540,6 +3555,9 @@ TEST(WasiTest, EpollOneoffSocketV1RWPoll) {
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
       EXPECT_EQ(Events[0].userdata,
                 WasmEdge::EndianValue(0x1010101010101010).le());
+      EXPECT_EQ(
+          Events[0].fd_readwrite.nbytes,
+          WasmEdge::EndianValue<__wasi_filesize_t>("server"sv.size()).le());
       EXPECT_EQ(Events[1].type,
                 WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le());
       EXPECT_EQ(Events[1].userdata,
@@ -3588,6 +3606,73 @@ TEST(WasiTest, EpollOneoffSocketV1RWPoll) {
   Action.store(ServerAction::Stop);
   ActionRequested.notify_one();
   Server.join();
+}
+
+TEST(WasiTest, PollOneoffPipeReadNBytes) {
+  int PipeFds[2] = {-1, -1};
+  ASSERT_EQ(pipe(PipeFds), 0);
+
+  const std::string Payload(128, 'a');
+  ASSERT_EQ(write(PipeFds[1], Payload.data(), Payload.size()),
+            static_cast<ssize_t>(Payload.size()));
+
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto InitResult = Env.initWithFds({}, "test"s, {}, {}, PipeFds[0], 1, 2);
+  ASSERT_TRUE(InitResult.has_value());
+
+  WasmEdge::Host::WasiPollOneoff<WasmEdge::Host::WASI::TriggerType::Level>
+      WasiPollOneoff(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  const uint32_t Count = 2;
+  const uint32_t NEventsPtr = 0;
+  const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
+  const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
+  auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
+  Subscriptions[0].userdata = WasmEdge::EndianValue(0x1010101010101010).le();
+  Subscriptions[0].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le();
+  Subscriptions[0].u.u.fd_read.file_descriptor =
+      WasmEdge::EndianValue(UINT32_C(0)).le();
+  Subscriptions[1].userdata = WasmEdge::EndianValue(0x2020202020202020).le();
+  Subscriptions[1].u.tag = WasmEdge::EndianValue(__WASI_EVENTTYPE_CLOCK).le();
+  Subscriptions[1].u.u.clock.id =
+      WasmEdge::EndianValue(__WASI_CLOCKID_MONOTONIC).le();
+  Subscriptions[1].u.u.clock.timeout =
+      WasmEdge::EndianValue(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count())
+          .le();
+  Subscriptions[1].u.u.clock.precision = WasmEdge::EndianValue(1).le();
+  Subscriptions[1].u.u.clock.flags =
+      WasmEdge::EndianValue(static_cast<__wasi_subclockflags_t>(0)).le();
+
+  EXPECT_TRUE(WasiPollOneoff.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     InPtr, OutPtr, Count, NEventsPtr},
+                                 Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  __wasi_size_t NEvents;
+  EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
+  EXPECT_EQ(NEvents, 1);
+  auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
+  EXPECT_EQ(Events[0].type,
+            WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_READ).le());
+  EXPECT_EQ(Events[0].userdata, WasmEdge::EndianValue(0x1010101010101010).le());
+  EXPECT_EQ(Events[0].fd_readwrite.nbytes,
+            WasmEdge::EndianValue<__wasi_filesize_t>(Payload.size()).le());
+  EXPECT_EQ(Events[0].fd_readwrite.flags, WasmEdge::EndianValue(0).le());
+
+  Env.fini();
+  close(PipeFds[0]);
+  close(PipeFds[1]);
 }
 #endif
 

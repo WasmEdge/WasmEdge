@@ -68,7 +68,7 @@ std::string VINode::canonicalGuest(std::string_view Path) {
       if (!Parts.empty()) {
         Parts.pop_back();
       }
-    } else if (Part.front() != '.' || Parts.size() != 1) {
+    } else if (Part != "."sv || Parts.size() != 1) {
       Parts.push_back(Part);
     }
     if (Remain.empty()) {

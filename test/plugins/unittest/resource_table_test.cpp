@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "resource_table.h"
+#include "plugin/resource_table.h"
 
 #include <gtest/gtest.h>
 
@@ -16,7 +16,7 @@
 
 namespace {
 
-using WasmEdge::Host::WASINN::ResourceTable;
+using WasmEdge::Plugin::ResourceTable;
 
 // Payload that counts its destructions, so the tests can pin exactly where the
 // final release happens relative to table operations.
@@ -27,7 +27,7 @@ struct Tracked {
   std::atomic<uint32_t> &Destroyed;
 };
 
-TEST(WasiNNResourceTableTest, InsertAllocatesSequentialIds) {
+TEST(PluginResourceTableTest, InsertAllocatesSequentialIds) {
   ResourceTable<int> Table;
   for (uint32_t Expected = 0; Expected < 8; ++Expected) {
     const auto Id = Table.insert(std::make_shared<int>(0));
@@ -37,7 +37,7 @@ TEST(WasiNNResourceTableTest, InsertAllocatesSequentialIds) {
   EXPECT_EQ(Table.size(), 8U);
 }
 
-TEST(WasiNNResourceTableTest, GetResolvesLiveHandleAndRejectsUnknown) {
+TEST(PluginResourceTableTest, GetResolvesLiveHandleAndRejectsUnknown) {
   ResourceTable<int> Table;
   const auto Id = Table.insert(std::make_shared<int>(42));
   ASSERT_TRUE(Id.has_value());
@@ -48,7 +48,7 @@ TEST(WasiNNResourceTableTest, GetResolvesLiveHandleAndRejectsUnknown) {
   EXPECT_EQ(Table.get(std::numeric_limits<uint32_t>::max()), nullptr);
 }
 
-TEST(WasiNNResourceTableTest, RemoveDetachesHandleAndReturnsOwnership) {
+TEST(PluginResourceTableTest, RemoveDetachesHandleAndReturnsOwnership) {
   std::atomic<uint32_t> Destroyed{0};
   ResourceTable<Tracked> Table;
   const auto Id = Table.insert(std::make_shared<Tracked>(Destroyed));
@@ -64,7 +64,7 @@ TEST(WasiNNResourceTableTest, RemoveDetachesHandleAndReturnsOwnership) {
   EXPECT_EQ(Destroyed.load(), 1U);
 }
 
-TEST(WasiNNResourceTableTest, DoubleRemoveIsRejected) {
+TEST(PluginResourceTableTest, DoubleRemoveIsRejected) {
   ResourceTable<int> Table;
   const auto Id = Table.insert(std::make_shared<int>(0));
   ASSERT_TRUE(Id.has_value());
@@ -72,7 +72,7 @@ TEST(WasiNNResourceTableTest, DoubleRemoveIsRejected) {
   EXPECT_EQ(Table.remove(*Id), nullptr);
 }
 
-TEST(WasiNNResourceTableTest, IdsAreNeverReused) {
+TEST(PluginResourceTableTest, IdsAreNeverReused) {
   ResourceTable<int> Table;
   const auto First = Table.insert(std::make_shared<int>(1));
   ASSERT_TRUE(First.has_value());
@@ -89,7 +89,7 @@ TEST(WasiNNResourceTableTest, IdsAreNeverReused) {
   EXPECT_EQ(*Fresh, 2);
 }
 
-TEST(WasiNNResourceTableTest, PinnedResourceSurvivesRemoval) {
+TEST(PluginResourceTableTest, PinnedResourceSurvivesRemoval) {
   std::atomic<uint32_t> Destroyed{0};
   ResourceTable<Tracked> Table;
   const auto Id = Table.insert(std::make_shared<Tracked>(Destroyed));
@@ -116,7 +116,7 @@ struct Reentrant {
 };
 uint32_t Reentrant::ObservedSize = std::numeric_limits<uint32_t>::max();
 
-TEST(WasiNNResourceTableTest, DestructorMayReenterTable) {
+TEST(PluginResourceTableTest, DestructorMayReenterTable) {
   ResourceTable<Reentrant> Table;
   const auto Id = Table.insert(std::make_shared<Reentrant>(Table));
   ASSERT_TRUE(Id.has_value());
@@ -124,7 +124,7 @@ TEST(WasiNNResourceTableTest, DestructorMayReenterTable) {
   EXPECT_EQ(Reentrant::ObservedSize, 0U);
 }
 
-TEST(WasiNNResourceTableTest, SwapExchangesContentsAndIdCounter) {
+TEST(PluginResourceTableTest, SwapExchangesContentsAndIdCounter) {
   ResourceTable<int> A;
   ResourceTable<int> B;
   const auto IdA = A.insert(std::make_shared<int>(1));
@@ -140,7 +140,7 @@ TEST(WasiNNResourceTableTest, SwapExchangesContentsAndIdCounter) {
   EXPECT_EQ(B.insert(std::make_shared<int>(3)), std::optional<uint32_t>{1U});
 }
 
-TEST(WasiNNResourceTableTest, InsertFailsOnIdExhaustion) {
+TEST(PluginResourceTableTest, InsertFailsOnIdExhaustion) {
   ResourceTable<int> Table(std::numeric_limits<uint32_t>::max() - 1);
   const auto Last = Table.insert(std::make_shared<int>(0));
   ASSERT_TRUE(Last.has_value());
@@ -154,10 +154,10 @@ TEST(WasiNNResourceTableTest, InsertFailsOnIdExhaustion) {
 // Concurrency stress: producers publish, workers pin-and-use, removers
 // detach. Under TSan this checks unique ids, exactly-once destruction, and
 // pins surviving concurrent removal.
-TEST(WasiNNResourceTableTest, ConcurrentChurnKeepsOwnershipExact) {
-  constexpr uint32_t Producers = 4;
-  constexpr uint32_t PerProducer = 256;
-  constexpr uint32_t Empty = std::numeric_limits<uint32_t>::max();
+TEST(PluginResourceTableTest, ConcurrentChurnKeepsOwnershipExact) {
+  static constexpr uint32_t Producers = 4;
+  static constexpr uint32_t PerProducer = 256;
+  static constexpr uint32_t Empty = std::numeric_limits<uint32_t>::max();
   std::atomic<uint32_t> Destroyed{0};
   ResourceTable<Tracked> Table;
 

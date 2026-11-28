@@ -11,6 +11,7 @@ on:
       - "[0-9]+.[0-9]+.x"
     paths:
       - ".github/extensions.paths-filter.yml"
+      - ".github/scripts/check_plugin_package.sh"
       - ".github/workflows/build-extensions.yml"
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
@@ -42,6 +43,7 @@ on:
       - "[0-9]+.[0-9]+.x"
     paths:
       - ".github/extensions.paths-filter.yml"
+      - ".github/scripts/check_plugin_package.sh"
       - ".github/workflows/build-extensions.yml"
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"

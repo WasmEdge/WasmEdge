@@ -27,6 +27,7 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <vector>
 #if !WASMEDGE_OS_WINDOWS
 #include <pthread.h>
 #include <signal.h>
@@ -4521,6 +4522,227 @@ TEST(WasiTest, FileSystemOfGuest) {
   Env.fini();
   LogsEnv.fini();
   TieEnv.fini();
+}
+
+TEST(WasiTest, InitialDescriptorsKeepWhatTheEnvironmentStartedWith) {
+  namespace fs = std::filesystem;
+  const auto Root = fs::path(
+      "wasmedge-wasi-initial-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "ro", Error));
+  ASSERT_TRUE(fs::create_directories(Root / "rw", Error));
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init(std::array{"/ro:"s + (Root / "ro").string() + ":readonly"s,
+                      "/rw:"s + (Root / "rw").string()},
+           "test"s, {}, {});
+  const auto Initial = Env.getInitialDescriptors();
+  ASSERT_EQ(Initial.size(), 5U);
+  for (size_t I = 0; I < 3; ++I) {
+    const auto Node = Initial[I].Node.lock();
+    ASSERT_NE(Node, nullptr);
+    EXPECT_FALSE(Node->isDirectory());
+  }
+  for (size_t I = 3; I < 5; ++I) {
+    const auto Node = Initial[I].Node.lock();
+    ASSERT_NE(Node, nullptr);
+    EXPECT_TRUE(Node->isDirectory());
+  }
+  const __wasi_rights_t Changing =
+      __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_PATH_CREATE_FILE |
+      __WASI_RIGHTS_PATH_RENAME_SOURCE | __WASI_RIGHTS_PATH_UNLINK_FILE;
+  const WasmEdge::Host::WASI::Environ::InitialDescriptor *Ro = nullptr;
+  const WasmEdge::Host::WASI::Environ::InitialDescriptor *Rw = nullptr;
+  for (const auto &D : Initial) {
+    const auto Node = D.Node.lock();
+    ASSERT_NE(Node, nullptr);
+    if (Node->name() == "ro"sv) {
+      Ro = &D;
+    } else if (Node->name() == "rw"sv) {
+      Rw = &D;
+    } else {
+      EXPECT_FALSE(Node->isDirectory());
+    }
+  }
+  ASSERT_NE(Ro, nullptr);
+  ASSERT_NE(Rw, nullptr);
+  EXPECT_EQ((Ro->FsRightsBase | Ro->FsRightsInheriting) & Changing, 0U);
+  EXPECT_NE(Rw->FsRightsBase & __WASI_RIGHTS_PATH_CREATE_FILE, 0U);
+  EXPECT_NE(Rw->FsRightsInheriting & __WASI_RIGHTS_FD_WRITE, 0U);
+
+  const auto RwBase = Rw->FsRightsBase;
+  const auto RwInheriting = Rw->FsRightsInheriting;
+  for (__wasi_fd_t Fd = 3; Fd < 5; ++Fd) {
+    EXPECT_TRUE(Env.fdFdstatSetRights(Fd, static_cast<__wasi_rights_t>(0),
+                                      static_cast<__wasi_rights_t>(0)));
+    EXPECT_TRUE(Env.fdClose(Fd));
+  }
+  const auto After = Env.getInitialDescriptors();
+  ASSERT_EQ(After.size(), 5U);
+  EXPECT_EQ(Rw->FsRightsBase, RwBase);
+  EXPECT_EQ(Rw->FsRightsInheriting, RwInheriting);
+  ASSERT_NE(Rw->Node.lock(), nullptr);
+  EXPECT_TRUE(Rw->Node.lock()->getNativeHandler());
+
+  const std::vector<WasmEdge::Host::WASI::Environ::InitialDescriptor> Recorded(
+      After.begin(), After.end());
+  EXPECT_TRUE(Env.fdRenumber(2, 1));
+  const auto Renumbered = Env.getInitialDescriptors();
+  ASSERT_EQ(Renumbered.size(), Recorded.size());
+  for (size_t I = 0; I < Recorded.size(); ++I) {
+    EXPECT_EQ(Renumbered[I].Node.lock(), Recorded[I].Node.lock());
+    EXPECT_EQ(Renumbered[I].FsRightsBase, Recorded[I].FsRightsBase);
+    EXPECT_EQ(Renumbered[I].FsRightsInheriting, Recorded[I].FsRightsInheriting);
+  }
+
+  Env.fini();
+  EXPECT_TRUE(Env.getInitialDescriptors().empty());
+}
+
+TEST(WasiTest, InitialDescriptorsWithFds) {
+  WasmEdge::Host::WASI::Environ Env;
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, 1, 1, 2));
+  EXPECT_EQ(Env.getInitialDescriptors().size(), 3U);
+}
+
+TEST(WasiTest, InitialDescriptorsStayWhenInitWithFdsFails) {
+  const int32_t InvalidFd = -1;
+  WasmEdge::Host::WASI::Environ New;
+  EXPECT_FALSE(New.initWithFds({}, "test"s, {}, {}, 0, 1, InvalidFd));
+  EXPECT_FALSE(New.getNativeHandler(0));
+  EXPECT_FALSE(New.getNativeHandler(1));
+  EXPECT_TRUE(New.getInitialDescriptors().empty());
+
+  // A second initialization that fails must not give the table a standard
+  // output that the record does not have.
+  WasmEdge::Host::WASI::Environ Env;
+  ASSERT_TRUE(Env.initWithFds({}, "test"s, {}, {}, 0, 1, 2));
+  ASSERT_TRUE(Env.fdClose(1));
+  EXPECT_FALSE(Env.initWithFds({}, "test"s, {}, {}, 0, 1, InvalidFd));
+  EXPECT_FALSE(Env.getNativeHandler(1));
+  const auto Record = Env.getInitialDescriptors();
+  ASSERT_EQ(Record.size(), 3U);
+  EXPECT_EQ(Record[1].Node.lock(), nullptr);
+  Env.fini();
+}
+
+TEST(WasiTest, InitialDescriptorsAreTheTableAsInitLeavesIt) {
+  namespace fs = std::filesystem;
+  const auto Root = fs::path(
+      "wasmedge-wasi-table-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "a", Error));
+  ASSERT_TRUE(fs::create_directories(Root / "b", Error));
+  const auto DirA = "/a:"s + (Root / "a").string();
+  const auto DirB = "/b:"s + (Root / "b").string();
+  WasmEdge::Host::WASI::Environ Env;
+  const auto RecordedNames = [&Env]() {
+    std::vector<std::string> Names;
+    for (const auto &D : Env.getInitialDescriptors()) {
+      if (D.Directory) {
+        Names.push_back(D.Directory->name());
+      }
+    }
+    return Names;
+  };
+  const auto TableNames = [&Env]() {
+    std::vector<std::string> Names;
+    __wasi_prestat_t PreStat{};
+    for (__wasi_fd_t Fd = 3; Env.fdPrestatGet(Fd, PreStat); ++Fd) {
+      std::vector<uint8_t> Buffer(
+          WasmEdge::EndianValue(PreStat.u.dir.pr_name_len).le());
+      EXPECT_TRUE(Env.fdPrestatDirName(Fd, Buffer));
+      Names.emplace_back(reinterpret_cast<const char *>(Buffer.data()),
+                         Buffer.size());
+    }
+    return Names;
+  };
+
+  Env.init({DirA}, "test"s, {}, {});
+  EXPECT_EQ(RecordedNames(), std::vector<std::string>{"a"s});
+
+  Env.init({DirB}, "test"s, {}, {});
+  EXPECT_EQ(Env.getInitialDescriptors().size(), 3U + TableNames().size());
+  EXPECT_EQ(RecordedNames(), TableNames());
+
+  Env.fini();
+  Env.init({DirB}, "test"s, {}, {});
+  EXPECT_EQ(RecordedNames(), std::vector<std::string>{"b"s});
+  EXPECT_EQ(Env.getInitialDescriptors().size(), 4U);
+  Env.fini();
+}
+
+TEST(WasiTest, InitialDescriptorsKeepOnlyDirectoriesOpen) {
+  namespace fs = std::filesystem;
+  const auto Root = fs::path(
+      "wasmedge-wasi-kept-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "rw", Error));
+  const auto Dir = "/rw:"s + (Root / "rw").string();
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init(std::array{Dir}, "test"s, {}, {});
+  const auto File = Env.pathOpen(
+      3, "file"sv, static_cast<__wasi_lookupflags_t>(0), __WASI_OFLAGS_CREAT,
+      __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE,
+      static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(File);
+  // A second initialization without fini() keeps the file in the table, so the
+  // record has it: three standard streams, the directory, and the file.
+  Env.init(std::array{Dir}, "test"s, {}, {});
+  const auto Before = Env.getInitialDescriptors();
+  ASSERT_EQ(Before.size(), 5U);
+  ASSERT_NE(Before[3].Node.lock(), nullptr);
+  EXPECT_TRUE(Before[3].Node.lock()->isDirectory());
+  ASSERT_NE(Before[4].Node.lock(), nullptr);
+  EXPECT_FALSE(Before[4].Node.lock()->isDirectory());
+  const auto FileHandle = Env.getNativeHandler(*File);
+  const auto DirHandle = Env.getNativeHandler(3);
+  ASSERT_TRUE(FileHandle);
+  ASSERT_TRUE(DirHandle);
+
+  ASSERT_TRUE(Env.fdClose(1));
+  ASSERT_TRUE(Env.fdClose(3));
+  ASSERT_TRUE(Env.fdClose(*File));
+
+  // The record keeps a directory open, because a guest can keep a descriptor
+  // below a directory that it closed. It keeps nothing else open.
+  const auto After = Env.getInitialDescriptors();
+  ASSERT_EQ(After.size(), 5U);
+  EXPECT_EQ(After[1].Node.lock(), nullptr);
+  EXPECT_EQ(After[4].Node.lock(), nullptr);
+  ASSERT_NE(After[3].Node.lock(), nullptr);
+  EXPECT_TRUE(After[3].Node.lock()->getNativeHandler());
+#if !WASMEDGE_OS_WINDOWS
+  EXPECT_EQ(::fcntl(static_cast<int>(*FileHandle), F_GETFD), -1);
+  EXPECT_NE(::fcntl(static_cast<int>(*DirHandle), F_GETFD), -1);
+#endif
+  Env.fini();
 }
 
 TEST(WasiTest, Directory) {

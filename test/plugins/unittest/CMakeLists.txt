@@ -59,6 +59,7 @@ target_link_libraries(wasmedgePluginUnittestsC
 # The test executable for C++ API
 wasmedge_add_executable(wasmedgePluginUnittestsCPP
   unittest_cpp.cpp
+  resource_table_test.cpp
 )
 
 target_include_directories(wasmedgePluginUnittestsCPP

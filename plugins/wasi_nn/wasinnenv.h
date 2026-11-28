@@ -4,7 +4,7 @@
 #pragma once
 
 #include "GGML/core/ggml_core.h"
-#include "resource_table.h"
+#include "plugin/resource_table.h"
 #include "wasinn_bitnet.h"
 #include "wasinn_chattts.h"
 #include "wasinn_mlx.h"
@@ -47,6 +47,8 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASINN {
+
+template <typename T> using ResourceTable = Plugin::ResourceTable<T>;
 
 namespace detail {
 template <typename T, typename V> struct VariantIndex;

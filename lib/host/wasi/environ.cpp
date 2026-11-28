@@ -104,6 +104,23 @@ std::optional<PreopenDir> parsePreopenDir(std::string_view Dir) {
   return PreopenDir{std::move(GuestDir), std::string(Host), ReadOnly};
 }
 
+std::vector<Environ::InitialDescriptor> snapshotInitialDescriptors(
+    const std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> &FdMap) {
+  std::vector<std::pair<__wasi_fd_t, std::shared_ptr<VINode>>> Ordered(
+      FdMap.begin(), FdMap.end());
+  std::sort(
+      Ordered.begin(), Ordered.end(),
+      [](const auto &LHS, const auto &RHS) { return LHS.first < RHS.first; });
+  std::vector<Environ::InitialDescriptor> Snapshot;
+  Snapshot.reserve(Ordered.size());
+  for (const auto &Entry : Ordered) {
+    const auto &Node = Entry.second;
+    Snapshot.push_back({Node, Node->isDirectory() ? Node : nullptr,
+                        Node->fsRightsBase(), Node->fsRightsInheriting()});
+  }
+  return Snapshot;
+}
+
 } // namespace
 
 void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
@@ -140,6 +157,7 @@ void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
     for (auto &PreopenedDir : PreopenedDirs) {
       FdMap.emplace(NewFd++, std::move(PreopenedDir));
     }
+    InitialDescriptors = snapshotInitialDescriptors(FdMap);
   }
 
   Arguments.resize(Args.size() + 1);
@@ -159,23 +177,25 @@ Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
                      Span<const std::string> Args, Span<const std::string> Envs,
                      int32_t StdInFd, int32_t StdOutFd, int32_t StdErrFd) {
   {
+    // Make the three nodes before the table changes. Then a call that fails
+    // changes neither the table nor InitialDescriptors.
     auto StdInVNode =
         VINode::fromFd(StdInFd, kStdInDefaultRights, kNoInheritingRights);
     if (!StdInVNode) {
       return WasiUnexpect(StdInVNode.error());
     }
-    FdMap.emplace(0, std::move(*StdInVNode));
     auto StdOutVNode =
         VINode::fromFd(StdOutFd, kStdOutDefaultRights, kNoInheritingRights);
     if (!StdOutVNode) {
       return WasiUnexpect(StdOutVNode.error());
     }
-    FdMap.emplace(1, std::move(*StdOutVNode));
     auto StdErrVNode =
         VINode::fromFd(StdErrFd, kStdErrDefaultRights, kNoInheritingRights);
     if (!StdErrVNode) {
       return WasiUnexpect(StdErrVNode.error());
     }
+    FdMap.emplace(0, std::move(*StdInVNode));
+    FdMap.emplace(1, std::move(*StdOutVNode));
     FdMap.emplace(2, std::move(*StdErrVNode));
 
     // Open dir for WASI environment.
@@ -205,6 +225,7 @@ Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
     for (auto &PreopenedDir : PreopenedDirs) {
       FdMap.emplace(NewFd++, std::move(PreopenedDir));
     }
+    InitialDescriptors = snapshotInitialDescriptors(FdMap);
   }
 
   Arguments.resize(Args.size() + 1);
@@ -223,6 +244,7 @@ Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
 void Environ::fini() noexcept {
   EnvironVariables.clear();
   Arguments.clear();
+  InitialDescriptors.clear();
   FdMap.clear();
 }
 
@@ -230,7 +252,10 @@ Environ::~Environ() noexcept { fini(); }
 
 WasiExpect<std::shared_ptr<VINode>>
 Environ::findPreopen(std::string_view &Path) const noexcept {
-  // The leading "/" and "./" are not significant, as in the WASI libc.
+  // Drop every leading "/" and "./" from a name and from a path. The WASI libc
+  // does this for names only. From a path, it drops the leading "/" and one
+  // "./" at most. Thus "/./a/b" is in directory "a" here, as in POSIX, but in
+  // directory "." or "/" in the WASI libc.
   auto Strip = [](std::string_view Name) noexcept {
     while (true) {
       if (!Name.empty() && Name[0] == '/') {
@@ -245,8 +270,8 @@ Environ::findPreopen(std::string_view &Path) const noexcept {
     }
   };
 
-  // The preopened directory with the longest name containing the path wins,
-  // and the last one preopened among the equal names.
+  // The directory with the longest name that contains the path wins. Among
+  // equal names, the last preopened one wins, as in the WASI libc.
   Path = Strip(Path);
   std::shared_ptr<VINode> Dir;
   __wasi_fd_t DirFd = 0;

@@ -2,588 +2,414 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "sd_func.h"
+
+#include "sd_abi.h"
+#include "sd_backend.h"
+#include "sd_guest_file.h"
+#include "sd_image.h"
+#include "sd_request.h"
+#include "sd_session.h"
+
+#include "common/expected.h"
+#include "common/span.h"
 #include "common/spdlog.h"
-#include "sd_env.h"
-#include "spdlog/spdlog.h"
-#include "stable-diffusion.h"
+#include "runtime/instance/memory.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_STATIC
-#include "stb_image.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_STATIC
-#include "stb_image_write.h"
-
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE_STATIC
-#include "stb_image_resize.h"
+#include <algorithm>
+#include <cstdint>
+#include <initializer_list>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
 namespace StableDiffusion {
 
-#define MEMINST_CHECK(Out, CallFrame, Index)                                   \
-  auto *Out = CallFrame.getMemoryByIndex(Index);                               \
-  if (unlikely(Out == nullptr)) {                                              \
-    spdlog::error("[WasmEdge-StableDiffusion] Memory instance not found."sv);  \
-    return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
-  }
+namespace {
 
-#define SESSION_CHECK(Out, SessionID, Message, ErrNo)                          \
-  auto *Out = Env.getContext(SessionID);                                       \
-  if (unlikely(Out == nullptr)) {                                              \
-    spdlog::error("[WasmEdge-StableDiffusion] "sv Message);                    \
-    return static_cast<uint32_t>(ErrNo);                                       \
+// Returns the ABI name of a code, for the host log.
+std::string_view nameOf(ErrNo Code) noexcept {
+  switch (Code) {
+  case ErrNo::Success:
+    return "Success"sv;
+  case ErrNo::InvalidArgument:
+    return "InvalidArgument"sv;
+  case ErrNo::InvalidEncoding:
+    return "InvalidEncoding"sv;
+  case ErrNo::MissingMemory:
+    return "MissingMemory"sv;
+  case ErrNo::Busy:
+    return "Busy"sv;
+  case ErrNo::RuntimeError:
+    return "RuntimeError"sv;
+  case ErrNo::BufferTooSmall:
+    return "BufferTooSmall"sv;
+  case ErrNo::NotFound:
+    return "NotFound"sv;
+  case ErrNo::LoadFailed:
+    return "LoadFailed"sv;
+  case ErrNo::NotReadOnly:
+    return "NotReadOnly"sv;
   }
-
-#define MEM_SPAN_CHECK(OutSpan, MemInst, Type, BufPtr, BufLen, Message)        \
-  auto OutSpan = MemInst->getSpan<Type>(BufPtr, BufLen);                       \
-  if (unlikely(OutSpan.size() != BufLen)) {                                    \
-    spdlog::error("[WasmEdge-StableDiffusion] "sv Message);                    \
-    return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
-  }
-
-#define MEM_SV_CHECK(OutSV, MemInst, BufPtr, BufLen, Message)                  \
-  auto OutSV = MemInst->getStringView(BufPtr, BufLen);                         \
-  if (unlikely(OutSV.size() != BufLen)) {                                      \
-    spdlog::error("[WasmEdge-StableDiffusion] "sv Message);                    \
-    return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
-  }
-
-#define MEM_PTR_CHECK(OutPtr, MemInst, Type, Offset, Message)                  \
-  Type *OutPtr = MemInst->getPointer<Type *>(Offset);                          \
-  if (unlikely(OutPtr == nullptr)) {                                           \
-    spdlog::error("[WasmEdge-StableDiffusion] "sv Message);                    \
-    return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
-  }
-
-bool parameterCheck(SDEnviornment &Env, uint32_t Width, uint32_t Height,
-                    uint32_t SessionId) {
-  if (SessionId >= Env.getContextSize()) {
-    spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid."sv);
-    return false;
-  }
-  if (Width % 64 != 0) {
-    spdlog::error(
-        "[WasmEdge-StableDiffusion] Width must be a multiple of 64 and greater than 0."sv);
-    return false;
-  }
-  if (Height % 64 != 0) {
-    spdlog::error(
-        "[WasmEdge-StableDiffusion] Height must be a multiple of 64 and greater than 0."sv);
-    return false;
-  }
-  return true;
+  return "an unknown code"sv;
 }
 
-sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
-                             bool CannyPreprocess) {
-  uint8_t *ControlImageBuffer = nullptr;
-  sd_image_t *ControlImg = nullptr;
-  int Channel = 0;
-  std::string ControlImagePath(ControlImage.begin(), ControlImage.end());
-
-  if (ControlImagePath.substr(0, 5) == "path:"sv) {
-    ControlImageBuffer = stbi_load(ControlImagePath.substr(5).data(), &Width,
-                                   &Height, &Channel, 3);
+// Logs one line for a failed call of host function Function and returns Code.
+// Why adds detail when the code alone is not clear. The line is an error line,
+// except for BufferTooSmall: a guest can cause that code on purpose to get the
+// size of a result.
+ErrNo failure(std::string_view Function, ErrNo Code,
+              std::string_view Why = {}) noexcept {
+  const auto Level =
+      Code == ErrNo::BufferTooSmall ? spdlog::level::debug : spdlog::level::err;
+  if (Why.empty()) {
+    spdlog::log(Level, "[WasmEdge-StableDiffusion] {} failed with {}"sv,
+                Function, nameOf(Code));
   } else {
-    ControlImageBuffer = stbi_load_from_memory(
-        ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
+    spdlog::log(Level, "[WasmEdge-StableDiffusion] {} failed with {}: {}"sv,
+                Function, nameOf(Code), Why);
   }
-
-  if (ControlImageBuffer == nullptr) {
-    spdlog::error(
-        "[WasmEdge-StableDiffusion] Load image from control image failed."sv);
-    return nullptr;
-  }
-  ControlImg =
-      new sd_image_t{static_cast<uint32_t>(Width),
-                     static_cast<uint32_t>(Height), 3, ControlImageBuffer};
-  if (CannyPreprocess) { // apply preprocessor
-    ControlImg->data =
-        preprocess_canny(ControlImg->data, ControlImg->width,
-                         ControlImg->height, 0.08f, 0.08f, 0.8f, 1.0f, false);
-  }
-  free(ControlImageBuffer);
-  return ControlImg;
+  return Code;
 }
 
-sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
-  uint8_t *MaskImageBuffer = NULL;
-  std::string MaskImagePath(MaskImage.begin(), MaskImage.end());
-  int Channel = 0;
-  if (MaskImagePath.substr(0, 5) == "path:"sv) {
-    MaskImageBuffer =
-        stbi_load(MaskImagePath.substr(5).data(), &Width, &Height, &Channel, 3);
-  } else if (MaskImage.size() != 0) {
-    MaskImageBuffer = stbi_load_from_memory(MaskImage.data(), MaskImage.size(),
-                                            &Width, &Height, &Channel, 3);
-  } else {
-    std::vector<uint8_t> Arr(Width * Height, 255);
-    MaskImageBuffer = Arr.data();
-  }
-  return {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height), 1,
-          MaskImageBuffer};
+uint32_t loadU32(const uint8_t *Bytes) noexcept {
+  return static_cast<uint32_t>(Bytes[0]) |
+         static_cast<uint32_t>(Bytes[1]) << 8 |
+         static_cast<uint32_t>(Bytes[2]) << 16 |
+         static_cast<uint32_t>(Bytes[3]) << 24;
 }
 
-void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
-                   int32_t NThreads, uint32_t BatchCount, sd_image_t *Results) {
-  // unused for RealESRGAN_x4plus_anime_6B.pth
-  int UpscaleFactor = 4;
-  upscaler_ctx_t *UpscalerCtx = new_upscaler_ctx(UpscaleModelPath, NThreads);
-  if (UpscalerCtx == nullptr) {
-    spdlog::error("[WasmEdge-StableDiffusion] Create upscaler ctx failed."sv);
-  } else {
-    for (uint32_t I = 0; I < BatchCount; I++) {
-      if (Results[I].data == nullptr) {
-        continue;
-      }
-      sd_image_t CurrentImage = Results[I];
-      for (uint32_t U = 0; U < UpscaleRepeats; ++U) {
-        sd_image_t UpscaledImage =
-            upscale(UpscalerCtx, CurrentImage, UpscaleFactor);
-        if (UpscaledImage.data == nullptr) {
-          spdlog::error("[WasmEdge-StableDiffusion] Upscale failed."sv);
-          break;
-        }
-        free(CurrentImage.data);
-        CurrentImage = UpscaledImage;
-      }
-      // Set the final upscaled image as the result.
-      Results[I] = CurrentImage;
-    }
+void storeU32(uint8_t *Bytes, uint32_t Value) noexcept {
+  for (uint32_t I = 0; I < 4; ++I) {
+    Bytes[I] = static_cast<uint8_t>(Value >> (8 * I));
   }
-  free(UpscalerCtx);
 }
 
-bool saveResults(sd_image_t *Results, uint32_t BatchCount,
-                 std::string OutputPath, uint32_t OutputPathLen,
-                 uint32_t *BytesWritten, uint32_t OutBufferMaxSize,
-                 uint8_t *OutputBufferSpanPtr) {
-  int Len;
-  unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
-      Results->height, Results->channel, &Len, nullptr);
-  if (OutputPathLen != 0) {
-    size_t Last = OutputPath.find_last_of(".");
-    std::string DummyName = OutputPath;
-    std::string Extension = ".png";
-    if (Last != std::string::npos) {
-      std::string LastStr = OutputPath.substr(Last);
-      if (LastStr == ".png" || LastStr == ".PNG") {
-        DummyName = OutputPath.substr(0, Last);
-        Extension = LastStr;
-      }
-    }
-    for (uint32_t I = 0; I < BatchCount; I++) {
-      if (Results[I].data != nullptr) {
-        std::string FinalImagePath;
-        if (I <= 0)
-          FinalImagePath = DummyName + Extension;
-        else
-          FinalImagePath += "_" + std::to_string(I + 1) + Extension;
-        stbi_write_png(FinalImagePath.c_str(), Results[I].width,
-                       Results[I].height, Results[I].channel, Results[I].data,
-                       0, nullptr);
-        spdlog::info("[WasmEdge-StableDiffusion] Save result image to {}."sv,
-                     FinalImagePath.c_str());
-        free(Results[I].data);
-        Results[I].data = nullptr;
-      }
-    }
+// Returns the bytes [Ptr, Ptr + Len) of the caller memory. Returns
+// MissingMemory if the caller has no memory or the range is outside it.
+Expected<Span<uint8_t>, ErrNo> guestBytes(const Runtime::CallingFrame &Frame,
+                                          uint32_t Ptr, uint64_t Len) noexcept {
+  const auto *Memory = Frame.getMemoryByIndex(0);
+  if (Memory == nullptr || !Memory->checkAccessBound(Ptr, Len)) {
+    return Unexpected<ErrNo>(ErrNo::MissingMemory);
   }
-  *BytesWritten = Len;
-  if (OutBufferMaxSize < *BytesWritten) {
-    spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not enough."sv);
-    free(Png);
-    free(Results);
-    return false;
-  }
-  std::copy_n(Png, *BytesWritten, OutputBufferSpanPtr);
-  free(Png);
-  free(Results);
-  return true;
+  return Memory->getSpan<uint8_t>(Ptr, Len);
 }
 
-Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
-                                 uint32_t ModelPathPtr, uint32_t ModelPathLen,
-                                 uint32_t VaeModelPathPtr,
-                                 uint32_t VaeModelPathLen,
-                                 uint32_t OutputPathPtr, uint32_t OutputPathLen,
-                                 uint32_t WType) {
-  // Check memory instance from module.
-  MEMINST_CHECK(MemInst, Frame, 0)
-
-  // Check the input parameter value.
-  MEM_SPAN_CHECK(ModelPathSpan, MemInst, char, ModelPathPtr, ModelPathLen,
-                 "Failed when accessing the input model path memory."sv)
-  MEM_SPAN_CHECK(VaeModelPathSpan, MemInst, char, VaeModelPathPtr,
-                 VaeModelPathLen,
-                 "Failed when accessing the input vae model path memory."sv)
-  MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
-                 "Failed when accessing the output path memory."sv)
-  std::string ModelPath = std::string(
-      ModelPathSpan.begin(), ModelPathSpan.begin() + ModelPathSpan.size());
-  std::string VaeModelPath =
-      std::string(VaeModelPathSpan.begin(),
-                  VaeModelPathSpan.begin() + VaeModelPathSpan.size());
-  std::string OutputPath = std::string(
-      OutputPathSpan.begin(), OutputPathSpan.begin() + OutputPathSpan.size());
-
-  spdlog::info("[WasmEdge-StableDiffusion] Convert model: {} to {}."sv,
-               ModelPath.data(), OutputPath.data());
-  std::ifstream Fin(ModelPath.data(), std::ios::in | std::ios::binary);
-  if (!Fin) {
-    Fin.close();
-    spdlog::error("[WasmEdge-StableDiffusion] Model not found."sv);
-    return static_cast<uint32_t>(ErrNo::InvalidArgument);
-  }
-  Fin.close();
-  // Convert model.
-  bool Ret = ::convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
-                       static_cast<sd_type_t>(WType));
-  if (!Ret) {
-    spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model."sv);
-    return static_cast<uint32_t>(ErrNo::InvalidArgument);
-  }
-
-  return static_cast<uint32_t>(ErrNo::Success);
+// Returns Success when [Ptr, Ptr + Len) is inside the caller memory.
+ErrNo checkInside(const Runtime::CallingFrame &Frame, uint32_t Ptr,
+                  uint64_t Len) noexcept {
+  return guestBytes(Frame, Ptr, Len) ? ErrNo::Success : ErrNo::MissingMemory;
 }
 
-Expect<uint32_t> SDCreateContext::body(
-    const Runtime::CallingFrame &Frame, uint32_t ModelPathPtr,
-    uint32_t ModelPathLen, uint32_t clipLPathPtr, uint32_t clipLPathLen,
-    uint32_t clipGPathPtr, uint32_t clipGPathLen, uint32_t t5xxlPathPtr,
-    uint32_t t5xxlPathLen, uint32_t diffusionModelPathPtr,
-    uint32_t diffusionModelPathLen, uint32_t VaePathPtr, uint32_t VaePathLen,
-    uint32_t TaesdPathPtr, uint32_t TaesdPathLen, uint32_t ControlNetPathPtr,
-    uint32_t ControlNetPathLen, uint32_t LoraModelDirPtr,
-    uint32_t LoraModelDirLen, uint32_t EmbedDirPtr, uint32_t EmbedDirLen,
-    uint32_t IdEmbedDirPtr, uint32_t IdEmbedDirLen, uint32_t VaeDecodeOnly,
-    uint32_t VaeTiling, int32_t NThreads, uint32_t Wtype, uint32_t RngType,
-    uint32_t Schedule, uint32_t ClipOnCpu, uint32_t ControlNetCpu,
-    uint32_t VaeOnCpu, uint32_t DiffusionFlashAttn, uint32_t SessiontIdPtr) {
-  // Check memory instance from module.
-  MEMINST_CHECK(MemInst, Frame, 0)
-  // Check the input model buffer.
-  MEM_SPAN_CHECK(ModelPathSpan, MemInst, char, ModelPathPtr, ModelPathLen,
-                 "Failed when accessing the input model path memory."sv)
-  MEM_SPAN_CHECK(clipLPathSpan, MemInst, char, clipLPathPtr, clipLPathLen,
-                 "Failed when accessing the input clipL path memory."sv)
-  MEM_SPAN_CHECK(clipGPathSpan, MemInst, char, clipGPathPtr, clipGPathLen,
-                 "Failed when accessing the input clipG path memory."sv)
-  MEM_SPAN_CHECK(t5xxlPathSpan, MemInst, char, t5xxlPathPtr, t5xxlPathLen,
-                 "Failed when accessing the input t5xxl path memory."sv)
-  MEM_SPAN_CHECK(
-      diffusionModelPathSpan, MemInst, char, diffusionModelPathPtr,
-      diffusionModelPathLen,
-      "Failed when accessing the input diffusion model path memory."sv)
-  MEM_SPAN_CHECK(VaePathSpan, MemInst, char, VaePathPtr, VaePathLen,
-                 "Failed when accessing the input vae path memory."sv)
-  MEM_SPAN_CHECK(ControlNetPathSpan, MemInst, char, ControlNetPathPtr,
-                 ControlNetPathLen,
-                 "Failed when accessing the input control net path memory."sv)
-  MEM_SPAN_CHECK(LoraModelDirSpan, MemInst, char, LoraModelDirPtr,
-                 LoraModelDirLen,
-                 "Failed when accessing the input lora model path memory."sv)
-  MEM_SPAN_CHECK(TaesdPathSpan, MemInst, char, TaesdPathPtr, TaesdPathLen,
-                 "Failed when accessing the input taesd path memory."sv)
-  MEM_SPAN_CHECK(EmbedDirSpan, MemInst, char, EmbedDirPtr, EmbedDirLen,
-                 "Failed when accessing the input embedded directory memory."sv)
-  MEM_SPAN_CHECK(
-      IdEmbedDirSpan, MemInst, char, IdEmbedDirPtr, IdEmbedDirLen,
-      "Failed when accessing the input id dembed directory memory."sv)
-  MEM_PTR_CHECK(SessionId, MemInst, uint32_t, SessiontIdPtr,
-                "Failed when accessing the return SessionID memory."sv)
-  std::string ModelPath =
-      std::string(ModelPathSpan.begin(), ModelPathSpan.end());
-  std::string VaePath = std::string(VaePathSpan.begin(), VaePathSpan.end());
-  std::string TaesdPath =
-      std::string(TaesdPathSpan.begin(), TaesdPathSpan.end());
-  std::string ControlNetPath =
-      std::string(ControlNetPathSpan.begin(), ControlNetPathSpan.end());
-  std::string LoraModelDir =
-      std::string(LoraModelDirSpan.begin(), LoraModelDirSpan.end());
-  std::string EmbedDir = std::string(EmbedDirSpan.begin(), EmbedDirSpan.end());
-  std::string IdEmbedDir =
-      std::string(IdEmbedDirSpan.begin(), IdEmbedDirSpan.end());
-  std::string clipLPath =
-      std::string(clipLPathSpan.begin(), clipLPathSpan.end());
-  std::string clipGPath =
-      std::string(clipGPathSpan.begin(), clipGPathSpan.end());
-  std::string t5xxlPath =
-      std::string(t5xxlPathSpan.begin(), t5xxlPathSpan.end());
-  std::string diffusionModelPath =
-      std::string(diffusionModelPathSpan.begin(), diffusionModelPathSpan.end());
-  if (NThreads == -1) {
-    NThreads = get_num_physical_cores();
+// Returns a copy of the guest text at [Ptr, Ptr + Len). Refuses a length above
+// the limit before it reads the bytes.
+Expected<std::string, ErrNo> readText(const Runtime::CallingFrame &Frame,
+                                      uint32_t Ptr, uint32_t Len) noexcept {
+  if (Len > Limits::MaxTextBytes) {
+    return Unexpected<ErrNo>(ErrNo::InvalidArgument);
   }
-  // Check parameters
-  if (ModelPathLen == 0 && diffusionModelPathLen == 0) {
-    spdlog::error(
-        "[WasmEdge-StableDiffusion] The following arguments are required: ModelPath / DiffusionModelPath"sv);
-    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+  const auto Bytes = guestBytes(Frame, Ptr, Len);
+  if (!Bytes) {
+    return Unexpected<ErrNo>(Bytes.error());
   }
-  // Create context and import graph.
-  spdlog::debug("[WasmEdge-StableDiffusion] Create context."sv);
-  sd_ctx_t *Ctx = new_sd_ctx(
-      ModelPath.data(), clipLPath.data(), clipGPath.data(), t5xxlPath.data(),
-      diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
-      ControlNetPath.data(), LoraModelDir.data(), EmbedDir.data(),
-      IdEmbedDir.data(), static_cast<bool>(VaeDecodeOnly),
-      static_cast<bool>(VaeTiling), false, NThreads,
-      static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
-      static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu,
-      DiffusionFlashAttn);
-  if (Ctx == nullptr) {
-    spdlog::error("[WasmEdge-StableDiffusion] Failed to create context."sv);
-    return static_cast<uint32_t>(ErrNo::InvalidArgument);
-  }
-  *SessionId = Env.addContext(Ctx, NThreads, static_cast<sd_type_t>(Wtype));
-  return static_cast<uint32_t>(ErrNo::Success);
+  return std::string(reinterpret_cast<const char *>(Bytes->data()),
+                     Bytes->size());
 }
 
-Expect<uint32_t> SDTextToImage::body(
-    const Runtime::CallingFrame &Frame, uint32_t PromptPtr, uint32_t PromptLen,
-    uint32_t SessionId, uint32_t ControlImagePtr, uint32_t ControlImageLen,
-    uint32_t NegativePromptPtr, uint32_t NegativePromptLen, float Guidance,
-    uint32_t Width, uint32_t Height, int32_t ClipSkip, float CfgScale,
-    uint32_t SampleMethod, uint32_t SampleSteps, uint32_t Seed,
-    uint32_t BatchCount, float ControlStrength, float StyleRatio,
-    uint32_t NormalizeInput, uint32_t InputIdImagesDirPtr,
-    uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess,
-    uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
-    uint32_t UpscaleRepeats, uint32_t SkipLayersPtr, uint32_t SkipLayersLen,
-    float SlgScale, float SkipLayerStart, float SkipLayerEnd,
-    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
-  // Check memory instance from module.
-  MEMINST_CHECK(MemInst, Frame, 0)
-  // Check the input model buffer.
-  MEM_SPAN_CHECK(PromptSpan, MemInst, char, PromptPtr, PromptLen,
-                 "Failed when accessing the promp memory."sv)
-  MEM_SPAN_CHECK(NegativePromptSpan, MemInst, char, NegativePromptPtr,
-                 NegativePromptLen,
-                 "Failed when accessing the input negative prompt memory."sv)
-  MEM_SPAN_CHECK(InputIdImagesDirSpan, MemInst, char, InputIdImagesDirPtr,
-                 InputIdImagesDirLen,
-                 "Failed when accessing the input id images path memory."sv)
-  MEM_SPAN_CHECK(OutputBufferSpan, MemInst, uint8_t, OutBufferPtr,
-                 OutBufferMaxSize,
-                 "Failed when accessing the Output Buffer memory."sv)
-  MEM_PTR_CHECK(BytesWritten, MemInst, uint32_t, BytesWrittenPtr,
-                "Failed when accessing the return bytes written memory."sv)
-  MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
-                 "Failed when accessing the output path memory."sv)
-  MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
-                 "Failed when accessing the SkipLayers memory."sv)
-  std::string Prompt(PromptSpan.begin(), PromptSpan.end());
-  std::string NegativePrompt(NegativePromptSpan.begin(),
-                             NegativePromptSpan.end());
-  std::string InputIdImagesDir(InputIdImagesDirSpan.begin(),
-                               InputIdImagesDirSpan.end());
-  std::string OutputPath(OutputPathSpan.begin(), OutputPathSpan.end());
-  if (!parameterCheck(Env, Width, Height, SessionId)) {
-    return static_cast<uint32_t>(ErrNo::InvalidArgument);
+// Returns the blobs of a table at Ptr: Count pairs {ptr, len} of little-endian
+// u32. Each blob must be inside the caller memory. Refuses a count above the
+// limit before it reads the table.
+Expected<std::vector<Span<const uint8_t>>, ErrNo>
+readBlobTable(const Runtime::CallingFrame &Frame, uint32_t Ptr,
+              uint32_t Count) noexcept {
+  if (Count > Limits::MaxBlobs) {
+    return Unexpected<ErrNo>(ErrNo::InvalidArgument);
   }
-  SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
-                ErrNo::InvalidArgument)
-  sd_image_t *Results = nullptr;
-  sd_image_t *ControlImage = nullptr;
-  // Read control image
-  if (ControlImageLen != 0) {
-    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
-                   ControlImageLen,
-                   "Failed when accessing the control image memory."sv)
-    ControlImage =
-        readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
+  const auto Table = guestBytes(Frame, Ptr, UINT64_C(8) * Count);
+  if (!Table) {
+    return Unexpected<ErrNo>(Table.error());
   }
-  // Generate images
-  spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
-  Results = txt2img(
-      SDCtx, Prompt.data(), NegativePrompt.data(), ClipSkip, CfgScale, Guidance,
-      Width, Height, sample_method_t(SampleMethod), SampleSteps, Seed,
-      BatchCount, ControlImage, ControlStrength, StyleRatio, NormalizeInput,
-      InputIdImagesDir.data(), SkipLayersSpan.data(), SkipLayersSpan.size(),
-      SlgScale, SkipLayerStart, SkipLayerEnd);
-  free(ControlImage);
-  if (Results == nullptr) {
-    spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);
-    Env.freeContext(SessionId);
-    return static_cast<uint32_t>(ErrNo::RuntimeError);
+  std::vector<Span<const uint8_t>> Blobs;
+  Blobs.reserve(Count);
+  for (uint32_t I = 0; I < Count; ++I) {
+    const uint8_t *Entry = Table->data() + UINT64_C(8) * I;
+    const auto Blob = guestBytes(Frame, loadU32(Entry), loadU32(Entry + 4));
+    if (!Blob) {
+      return Unexpected<ErrNo>(Blob.error());
+    }
+    Blobs.push_back(*Blob);
   }
-  // Upscale image
-  if (UpscaleModelPathLen != 0) {
-    MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
-                   UpscaleModelPathLen,
-                   "Failed when accessing the Upscaler Image memory."sv)
-    std::string UpscaleModelPath(UpscaleModelSpan.begin(),
-                                 UpscaleModelSpan.end());
-    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,
-                  Env.getNThreads(SessionId), BatchCount, Results);
-  }
-  // Save results
-  if (!saveResults(Results, BatchCount, OutputPath, OutputPathLen, BytesWritten,
-                   OutBufferMaxSize, OutputBufferSpan.data())) {
-    return static_cast<uint32_t>(ErrNo::RuntimeError);
-  }
-  return static_cast<uint32_t>(ErrNo::Success);
+  return Blobs;
 }
 
-Expect<uint32_t> SDImageToImage::body(
-    const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
-    uint32_t MaskImagePtr, uint32_t MaskImageLen, uint32_t SessionId,
-    float Guidance, uint32_t Width, uint32_t Height, uint32_t ControlImagePtr,
-    uint32_t ControlImageLen, uint32_t PromptPtr, uint32_t PromptLen,
-    uint32_t NegativePromptPtr, uint32_t NegativePromptLen, int32_t ClipSkip,
-    float CfgScale, uint32_t SampleMethod, uint32_t SampleSteps, float Strength,
-    uint32_t Seed, uint32_t BatchCount, float ControlStrength, float StyleRatio,
-    uint32_t NormalizeInput, uint32_t InputIdImagesDirPtr,
-    uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess,
-    uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
-    uint32_t UpscaleRepeats, uint32_t SkipLayersPtr, uint32_t SkipLayersLen,
-    float SlgScale, float SkipLayerStart, float SkipLayerEnd,
-    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
-  // Check memory instance from module.
-  MEMINST_CHECK(MemInst, Frame, 0)
-  // Check the input parameter valid.
-  MEM_SPAN_CHECK(ImageSpan, MemInst, uint8_t, ImagePtr, ImageLen,
-                 "Failed when accessing the input image memory."sv)
-  MEM_SPAN_CHECK(MaskImageSpan, MemInst, uint8_t, MaskImagePtr, MaskImageLen,
-                 "Failed when accessing the input mask image memory."sv)
-  MEM_SPAN_CHECK(PromptSpan, MemInst, char, PromptPtr, PromptLen,
-                 "Failed when accessing the promp memory."sv)
-  MEM_SPAN_CHECK(NegativePromptSpan, MemInst, char, NegativePromptPtr,
-                 NegativePromptLen,
-                 "Failed when accessing the input negative prompt memory."sv)
-  MEM_SPAN_CHECK(InputIdImagesDirSpan, MemInst, char, InputIdImagesDirPtr,
-                 InputIdImagesDirLen,
-                 "Failed when accessing the input id images path memory."sv)
-  MEM_SPAN_CHECK(OutputBufferSpan, MemInst, uint8_t, OutBufferPtr,
-                 OutBufferMaxSize,
-                 "Failed when accessing the Output Buffer memory."sv)
-  MEM_PTR_CHECK(BytesWritten, MemInst, uint32_t, BytesWrittenPtr,
-                "Failed when accessing the return bytes written memory."sv)
-  MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
-                 "Failed when accessing the output path memory."sv)
-  MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
-                 "Failed when accessing the SkipLayers memory."sv)
-  if (!parameterCheck(Env, Width, Height, SessionId)) {
-    return static_cast<uint32_t>(ErrNo::InvalidArgument);
-  }
-  SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
-                ErrNo::InvalidArgument)
-  std::string Prompt(PromptSpan.begin(), PromptSpan.end());
-  std::string NegativePrompt(NegativePromptSpan.begin(),
-                             NegativePromptSpan.end());
-  std::string InputIdImagesDir(InputIdImagesDirSpan.begin(),
-                               InputIdImagesDirSpan.end());
-  std::string OutputPath(OutputPathSpan.begin(), OutputPathSpan.end());
-  // Read input image
-  uint8_t *InputImageBuffer = nullptr;
-  int Channel = 0;
-  int ImageWidth = 0;
-  int ImageHeight = 0;
-  std::string ImagePath(ImageSpan.begin(), ImageSpan.end());
-  if (ImagePath.substr(0, 5) == "path:"sv) {
-    InputImageBuffer = stbi_load(ImagePath.substr(5).data(), &ImageWidth,
-                                 &ImageHeight, &Channel, 3);
-    if (InputImageBuffer == nullptr) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] Load image from input image failed."sv);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+// Decodes the images that the request refers to, directly from its blobs in
+// guest memory: the input and control images to three channels, the mask to
+// one. It does not decode a blob that no key refers to.
+Expected<GenerationInputs, ErrNo>
+decodeInputs(const GenerationRequest &Req,
+             Span<const Span<const uint8_t>> Blobs) noexcept {
+  struct Slot {
+    const std::optional<uint32_t> &Index;
+    uint32_t Channels;
+    std::optional<OwnedImage> &Image;
+  };
+  GenerationInputs Inputs;
+  for (const Slot &Input : {Slot{Req.InitImage, 3, Inputs.Init},
+                            Slot{Req.MaskImage, 1, Inputs.Mask},
+                            Slot{Req.ControlImage, 3, Inputs.Control}}) {
+    if (!Input.Index) {
+      continue;
     }
-    if (Channel < 3) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The number of channels for the input image must be >= 3."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    if (*Input.Index >= Blobs.size()) {
+      return Unexpected<ErrNo>(ErrNo::InvalidArgument);
     }
-    if (ImageWidth <= 0) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The width of image must be greater than 0."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
+    auto Decoded = decodeImage(Blobs[*Input.Index], Input.Channels);
+    if (!Decoded) {
+      return Unexpected<ErrNo>(Decoded.error());
     }
-    if (ImageHeight <= 0) {
-      spdlog::error(
-          "[WasmEdge-StableDiffusion] The height of image must be greater than 0."sv);
-      free(InputImageBuffer);
-      return static_cast<uint32_t>(ErrNo::InvalidArgument);
-    }
-    // Resize image when its size does not match the width and height.
-    if (Height != static_cast<uint32_t>(ImageHeight) ||
-        Width != static_cast<uint32_t>(ImageWidth)) {
-      int ResizedHeight = Height;
-      int ResizedWidth = Width;
-      uint8_t *ResizedImageBuffer =
-          (uint8_t *)malloc(ResizedHeight * ResizedWidth * 3);
-      if (ResizedImageBuffer == nullptr) {
-        spdlog::error(
-            "[WasmEdge-StableDiffusion] Failed to allocate memory for resize input image."sv);
-        free(InputImageBuffer);
-        return static_cast<uint32_t>(ErrNo::InvalidArgument);
-      }
-      stbir_resize(InputImageBuffer, ImageWidth, ImageHeight, 0,
-                   ResizedImageBuffer, ResizedWidth, ResizedHeight, 0,
-                   STBIR_TYPE_UINT8, 3, STBIR_ALPHA_CHANNEL_NONE, 0,
-                   STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_FILTER_BOX,
-                   STBIR_FILTER_BOX, STBIR_COLORSPACE_SRGB, nullptr);
-      free(InputImageBuffer);
-      InputImageBuffer = ResizedImageBuffer;
-    }
-  } else {
-    InputImageBuffer =
-        stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
-                              &ImageHeight, &Channel, 3);
+    Input.Image.emplace(std::move(*Decoded));
   }
-  sd_image_t InputImage = {Width, Height, 3, InputImageBuffer};
-  // Read control image
-  sd_image_t *ControlImage = nullptr;
-  if (ControlImageLen != 0) {
-    MEM_SPAN_CHECK(ControlImageSpan, MemInst, uint8_t, ControlImagePtr,
-                   ControlImageLen,
-                   "Failed when accessing the control image memory."sv)
-    ControlImage =
-        readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
+  return Inputs;
+}
+
+// Writes Values as consecutive little-endian u32 at Ptr. If they do not all fit
+// in the caller memory, writes nothing and returns MissingMemory.
+ErrNo writeU32s(const Runtime::CallingFrame &Frame, uint32_t Ptr,
+                std::initializer_list<uint32_t> Values) noexcept {
+  const auto Out = guestBytes(Frame, Ptr, UINT64_C(4) * Values.size());
+  if (!Out) {
+    return Out.error();
   }
-  // Read mask image
-  sd_image_t MaskImage = readMaskImage(MaskImageSpan, Width, Height);
-  // Generate images
-  sd_image_t *Results = nullptr;
-  spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
-  Results =
-      img2img(SDCtx, InputImage, MaskImage, Prompt.data(),
-              NegativePrompt.data(), ClipSkip, CfgScale, Guidance, Width,
-              Height, sample_method_t(SampleMethod), SampleSteps, Strength,
-              Seed, BatchCount, ControlImage, ControlStrength, StyleRatio,
-              NormalizeInput, InputIdImagesDir.data(), SkipLayersSpan.data(),
-              SkipLayersSpan.size(), SlgScale, SkipLayerStart, SkipLayerEnd);
-  free(ControlImage);
-  free(InputImageBuffer);
-  if (Results == nullptr) {
-    spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);
-    Env.freeContext(SessionId);
-    return static_cast<uint32_t>(ErrNo::RuntimeError);
+  uint8_t *Next = Out->data();
+  for (const uint32_t Value : Values) {
+    storeU32(Next, Value);
+    Next += 4;
   }
-  // Upscale image
-  if (UpscaleModelPathLen != 0) {
-    MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr,
-                   UpscaleModelPathLen,
-                   "Failed when accessing the Upscaler Image memory."sv)
-    std::string UpscaleModelPath(UpscaleModelSpan.begin(),
-                                 UpscaleModelSpan.end());
-    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,
-                  Env.getNThreads(SessionId), BatchCount, Results);
+  return ErrNo::Success;
+}
+
+// The two output ranges of result_read in the caller memory.
+struct ResultOutputs {
+  Span<uint8_t> Buf;     // [BufPtr, BufPtr + BufLen)
+  Span<uint8_t> Written; // the four bytes at WrittenPtr
+};
+
+// Returns the output ranges of result_read. Returns MissingMemory if one is
+// outside the caller memory, and InvalidArgument if they overlap. An empty
+// buffer overlaps nothing.
+Expected<ResultOutputs, ErrNo> resultOutputs(const Runtime::CallingFrame &Frame,
+                                             uint32_t BufPtr, uint32_t BufLen,
+                                             uint32_t WrittenPtr) noexcept {
+  const auto Buf = guestBytes(Frame, BufPtr, BufLen);
+  const auto Written = guestBytes(Frame, WrittenPtr, 4);
+  if (!Buf || !Written) {
+    return Unexpected<ErrNo>(ErrNo::MissingMemory);
   }
-  // Save results
-  if (!saveResults(Results, BatchCount, OutputPath, OutputPathLen, BytesWritten,
-                   OutBufferMaxSize, OutputBufferSpan.data())) {
-    return static_cast<uint32_t>(ErrNo::RuntimeError);
+  const uint64_t BufEnd = uint64_t{BufPtr} + BufLen;
+  const uint64_t WrittenEnd = uint64_t{WrittenPtr} + 4;
+  if (BufLen != 0 && WrittenPtr < BufEnd && BufPtr < WrittenEnd) {
+    return Unexpected<ErrNo>(ErrNo::InvalidArgument);
   }
-  return static_cast<uint32_t>(ErrNo::Success);
+  return ResultOutputs{*Buf, *Written};
+}
+
+// Copies a result into the guest buffer [BufPtr, BufPtr + BufLen) and writes
+// its size at WrittenPtr. Session::resultRead already found the buffer large
+// enough. On an error, it writes nothing:
+// - MissingMemory or InvalidArgument: see resultOutputs.
+// - RuntimeError: the result is larger than the buffer.
+// It runs under the session lock, so it must touch guest memory only.
+ErrNo copyResult(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
+                 uint32_t BufLen, uint32_t WrittenPtr,
+                 Span<const uint8_t> Result) noexcept {
+  const auto Out = resultOutputs(Frame, BufPtr, BufLen, WrittenPtr);
+  if (!Out) {
+    return Out.error();
+  }
+  if (Result.size() > Out->Buf.size()) {
+    return ErrNo::RuntimeError;
+  }
+  std::copy(Result.begin(), Result.end(), Out->Buf.begin());
+  storeU32(Out->Written.data(), static_cast<uint32_t>(Result.size()));
+  return ErrNo::Success;
+}
+
+// The backend must get no guest path. After the files are resolved, only the
+// host paths name them.
+void forgetGuestPaths(SessionConfig &Config) noexcept {
+  for (auto *Path :
+       {&Config.ModelPath, &Config.DiffusionModelPath, &Config.ClipLPath,
+        &Config.ClipGPath, &Config.T5xxlPath, &Config.VaePath,
+        &Config.TaesdPath, &Config.ControlNetPath, &Config.UpscalerModelPath}) {
+    Path->clear();
+  }
+  for (auto &Embedding : Config.Embeddings) {
+    Embedding.Path.clear();
+  }
+}
+
+void forgetGuestPaths(GenerationRequest &Req) noexcept {
+  for (auto &Lora : Req.Loras) {
+    Lora.Path.clear();
+  }
+}
+
+constexpr std::string_view kTooManySessions =
+    "the module instance has as many sessions as it may have"sv;
+
+// Maps a failed Backend::open to a code for the guest: InvalidArgument and
+// LoadFailed stay, and every other code becomes RuntimeError.
+ErrNo openFailure(ErrNo Code) noexcept {
+  return Code == ErrNo::InvalidArgument || Code == ErrNo::LoadFailed
+             ? Code
+             : ErrNo::RuntimeError;
+}
+
+} // namespace
+
+// These macros log one line for a failed stage and return its code from the
+// host function body. Each body that uses them has a local Name, the name of
+// the host function. SD_TRY binds Var to the value of an Expected.
+#define SD_TRY(Var, Expr)                                                      \
+  auto Var##Result = (Expr);                                                   \
+  if (!Var##Result) {                                                          \
+    return castErrNo(failure(Name, Var##Result.error()));                      \
+  }                                                                            \
+  auto &Var = *Var##Result
+
+#define SD_TRY_CODE(Expr)                                                      \
+  do {                                                                         \
+    if (const auto SDTryCode = (Expr); SDTryCode != ErrNo::Success) {          \
+      return castErrNo(failure(Name, SDTryCode));                              \
+    }                                                                          \
+  } while (false)
+
+Expect<uint32_t> SDAbiVersion::body(const Runtime::CallingFrame &) {
+  return kAbiVersion;
+}
+
+Expect<uint32_t> SDSessionOpen::body(const Runtime::CallingFrame &Frame,
+                                     uint32_t ConfigPtr, uint32_t ConfigLen,
+                                     uint32_t SessionPtr) {
+  constexpr auto Name = "session_open"sv;
+  if (!Env.hasBackend()) {
+    return castErrNo(
+        failure(Name, ErrNo::RuntimeError, "the module has no backend"sv));
+  }
+  // Take a place before any other work. The session keeps it until its
+  // context is freed. A call that fails gives it back when it returns.
+  auto Slot = Env.takeSlot();
+  if (!Slot) {
+    return castErrNo(failure(Name, ErrNo::Busy, kTooManySessions));
+  }
+  SD_TRY(Text, readText(Frame, ConfigPtr, ConfigLen));
+  SD_TRY_CODE(checkInside(Frame, SessionPtr, 4));
+  SD_TRY(Config, parseSessionConfig(Text));
+  SD_TRY(Files, resolveSessionFiles(Frame, Config, Env.createdAt()));
+  forgetGuestPaths(Config);
+  auto Context = Env.backend().open(Config, Files);
+  if (!Context) {
+    return castErrNo(failure(Name, openFailure(Context.error()),
+                             "the backend did not open the session"sv));
+  }
+  if (!*Context) {
+    return castErrNo(
+        failure(Name, ErrNo::RuntimeError, "the backend opened no context"sv));
+  }
+  const auto Id = Env.sessions().insert(
+      std::make_shared<Session>(std::move(*Context), std::move(Slot)));
+  if (!Id) {
+    return castErrNo(
+        failure(Name, ErrNo::RuntimeError, "every session id has been used"sv));
+  }
+  if (const auto Code = writeU32s(Frame, SessionPtr, {*Id});
+      Code != ErrNo::Success) {
+    Env.sessions().remove(*Id);
+    return castErrNo(failure(Name, Code));
+  }
+  return castErrNo(ErrNo::Success);
+}
+
+Expect<uint32_t> SDSessionClose::body(const Runtime::CallingFrame &,
+                                      uint32_t SessionId) {
+  constexpr auto Name = "session_close"sv;
+  if (!Env.sessions().remove(SessionId)) {
+    return castErrNo(
+        failure(Name, ErrNo::NotFound, "no open session has this id"sv));
+  }
+  return castErrNo(ErrNo::Success);
+}
+
+Expect<uint32_t> SDGenerate::body(const Runtime::CallingFrame &Frame,
+                                  uint32_t SessionId, uint32_t ReqPtr,
+                                  uint32_t ReqLen, uint32_t BlobsPtr,
+                                  uint32_t BlobsLen, uint32_t CountPtr) {
+  constexpr auto Name = "generate"sv;
+  SD_TRY(Text, readText(Frame, ReqPtr, ReqLen));
+  SD_TRY(Blobs, readBlobTable(Frame, BlobsPtr, BlobsLen));
+  // A count pointer outside the memory fails here, before the generation.
+  SD_TRY_CODE(checkInside(Frame, CountPtr, 4));
+  SD_TRY(Req, parseGenerationRequest(Text, BlobsLen));
+  const auto S = Env.sessions().get(SessionId);
+  if (!S) {
+    return castErrNo(
+        failure(Name, ErrNo::NotFound, "no open session has this id"sv));
+  }
+  SD_TRY_CODE(checkAgainst(S->capabilities(), Req));
+  SD_TRY(Files, resolveRequestFiles(Frame, Req, Env.createdAt()));
+  forgetGuestPaths(Req);
+  uint32_t Count = 0;
+  SD_TRY_CODE(S->generate(
+      Req, Files,
+      [&Req, &Blobs]() noexcept { return decodeInputs(Req, Blobs); }, Count));
+  SD_TRY_CODE(writeU32s(Frame, CountPtr, {Count}));
+  return castErrNo(ErrNo::Success);
+}
+
+Expect<uint32_t> SDResultInfo::body(const Runtime::CallingFrame &Frame,
+                                    uint32_t SessionId, uint32_t Index,
+                                    uint32_t Format, uint32_t InfoPtr) {
+  constexpr auto Name = "result_info"sv;
+  const auto S = Env.sessions().get(SessionId);
+  if (!S) {
+    return castErrNo(
+        failure(Name, ErrNo::NotFound, "no open session has this id"sv));
+  }
+  ResultInfo Info{};
+  SD_TRY_CODE(S->resultInfo(Index, static_cast<ResultFormat>(Format), Info));
+  SD_TRY_CODE(writeU32s(Frame, InfoPtr,
+                        {Info.Width, Info.Height, Info.Channels, Info.Size}));
+  return castErrNo(ErrNo::Success);
+}
+
+Expect<uint32_t> SDResultRead::body(const Runtime::CallingFrame &Frame,
+                                    uint32_t SessionId, uint32_t Index,
+                                    uint32_t Format, uint32_t BufPtr,
+                                    uint32_t BufLen, uint32_t WrittenPtr) {
+  constexpr auto Name = "result_read"sv;
+  const auto S = Env.sessions().get(SessionId);
+  if (!S) {
+    return castErrNo(
+        failure(Name, ErrNo::NotFound, "no open session has this id"sv));
+  }
+  uint32_t Size = 0;
+  const auto Code = S->resultRead(
+      Index, static_cast<ResultFormat>(Format), BufLen, Size,
+      [&Frame, BufPtr, BufLen,
+       WrittenPtr](Span<const uint8_t> Result) noexcept {
+        return copyResult(Frame, BufPtr, BufLen, WrittenPtr, Result);
+      });
+  if (Code == ErrNo::BufferTooSmall) {
+    SD_TRY(Out, resultOutputs(Frame, BufPtr, BufLen, WrittenPtr));
+    storeU32(Out.Written.data(), Size);
+  }
+  SD_TRY_CODE(Code);
+  return castErrNo(ErrNo::Success);
 }
 
 } // namespace StableDiffusion

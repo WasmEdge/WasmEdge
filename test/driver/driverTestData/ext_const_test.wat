@@ -1,0 +1,10 @@
+(module
+  (import "env" "g0" (global $g0 i32))
+  (global $a i32 (i32.add (global.get $g0) (i32.const 2)))
+  (global $b i64 (i64.mul (i64.const 3) (i64.const 4)))
+  (memory 1)
+  (table 2 funcref)
+  (func $f)
+  (elem (i32.add (i32.const 0) (i32.const 1)) $f)
+  (data (i32.sub (i32.const 8) (i32.const 4)) "hi")
+)

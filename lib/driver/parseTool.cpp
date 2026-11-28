@@ -75,10 +75,44 @@ NameSection parseNameSection(Span<const Byte> Data) {
   return NS;
 }
 
+// Renders one instruction of a constant expression with its immediate.
+std::string getConstInstrStr(const AST::Instruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::I32__const:
+    return fmt::format("i32.const {}"sv, Instr.getNum().get<int32_t>());
+  case OpCode::I64__const:
+    return fmt::format("i64.const {}"sv, Instr.getNum().get<int64_t>());
+  case OpCode::F32__const:
+    return fmt::format("f32.const {}"sv, Instr.getNum().get<float>());
+  case OpCode::F64__const:
+    return fmt::format("f64.const {}"sv, Instr.getNum().get<double>());
+  case OpCode::Global__get:
+  case OpCode::Ref__func:
+    return fmt::format("{} {}"sv, Instr.getOpCode(), Instr.getTargetIndex());
+  case OpCode::Ref__null:
+    return fmt::format("ref.null {}"sv, Instr.getValType());
+  default:
+    return fmt::format("{}"sv, Instr.getOpCode());
+  }
+}
+
 std::string getInitExprStr(const AST::Expression &Expr) {
   const auto Instrs = Expr.getInstrs();
   if (Instrs.empty())
     return {};
+  // An extended constant expression is listed whole, without its end, as
+  // wasm-objdump does.
+  if (Instrs.size() > 2) {
+    std::string Str = "(";
+    for (size_t I = 0; I + 1 < Instrs.size(); ++I) {
+      if (I > 0) {
+        Str += ", ";
+      }
+      Str += getConstInstrStr(Instrs[I]);
+    }
+    Str += ')';
+    return Str;
+  }
   const auto &Instr = Instrs[0];
   switch (Instr.getOpCode()) {
   case OpCode::I32__const:
